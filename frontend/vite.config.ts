@@ -37,9 +37,10 @@ export default defineConfig({
     port: config.ports.frontend,
     host: true,
   },
+  // Für Production: Nutze /api Proxy statt direktem Backend-Zugriff
   define: {
     'import.meta.env.VITE_API_URL': JSON.stringify(
-      process.env.VITE_API_URL || `http://localhost:${config.ports.backend}`
+      process.env.VITE_API_URL || '/api'
     ),
   },
 });
