@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { tasksApi } from '../../api/tasks';
-import { usersApi, User } from '../../api/users';
+import { User } from '../../api/users';
+import client from '../../api/client';
 
 interface Props {
   taskId: number;
+  eventId: number;
   eventInstanceId: number;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-export const TaskAssignmentModal: React.FC<Props> = ({ taskId, eventInstanceId, onClose, onSuccess }) => {
+export const TaskAssignmentModal: React.FC<Props> = ({ taskId, eventId, eventInstanceId, onClose, onSuccess }) => {
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
   const [reminderMinutes, setReminderMinutes] = useState<number>(15);
@@ -18,13 +20,13 @@ export const TaskAssignmentModal: React.FC<Props> = ({ taskId, eventInstanceId, 
 
   useEffect(() => {
     loadUsers();
-  }, []);
+  }, [eventId]);
 
   const loadUsers = async () => {
     try {
-      const allUsers = await usersApi.getAll();
-      // Nur Mitarbeiter anzeigen (nicht Admins)
-      setUsers(allUsers.filter(u => u.role === 'staff'));
+      // Nur Mitarbeiter aus dem Event Staff Pool laden
+      const response = await client.get(`/users/event/${eventId}/staff`);
+      setUsers(response.data);
     } catch (error) {
       console.error('Load users error:', error);
       setError('Fehler beim Laden der Mitarbeiter');
@@ -85,7 +87,12 @@ export const TaskAssignmentModal: React.FC<Props> = ({ taskId, eventInstanceId, 
             <label style={styles.label}>Mitarbeiter auswählen</label>
             <div style={styles.usersList}>
               {users.length === 0 ? (
-                <p style={styles.noUsers}>Keine Mitarbeiter verfügbar</p>
+                <div style={styles.noUsersContainer}>
+                  <p style={styles.noUsers}>Keine Mitarbeiter im Event-Pool verfügbar</p>
+                  <p style={styles.noUsersHint}>
+                    Bitte füge zuerst Mitarbeiter zum Event-Pool hinzu, bevor du Aufgaben zuweisen kannst.
+                  </p>
+                </div>
               ) : (
                 users.map(user => (
                   <label key={user.id} style={styles.userItem}>
@@ -193,10 +200,19 @@ const styles: { [key: string]: React.CSSProperties } = {
     maxHeight: '300px',
     overflow: 'auto',
   },
-  noUsers: {
-    color: '#6b7280',
+  noUsersContainer: {
     textAlign: 'center',
-    padding: '1rem',
+    padding: '2rem 1rem',
+  },
+  noUsers: {
+    color: '#374151',
+    fontWeight: '500',
+    marginBottom: '0.5rem',
+  },
+  noUsersHint: {
+    color: '#6b7280',
+    fontSize: '0.875rem',
+    margin: 0,
   },
   userItem: {
     display: 'flex',

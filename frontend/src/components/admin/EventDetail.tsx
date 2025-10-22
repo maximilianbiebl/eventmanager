@@ -7,6 +7,7 @@ import { TaskFormModal } from './TaskFormModal';
 import { TaskAssignmentModal } from './TaskAssignmentModal';
 import { TaskTableView } from './TaskTableView';
 import { DuplicateEventModal } from './DuplicateEventModal';
+import { EventStaffPool } from './EventStaffPool';
 
 interface Props {
   eventId: number;
@@ -116,6 +117,10 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
       </div>
 
       <div style={styles.section}>
+        <EventStaffPool eventId={eventId} />
+      </div>
+
+      <div style={styles.section}>
         <div style={styles.sectionHeader}>
           <h3>Aufgaben</h3>
           <div style={styles.headerActions}>
@@ -195,6 +200,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
       {showAssignModal && assignTaskId && selectedInstance && (
         <TaskAssignmentModal
           taskId={assignTaskId}
+          eventId={eventId}
           eventInstanceId={selectedInstance}
           onClose={() => {
             setShowAssignModal(false);
