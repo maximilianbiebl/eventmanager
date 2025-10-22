@@ -51,16 +51,28 @@ cd eventmanager
 ### Schritt 2: Konfiguration anpassen
 
 ```bash
-# Kopiere die Beispiel-Konfiguration
-cp config.json config.production.json
+# 1. Environment Variables erstellen
+cp .env.example .env
+nano .env
+```
 
-# Bearbeite die Konfiguration
+Setze mindestens:
+```bash
+FRONTEND_PORT=3000
+BACKEND_PORT=3001
+DB_PORT=5432
+DB_PASSWORD=dein_sicheres_passwort
+```
+
+```bash
+# 2. App-Konfiguration erstellen
+cp config.json config.production.json
 nano config.production.json
 ```
 
 Wichtige Einstellungen:
-- **Ports**: Standardmäßig Frontend:3000, Backend:3001, DB:5432
-- **Datenbank-Passwort**: Ändere `database.password`
+- **Ports**: Müssen mit `.env` identisch sein! (Frontend:3000, Backend:3001, DB:5432)
+- **Datenbank-Passwort**: Ändere `database.password` (gleich wie in `.env`)
 - **JWT-Secret**: Ändere `jwt.secret` zu einem langen, zufälligen String
 
 ### Schritt 3: VAPID Keys generieren
@@ -143,8 +155,21 @@ Login mit:
 
 ## Port-Konfiguration
 
-Alle Ports werden zentral in `config.json` verwaltet:
+Ports werden an **zwei Stellen** konfiguriert und müssen synchron gehalten werden:
 
+### 1. `.env` Datei (für Docker)
+```bash
+cp .env.example .env
+nano .env
+```
+
+```bash
+FRONTEND_PORT=3000
+BACKEND_PORT=3001
+DB_PORT=5432
+```
+
+### 2. `config.json` (für Anwendungslogik)
 ```json
 {
   "ports": {
@@ -155,10 +180,14 @@ Alle Ports werden zentral in `config.json` verwaltet:
 }
 ```
 
+**WICHTIG**: Beide Dateien müssen identische Ports haben!
+
 Um andere Ports zu verwenden:
-1. Bearbeite `config.json` oder `config.production.json`
-2. Aktualisiere auch `docker-compose.yml` entsprechend
+1. Bearbeite `.env` → Ports ändern
+2. Bearbeite `config.json` → **Gleiche** Ports eintragen
 3. Starte die Container neu: `docker-compose restart`
+
+Siehe [PORTS.md](PORTS.md) für ausführliche Anleitung.
 
 ## Verwendung
 
