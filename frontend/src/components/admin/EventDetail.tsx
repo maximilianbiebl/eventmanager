@@ -12,8 +12,8 @@ interface Props {
 export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
   const [event, setEvent] = useState<any>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [program, setProgram] = useState<ProgramItem[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
+  const [_program, setProgram] = useState<ProgramItem[]>([]);
+  const [_users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedInstance, setSelectedInstance] = useState<number | null>(null);
 
