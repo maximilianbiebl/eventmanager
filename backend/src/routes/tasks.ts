@@ -344,6 +344,54 @@ router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
       ]
     );
 
+    // Wenn Status geändert wurde, sende Push-Benachrichtigungen
+    if (status !== currentTask.status) {
+      try {
+        // Hole alle zugewiesenen Mitarbeiter
+        const assignments = await query(
+          `SELECT DISTINCT u.id, ps.endpoint, ps.keys
+           FROM task_assignments ta
+           JOIN users u ON ta.user_id = u.id
+           JOIN push_subscriptions ps ON ps.user_id = u.id
+           WHERE ta.task_id = $1 AND u.push_enabled = true`,
+          [id]
+        );
+
+        // Sende Benachrichtigung an jeden zugewiesenen Mitarbeiter
+        const webpush = require('web-push');
+        const statusLabels: { [key: string]: string } = {
+          not_started: 'Nicht gestartet',
+          in_progress: 'In Arbeit',
+          completed: 'Erledigt',
+          overdue: 'Überfällig',
+        };
+
+        const payload = JSON.stringify({
+          title: 'Aufgaben-Status geändert',
+          body: `"${title}" ist jetzt: ${statusLabels[status] || status}`,
+          icon: '/icon.svg',
+          badge: '/badge.svg',
+        });
+
+        for (const sub of assignments.rows) {
+          try {
+            await webpush.sendNotification(
+              {
+                endpoint: sub.endpoint,
+                keys: sub.keys,
+              },
+              payload
+            );
+          } catch (pushError) {
+            console.error('Send push notification error:', pushError);
+          }
+        }
+      } catch (notifError) {
+        console.error('Push notification error:', notifError);
+        // Fehler beim Senden von Benachrichtigungen sollte die Task-Aktualisierung nicht blockieren
+      }
+    }
+
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Update task error:', error);
