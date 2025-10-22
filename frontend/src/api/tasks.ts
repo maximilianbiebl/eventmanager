@@ -58,7 +58,7 @@ export const tasksApi = {
     return response.data;
   },
 
-  assign: async (data: { task_id: number; event_instance_id: number; user_ids: number[] }) => {
+  assign: async (data: { task_id: number; event_instance_id: number; user_ids: number[]; reminder_minutes?: number }) => {
     const response = await client.post('/tasks/assign', data);
     return response.data;
   },
