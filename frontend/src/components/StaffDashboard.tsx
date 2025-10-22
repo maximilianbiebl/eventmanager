@@ -6,7 +6,7 @@ import { useNotifications } from '../hooks/useNotifications';
 export const StaffDashboard: React.FC = () => {
   const [tasks, setTasks] = useState<TaskAssignment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [groupBy, setGroupBy] = useState<'event' | 'day'>('day');
+  const [groupBy, setGroupBy] = useState<'event-day' | 'event' | 'date'>('event-day');
   const { user, logout } = useAuth();
   const notifications = useNotifications();
 
@@ -49,6 +49,7 @@ export const StaffDashboard: React.FC = () => {
 
   const groupedTasks = groupTasksByDay(tasks);
   const eventGroups = groupTasksByEvent(tasks);
+  const eventDayGroups = groupTasksByEventDay(tasks);
 
   if (loading) {
     return <div style={styles.loading}>Lade Aufgaben...</div>;
@@ -88,10 +89,10 @@ export const StaffDashboard: React.FC = () => {
       {/* Gruppierung wählen */}
       <div style={styles.controls}>
         <button
-          onClick={() => setGroupBy('day')}
-          style={groupBy === 'day' ? styles.activeTab : styles.tab}
+          onClick={() => setGroupBy('event-day')}
+          style={groupBy === 'event-day' ? styles.activeTab : styles.tab}
         >
-          Nach Tag
+          Nach Event-Tag
         </button>
         <button
           onClick={() => setGroupBy('event')}
@@ -99,12 +100,31 @@ export const StaffDashboard: React.FC = () => {
         >
           Nach Veranstaltung
         </button>
+        <button
+          onClick={() => setGroupBy('date')}
+          style={groupBy === 'date' ? styles.activeTab : styles.tab}
+        >
+          Nach Datum
+        </button>
       </div>
 
       {/* Aufgabenliste */}
       {tasks.length === 0 ? (
         <div style={styles.empty}>Keine Aufgaben vorhanden</div>
-      ) : groupBy === 'day' ? (
+      ) : groupBy === 'event-day' ? (
+        <div>
+          {Object.entries(eventDayGroups).map(([groupKey, groupTasks]) => (
+            <div key={groupKey} style={styles.group}>
+              <h2 style={styles.groupTitle}>{groupKey}</h2>
+              <div style={styles.taskList}>
+                {groupTasks.map((task) => (
+                  <TaskCard key={task.assignment_id} task={task} onComplete={handleComplete} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : groupBy === 'date' ? (
         <div>
           {Object.entries(groupedTasks).map(([day, dayTasks]) => (
             <div key={day} style={styles.group}>
@@ -173,6 +193,47 @@ const TaskCard: React.FC<{
 };
 
 // Helper Funktionen
+function groupTasksByEventDay(tasks: TaskAssignment[]) {
+  const grouped: { [key: string]: TaskAssignment[] } = {};
+
+  tasks.forEach((task) => {
+    // Gruppiere nach Event-Instanz und Tag
+    const key = `${task.event_name} #${task.instance_number} - Tag ${task.day_number}`;
+
+    if (!grouped[key]) {
+      grouped[key] = [];
+    }
+    grouped[key].push(task);
+  });
+
+  // Sortiere Gruppen nach Event und Tag
+  return Object.keys(grouped)
+    .sort((a, b) => {
+      const taskA = grouped[a][0];
+      const taskB = grouped[b][0];
+
+      // Erst nach Event-Namen sortieren
+      const eventCompare = taskA.event_name.localeCompare(taskB.event_name);
+      if (eventCompare !== 0) return eventCompare;
+
+      // Dann nach Instanz-Nummer
+      const instanceCompare = (taskA.instance_number || 0) - (taskB.instance_number || 0);
+      if (instanceCompare !== 0) return instanceCompare;
+
+      // Dann nach Tag-Nummer
+      return taskA.day_number - taskB.day_number;
+    })
+    .reduce((acc, key) => {
+      // Sortiere Tasks innerhalb jeder Gruppe nach Zeit
+      acc[key] = grouped[key].sort((a, b) => {
+        if (!a.scheduled_time) return 1;
+        if (!b.scheduled_time) return -1;
+        return a.scheduled_time.localeCompare(b.scheduled_time);
+      });
+      return acc;
+    }, {} as { [key: string]: TaskAssignment[] });
+}
+
 function groupTasksByDay(tasks: TaskAssignment[]) {
   const grouped: { [key: string]: TaskAssignment[] } = {};
 
