@@ -15,13 +15,49 @@ router.get('/event/:eventId', authMiddleware, async (req, res) => {
        FROM tasks t
        LEFT JOIN program_items pi ON t.program_item_id = pi.id
        WHERE t.event_id = $1
-       ORDER BY t.day_number, t.scheduled_time`,
+       ORDER BY t.day_number, t.start_time, t.scheduled_time`,
       [eventId]
     );
 
     res.json(result.rows);
   } catch (error) {
     console.error('Get tasks error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// Aufgaben mit Zuordnungen für Event-Instanz (für Admin-Tabelle)
+router.get('/instance/:instanceId/assignments', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { instanceId } = req.params;
+
+    const result = await query(
+      `SELECT
+        t.*,
+        ta.id as assignment_id,
+        ta.user_id,
+        ta.completed,
+        ta.completed_at,
+        ta.reminder_minutes as user_reminder_minutes,
+        u.name as user_name,
+        u.role as user_role,
+        pi.title as program_item_title,
+        e.name as event_name,
+        ei.start_date as instance_start_date
+       FROM tasks t
+       LEFT JOIN task_assignments ta ON t.id = ta.task_id AND ta.event_instance_id = $1
+       LEFT JOIN users u ON ta.user_id = u.id
+       LEFT JOIN program_items pi ON t.program_item_id = pi.id
+       JOIN events e ON t.event_id = e.id
+       JOIN event_instances ei ON ei.id = $1
+       WHERE t.event_id = ei.event_id
+       ORDER BY t.day_number, t.start_time, t.scheduled_time, u.name`,
+      [instanceId]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Get instance assignments error:', error);
     res.status(500).json({ error: 'Server Fehler' });
   }
 });
@@ -94,13 +130,39 @@ router.get('/my-tasks', authMiddleware, async (req: AuthRequest, res) => {
 // Aufgabe erstellen
 router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const { event_id, program_item_id, day_number, title, description, scheduled_time, reminder_minutes } =
-      req.body as CreateTaskRequest;
+    const {
+      event_id,
+      program_item_id,
+      day_number,
+      title,
+      description,
+      scheduled_time,
+      start_time,
+      end_time,
+      reminder_minutes,
+      is_public,
+      status
+    } = req.body;
 
     const result = await query(
-      `INSERT INTO tasks (event_id, program_item_id, day_number, title, description, scheduled_time, reminder_minutes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [event_id, program_item_id, day_number, title, description, scheduled_time, reminder_minutes || 15]
+      `INSERT INTO tasks (
+        event_id, program_item_id, day_number, title, description,
+        scheduled_time, start_time, end_time, reminder_minutes, is_public, status
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+      [
+        event_id,
+        program_item_id,
+        day_number,
+        title,
+        description,
+        scheduled_time,
+        start_time || null,
+        end_time || null,
+        reminder_minutes || 15,
+        is_public || false,
+        status || 'not_started'
+      ]
     );
 
     res.status(201).json(result.rows[0]);
@@ -113,7 +175,7 @@ router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
 // Aufgabe zuweisen
 router.post('/assign', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const { task_id, event_instance_id, user_ids } = req.body as AssignTaskRequest;
+    const { task_id, event_instance_id, user_ids, reminder_minutes } = req.body;
 
     const assignments = [];
 
@@ -126,8 +188,8 @@ router.post('/assign', authMiddleware, adminMiddleware, async (req, res) => {
 
       if (existing.rows.length === 0) {
         const result = await query(
-          'INSERT INTO task_assignments (task_id, event_instance_id, user_id) VALUES ($1, $2, $3) RETURNING *',
-          [task_id, event_instance_id, user_id]
+          'INSERT INTO task_assignments (task_id, event_instance_id, user_id, reminder_minutes) VALUES ($1, $2, $3, $4) RETURNING *',
+          [task_id, event_instance_id, user_id, reminder_minutes || 15]
         );
         assignments.push(result.rows[0]);
       }
@@ -172,12 +234,42 @@ router.put('/complete/:assignmentId', authMiddleware, async (req: AuthRequest, r
 router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, day_number, scheduled_time, reminder_minutes } = req.body;
+    const {
+      title,
+      description,
+      day_number,
+      scheduled_time,
+      start_time,
+      end_time,
+      reminder_minutes,
+      is_public,
+      status
+    } = req.body;
 
     const result = await query(
-      `UPDATE tasks SET title = $1, description = $2, day_number = $3, scheduled_time = $4, reminder_minutes = $5
-       WHERE id = $6 RETURNING *`,
-      [title, description, day_number, scheduled_time, reminder_minutes, id]
+      `UPDATE tasks SET
+        title = $1,
+        description = $2,
+        day_number = $3,
+        scheduled_time = $4,
+        start_time = $5,
+        end_time = $6,
+        reminder_minutes = $7,
+        is_public = $8,
+        status = $9
+       WHERE id = $10 RETURNING *`,
+      [
+        title,
+        description,
+        day_number,
+        scheduled_time,
+        start_time,
+        end_time,
+        reminder_minutes,
+        is_public,
+        status,
+        id
+      ]
     );
 
     if (result.rows.length === 0) {
