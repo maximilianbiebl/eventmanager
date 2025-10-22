@@ -125,6 +125,88 @@ router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
   }
 });
 
+// Event duplizieren
+router.post('/:id/duplicate', authMiddleware, adminMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { name, start_date, instance_count } = req.body;
+
+    // Original Event abrufen
+    const originalEvent = await query('SELECT * FROM events WHERE id = $1', [id]);
+
+    if (originalEvent.rows.length === 0) {
+      return res.status(404).json({ error: 'Event nicht gefunden' });
+    }
+
+    const original = originalEvent.rows[0];
+
+    // Neues Event erstellen
+    const newEventResult = await query(
+      'INSERT INTO events (name, description, start_date, days, created_by) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [name || `${original.name} (Kopie)`, original.description, start_date || original.start_date, original.days, req.user!.id]
+    );
+
+    const newEvent = newEventResult.rows[0];
+
+    // Event Instanzen erstellen
+    const instanceCountToCreate = instance_count || 1;
+    const instances = [];
+    for (let i = 0; i < instanceCountToCreate; i++) {
+      const instanceStartDate = new Date(start_date || original.start_date);
+      instanceStartDate.setDate(instanceStartDate.getDate() + i * original.days);
+
+      const instanceResult = await query(
+        'INSERT INTO event_instances (event_id, instance_number, start_date) VALUES ($1, $2, $3) RETURNING *',
+        [newEvent.id, i + 1, instanceStartDate.toISOString().split('T')[0]]
+      );
+
+      instances.push(instanceResult.rows[0]);
+    }
+
+    // Alle Tasks kopieren
+    const originalTasks = await query('SELECT * FROM tasks WHERE event_id = $1', [id]);
+    for (const task of originalTasks.rows) {
+      await query(
+        `INSERT INTO tasks (
+          event_id, program_item_id, day_number, title, description,
+          scheduled_time, start_time, end_time, reminder_minutes, is_public, status
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+        [
+          newEvent.id,
+          task.program_item_id,
+          task.day_number,
+          task.title,
+          task.description,
+          task.scheduled_time,
+          task.start_time,
+          task.end_time,
+          task.reminder_minutes,
+          task.is_public,
+          'not_started', // Reset status for new event
+        ]
+      );
+    }
+
+    // Programmpunkte kopieren
+    const originalProgram = await query('SELECT * FROM program_items WHERE event_id = $1', [id]);
+    for (const program of originalProgram.rows) {
+      await query(
+        'INSERT INTO program_items (event_id, day_number, time, title, description) VALUES ($1, $2, $3, $4, $5)',
+        [newEvent.id, program.day_number, program.time, program.title, program.description]
+      );
+    }
+
+    res.status(201).json({
+      ...newEvent,
+      instances,
+      message: 'Event erfolgreich dupliziert',
+    });
+  } catch (error) {
+    console.error('Duplicate event error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
 // Event löschen
 router.delete('/:id', authMiddleware, adminMiddleware, async (req, res) => {
   try {

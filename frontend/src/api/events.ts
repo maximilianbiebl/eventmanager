@@ -50,4 +50,9 @@ export const eventsApi = {
     const response = await client.delete(`/events/${id}`);
     return response.data;
   },
+
+  duplicate: async (id: number, data: { name?: string; start_date?: string; instance_count?: number }) => {
+    const response = await client.post(`/events/${id}/duplicate`, data);
+    return response.data;
+  },
 };

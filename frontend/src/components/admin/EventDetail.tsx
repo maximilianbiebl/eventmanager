@@ -6,6 +6,7 @@ import { programApi, ProgramItem } from '../../api/program';
 import { TaskFormModal } from './TaskFormModal';
 import { TaskAssignmentModal } from './TaskAssignmentModal';
 import { TaskTableView } from './TaskTableView';
+import { DuplicateEventModal } from './DuplicateEventModal';
 
 interface Props {
   eventId: number;
@@ -24,6 +25,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assignTaskId, setAssignTaskId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'table'>('list');
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -85,9 +87,14 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
 
   return (
     <div>
-      <button onClick={onBack} style={styles.backButton}>
-        ← Zurück
-      </button>
+      <div style={styles.topBar}>
+        <button onClick={onBack} style={styles.backButton}>
+          ← Zurück
+        </button>
+        <button onClick={() => setShowDuplicateModal(true)} style={styles.duplicateButton}>
+          📋 Event duplizieren
+        </button>
+      </div>
 
       <h2 style={styles.title}>{event.name}</h2>
       {event.description && <p style={styles.description}>{event.description}</p>}
@@ -200,11 +207,28 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
           }}
         />
       )}
+
+      {showDuplicateModal && (
+        <DuplicateEventModal
+          event={event}
+          onClose={() => setShowDuplicateModal(false)}
+          onSuccess={() => {
+            setShowDuplicateModal(false);
+            onBack(); // Zurück zur Event-Liste nach erfolgreichem Duplizieren
+          }}
+        />
+      )}
     </div>
   );
 };
 
 const styles: { [key: string]: React.CSSProperties } = {
+  topBar: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '1rem',
+  },
   backButton: {
     padding: '0.5rem 1rem',
     backgroundColor: '#6b7280',
@@ -212,7 +236,15 @@ const styles: { [key: string]: React.CSSProperties } = {
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
-    marginBottom: '1rem',
+  },
+  duplicateButton: {
+    padding: '0.5rem 1rem',
+    backgroundColor: '#10b981',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
   },
   title: {
     fontSize: '1.875rem',
