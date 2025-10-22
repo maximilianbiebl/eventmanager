@@ -4,6 +4,7 @@ import { tasksApi, Task } from '../../api/tasks';
 import { usersApi, User } from '../../api/users';
 import { programApi, ProgramItem } from '../../api/program';
 import { TaskFormModal } from './TaskFormModal';
+import { TaskAssignmentModal } from './TaskAssignmentModal';
 
 interface Props {
   eventId: number;
@@ -19,6 +20,8 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
   const [selectedInstance, setSelectedInstance] = useState<number | null>(null);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [editTask, setEditTask] = useState<Task | null>(null);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [assignTaskId, setAssignTaskId] = useState<number | null>(null);
 
   useEffect(() => {
     loadData();
@@ -57,28 +60,13 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
     setShowTaskForm(true);
   };
 
-  const handleAssignTask = async (taskId: number) => {
+  const handleAssignTask = (taskId: number) => {
     if (!selectedInstance) {
       alert('Bitte wähle eine Durchführung aus');
       return;
     }
-
-    const userIdsStr = prompt('Mitarbeiter IDs (kommagetrennt):');
-    if (!userIdsStr) return;
-
-    const userIds = userIdsStr.split(',').map((id) => parseInt(id.trim()));
-
-    try {
-      await tasksApi.assign({
-        task_id: taskId,
-        event_instance_id: selectedInstance,
-        user_ids: userIds,
-      });
-      alert('Aufgabe zugewiesen!');
-    } catch (error) {
-      console.error('Assign task error:', error);
-      alert('Fehler beim Zuweisen');
-    }
+    setAssignTaskId(taskId);
+    setShowAssignModal(true);
   };
 
   if (loading) {
@@ -155,6 +143,22 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
           onSuccess={() => {
             setShowTaskForm(false);
             setEditTask(null);
+            loadData();
+          }}
+        />
+      )}
+
+      {showAssignModal && assignTaskId && selectedInstance && (
+        <TaskAssignmentModal
+          taskId={assignTaskId}
+          eventInstanceId={selectedInstance}
+          onClose={() => {
+            setShowAssignModal(false);
+            setAssignTaskId(null);
+          }}
+          onSuccess={() => {
+            setShowAssignModal(false);
+            setAssignTaskId(null);
             loadData();
           }}
         />
