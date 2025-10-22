@@ -2,10 +2,14 @@ FROM node:18-alpine
 
 WORKDIR /app
 
+# Installiere Dependencies
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm install --omit=dev
 
+# Kopiere Source Code
 COPY . .
+
+# Build TypeScript
 RUN npm run build
 
 EXPOSE 3001
