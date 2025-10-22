@@ -74,6 +74,8 @@ router.get('/my-tasks/:instanceId', authMiddleware, async (req: AuthRequest, res
         ta.completed,
         ta.completed_at,
         ta.id as assignment_id,
+        ta.reminder_minutes as assignment_reminder_minutes,
+        COALESCE(ta.reminder_minutes, t.reminder_minutes) as reminder_minutes,
         e.name as event_name,
         ei.start_date as instance_start_date,
         pi.title as program_item_title
@@ -106,6 +108,8 @@ router.get('/my-tasks', authMiddleware, async (req: AuthRequest, res) => {
         ta.completed_at,
         ta.id as assignment_id,
         ta.event_instance_id,
+        ta.reminder_minutes as assignment_reminder_minutes,
+        COALESCE(ta.reminder_minutes, t.reminder_minutes) as reminder_minutes,
         e.name as event_name,
         ei.start_date as instance_start_date,
         ei.instance_number,

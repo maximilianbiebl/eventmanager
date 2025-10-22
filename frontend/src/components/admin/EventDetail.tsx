@@ -26,7 +26,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assignTaskId, setAssignTaskId] = useState<number | null>(null);
-  const [viewMode, setViewMode] = useState<'list' | 'table'>('list');
+  const [viewMode, setViewMode] = useState<'list' | 'table'>('table'); // Table ist jetzt Standard
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [selectedDay, setSelectedDay] = useState<number>(1);
 
@@ -193,6 +193,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
               eventInstanceId={selectedInstance}
               onEditTask={handleEditTask}
               onAssignTask={handleAssignTask}
+              eventDays={event?.days}
             />
           )
         )}

@@ -133,7 +133,7 @@ export const StaffDashboard: React.FC = () => {
               <h2 className={styles.groupTitle}>{groupKey}</h2>
               <div className={styles.taskList}>
                 {groupTasks.map((task) => (
-                  <TaskCard key={task.assignment_id} task={task} onComplete={handleComplete} />
+                  <TaskCard key={task.assignment_id} task={task} onComplete={handleComplete} onReminderUpdate={loadTasks} />
                 ))}
               </div>
             </div>
@@ -146,7 +146,7 @@ export const StaffDashboard: React.FC = () => {
               <h2 className={styles.groupTitle}>{day}</h2>
               <div className={styles.taskList}>
                 {dayTasks.map((task) => (
-                  <TaskCard key={task.assignment_id} task={task} onComplete={handleComplete} />
+                  <TaskCard key={task.assignment_id} task={task} onComplete={handleComplete} onReminderUpdate={loadTasks} />
                 ))}
               </div>
             </div>
@@ -159,7 +159,7 @@ export const StaffDashboard: React.FC = () => {
               <h2 className={styles.groupTitle}>{eventName}</h2>
               <div className={styles.taskList}>
                 {eventTasks.map((task) => (
-                  <TaskCard key={task.assignment_id} task={task} onComplete={handleComplete} />
+                  <TaskCard key={task.assignment_id} task={task} onComplete={handleComplete} onReminderUpdate={loadTasks} />
                 ))}
               </div>
             </div>
@@ -175,10 +175,16 @@ export const StaffDashboard: React.FC = () => {
 const TaskCard: React.FC<{
   task: TaskAssignment;
   onComplete: (id: number) => void;
-}> = ({ task, onComplete }) => {
+  onReminderUpdate: () => void;
+}> = ({ task, onComplete, onReminderUpdate }) => {
   const [showReminderEdit, setShowReminderEdit] = React.useState(false);
   const [reminderMinutes, setReminderMinutes] = React.useState(task.reminder_minutes || 15);
   const [saving, setSaving] = React.useState(false);
+
+  // Update reminder state when task prop changes
+  React.useEffect(() => {
+    setReminderMinutes(task.reminder_minutes || 15);
+  }, [task.reminder_minutes]);
 
   const getEventDate = () => {
     const startDate = new Date(task.instance_start_date);
@@ -191,6 +197,7 @@ const TaskCard: React.FC<{
     try {
       await tasksApi.updateReminder(task.assignment_id, reminderMinutes);
       setShowReminderEdit(false);
+      onReminderUpdate(); // Reload tasks to get updated value
     } catch (error) {
       console.error('Update reminder error:', error);
       alert('Fehler beim Speichern');

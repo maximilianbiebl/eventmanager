@@ -21,6 +21,7 @@ interface Props {
   eventInstanceId: number;
   onEditTask: (taskId: number) => void;
   onAssignTask: (taskId: number) => void;
+  eventDays?: number; // Anzahl der Tage im Event
 }
 
 const STATUS_COLORS: { [key: string]: string } = {
@@ -37,11 +38,12 @@ const STATUS_LABELS: { [key: string]: string } = {
   overdue: 'Überfällig',
 };
 
-export const TaskTableView: React.FC<Props> = ({ eventInstanceId, onEditTask, onAssignTask }) => {
+export const TaskTableView: React.FC<Props> = ({ eventInstanceId, onEditTask, onAssignTask, eventDays }) => {
   const [assignments, setAssignments] = useState<TaskAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [selectedDay, setSelectedDay] = useState<number | 'all'>('all');
 
   useEffect(() => {
     loadAssignments();
@@ -79,10 +81,15 @@ export const TaskTableView: React.FC<Props> = ({ eventInstanceId, onEditTask, on
 
   const tasks = Object.values(groupedTasks);
 
-  // Filter nach Status
-  const filteredTasks = statusFilter === 'all'
+  // Filter nach Status und Tag
+  let filteredTasks = statusFilter === 'all'
     ? tasks
     : tasks.filter(t => t.task.status === statusFilter);
+
+  // Filter nach Tag
+  if (selectedDay !== 'all') {
+    filteredTasks = filteredTasks.filter(t => t.task.day_number === selectedDay);
+  }
 
   const formatTime = (task: TaskAssignment) => {
     if (task.start_time && task.end_time) {
@@ -132,6 +139,27 @@ export const TaskTableView: React.FC<Props> = ({ eventInstanceId, onEditTask, on
           </select>
         </div>
       </div>
+
+      {/* Tag-Tabs */}
+      {eventDays && eventDays > 1 && (
+        <div style={styles.dayTabs}>
+          <button
+            onClick={() => setSelectedDay('all')}
+            style={selectedDay === 'all' ? styles.dayTabActive : styles.dayTab}
+          >
+            Alle Tage
+          </button>
+          {Array.from({ length: eventDays }, (_, i) => i + 1).map((day) => (
+            <button
+              key={day}
+              onClick={() => setSelectedDay(day)}
+              style={selectedDay === day ? styles.dayTabActive : styles.dayTab}
+            >
+              Tag {day}
+            </button>
+          ))}
+        </div>
+      )}
 
       {filteredTasks.length === 0 ? (
         <div style={styles.noTasks}>
@@ -384,5 +412,35 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '0.75rem',
     cursor: 'pointer',
     fontWeight: '500',
+  },
+  dayTabs: {
+    display: 'flex',
+    gap: '0.5rem',
+    marginBottom: '1rem',
+    borderBottom: '2px solid #e5e7eb',
+    paddingBottom: '0.5rem',
+    overflowX: 'auto',
+  },
+  dayTab: {
+    padding: '0.5rem 1rem',
+    backgroundColor: 'transparent',
+    color: '#6b7280',
+    border: 'none',
+    borderBottom: '2px solid transparent',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
+    fontWeight: '500',
+    whiteSpace: 'nowrap' as const,
+  },
+  dayTabActive: {
+    padding: '0.5rem 1rem',
+    backgroundColor: 'transparent',
+    color: '#4f46e5',
+    border: 'none',
+    borderBottom: '2px solid #4f46e5',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
+    fontWeight: '600',
+    whiteSpace: 'nowrap' as const,
   },
 };
