@@ -66,6 +66,79 @@ router.delete('/:id', authMiddleware, adminMiddleware, async (req, res) => {
   }
 });
 
+// Mitarbeiter zum Event-Pool hinzufügen (für alle Instanzen verfügbar)
+router.post('/event/:eventId/staff', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const { user_ids } = req.body;
+
+    const assignments = [];
+
+    for (const user_id of user_ids) {
+      // Prüfen ob bereits im Pool
+      const existing = await query(
+        'SELECT * FROM event_staff WHERE event_id = $1 AND user_id = $2',
+        [eventId, user_id]
+      );
+
+      if (existing.rows.length === 0) {
+        const result = await query(
+          'INSERT INTO event_staff (event_id, user_id) VALUES ($1, $2) RETURNING *',
+          [eventId, user_id]
+        );
+        assignments.push(result.rows[0]);
+      }
+    }
+
+    res.status(201).json(assignments);
+  } catch (error) {
+    console.error('Assign event staff error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// Mitarbeiter-Pool für Event abrufen
+router.get('/event/:eventId/staff', authMiddleware, async (req, res) => {
+  try {
+    const { eventId } = req.params;
+
+    const result = await query(
+      `SELECT u.id, u.name, u.role, es.created_at as assigned_at
+       FROM event_staff es
+       JOIN users u ON es.user_id = u.id
+       WHERE es.event_id = $1
+       ORDER BY u.name`,
+      [eventId]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Get event staff error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// Mitarbeiter aus Event-Pool entfernen
+router.delete('/event/:eventId/staff/:userId', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { eventId, userId } = req.params;
+
+    const result = await query(
+      'DELETE FROM event_staff WHERE event_id = $1 AND user_id = $2 RETURNING *',
+      [eventId, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Zuweisung nicht gefunden' });
+    }
+
+    res.json({ message: 'Mitarbeiter entfernt' });
+  } catch (error) {
+    console.error('Remove event staff error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
 // Mitarbeiter zu Event-Instanz hinzufügen
 router.post('/instance/:instanceId/staff', authMiddleware, adminMiddleware, async (req, res) => {
   try {

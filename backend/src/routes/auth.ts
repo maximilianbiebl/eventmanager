@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import { query } from '../database/connection';
 import config from '../config';
 import { LoginRequest, LoginResponse } from '../types';
+import { authMiddleware, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
@@ -75,6 +76,45 @@ router.post('/register', async (req, res) => {
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error('Register error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// Passwort ändern
+router.put('/change-password', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user!.id;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Aktuelles und neues Passwort erforderlich' });
+    }
+
+    // Aktuellen Benutzer laden
+    const userResult = await query('SELECT * FROM users WHERE id = $1', [userId]);
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    }
+
+    const user = userResult.rows[0];
+
+    // Aktuelles Passwort prüfen
+    const validPassword = await bcrypt.compare(currentPassword, user.password_hash);
+
+    if (!validPassword) {
+      return res.status(401).json({ error: 'Aktuelles Passwort ist falsch' });
+    }
+
+    // Neues Passwort hashen
+    const newPasswordHash = await bcrypt.hash(newPassword, 10);
+
+    // Passwort aktualisieren
+    await query('UPDATE users SET password_hash = $1 WHERE id = $2', [newPasswordHash, userId]);
+
+    res.json({ message: 'Passwort erfolgreich geändert' });
+  } catch (error) {
+    console.error('Change password error:', error);
     res.status(500).json({ error: 'Server Fehler' });
   }
 });
