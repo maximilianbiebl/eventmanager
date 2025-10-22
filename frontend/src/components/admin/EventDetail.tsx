@@ -5,6 +5,7 @@ import { usersApi, User } from '../../api/users';
 import { programApi, ProgramItem } from '../../api/program';
 import { TaskFormModal } from './TaskFormModal';
 import { TaskAssignmentModal } from './TaskAssignmentModal';
+import { TaskTableView } from './TaskTableView';
 
 interface Props {
   eventId: number;
@@ -22,6 +23,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assignTaskId, setAssignTaskId] = useState<number | null>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'table'>('list');
 
   useEffect(() => {
     loadData();
@@ -55,9 +57,17 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
     setShowTaskForm(true);
   };
 
-  const handleEditTask = (task: Task) => {
-    setEditTask(task);
-    setShowTaskForm(true);
+  const handleEditTask = (taskOrId: Task | number) => {
+    if (typeof taskOrId === 'number') {
+      const task = tasks.find(t => t.id === taskOrId);
+      if (task) {
+        setEditTask(task);
+        setShowTaskForm(true);
+      }
+    } else {
+      setEditTask(taskOrId);
+      setShowTaskForm(true);
+    }
   };
 
   const handleAssignTask = (taskId: number) => {
@@ -101,35 +111,62 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
       <div style={styles.section}>
         <div style={styles.sectionHeader}>
           <h3>Aufgaben</h3>
-          <button onClick={handleCreateTask} style={styles.addButton}>
-            + Neue Aufgabe
-          </button>
+          <div style={styles.headerActions}>
+            <div style={styles.viewToggle}>
+              <button
+                onClick={() => setViewMode('list')}
+                style={viewMode === 'list' ? styles.viewButtonActive : styles.viewButton}
+              >
+                📋 Liste
+              </button>
+              <button
+                onClick={() => setViewMode('table')}
+                style={viewMode === 'table' ? styles.viewButtonActive : styles.viewButton}
+              >
+                📊 Tabelle
+              </button>
+            </div>
+            <button onClick={handleCreateTask} style={styles.addButton}>
+              + Neue Aufgabe
+            </button>
+          </div>
         </div>
-        <div style={styles.tasksList}>
-          {tasks.length === 0 ? (
-            <p>Keine Aufgaben vorhanden</p>
-          ) : (
-            tasks.map((task) => (
-              <div key={task.id} style={styles.taskItem}>
-                <div>
-                  <strong>{task.title}</strong>
-                  <div style={styles.taskMeta}>
-                    Tag {task.day_number}
-                    {task.scheduled_time && ` - ${task.scheduled_time} Uhr`}
+
+        {viewMode === 'list' ? (
+          <div style={styles.tasksList}>
+            {tasks.length === 0 ? (
+              <p>Keine Aufgaben vorhanden</p>
+            ) : (
+              tasks.map((task) => (
+                <div key={task.id} style={styles.taskItem}>
+                  <div>
+                    <strong>{task.title}</strong>
+                    <div style={styles.taskMeta}>
+                      Tag {task.day_number}
+                      {task.scheduled_time && ` - ${task.scheduled_time} Uhr`}
+                    </div>
+                  </div>
+                  <div style={styles.taskActions}>
+                    <button onClick={() => handleEditTask(task)} style={styles.editButton}>
+                      Bearbeiten
+                    </button>
+                    <button onClick={() => handleAssignTask(task.id)} style={styles.assignButton}>
+                      Zuweisen
+                    </button>
                   </div>
                 </div>
-                <div style={styles.taskActions}>
-                  <button onClick={() => handleEditTask(task)} style={styles.editButton}>
-                    Bearbeiten
-                  </button>
-                  <button onClick={() => handleAssignTask(task.id)} style={styles.assignButton}>
-                    Zuweisen
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
+              ))
+            )}
+          </div>
+        ) : (
+          selectedInstance && (
+            <TaskTableView
+              eventInstanceId={selectedInstance}
+              onEditTask={handleEditTask}
+              onAssignTask={handleAssignTask}
+            />
+          )
+        )}
       </div>
 
       {showTaskForm && (
@@ -194,6 +231,34 @@ const styles: { [key: string]: React.CSSProperties } = {
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: '1rem',
+  },
+  headerActions: {
+    display: 'flex',
+    gap: '1rem',
+    alignItems: 'center',
+  },
+  viewToggle: {
+    display: 'flex',
+    gap: '0.25rem',
+    border: '1px solid #d1d5db',
+    borderRadius: '4px',
+    overflow: 'hidden',
+  },
+  viewButton: {
+    padding: '0.5rem 1rem',
+    backgroundColor: 'white',
+    color: '#374151',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
+  },
+  viewButtonActive: {
+    padding: '0.5rem 1rem',
+    backgroundColor: '#4f46e5',
+    color: 'white',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
   },
   addButton: {
     padding: '0.5rem 1rem',
