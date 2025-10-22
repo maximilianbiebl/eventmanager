@@ -3,6 +3,7 @@ import { eventsApi } from '../../api/events';
 import { tasksApi, Task } from '../../api/tasks';
 import { usersApi, User } from '../../api/users';
 import { programApi, ProgramItem } from '../../api/program';
+import { TaskFormModal } from './TaskFormModal';
 
 interface Props {
   eventId: number;
@@ -16,6 +17,8 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
   const [_users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedInstance, setSelectedInstance] = useState<number | null>(null);
+  const [showTaskForm, setShowTaskForm] = useState(false);
+  const [editTask, setEditTask] = useState<Task | null>(null);
 
   useEffect(() => {
     loadData();
@@ -44,24 +47,14 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
     }
   };
 
-  const handleCreateTask = async () => {
-    const title = prompt('Aufgabentitel:');
-    if (!title) return;
+  const handleCreateTask = () => {
+    setEditTask(null);
+    setShowTaskForm(true);
+  };
 
-    const day = prompt('Tag (1-' + event.days + '):');
-    if (!day) return;
-
-    try {
-      await tasksApi.create({
-        event_id: eventId,
-        day_number: parseInt(day),
-        title,
-      });
-      await loadData();
-    } catch (error) {
-      console.error('Create task error:', error);
-      alert('Fehler beim Erstellen der Aufgabe');
-    }
+  const handleEditTask = (task: Task) => {
+    setEditTask(task);
+    setShowTaskForm(true);
   };
 
   const handleAssignTask = async (taskId: number) => {
@@ -137,14 +130,35 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
                     {task.scheduled_time && ` - ${task.scheduled_time} Uhr`}
                   </div>
                 </div>
-                <button onClick={() => handleAssignTask(task.id)} style={styles.assignButton}>
-                  Zuweisen
-                </button>
+                <div style={styles.taskActions}>
+                  <button onClick={() => handleEditTask(task)} style={styles.editButton}>
+                    Bearbeiten
+                  </button>
+                  <button onClick={() => handleAssignTask(task.id)} style={styles.assignButton}>
+                    Zuweisen
+                  </button>
+                </div>
               </div>
             ))
           )}
         </div>
       </div>
+
+      {showTaskForm && (
+        <TaskFormModal
+          eventId={eventId}
+          task={editTask}
+          onClose={() => {
+            setShowTaskForm(false);
+            setEditTask(null);
+          }}
+          onSuccess={() => {
+            setShowTaskForm(false);
+            setEditTask(null);
+            loadData();
+          }}
+        />
+      )}
     </div>
   );
 };
@@ -223,6 +237,18 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '0.875rem',
     color: '#6b7280',
     marginTop: '0.25rem',
+  },
+  taskActions: {
+    display: 'flex',
+    gap: '0.5rem',
+  },
+  editButton: {
+    padding: '0.5rem 1rem',
+    backgroundColor: '#f59e0b',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
   },
   assignButton: {
     padding: '0.5rem 1rem',

@@ -8,7 +8,11 @@ export interface Task {
   title: string;
   description?: string;
   scheduled_time?: string;
+  start_time?: string;
+  end_time?: string;
   reminder_minutes: number;
+  is_public: boolean;
+  status: string;
 }
 
 export interface TaskAssignment extends Task {
@@ -29,7 +33,11 @@ export interface CreateTaskData {
   title: string;
   description?: string;
   scheduled_time?: string;
+  start_time?: string;
+  end_time?: string;
   reminder_minutes?: number;
+  is_public?: boolean;
+  status?: string;
 }
 
 export const tasksApi = {
