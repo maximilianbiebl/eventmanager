@@ -176,10 +176,27 @@ const TaskCard: React.FC<{
   task: TaskAssignment;
   onComplete: (id: number) => void;
 }> = ({ task, onComplete }) => {
+  const [showReminderEdit, setShowReminderEdit] = React.useState(false);
+  const [reminderMinutes, setReminderMinutes] = React.useState(task.reminder_minutes || 15);
+  const [saving, setSaving] = React.useState(false);
+
   const getEventDate = () => {
     const startDate = new Date(task.instance_start_date);
     startDate.setDate(startDate.getDate() + task.day_number - 1);
     return startDate.toLocaleDateString('de-DE');
+  };
+
+  const handleSaveReminder = async () => {
+    setSaving(true);
+    try {
+      await tasksApi.updateReminder(task.assignment_id, reminderMinutes);
+      setShowReminderEdit(false);
+    } catch (error) {
+      console.error('Update reminder error:', error);
+      alert('Fehler beim Speichern');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -197,6 +214,49 @@ const TaskCard: React.FC<{
           Tag {task.day_number} ({getEventDate()})
         </span>
       </div>
+
+      {/* Erinnerung bearbeiten */}
+      {!task.completed && (
+        <div className={styles.reminderSection}>
+          {!showReminderEdit ? (
+            <button
+              onClick={() => setShowReminderEdit(true)}
+              className={styles.reminderButton}
+            >
+              🔔 Erinnerung: {task.reminder_minutes || 15} Min. vorher
+            </button>
+          ) : (
+            <div className={styles.reminderEdit}>
+              <label className={styles.reminderLabel}>
+                Erinnerungszeit (Minuten vorher):
+              </label>
+              <div className={styles.reminderControls}>
+                <input
+                  type="number"
+                  min="0"
+                  max="1440"
+                  value={reminderMinutes}
+                  onChange={(e) => setReminderMinutes(parseInt(e.target.value))}
+                  className={styles.reminderInput}
+                />
+                <button
+                  onClick={handleSaveReminder}
+                  disabled={saving}
+                  className={styles.reminderSave}
+                >
+                  {saving ? '...' : '✓'}
+                </button>
+                <button
+                  onClick={() => setShowReminderEdit(false)}
+                  className={styles.reminderCancel}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {!task.completed ? (
         <button onClick={() => onComplete(task.assignment_id)} className={styles.completeButton}>

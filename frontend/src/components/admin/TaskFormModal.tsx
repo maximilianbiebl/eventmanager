@@ -1,14 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { tasksApi } from '../../api/tasks';
+import client from '../../api/client';
 
 interface Props {
   eventId: number;
   onClose: () => void;
   onSuccess: () => void;
   task?: any; // Für Edit-Modus
+  eventInstances?: any[]; // Für Mitarbeiter-Zuweisung
 }
 
-export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, task }) => {
+interface User {
+  id: number;
+  name: string;
+}
+
+export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, task, eventInstances }) => {
   const isEdit = !!task;
 
   const [formData, setFormData] = useState({
@@ -25,6 +32,33 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [staffUsers, setStaffUsers] = useState<User[]>([]);
+  const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
+  const [showStaffSelection, setShowStaffSelection] = useState(false);
+
+  useEffect(() => {
+    // Lade Event Staff Pool (nur wenn nicht im Edit-Modus)
+    if (!isEdit) {
+      loadStaff();
+    }
+  }, [eventId, isEdit]);
+
+  const loadStaff = async () => {
+    try {
+      const response = await client.get(`/users/event/${eventId}/staff`);
+      setStaffUsers(response.data);
+    } catch (error) {
+      console.error('Load staff error:', error);
+    }
+  };
+
+  const handleToggleUser = (userId: number) => {
+    if (selectedUserIds.includes(userId)) {
+      setSelectedUserIds(selectedUserIds.filter(id => id !== userId));
+    } else {
+      setSelectedUserIds([...selectedUserIds, userId]);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,10 +69,24 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
       if (isEdit) {
         await tasksApi.update(task.id, formData);
       } else {
-        await tasksApi.create({
+        // Erstelle Task
+        const newTask = await tasksApi.create({
           event_id: eventId,
           ...formData,
         });
+
+        // Weise Mitarbeiter zu (falls ausgewählt und Instanzen vorhanden)
+        if (selectedUserIds.length > 0 && eventInstances && eventInstances.length > 0) {
+          // Weise für alle Event-Instanzen zu
+          for (const instance of eventInstances) {
+            await tasksApi.assign({
+              task_id: newTask.id,
+              event_instance_id: instance.id,
+              user_ids: selectedUserIds,
+              reminder_minutes: formData.reminder_minutes,
+            });
+          }
+        }
       }
       onSuccess();
     } catch (err: any) {
@@ -165,6 +213,46 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
             </label>
           </div>
 
+          {/* Mitarbeiter-Auswahl (nur beim Erstellen) */}
+          {!isEdit && staffUsers.length > 0 && (
+            <div style={styles.formGroup}>
+              <div style={styles.staffHeader}>
+                <label style={styles.label}>Direkt Mitarbeiter zuweisen (optional)</label>
+                <button
+                  type="button"
+                  onClick={() => setShowStaffSelection(!showStaffSelection)}
+                  style={styles.toggleButton}
+                >
+                  {showStaffSelection ? '− Ausblenden' : '+ Mitarbeiter auswählen'}
+                </button>
+              </div>
+
+              {showStaffSelection && (
+                <div style={styles.staffList}>
+                  <small style={styles.hint}>
+                    Ausgewählte Mitarbeiter werden automatisch für alle Durchführungen zugewiesen
+                  </small>
+                  {staffUsers.map((user) => (
+                    <label key={user.id} style={styles.staffItem}>
+                      <input
+                        type="checkbox"
+                        checked={selectedUserIds.includes(user.id)}
+                        onChange={() => handleToggleUser(user.id)}
+                        style={styles.checkbox}
+                      />
+                      <span>{user.name}</span>
+                    </label>
+                  ))}
+                  {selectedUserIds.length > 0 && (
+                    <div style={styles.selectedCount}>
+                      {selectedUserIds.length} Mitarbeiter ausgewählt
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           <div style={styles.actions}>
             <button type="button" onClick={onClose} style={styles.cancelButton}>
               Abbrechen
@@ -286,5 +374,46 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: '4px',
     cursor: 'pointer',
     fontWeight: '500',
+  },
+  staffHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '0.5rem',
+  },
+  toggleButton: {
+    padding: '0.25rem 0.75rem',
+    backgroundColor: '#4f46e5',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
+  },
+  staffList: {
+    border: '1px solid #d1d5db',
+    borderRadius: '4px',
+    padding: '1rem',
+    backgroundColor: '#f9fafb',
+    maxHeight: '200px',
+    overflowY: 'auto',
+  },
+  staffItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    padding: '0.5rem',
+    cursor: 'pointer',
+    borderRadius: '4px',
+  },
+  selectedCount: {
+    marginTop: '0.5rem',
+    padding: '0.5rem',
+    backgroundColor: '#dbeafe',
+    color: '#1e40af',
+    borderRadius: '4px',
+    fontSize: '0.875rem',
+    fontWeight: '500',
+    textAlign: 'center',
   },
 };

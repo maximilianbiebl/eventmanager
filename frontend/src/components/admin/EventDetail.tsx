@@ -8,6 +8,7 @@ import { TaskAssignmentModal } from './TaskAssignmentModal';
 import { TaskTableView } from './TaskTableView';
 import { DuplicateEventModal } from './DuplicateEventModal';
 import { EventStaffPool } from './EventStaffPool';
+import styles from './EventDetail.module.css';
 
 interface Props {
   eventId: number;
@@ -89,26 +90,26 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
 
   return (
     <div>
-      <div style={styles.topBar}>
-        <button onClick={onBack} style={styles.backButton}>
+      <div className={styles.topBar}>
+        <button onClick={onBack} className={styles.backButton}>
           ← Zurück
         </button>
-        <button onClick={() => setShowDuplicateModal(true)} style={styles.duplicateButton}>
+        <button onClick={() => setShowDuplicateModal(true)} className={styles.duplicateButton}>
           📋 Event duplizieren
         </button>
       </div>
 
-      <h2 style={styles.title}>{event.name}</h2>
-      {event.description && <p style={styles.description}>{event.description}</p>}
+      <h2 className={styles.title}>{event.name}</h2>
+      {event.description && <p className={styles.description}>{event.description}</p>}
 
-      <div style={styles.section}>
+      <div className={styles.section}>
         <h3>Durchführungen</h3>
-        <div style={styles.instances}>
+        <div className={styles.instances}>
           {event.instances.map((instance: any) => (
             <button
               key={instance.id}
               onClick={() => setSelectedInstance(instance.id)}
-              style={selectedInstance === instance.id ? styles.instanceActive : styles.instance}
+              className={selectedInstance === instance.id ? styles.instanceActive : styles.instance}
             >
               #{instance.instance_number} -{' '}
               {new Date(instance.start_date).toLocaleDateString('de-DE')}
@@ -117,29 +118,29 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
         </div>
       </div>
 
-      <div style={styles.section}>
+      <div className={styles.section}>
         <EventStaffPool eventId={eventId} />
       </div>
 
-      <div style={styles.section}>
-        <div style={styles.sectionHeader}>
+      <div className={styles.section}>
+        <div className={styles.sectionHeader}>
           <h3>Aufgaben</h3>
-          <div style={styles.headerActions}>
-            <div style={styles.viewToggle}>
+          <div className={styles.headerActions}>
+            <div className={styles.viewToggle}>
               <button
                 onClick={() => setViewMode('list')}
-                style={viewMode === 'list' ? styles.viewButtonActive : styles.viewButton}
+                className={viewMode === 'list' ? styles.viewButtonActive : styles.viewButton}
               >
                 📋 Liste
               </button>
               <button
                 onClick={() => setViewMode('table')}
-                style={viewMode === 'table' ? styles.viewButtonActive : styles.viewButton}
+                className={viewMode === 'table' ? styles.viewButtonActive : styles.viewButton}
               >
                 📊 Tabelle
               </button>
             </div>
-            <button onClick={handleCreateTask} style={styles.addButton}>
+            <button onClick={handleCreateTask} className={styles.addButton}>
               + Neue Aufgabe
             </button>
           </div>
@@ -147,12 +148,12 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
 
         {/* Tag-Tabs */}
         {event && event.days > 0 && (
-          <div style={styles.dayTabs}>
+          <div className={styles.dayTabs}>
             {Array.from({ length: event.days }, (_, i) => i + 1).map((day) => (
               <button
                 key={day}
                 onClick={() => setSelectedDay(day)}
-                style={selectedDay === day ? styles.dayTabActive : styles.dayTab}
+                className={selectedDay === day ? styles.dayTabActive : styles.dayTab}
               >
                 Tag {day}
               </button>
@@ -161,24 +162,24 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
         )}
 
         {viewMode === 'list' ? (
-          <div style={styles.tasksList}>
+          <div className={styles.tasksList}>
             {tasks.filter(task => task.day_number === selectedDay).length === 0 ? (
               <p>Keine Aufgaben für Tag {selectedDay} vorhanden</p>
             ) : (
               tasks.filter(task => task.day_number === selectedDay).map((task) => (
-                <div key={task.id} style={styles.taskItem}>
-                  <div>
+                <div key={task.id} className={styles.taskItem}>
+                  <div className={styles.taskInfo}>
                     <strong>{task.title}</strong>
-                    <div style={styles.taskMeta}>
+                    <div className={styles.taskMeta}>
                       Tag {task.day_number}
                       {task.scheduled_time && ` - ${task.scheduled_time} Uhr`}
                     </div>
                   </div>
-                  <div style={styles.taskActions}>
-                    <button onClick={() => handleEditTask(task)} style={styles.editButton}>
+                  <div className={styles.taskActions}>
+                    <button onClick={() => handleEditTask(task)} className={styles.editButton}>
                       Bearbeiten
                     </button>
-                    <button onClick={() => handleAssignTask(task.id)} style={styles.assignButton}>
+                    <button onClick={() => handleAssignTask(task.id)} className={styles.assignButton}>
                       Zuweisen
                     </button>
                   </div>
@@ -201,6 +202,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
         <TaskFormModal
           eventId={eventId}
           task={editTask}
+          eventInstances={event?.instances}
           onClose={() => {
             setShowTaskForm(false);
             setEditTask(null);
@@ -242,170 +244,4 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
       )}
     </div>
   );
-};
-
-const styles: { [key: string]: React.CSSProperties } = {
-  topBar: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '1rem',
-  },
-  backButton: {
-    padding: '0.5rem 1rem',
-    backgroundColor: '#6b7280',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-  },
-  duplicateButton: {
-    padding: '0.5rem 1rem',
-    backgroundColor: '#10b981',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-  },
-  title: {
-    fontSize: '1.875rem',
-    fontWeight: 'bold',
-    marginBottom: '0.5rem',
-  },
-  description: {
-    color: '#6b7280',
-    marginBottom: '1.5rem',
-  },
-  section: {
-    marginBottom: '2rem',
-  },
-  sectionHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '1rem',
-  },
-  headerActions: {
-    display: 'flex',
-    gap: '1rem',
-    alignItems: 'center',
-  },
-  viewToggle: {
-    display: 'flex',
-    gap: '0.25rem',
-    border: '1px solid #d1d5db',
-    borderRadius: '4px',
-    overflow: 'hidden',
-  },
-  viewButton: {
-    padding: '0.5rem 1rem',
-    backgroundColor: 'white',
-    color: '#374151',
-    border: 'none',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-  },
-  viewButtonActive: {
-    padding: '0.5rem 1rem',
-    backgroundColor: '#4f46e5',
-    color: 'white',
-    border: 'none',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-  },
-  addButton: {
-    padding: '0.5rem 1rem',
-    backgroundColor: '#10b981',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-  },
-  dayTabs: {
-    display: 'flex',
-    gap: '0.5rem',
-    marginBottom: '1rem',
-    borderBottom: '2px solid #e5e7eb',
-    paddingBottom: '0.5rem',
-  },
-  dayTab: {
-    padding: '0.5rem 1rem',
-    backgroundColor: 'transparent',
-    color: '#6b7280',
-    border: 'none',
-    borderBottom: '2px solid transparent',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    fontWeight: '500',
-  },
-  dayTabActive: {
-    padding: '0.5rem 1rem',
-    backgroundColor: 'transparent',
-    color: '#4f46e5',
-    border: 'none',
-    borderBottom: '2px solid #4f46e5',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    fontWeight: '600',
-  },
-  instances: {
-    display: 'flex',
-    gap: '0.5rem',
-    flexWrap: 'wrap',
-  },
-  instance: {
-    padding: '0.5rem 1rem',
-    backgroundColor: '#f3f4f6',
-    border: '1px solid #d1d5db',
-    borderRadius: '4px',
-    cursor: 'pointer',
-  },
-  instanceActive: {
-    padding: '0.5rem 1rem',
-    backgroundColor: '#4f46e5',
-    color: 'white',
-    border: '1px solid #4f46e5',
-    borderRadius: '4px',
-    cursor: 'pointer',
-  },
-  tasksList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.5rem',
-  },
-  taskItem: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '1rem',
-    backgroundColor: '#f9fafb',
-    border: '1px solid #e5e7eb',
-    borderRadius: '4px',
-  },
-  taskMeta: {
-    fontSize: '0.875rem',
-    color: '#6b7280',
-    marginTop: '0.25rem',
-  },
-  taskActions: {
-    display: 'flex',
-    gap: '0.5rem',
-  },
-  editButton: {
-    padding: '0.5rem 1rem',
-    backgroundColor: '#f59e0b',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-  },
-  assignButton: {
-    padding: '0.5rem 1rem',
-    backgroundColor: '#4f46e5',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-  },
 };

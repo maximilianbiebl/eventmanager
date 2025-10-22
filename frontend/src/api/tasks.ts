@@ -68,6 +68,11 @@ export const tasksApi = {
     return response.data;
   },
 
+  updateReminder: async (assignmentId: number, reminderMinutes: number) => {
+    const response = await client.put(`/tasks/assignment/${assignmentId}/reminder`, { reminder_minutes: reminderMinutes });
+    return response.data;
+  },
+
   update: async (id: number, data: Partial<Task>) => {
     const response = await client.put(`/tasks/${id}`, data);
     return response.data;

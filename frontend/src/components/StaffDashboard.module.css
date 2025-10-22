@@ -230,6 +230,83 @@
   font-weight: 500;
 }
 
+.reminderSection {
+  margin: 0.75rem 0;
+}
+
+.reminderButton {
+  padding: 0.375rem 0.75rem;
+  background-color: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  width: 100%;
+  text-align: left;
+  transition: background-color 0.2s;
+}
+
+.reminderButton:hover {
+  background-color: #e5e7eb;
+}
+
+.reminderEdit {
+  padding: 0.75rem;
+  background-color: #f9fafb;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+}
+
+.reminderLabel {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+
+.reminderControls {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.reminderInput {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.reminderSave {
+  padding: 0.5rem 1rem;
+  background-color: #10b981;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.reminderSave:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.reminderCancel {
+  padding: 0.5rem 1rem;
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
 .loading, .empty {
   min-height: 50vh;
   display: flex;

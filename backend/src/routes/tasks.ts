@@ -237,6 +237,36 @@ router.put('/complete/:assignmentId', authMiddleware, async (req: AuthRequest, r
   }
 });
 
+// Erinnerungszeit für Assignment aktualisieren
+router.put('/assignment/:assignmentId/reminder', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { assignmentId } = req.params;
+    const { reminder_minutes } = req.body;
+    const userId = req.user!.id;
+
+    // Prüfen ob die Zuweisung dem Benutzer gehört
+    const assignment = await query('SELECT * FROM task_assignments WHERE id = $1 AND user_id = $2', [
+      assignmentId,
+      userId,
+    ]);
+
+    if (assignment.rows.length === 0) {
+      return res.status(404).json({ error: 'Zuweisung nicht gefunden' });
+    }
+
+    // Erinnerungszeit aktualisieren
+    const result = await query(
+      'UPDATE task_assignments SET reminder_minutes = $1 WHERE id = $2 RETURNING *',
+      [reminder_minutes, assignmentId]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Update reminder error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
 // Aufgabe aktualisieren
 router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
   try {
