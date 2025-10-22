@@ -62,6 +62,26 @@ router.get('/instance/:instanceId/assignments', authMiddleware, adminMiddleware,
   }
 });
 
+// Alle Assignments für ein Event abrufen (für Admin)
+router.get('/event/:eventId/all-assignments', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { eventId } = req.params;
+
+    const result = await query(
+      `SELECT ta.user_id, ta.task_id, t.title as task_title
+       FROM task_assignments ta
+       JOIN tasks t ON ta.task_id = t.id
+       WHERE t.event_id = $1`,
+      [eventId]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Get event assignments error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
 // Eigene Aufgaben abrufen (für Mitarbeiter)
 router.get('/my-tasks/:instanceId', authMiddleware, async (req: AuthRequest, res) => {
   try {

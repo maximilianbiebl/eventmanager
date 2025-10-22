@@ -8,11 +8,12 @@ interface Props {
 
 interface EventStaff extends User {
   isInPool?: boolean;
+  taskCount?: number;
 }
 
 export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
   const [allStaff, setAllStaff] = useState<EventStaff[]>([]);
-  const [eventStaff, setEventStaff] = useState<User[]>([]);
+  const [eventStaff, setEventStaff] = useState<EventStaff[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -24,23 +25,39 @@ export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [allUsers, eventUsers] = await Promise.all([
+      const [allUsers, eventUsers, assignments] = await Promise.all([
         usersApi.getAll(),
         client.get(`/users/event/${eventId}/staff`).then(res => res.data),
+        client.get(`/tasks/event/${eventId}/all-assignments`).then(res => res.data).catch(() => []),
       ]);
+
+      // Zähle Task-Zuweisungen pro User
+      const taskCounts: { [userId: number]: number } = {};
+      assignments.forEach((assignment: any) => {
+        if (assignment.user_id) {
+          taskCounts[assignment.user_id] = (taskCounts[assignment.user_id] || 0) + 1;
+        }
+      });
 
       // Nur Mitarbeiter anzeigen
       const staffOnly = allUsers.filter(u => u.role === 'staff');
 
-      // Markiere welche bereits im Pool sind
+      // Markiere welche bereits im Pool sind und füge Task-Count hinzu
       const eventStaffIds = new Set(eventUsers.map((u: User) => u.id));
       const staffWithPoolStatus = staffOnly.map(staff => ({
         ...staff,
         isInPool: eventStaffIds.has(staff.id),
+        taskCount: taskCounts[staff.id] || 0,
+      }));
+
+      // Event-Staff mit Task-Counts
+      const eventStaffWithCounts = eventUsers.map((staff: User) => ({
+        ...staff,
+        taskCount: taskCounts[staff.id] || 0,
       }));
 
       setAllStaff(staffWithPoolStatus);
-      setEventStaff(eventUsers);
+      setEventStaff(eventStaffWithCounts);
     } catch (error) {
       console.error('Load staff pool error:', error);
       setError('Fehler beim Laden der Mitarbeiter');
@@ -107,7 +124,12 @@ export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
             <div key={staff.id} style={styles.staffCard}>
               <div style={styles.staffInfo}>
                 <span style={styles.staffName}>{staff.name}</span>
-                <span style={styles.staffBadge}>Mitarbeiter</span>
+                <div style={styles.staffMeta}>
+                  <span style={styles.staffBadge}>Mitarbeiter</span>
+                  <span style={styles.taskCount}>
+                    📋 {staff.taskCount || 0} Aufgabe{(staff.taskCount || 0) !== 1 ? 'n' : ''}
+                  </span>
+                </div>
               </div>
               <button
                 onClick={() => handleRemoveStaff(staff.id)}
@@ -281,9 +303,19 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: '500',
     color: '#1f2937',
   },
+  staffMeta: {
+    display: 'flex',
+    gap: '0.75rem',
+    alignItems: 'center',
+  },
   staffBadge: {
     fontSize: '0.75rem',
     color: '#6b7280',
+  },
+  taskCount: {
+    fontSize: '0.75rem',
+    color: '#4f46e5',
+    fontWeight: '500',
   },
   removeButton: {
     padding: '0.25rem 0.5rem',
