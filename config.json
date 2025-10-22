@@ -1,0 +1,25 @@
+{
+  "ports": {
+    "frontend": 3000,
+    "backend": 3001,
+    "database": 5432
+  },
+  "database": {
+    "host": "postgres",
+    "name": "eventmanager",
+    "user": "eventmanager",
+    "password": "change_me_in_production"
+  },
+  "jwt": {
+    "secret": "change_me_in_production_use_long_random_string",
+    "expiresIn": "7d"
+  },
+  "notifications": {
+    "reminderMinutes": 15
+  },
+  "vapid": {
+    "publicKey": "YOUR_VAPID_PUBLIC_KEY",
+    "privateKey": "YOUR_VAPID_PRIVATE_KEY",
+    "subject": "mailto:your-email@example.com"
+  }
+}

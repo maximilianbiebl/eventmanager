@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: eventmanager-db
+    environment:
+      POSTGRES_DB: eventmanager
+      POSTGRES_USER: eventmanager
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-change_me_in_production}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    networks:
+      - eventmanager-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: eventmanager-backend
+    environment:
+      NODE_ENV: production
+      CONFIG_PATH: /app/config.json
+    volumes:
+      - ./config.json:/app/config.json:ro
+    ports:
+      - "3001:3001"
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    networks:
+      - eventmanager-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: eventmanager-frontend
+    environment:
+      NODE_ENV: production
+    volumes:
+      - ./config.json:/app/config.json:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - eventmanager-network
+
+volumes:
+  postgres_data:
+
+networks:
+  eventmanager-network:
+    driver: bridge

@@ -1,0 +1,235 @@
+import React, { useState, useEffect } from 'react';
+import { eventsApi } from '../../api/events';
+import { tasksApi, Task } from '../../api/tasks';
+import { usersApi, User } from '../../api/users';
+import { programApi, ProgramItem } from '../../api/program';
+
+interface Props {
+  eventId: number;
+  onBack: () => void;
+}
+
+export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
+  const [event, setEvent] = useState<any>(null);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [program, setProgram] = useState<ProgramItem[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedInstance, setSelectedInstance] = useState<number | null>(null);
+
+  useEffect(() => {
+    loadData();
+  }, [eventId]);
+
+  const loadData = async () => {
+    try {
+      const [eventData, tasksData, programData, usersData] = await Promise.all([
+        eventsApi.getById(eventId),
+        tasksApi.getByEvent(eventId),
+        programApi.getByEvent(eventId),
+        usersApi.getAll(),
+      ]);
+
+      setEvent(eventData);
+      setTasks(tasksData);
+      setProgram(programData);
+      setUsers(usersData);
+      if (eventData.instances.length > 0) {
+        setSelectedInstance(eventData.instances[0].id);
+      }
+    } catch (error) {
+      console.error('Load event detail error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateTask = async () => {
+    const title = prompt('Aufgabentitel:');
+    if (!title) return;
+
+    const day = prompt('Tag (1-' + event.days + '):');
+    if (!day) return;
+
+    try {
+      await tasksApi.create({
+        event_id: eventId,
+        day_number: parseInt(day),
+        title,
+      });
+      await loadData();
+    } catch (error) {
+      console.error('Create task error:', error);
+      alert('Fehler beim Erstellen der Aufgabe');
+    }
+  };
+
+  const handleAssignTask = async (taskId: number) => {
+    if (!selectedInstance) {
+      alert('Bitte wähle eine Durchführung aus');
+      return;
+    }
+
+    const userIdsStr = prompt('Mitarbeiter IDs (kommagetrennt):');
+    if (!userIdsStr) return;
+
+    const userIds = userIdsStr.split(',').map((id) => parseInt(id.trim()));
+
+    try {
+      await tasksApi.assign({
+        task_id: taskId,
+        event_instance_id: selectedInstance,
+        user_ids: userIds,
+      });
+      alert('Aufgabe zugewiesen!');
+    } catch (error) {
+      console.error('Assign task error:', error);
+      alert('Fehler beim Zuweisen');
+    }
+  };
+
+  if (loading) {
+    return <div>Lade Details...</div>;
+  }
+
+  return (
+    <div>
+      <button onClick={onBack} style={styles.backButton}>
+        ← Zurück
+      </button>
+
+      <h2 style={styles.title}>{event.name}</h2>
+      {event.description && <p style={styles.description}>{event.description}</p>}
+
+      <div style={styles.section}>
+        <h3>Durchführungen</h3>
+        <div style={styles.instances}>
+          {event.instances.map((instance: any) => (
+            <button
+              key={instance.id}
+              onClick={() => setSelectedInstance(instance.id)}
+              style={selectedInstance === instance.id ? styles.instanceActive : styles.instance}
+            >
+              #{instance.instance_number} -{' '}
+              {new Date(instance.start_date).toLocaleDateString('de-DE')}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={styles.section}>
+        <div style={styles.sectionHeader}>
+          <h3>Aufgaben</h3>
+          <button onClick={handleCreateTask} style={styles.addButton}>
+            + Neue Aufgabe
+          </button>
+        </div>
+        <div style={styles.tasksList}>
+          {tasks.length === 0 ? (
+            <p>Keine Aufgaben vorhanden</p>
+          ) : (
+            tasks.map((task) => (
+              <div key={task.id} style={styles.taskItem}>
+                <div>
+                  <strong>{task.title}</strong>
+                  <div style={styles.taskMeta}>
+                    Tag {task.day_number}
+                    {task.scheduled_time && ` - ${task.scheduled_time} Uhr`}
+                  </div>
+                </div>
+                <button onClick={() => handleAssignTask(task.id)} style={styles.assignButton}>
+                  Zuweisen
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const styles: { [key: string]: React.CSSProperties } = {
+  backButton: {
+    padding: '0.5rem 1rem',
+    backgroundColor: '#6b7280',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    marginBottom: '1rem',
+  },
+  title: {
+    fontSize: '1.875rem',
+    fontWeight: 'bold',
+    marginBottom: '0.5rem',
+  },
+  description: {
+    color: '#6b7280',
+    marginBottom: '1.5rem',
+  },
+  section: {
+    marginBottom: '2rem',
+  },
+  sectionHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '1rem',
+  },
+  addButton: {
+    padding: '0.5rem 1rem',
+    backgroundColor: '#10b981',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+  },
+  instances: {
+    display: 'flex',
+    gap: '0.5rem',
+    flexWrap: 'wrap',
+  },
+  instance: {
+    padding: '0.5rem 1rem',
+    backgroundColor: '#f3f4f6',
+    border: '1px solid #d1d5db',
+    borderRadius: '4px',
+    cursor: 'pointer',
+  },
+  instanceActive: {
+    padding: '0.5rem 1rem',
+    backgroundColor: '#4f46e5',
+    color: 'white',
+    border: '1px solid #4f46e5',
+    borderRadius: '4px',
+    cursor: 'pointer',
+  },
+  tasksList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.5rem',
+  },
+  taskItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '1rem',
+    backgroundColor: '#f9fafb',
+    border: '1px solid #e5e7eb',
+    borderRadius: '4px',
+  },
+  taskMeta: {
+    fontSize: '0.875rem',
+    color: '#6b7280',
+    marginTop: '0.25rem',
+  },
+  assignButton: {
+    padding: '0.5rem 1rem',
+    backgroundColor: '#4f46e5',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+  },
+};

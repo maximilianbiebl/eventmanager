@@ -1,0 +1,142 @@
+import { Router } from 'express';
+import { query } from '../database/connection';
+import { authMiddleware, adminMiddleware } from '../middleware/auth';
+import bcrypt from 'bcrypt';
+
+const router = Router();
+
+// Alle Benutzer abrufen
+router.get('/', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const result = await query('SELECT id, name, role, created_at FROM users ORDER BY name');
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Get users error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// Benutzer aktualisieren
+router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, password, role } = req.body;
+
+    let updateQuery = 'UPDATE users SET name = $1, role = $2';
+    let params: any[] = [name, role];
+
+    if (password) {
+      const passwordHash = await bcrypt.hash(password, 10);
+      updateQuery += ', password_hash = $3 WHERE id = $4 RETURNING id, name, role';
+      params.push(passwordHash, id);
+    } else {
+      updateQuery += ' WHERE id = $3 RETURNING id, name, role';
+      params.push(id);
+    }
+
+    const result = await query(updateQuery, params);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Update user error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// Benutzer löschen
+router.delete('/:id', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await query('DELETE FROM users WHERE id = $1 RETURNING id', [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    }
+
+    res.json({ message: 'Benutzer gelöscht' });
+  } catch (error) {
+    console.error('Delete user error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// Mitarbeiter zu Event-Instanz hinzufügen
+router.post('/instance/:instanceId/staff', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { instanceId } = req.params;
+    const { user_ids } = req.body;
+
+    const assignments = [];
+
+    for (const user_id of user_ids) {
+      // Prüfen ob bereits zugewiesen
+      const existing = await query(
+        'SELECT * FROM event_instance_staff WHERE event_instance_id = $1 AND user_id = $2',
+        [instanceId, user_id]
+      );
+
+      if (existing.rows.length === 0) {
+        const result = await query(
+          'INSERT INTO event_instance_staff (event_instance_id, user_id) VALUES ($1, $2) RETURNING *',
+          [instanceId, user_id]
+        );
+        assignments.push(result.rows[0]);
+      }
+    }
+
+    res.status(201).json(assignments);
+  } catch (error) {
+    console.error('Assign staff error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// Mitarbeiter für Event-Instanz abrufen
+router.get('/instance/:instanceId/staff', authMiddleware, async (req, res) => {
+  try {
+    const { instanceId } = req.params;
+
+    const result = await query(
+      `SELECT u.id, u.name, u.role, eis.created_at as assigned_at
+       FROM event_instance_staff eis
+       JOIN users u ON eis.user_id = u.id
+       WHERE eis.event_instance_id = $1
+       ORDER BY u.name`,
+      [instanceId]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Get instance staff error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// Mitarbeiter von Event-Instanz entfernen
+router.delete('/instance/:instanceId/staff/:userId', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { instanceId, userId } = req.params;
+
+    const result = await query(
+      'DELETE FROM event_instance_staff WHERE event_instance_id = $1 AND user_id = $2 RETURNING *',
+      [instanceId, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Zuweisung nicht gefunden' });
+    }
+
+    res.json({ message: 'Mitarbeiter entfernt' });
+  } catch (error) {
+    console.error('Remove staff error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+export default router;
