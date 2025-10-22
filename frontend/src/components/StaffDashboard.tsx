@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { tasksApi, TaskAssignment } from '../api/tasks';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../hooks/useNotifications';
+import styles from './StaffDashboard.module.css';
 
 export const StaffDashboard: React.FC = () => {
   const [tasks, setTasks] = useState<TaskAssignment[]>([]);
@@ -52,57 +53,57 @@ export const StaffDashboard: React.FC = () => {
   const eventDayGroups = groupTasksByEventDay(tasks);
 
   if (loading) {
-    return <div style={styles.loading}>Lade Aufgaben...</div>;
+    return <div className={styles.loading}>Lade Aufgaben...</div>;
   }
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <div>
-          <h1 style={styles.title}>Meine Aufgaben</h1>
-          <p style={styles.subtitle}>Willkommen, {user?.name}!</p>
+    <div className={styles.container}>
+      <div className={styles.header}>
+        <div className={styles.headerContent}>
+          <h1 className={styles.title}>Meine Aufgaben</h1>
+          <p className={styles.subtitle}>Willkommen, {user?.name}!</p>
         </div>
-        <button onClick={logout} style={styles.logoutButton}>
+        <button onClick={logout} className={styles.logoutButton}>
           Abmelden
         </button>
       </div>
 
       {/* Benachrichtigungen */}
       {notifications.isSupported && !notifications.isSubscribed && (
-        <div style={styles.notificationBanner}>
+        <div className={styles.notificationBanner}>
           <p>Aktiviere Benachrichtigungen um an deine Aufgaben erinnert zu werden!</p>
-          <button onClick={handleEnableNotifications} style={styles.enableButton}>
+          <button onClick={handleEnableNotifications} className={styles.enableButton}>
             Benachrichtigungen aktivieren
           </button>
         </div>
       )}
 
       {notifications.isSubscribed && (
-        <div style={styles.notificationActive}>
+        <div className={styles.notificationActive}>
           Benachrichtigungen sind aktiv
-          <button onClick={handleTestNotification} style={styles.testButton}>
+          <button onClick={handleTestNotification} className={styles.testButton}>
             Test senden
           </button>
         </div>
       )}
 
       {/* Gruppierung wählen */}
-      <div style={styles.controls}>
+      <div className={styles.controls}>
         <button
           onClick={() => setGroupBy('event-day')}
-          style={groupBy === 'event-day' ? styles.activeTab : styles.tab}
+          className={groupBy === 'event-day' ? styles.activeTab : styles.tab}
         >
           Nach Event-Tag
         </button>
         <button
           onClick={() => setGroupBy('event')}
-          style={groupBy === 'event' ? styles.activeTab : styles.tab}
+          className={groupBy === 'event' ? styles.activeTab : styles.tab}
         >
           Nach Veranstaltung
         </button>
         <button
           onClick={() => setGroupBy('date')}
-          style={groupBy === 'date' ? styles.activeTab : styles.tab}
+          className={groupBy === 'date' ? styles.activeTab : styles.tab}
         >
           Nach Datum
         </button>
@@ -110,13 +111,13 @@ export const StaffDashboard: React.FC = () => {
 
       {/* Aufgabenliste */}
       {tasks.length === 0 ? (
-        <div style={styles.empty}>Keine Aufgaben vorhanden</div>
+        <div className={styles.empty}>Keine Aufgaben vorhanden</div>
       ) : groupBy === 'event-day' ? (
         <div>
           {Object.entries(eventDayGroups).map(([groupKey, groupTasks]) => (
-            <div key={groupKey} style={styles.group}>
-              <h2 style={styles.groupTitle}>{groupKey}</h2>
-              <div style={styles.taskList}>
+            <div key={groupKey} className={styles.group}>
+              <h2 className={styles.groupTitle}>{groupKey}</h2>
+              <div className={styles.taskList}>
                 {groupTasks.map((task) => (
                   <TaskCard key={task.assignment_id} task={task} onComplete={handleComplete} />
                 ))}
@@ -127,9 +128,9 @@ export const StaffDashboard: React.FC = () => {
       ) : groupBy === 'date' ? (
         <div>
           {Object.entries(groupedTasks).map(([day, dayTasks]) => (
-            <div key={day} style={styles.group}>
-              <h2 style={styles.groupTitle}>{day}</h2>
-              <div style={styles.taskList}>
+            <div key={day} className={styles.group}>
+              <h2 className={styles.groupTitle}>{day}</h2>
+              <div className={styles.taskList}>
                 {dayTasks.map((task) => (
                   <TaskCard key={task.assignment_id} task={task} onComplete={handleComplete} />
                 ))}
@@ -140,9 +141,9 @@ export const StaffDashboard: React.FC = () => {
       ) : (
         <div>
           {Object.entries(eventGroups).map(([eventName, eventTasks]) => (
-            <div key={eventName} style={styles.group}>
-              <h2 style={styles.groupTitle}>{eventName}</h2>
-              <div style={styles.taskList}>
+            <div key={eventName} className={styles.group}>
+              <h2 className={styles.groupTitle}>{eventName}</h2>
+              <div className={styles.taskList}>
                 {eventTasks.map((task) => (
                   <TaskCard key={task.assignment_id} task={task} onComplete={handleComplete} />
                 ))}
@@ -166,27 +167,27 @@ const TaskCard: React.FC<{
   };
 
   return (
-    <div style={task.completed ? styles.taskCardCompleted : styles.taskCard}>
-      <div style={styles.taskHeader}>
-        <h3 style={styles.taskTitle}>{task.title}</h3>
-        {task.scheduled_time && <span style={styles.taskTime}>{task.scheduled_time} Uhr</span>}
+    <div className={task.completed ? styles.taskCardCompleted : styles.taskCard}>
+      <div className={styles.taskHeader}>
+        <h3 className={styles.taskTitle}>{task.title}</h3>
+        {task.scheduled_time && <span className={styles.taskTime}>{task.scheduled_time} Uhr</span>}
       </div>
 
-      {task.description && <p style={styles.taskDescription}>{task.description}</p>}
+      {task.description && <p className={styles.taskDescription}>{task.description}</p>}
 
-      <div style={styles.taskMeta}>
-        <span style={styles.taskEvent}>{task.event_name}</span>
-        <span style={styles.taskDay}>
+      <div className={styles.taskMeta}>
+        <span className={styles.taskEvent}>{task.event_name}</span>
+        <span className={styles.taskDay}>
           Tag {task.day_number} ({getEventDate()})
         </span>
       </div>
 
       {!task.completed ? (
-        <button onClick={() => onComplete(task.assignment_id)} style={styles.completeButton}>
+        <button onClick={() => onComplete(task.assignment_id)} className={styles.completeButton}>
           Als erledigt markieren
         </button>
       ) : (
-        <div style={styles.completedBadge}>Erledigt</div>
+        <div className={styles.completedBadge}>Erledigt</div>
       )}
     </div>
   );
@@ -283,191 +284,3 @@ function groupTasksByEvent(tasks: TaskAssignment[]) {
 
   return grouped;
 }
-
-const styles: { [key: string]: React.CSSProperties } = {
-  container: {
-    minHeight: '100vh',
-    backgroundColor: '#f3f4f6',
-    padding: '1rem',
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '2rem',
-    backgroundColor: 'white',
-    padding: '1.5rem',
-    borderRadius: '8px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-  },
-  title: {
-    fontSize: '1.875rem',
-    fontWeight: 'bold',
-    color: '#111827',
-    margin: 0,
-  },
-  subtitle: {
-    color: '#6b7280',
-    margin: '0.5rem 0 0 0',
-  },
-  logoutButton: {
-    padding: '0.5rem 1rem',
-    backgroundColor: '#ef4444',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontWeight: '500',
-  },
-  loading: {
-    minHeight: '100vh',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '1.125rem',
-  },
-  notificationBanner: {
-    backgroundColor: '#dbeafe',
-    padding: '1rem',
-    borderRadius: '8px',
-    marginBottom: '1rem',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  notificationActive: {
-    backgroundColor: '#d1fae5',
-    padding: '1rem',
-    borderRadius: '8px',
-    marginBottom: '1rem',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  enableButton: {
-    padding: '0.5rem 1rem',
-    backgroundColor: '#3b82f6',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-  },
-  testButton: {
-    padding: '0.5rem 1rem',
-    backgroundColor: '#10b981',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-  },
-  controls: {
-    display: 'flex',
-    gap: '0.5rem',
-    marginBottom: '1rem',
-  },
-  tab: {
-    padding: '0.75rem 1.5rem',
-    backgroundColor: 'white',
-    border: '1px solid #d1d5db',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontWeight: '500',
-  },
-  activeTab: {
-    padding: '0.75rem 1.5rem',
-    backgroundColor: '#4f46e5',
-    color: 'white',
-    border: '1px solid #4f46e5',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontWeight: '500',
-  },
-  empty: {
-    textAlign: 'center',
-    padding: '3rem',
-    backgroundColor: 'white',
-    borderRadius: '8px',
-    color: '#6b7280',
-  },
-  group: {
-    marginBottom: '2rem',
-  },
-  groupTitle: {
-    fontSize: '1.25rem',
-    fontWeight: 'bold',
-    marginBottom: '1rem',
-    color: '#374151',
-  },
-  taskList: {
-    display: 'grid',
-    gap: '1rem',
-  },
-  taskCard: {
-    backgroundColor: 'white',
-    padding: '1.5rem',
-    borderRadius: '8px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-    borderLeft: '4px solid #4f46e5',
-  },
-  taskCardCompleted: {
-    backgroundColor: '#f9fafb',
-    padding: '1.5rem',
-    borderRadius: '8px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-    borderLeft: '4px solid #10b981',
-    opacity: 0.7,
-  },
-  taskHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'start',
-    marginBottom: '0.5rem',
-  },
-  taskTitle: {
-    fontSize: '1.125rem',
-    fontWeight: '600',
-    margin: 0,
-    color: '#111827',
-  },
-  taskTime: {
-    fontSize: '0.875rem',
-    fontWeight: '500',
-    color: '#4f46e5',
-    backgroundColor: '#eef2ff',
-    padding: '0.25rem 0.75rem',
-    borderRadius: '9999px',
-  },
-  taskDescription: {
-    color: '#6b7280',
-    margin: '0.5rem 0',
-  },
-  taskMeta: {
-    display: 'flex',
-    gap: '1rem',
-    fontSize: '0.875rem',
-    color: '#6b7280',
-    marginBottom: '1rem',
-  },
-  taskEvent: {
-    fontWeight: '500',
-  },
-  taskDay: {},
-  completeButton: {
-    padding: '0.5rem 1rem',
-    backgroundColor: '#10b981',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontWeight: '500',
-    width: '100%',
-  },
-  completedBadge: {
-    padding: '0.5rem 1rem',
-    backgroundColor: '#d1fae5',
-    color: '#065f46',
-    borderRadius: '4px',
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-};
