@@ -2,11 +2,14 @@ import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { EventsList } from './EventsList';
 import { UsersList } from './UsersList';
+import { ChangePasswordDialog } from './ChangePasswordDialog';
 
 type Tab = 'events' | 'users';
 
 export const AdminDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('events');
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
   const { user, logout } = useAuth();
 
   return (
@@ -16,9 +19,29 @@ export const AdminDashboard: React.FC = () => {
           <h1 style={styles.title}>Event Manager - Admin</h1>
           <p style={styles.subtitle}>Willkommen, {user?.name}!</p>
         </div>
-        <button onClick={logout} style={styles.logoutButton}>
-          Abmelden
-        </button>
+        <div style={styles.headerActions}>
+          <div style={styles.menuContainer}>
+            <button onClick={() => setShowMenu(!showMenu)} style={styles.menuButton}>
+              ⚙️ Menü
+            </button>
+            {showMenu && (
+              <div style={styles.dropdown}>
+                <button
+                  onClick={() => {
+                    setShowChangePassword(true);
+                    setShowMenu(false);
+                  }}
+                  style={styles.dropdownItem}
+                >
+                  🔒 Passwort ändern
+                </button>
+                <button onClick={logout} style={styles.dropdownItemDanger}>
+                  🚪 Abmelden
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       <div style={styles.tabs}>
@@ -40,6 +63,8 @@ export const AdminDashboard: React.FC = () => {
         {activeTab === 'events' && <EventsList />}
         {activeTab === 'users' && <UsersList />}
       </div>
+
+      {showChangePassword && <ChangePasswordDialog onClose={() => setShowChangePassword(false)} />}
     </div>
   );
 };
@@ -70,14 +95,52 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: '#6b7280',
     margin: '0.5rem 0 0 0',
   },
-  logoutButton: {
+  headerActions: {
+    position: 'relative',
+  },
+  menuContainer: {
+    position: 'relative',
+  },
+  menuButton: {
     padding: '0.5rem 1rem',
-    backgroundColor: '#ef4444',
+    backgroundColor: '#6366f1',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
     fontWeight: '500',
+  },
+  dropdown: {
+    position: 'absolute',
+    right: 0,
+    top: '100%',
+    marginTop: '0.5rem',
+    backgroundColor: 'white',
+    border: '1px solid #d1d5db',
+    borderRadius: '4px',
+    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+    minWidth: '200px',
+    zIndex: 1000,
+  },
+  dropdownItem: {
+    width: '100%',
+    padding: '0.75rem 1rem',
+    backgroundColor: 'transparent',
+    border: 'none',
+    textAlign: 'left',
+    cursor: 'pointer',
+    fontSize: '1rem',
+  },
+  dropdownItemDanger: {
+    width: '100%',
+    padding: '0.75rem 1rem',
+    backgroundColor: 'transparent',
+    border: 'none',
+    borderTop: '1px solid #e5e7eb',
+    textAlign: 'left',
+    cursor: 'pointer',
+    fontSize: '1rem',
+    color: '#ef4444',
   },
   tabs: {
     display: 'flex',
