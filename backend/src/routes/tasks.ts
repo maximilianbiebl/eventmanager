@@ -156,7 +156,7 @@ router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
         day_number,
         title,
         description,
-        scheduled_time,
+        scheduled_time || null,
         start_time || null,
         end_time || null,
         reminder_minutes || 15,
@@ -241,16 +241,27 @@ router.put('/complete/:assignmentId', authMiddleware, async (req: AuthRequest, r
 router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
+
+    // Hole aktuelle Aufgabe
+    const current = await query('SELECT * FROM tasks WHERE id = $1', [id]);
+
+    if (current.rows.length === 0) {
+      return res.status(404).json({ error: 'Aufgabe nicht gefunden' });
+    }
+
+    const currentTask = current.rows[0];
+
+    // Merge mit neuen Daten (nur vorhandene Felder überschreiben)
     const {
-      title,
-      description,
-      day_number,
-      scheduled_time,
-      start_time,
-      end_time,
-      reminder_minutes,
-      is_public,
-      status
+      title = currentTask.title,
+      description = currentTask.description,
+      day_number = currentTask.day_number,
+      scheduled_time = currentTask.scheduled_time,
+      start_time = currentTask.start_time,
+      end_time = currentTask.end_time,
+      reminder_minutes = currentTask.reminder_minutes,
+      is_public = currentTask.is_public,
+      status = currentTask.status
     } = req.body;
 
     const result = await query(
@@ -269,19 +280,15 @@ router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
         title,
         description,
         day_number,
-        scheduled_time,
-        start_time,
-        end_time,
+        scheduled_time || null,
+        start_time || null,
+        end_time || null,
         reminder_minutes,
         is_public,
         status,
         id
       ]
     );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Aufgabe nicht gefunden' });
-    }
 
     res.json(result.rows[0]);
   } catch (error) {

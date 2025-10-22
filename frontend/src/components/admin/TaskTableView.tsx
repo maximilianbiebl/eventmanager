@@ -95,6 +95,16 @@ export const TaskTableView: React.FC<Props> = ({ eventInstanceId, onEditTask, on
     return '-';
   };
 
+  const handleStatusChange = async (taskId: number, newStatus: string) => {
+    try {
+      await client.put(`/tasks/${taskId}`, { status: newStatus });
+      await loadAssignments();
+    } catch (error) {
+      console.error('Change status error:', error);
+      setError('Fehler beim Ändern des Status');
+    }
+  };
+
   if (loading) {
     return <div style={styles.loading}>Lade Aufgaben...</div>;
   }
@@ -159,14 +169,19 @@ export const TaskTableView: React.FC<Props> = ({ eventInstanceId, onEditTask, on
                   </td>
                   <td style={styles.td}>{formatTime(task)}</td>
                   <td style={styles.td}>
-                    <span
+                    <select
+                      value={task.status}
+                      onChange={(e) => handleStatusChange(task.id, e.target.value)}
                       style={{
-                        ...styles.statusBadge,
+                        ...styles.statusSelect,
                         backgroundColor: STATUS_COLORS[task.status] || '#6b7280',
                       }}
                     >
-                      {STATUS_LABELS[task.status] || task.status}
-                    </span>
+                      <option value="not_started">Nicht gestartet</option>
+                      <option value="in_progress">In Arbeit</option>
+                      <option value="completed">Erledigt</option>
+                      <option value="overdue">Überfällig</option>
+                    </select>
                   </td>
                   <td style={styles.td}>
                     {assignedUsers.length === 0 ? (
@@ -314,6 +329,15 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '0.75rem',
     fontWeight: '500',
     color: 'white',
+  },
+  statusSelect: {
+    padding: '0.25rem 0.5rem',
+    borderRadius: '4px',
+    fontSize: '0.75rem',
+    fontWeight: '500',
+    color: 'white',
+    border: 'none',
+    cursor: 'pointer',
   },
   noAssignments: {
     color: '#9ca3af',

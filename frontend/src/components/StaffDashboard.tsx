@@ -15,6 +15,13 @@ export const StaffDashboard: React.FC = () => {
 
   useEffect(() => {
     loadTasks();
+
+    // Auto-refresh alle 30 Sekunden für Status-Synchronisation
+    const interval = setInterval(() => {
+      loadTasks();
+    }, 30000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const loadTasks = async () => {
@@ -263,12 +270,20 @@ function groupTasksByDay(tasks: TaskAssignment[]) {
     grouped[dateStr].push(task);
   });
 
-  // Sortiere nach Datum
+  // Sortiere nach tatsächlichem Datum (Start-Datum + Tag-Nummer)
   return Object.keys(grouped)
     .sort((a, b) => {
-      const dateA = grouped[a][0].instance_start_date;
-      const dateB = grouped[b][0].instance_start_date;
-      return new Date(dateA).getTime() - new Date(dateB).getTime();
+      const taskA = grouped[a][0];
+      const taskB = grouped[b][0];
+
+      // Berechne tatsächliches Datum für jede Task
+      const dateA = new Date(taskA.instance_start_date);
+      dateA.setDate(dateA.getDate() + taskA.day_number - 1);
+
+      const dateB = new Date(taskB.instance_start_date);
+      dateB.setDate(dateB.getDate() + taskB.day_number - 1);
+
+      return dateA.getTime() - dateB.getTime();
     })
     .reduce((acc, key) => {
       acc[key] = grouped[key].sort((a, b) => {

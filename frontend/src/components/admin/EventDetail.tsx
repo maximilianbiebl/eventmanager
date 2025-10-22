@@ -27,6 +27,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
   const [assignTaskId, setAssignTaskId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'table'>('list');
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [selectedDay, setSelectedDay] = useState<number>(1);
 
   useEffect(() => {
     loadData();
@@ -144,12 +145,27 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
           </div>
         </div>
 
+        {/* Tag-Tabs */}
+        {event && event.days > 0 && (
+          <div style={styles.dayTabs}>
+            {Array.from({ length: event.days }, (_, i) => i + 1).map((day) => (
+              <button
+                key={day}
+                onClick={() => setSelectedDay(day)}
+                style={selectedDay === day ? styles.dayTabActive : styles.dayTab}
+              >
+                Tag {day}
+              </button>
+            ))}
+          </div>
+        )}
+
         {viewMode === 'list' ? (
           <div style={styles.tasksList}>
-            {tasks.length === 0 ? (
-              <p>Keine Aufgaben vorhanden</p>
+            {tasks.filter(task => task.day_number === selectedDay).length === 0 ? (
+              <p>Keine Aufgaben für Tag {selectedDay} vorhanden</p>
             ) : (
-              tasks.map((task) => (
+              tasks.filter(task => task.day_number === selectedDay).map((task) => (
                 <div key={task.id} style={styles.taskItem}>
                   <div>
                     <strong>{task.title}</strong>
@@ -305,6 +321,33 @@ const styles: { [key: string]: React.CSSProperties } = {
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
+  },
+  dayTabs: {
+    display: 'flex',
+    gap: '0.5rem',
+    marginBottom: '1rem',
+    borderBottom: '2px solid #e5e7eb',
+    paddingBottom: '0.5rem',
+  },
+  dayTab: {
+    padding: '0.5rem 1rem',
+    backgroundColor: 'transparent',
+    color: '#6b7280',
+    border: 'none',
+    borderBottom: '2px solid transparent',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
+    fontWeight: '500',
+  },
+  dayTabActive: {
+    padding: '0.5rem 1rem',
+    backgroundColor: 'transparent',
+    color: '#4f46e5',
+    border: 'none',
+    borderBottom: '2px solid #4f46e5',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
+    fontWeight: '600',
   },
   instances: {
     display: 'flex',
