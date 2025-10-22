@@ -139,6 +139,52 @@ router.delete('/event/:eventId/staff/:userId', authMiddleware, adminMiddleware, 
   }
 });
 
+// Eigene Einstellungen abrufen
+router.get('/me/settings', authMiddleware, async (req: any, res) => {
+  try {
+    const userId = req.user!.id;
+
+    const result = await query(
+      'SELECT default_reminder_minutes, push_enabled FROM users WHERE id = $1',
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Get settings error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// Eigene Einstellungen aktualisieren
+router.put('/me/settings', authMiddleware, async (req: any, res) => {
+  try {
+    const userId = req.user!.id;
+    const { default_reminder_minutes, push_enabled } = req.body;
+
+    const result = await query(
+      `UPDATE users
+       SET default_reminder_minutes = $1, push_enabled = $2
+       WHERE id = $3
+       RETURNING default_reminder_minutes, push_enabled`,
+      [default_reminder_minutes, push_enabled, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Update settings error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
 // Mitarbeiter zu Event-Instanz hinzufügen
 router.post('/instance/:instanceId/staff', authMiddleware, adminMiddleware, async (req, res) => {
   try {

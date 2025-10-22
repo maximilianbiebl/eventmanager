@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { tasksApi, TaskAssignment } from '../api/tasks';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../hooks/useNotifications';
+import { StaffSettings } from './StaffSettings';
 import styles from './StaffDashboard.module.css';
 
 export const StaffDashboard: React.FC = () => {
   const [tasks, setTasks] = useState<TaskAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [groupBy, setGroupBy] = useState<'event-day' | 'event' | 'date'>('event-day');
+  const [showSettings, setShowSettings] = useState(false);
   const { user, logout } = useAuth();
   const notifications = useNotifications();
 
@@ -63,9 +65,14 @@ export const StaffDashboard: React.FC = () => {
           <h1 className={styles.title}>Meine Aufgaben</h1>
           <p className={styles.subtitle}>Willkommen, {user?.name}!</p>
         </div>
-        <button onClick={logout} className={styles.logoutButton}>
-          Abmelden
-        </button>
+        <div className={styles.headerButtons}>
+          <button onClick={() => setShowSettings(true)} className={styles.settingsButton}>
+            ⚙️ Einstellungen
+          </button>
+          <button onClick={logout} className={styles.logoutButton}>
+            Abmelden
+          </button>
+        </div>
       </div>
 
       {/* Benachrichtigungen */}
@@ -152,6 +159,8 @@ export const StaffDashboard: React.FC = () => {
           ))}
         </div>
       )}
+
+      {showSettings && <StaffSettings onClose={() => setShowSettings(false)} />}
     </div>
   );
 };

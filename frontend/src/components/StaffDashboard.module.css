@@ -23,6 +23,12 @@
   min-width: 0;
 }
 
+.headerButtons {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
 .title {
   font-size: 1.875rem;
   font-weight: bold;
@@ -33,6 +39,17 @@
 .subtitle {
   color: #6b7280;
   margin: 0.5rem 0 0 0;
+}
+
+.settingsButton {
+  padding: 0.5rem 1rem;
+  background-color: #6b7280;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .logoutButton {
@@ -249,7 +266,12 @@
     font-size: 0.875rem;
   }
 
-  .logoutButton {
+  .headerButtons {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .settingsButton, .logoutButton {
     width: 100%;
   }
 
