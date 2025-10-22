@@ -24,6 +24,13 @@ services:
     environment:
       NODE_ENV: production
       CONFIG_PATH: /app/config.json
+      PORT: 3001
+      # Datenbank-Verbindung (überschreibt config.json)
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: eventmanager
+      DB_USER: eventmanager
+      DB_PASSWORD: ${DB_PASSWORD:-change_me_in_production}
     volumes:
       - ./config.json:/app/config.json:ro
     ports:
