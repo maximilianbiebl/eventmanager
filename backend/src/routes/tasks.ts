@@ -218,9 +218,16 @@ router.put('/complete/:assignmentId', authMiddleware, async (req: AuthRequest, r
       return res.status(404).json({ error: 'Zuweisung nicht gefunden' });
     }
 
+    // Assignment als erledigt markieren
     const result = await query(
       'UPDATE task_assignments SET completed = true, completed_at = NOW() WHERE id = $1 RETURNING *',
       [assignmentId]
+    );
+
+    // Task selbst als "completed" markieren (global für alle Mitarbeiter)
+    await query(
+      'UPDATE tasks SET status = $1 WHERE id = $2',
+      ['completed', assignment.rows[0].task_id]
     );
 
     res.json(result.rows[0]);

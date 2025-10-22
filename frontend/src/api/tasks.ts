@@ -19,6 +19,7 @@ export interface TaskAssignment extends Task {
   assignment_id: number;
   completed: boolean;
   completed_at?: string;
+  status: string;
   event_name: string;
   instance_start_date: string;
   instance_number?: number;
