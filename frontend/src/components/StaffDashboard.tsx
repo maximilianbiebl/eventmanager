@@ -46,10 +46,11 @@ export const StaffDashboard: React.FC = () => {
   };
 
   const handleEnableNotifications = async () => {
-    const granted = await notifications.requestPermission();
-    if (granted) {
-      await notifications.subscribe();
+    const success = await notifications.subscribe();
+    if (success) {
       alert('Benachrichtigungen aktiviert!');
+    } else {
+      alert('Benachrichtigungen konnten nicht aktiviert werden. Bitte prüfen Sie die Browser-Einstellungen.');
     }
   };
 
@@ -262,8 +263,8 @@ const TaskCard: React.FC<{
         </span>
       </div>
 
-      {/* Erinnerung bearbeiten */}
-      {!task.completed && (
+      {/* Erinnerung bearbeiten - nur für zugewiesene Aufgaben */}
+      {!task.completed && task.assignment_id && (
         <div className={styles.reminderSection}>
           {!showReminderEdit ? (
             <button
@@ -307,7 +308,7 @@ const TaskCard: React.FC<{
 
       {!task.completed ? (
         <div className={styles.taskActions}>
-          {(task.status === 'not_started' || task.status === 'overdue') && (
+          {(task.status === 'not_started' || task.status === 'overdue') && task.assignment_id && (
             <button
               onClick={handleSetInProgress}
               disabled={updatingStatus}
@@ -327,9 +328,15 @@ const TaskCard: React.FC<{
               {updatingStatus ? 'Wird aktualisiert...' : '▶️ In Arbeit setzen'}
             </button>
           )}
-          <button onClick={() => onComplete(task.assignment_id)} className={styles.completeButton}>
-            Als erledigt markieren
-          </button>
+          {task.assignment_id ? (
+            <button onClick={() => onComplete(task.assignment_id)} className={styles.completeButton}>
+              Als erledigt markieren
+            </button>
+          ) : (
+            <div style={{ padding: '10px', textAlign: 'center', color: '#6b7280', fontSize: '14px', fontStyle: 'italic' }}>
+              Öffentliche Aufgabe - Keine Zuweisung erforderlich
+            </div>
+          )}
         </div>
       ) : (
         <div className={styles.completedBadge}>Erledigt</div>

@@ -28,6 +28,14 @@ export const useNotifications = () => {
 
   const subscribe = async () => {
     try {
+      // Zuerst Berechtigung anfordern
+      const permission = await Notification.requestPermission();
+
+      if (permission !== 'granted') {
+        console.log('Notification permission denied');
+        return false;
+      }
+
       // Service Worker registrieren
       const registration = await navigator.serviceWorker.register('/sw.js');
       await navigator.serviceWorker.ready;

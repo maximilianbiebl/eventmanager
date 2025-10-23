@@ -44,7 +44,7 @@ export const TaskTableView: React.FC<Props> = ({ eventInstanceId, onEditTask, on
   const [error, setError] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedDay, setSelectedDay] = useState<number | 'all'>('all');
-  const [sortBy, setSortBy] = useState<'time' | 'start' | 'end'>('time');
+  const [sortBy, setSortBy] = useState<'time' | 'start' | 'end'>('start');
 
   useEffect(() => {
     loadAssignments();
@@ -94,20 +94,33 @@ export const TaskTableView: React.FC<Props> = ({ eventInstanceId, onEditTask, on
 
   // Sortierung
   const sortedTasks = [...filteredTasks].sort((a, b) => {
-    const getTime = (task: TaskAssignment, type: 'time' | 'start' | 'end') => {
-      if (type === 'start') {
-        return task.task.start_time || task.task.scheduled_time || '23:59';
-      } else if (type === 'end') {
-        return task.task.end_time || '23:59';
-      } else {
-        return task.task.scheduled_time || task.task.start_time || '23:59';
+    if (sortBy === 'start') {
+      // Bei Start-Sortierung: Tasks ohne Startzeit zuerst, dann nach Startzeit
+      const hasStartA = !!a.task.start_time;
+      const hasStartB = !!b.task.start_time;
+
+      if (!hasStartA && !hasStartB) {
+        // Beide ohne Startzeit: nach scheduled_time sortieren
+        const timeA = a.task.scheduled_time || '23:59';
+        const timeB = b.task.scheduled_time || '23:59';
+        return timeA.localeCompare(timeB);
       }
-    };
+      if (!hasStartA) return -1; // A hat keine Startzeit, kommt zuerst
+      if (!hasStartB) return 1;  // B hat keine Startzeit, kommt zuerst
 
-    const timeA = getTime(a, sortBy);
-    const timeB = getTime(b, sortBy);
-
-    return timeA.localeCompare(timeB);
+      // Beide haben Startzeit: normal sortieren
+      return a.task.start_time!.localeCompare(b.task.start_time!);
+    } else if (sortBy === 'end') {
+      // Bei End-Sortierung: Tasks ohne Endzeit am Ende
+      const endA = a.task.end_time || '23:59';
+      const endB = b.task.end_time || '23:59';
+      return endA.localeCompare(endB);
+    } else {
+      // Standard (time): scheduled_time oder start_time
+      const timeA = a.task.scheduled_time || a.task.start_time || '23:59';
+      const timeB = b.task.scheduled_time || b.task.start_time || '23:59';
+      return timeA.localeCompare(timeB);
+    }
   });
 
   const formatTime = (task: TaskAssignment) => {
@@ -163,9 +176,9 @@ export const TaskTableView: React.FC<Props> = ({ eventInstanceId, onEditTask, on
             onChange={(e) => setSortBy(e.target.value as 'time' | 'start' | 'end')}
             style={styles.filterSelect}
           >
-            <option value="time">Nach Uhrzeit</option>
-            <option value="start">Nach Startzeit</option>
-            <option value="end">Nach Fälligkeit</option>
+            <option value="time">Nach geplanter Zeit</option>
+            <option value="start">Nach Startzeit (ohne zuerst)</option>
+            <option value="end">Nach Fälligkeit (Endzeit)</option>
           </select>
         </div>
       </div>
@@ -204,7 +217,9 @@ export const TaskTableView: React.FC<Props> = ({ eventInstanceId, onEditTask, on
               <tr style={styles.headerRow}>
                 <th style={styles.th}>Tag</th>
                 <th style={styles.th}>Aufgabe</th>
-                <th style={styles.th}>Zeit</th>
+                <th style={styles.th}>Geplante Zeit</th>
+                <th style={styles.th}>Startzeit</th>
+                <th style={styles.th}>Endzeit</th>
                 <th style={styles.th}>Status</th>
                 <th style={styles.th}>Zugewiesen an</th>
                 <th style={styles.th}>Aktionen</th>
@@ -225,7 +240,9 @@ export const TaskTableView: React.FC<Props> = ({ eventInstanceId, onEditTask, on
                       <div style={styles.taskDescription}>{task.description}</div>
                     )}
                   </td>
-                  <td style={styles.td}>{formatTime(task)}</td>
+                  <td style={styles.td}>{task.scheduled_time || '-'}</td>
+                  <td style={styles.td}>{task.start_time || '-'}</td>
+                  <td style={styles.td}>{task.end_time || '-'}</td>
                   <td style={styles.td}>
                     <select
                       value={task.status}

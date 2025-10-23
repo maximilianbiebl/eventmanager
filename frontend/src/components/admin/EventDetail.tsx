@@ -146,8 +146,8 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
           </div>
         </div>
 
-        {/* Tag-Tabs */}
-        {event && event.days > 0 && (
+        {/* Tag-Tabs - nur für List-Ansicht */}
+        {event && event.days > 0 && viewMode === 'list' && (
           <div className={styles.dayTabs}>
             {Array.from({ length: event.days }, (_, i) => i + 1).map((day) => (
               <button

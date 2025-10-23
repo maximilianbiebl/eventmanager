@@ -116,12 +116,13 @@ router.get('/my-tasks/:instanceId', authMiddleware, async (req: AuthRequest, res
   }
 });
 
-// Alle eigenen Aufgaben abrufen
+// Alle eigenen Aufgaben abrufen (zugewiesene + öffentliche)
 router.get('/my-tasks', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id;
 
-    const result = await query(
+    // Zugewiesene Aufgaben
+    const assignedTasks = await query(
       `SELECT
         t.*,
         ta.completed,
@@ -144,7 +145,46 @@ router.get('/my-tasks', authMiddleware, async (req: AuthRequest, res) => {
       [userId]
     );
 
-    res.json(result.rows);
+    // Öffentliche Aufgaben für Events in denen der User Mitarbeiter ist
+    const publicTasks = await query(
+      `SELECT DISTINCT
+        t.*,
+        false as completed,
+        null as completed_at,
+        null::integer as assignment_id,
+        ei.id as event_instance_id,
+        t.reminder_minutes,
+        e.name as event_name,
+        ei.start_date as instance_start_date,
+        ei.instance_number,
+        pi.title as program_item_title
+       FROM tasks t
+       JOIN events e ON t.event_id = e.id
+       JOIN event_instances ei ON ei.event_id = e.id
+       JOIN event_staff es ON es.event_id = e.id
+       LEFT JOIN program_items pi ON t.program_item_id = pi.id
+       WHERE es.user_id = $1
+         AND t.is_public = true
+         AND ei.start_date >= CURRENT_DATE - INTERVAL '7 days'
+         AND NOT EXISTS (
+           SELECT 1 FROM task_assignments ta2
+           WHERE ta2.task_id = t.id AND ta2.user_id = $1 AND ta2.event_instance_id = ei.id
+         )
+       ORDER BY ei.start_date, t.day_number, t.scheduled_time`,
+      [userId]
+    );
+
+    // Kombiniere beide Listen
+    const allTasks = [...assignedTasks.rows, ...publicTasks.rows];
+
+    // Sortiere nach Datum und Tag
+    allTasks.sort((a, b) => {
+      const dateCompare = new Date(a.instance_start_date).getTime() - new Date(b.instance_start_date).getTime();
+      if (dateCompare !== 0) return dateCompare;
+      return a.day_number - b.day_number;
+    });
+
+    res.json(allTasks);
   } catch (error) {
     console.error('Get all my tasks error:', error);
     res.status(500).json({ error: 'Server Fehler' });
