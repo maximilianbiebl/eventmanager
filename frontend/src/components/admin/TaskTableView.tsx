@@ -44,6 +44,7 @@ export const TaskTableView: React.FC<Props> = ({ eventInstanceId, onEditTask, on
   const [error, setError] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedDay, setSelectedDay] = useState<number | 'all'>('all');
+  const [sortBy, setSortBy] = useState<'time' | 'start' | 'end'>('time');
 
   useEffect(() => {
     loadAssignments();
@@ -91,6 +92,24 @@ export const TaskTableView: React.FC<Props> = ({ eventInstanceId, onEditTask, on
     filteredTasks = filteredTasks.filter(t => t.task.day_number === selectedDay);
   }
 
+  // Sortierung
+  const sortedTasks = [...filteredTasks].sort((a, b) => {
+    const getTime = (task: TaskAssignment, type: 'time' | 'start' | 'end') => {
+      if (type === 'start') {
+        return task.task.start_time || task.task.scheduled_time || '23:59';
+      } else if (type === 'end') {
+        return task.task.end_time || '23:59';
+      } else {
+        return task.task.scheduled_time || task.task.start_time || '23:59';
+      }
+    };
+
+    const timeA = getTime(a, sortBy);
+    const timeB = getTime(b, sortBy);
+
+    return timeA.localeCompare(timeB);
+  });
+
   const formatTime = (task: TaskAssignment) => {
     if (task.start_time && task.end_time) {
       return `${task.start_time} - ${task.end_time}`;
@@ -125,7 +144,7 @@ export const TaskTableView: React.FC<Props> = ({ eventInstanceId, onEditTask, on
       <div style={styles.header}>
         <h3 style={styles.title}>Aufgaben-Übersicht</h3>
         <div style={styles.filterGroup}>
-          <label style={styles.filterLabel}>Status-Filter:</label>
+          <label style={styles.filterLabel}>Status:</label>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -136,6 +155,17 @@ export const TaskTableView: React.FC<Props> = ({ eventInstanceId, onEditTask, on
             <option value="in_progress">In Arbeit</option>
             <option value="completed">Erledigt</option>
             <option value="overdue">Überfällig</option>
+          </select>
+
+          <label style={styles.filterLabel}>Sortierung:</label>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as 'time' | 'start' | 'end')}
+            style={styles.filterSelect}
+          >
+            <option value="time">Nach Uhrzeit</option>
+            <option value="start">Nach Startzeit</option>
+            <option value="end">Nach Fälligkeit</option>
           </select>
         </div>
       </div>
@@ -161,7 +191,7 @@ export const TaskTableView: React.FC<Props> = ({ eventInstanceId, onEditTask, on
         </div>
       )}
 
-      {filteredTasks.length === 0 ? (
+      {sortedTasks.length === 0 ? (
         <div style={styles.noTasks}>
           {statusFilter === 'all'
             ? 'Keine Aufgaben vorhanden'
@@ -181,7 +211,7 @@ export const TaskTableView: React.FC<Props> = ({ eventInstanceId, onEditTask, on
               </tr>
             </thead>
             <tbody>
-              {filteredTasks.map(({ task, assignedUsers }) => (
+              {sortedTasks.map(({ task, assignedUsers }) => (
                 <tr key={task.id} style={styles.row}>
                   <td style={styles.td}>Tag {task.day_number}</td>
                   <td style={styles.td}>

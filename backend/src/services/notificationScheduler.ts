@@ -10,6 +10,7 @@ export function startNotificationScheduler() {
   cron.schedule('* * * * *', async () => {
     try {
       await sendTaskReminders();
+      await updateOverdueTasks();
     } catch (error) {
       console.error('Notification scheduler error:', error);
     }
@@ -131,5 +132,96 @@ async function sendTaskNotification(userId: number, task: any, instance: any) {
     }
   } catch (error) {
     console.error('Send task notification error:', error);
+  }
+}
+
+async function updateOverdueTasks() {
+  const now = new Date();
+
+  // Finde alle Event-Instanzen die heute oder in der Vergangenheit laufen
+  const instancesResult = await query(
+    `SELECT ei.*, e.days
+     FROM event_instances ei
+     JOIN events e ON ei.event_id = e.id
+     WHERE ei.start_date <= CURRENT_DATE
+       AND (ei.start_date + INTERVAL '1 day' * e.days) >= CURRENT_DATE`
+  );
+
+  for (const instance of instancesResult.rows) {
+    // Berechne den aktuellen Tag der Veranstaltung
+    const instanceStartDate = new Date(instance.start_date);
+    const daysDiff = Math.floor((now.getTime() - instanceStartDate.getTime()) / (1000 * 60 * 60 * 24));
+    const currentDay = daysDiff + 1;
+
+    // Finde Tasks die überfällig sind
+    const tasksResult = await query(
+      `SELECT t.*, ta.user_id, ta.id as assignment_id
+       FROM tasks t
+       LEFT JOIN task_assignments ta ON t.id = ta.task_id AND ta.event_instance_id = $1
+       WHERE t.event_id = $2
+         AND t.status NOT IN ('completed', 'overdue')
+         AND t.end_time IS NOT NULL
+         AND (
+           t.day_number < $3
+           OR (t.day_number = $3 AND t.end_time < $4)
+         )`,
+      [instance.id, instance.event_id, currentDay, now.toTimeString().substring(0, 5)]
+    );
+
+    for (const task of tasksResult.rows) {
+      try {
+        // Update Task Status zu overdue
+        await query(
+          'UPDATE tasks SET status = $1 WHERE id = $2',
+          ['overdue', task.id]
+        );
+
+        console.log(`Task ${task.id} marked as overdue`);
+
+        // Sende Push-Benachrichtigung an zugewiesene Mitarbeiter
+        if (task.user_id) {
+          const subscriptions = await query(
+            `SELECT ps.* FROM push_subscriptions ps
+             JOIN users u ON ps.user_id = u.id
+             WHERE ps.user_id = $1 AND u.push_enabled = true`,
+            [task.user_id]
+          );
+
+          const payload = JSON.stringify({
+            title: 'Aufgabe überfällig',
+            body: `"${task.title}" ist jetzt überfällig`,
+            icon: '/icon.png',
+            tag: `task-overdue-${task.id}`,
+            data: {
+              taskId: task.id,
+              instanceId: instance.id,
+              assignmentId: task.assignment_id,
+            },
+          });
+
+          for (const sub of subscriptions.rows) {
+            try {
+              await webpush.sendNotification(
+                {
+                  endpoint: sub.endpoint,
+                  keys: {
+                    p256dh: sub.keys_p256dh,
+                    auth: sub.keys_auth,
+                  },
+                },
+                payload
+              );
+            } catch (error: any) {
+              console.error('Push notification error:', error);
+              if (error.statusCode === 410) {
+                await query('DELETE FROM push_subscriptions WHERE id = $1', [sub.id]);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error(`Error updating overdue task ${task.id}:`, error);
+      }
+    }
   }
 }

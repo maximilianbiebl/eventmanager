@@ -87,4 +87,9 @@ export const tasksApi = {
     const response = await client.get(`/tasks/status/${instanceId}`);
     return response.data;
   },
+
+  updateStatus: async (taskId: number, status: string) => {
+    const response = await client.put(`/tasks/${taskId}/status`, { status });
+    return response.data;
+  },
 };

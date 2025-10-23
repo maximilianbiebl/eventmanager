@@ -180,6 +180,7 @@ const TaskCard: React.FC<{
   const [showReminderEdit, setShowReminderEdit] = React.useState(false);
   const [reminderMinutes, setReminderMinutes] = React.useState(task.reminder_minutes || 15);
   const [saving, setSaving] = React.useState(false);
+  const [updatingStatus, setUpdatingStatus] = React.useState(false);
 
   // Update reminder state when task prop changes
   React.useEffect(() => {
@@ -206,6 +207,39 @@ const TaskCard: React.FC<{
     }
   };
 
+  const handleSetInProgress = async () => {
+    setUpdatingStatus(true);
+    try {
+      await tasksApi.updateStatus(task.id, 'in_progress');
+      onReminderUpdate(); // Reload tasks to get updated status
+    } catch (error) {
+      console.error('Update status error:', error);
+      alert('Fehler beim Aktualisieren des Status');
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    const labels: { [key: string]: string } = {
+      not_started: 'Nicht gestartet',
+      in_progress: 'In Arbeit',
+      completed: 'Erledigt',
+      overdue: 'Überfällig',
+    };
+    return labels[status] || status;
+  };
+
+  const getStatusColor = (status: string) => {
+    const colors: { [key: string]: string } = {
+      not_started: '#6b7280',
+      in_progress: '#3b82f6',
+      completed: '#10b981',
+      overdue: '#ef4444',
+    };
+    return colors[status] || '#6b7280';
+  };
+
   return (
     <div className={task.completed ? styles.taskCardCompleted : styles.taskCard}>
       <div className={styles.taskHeader}>
@@ -219,6 +253,12 @@ const TaskCard: React.FC<{
         <span className={styles.taskEvent}>{task.event_name}</span>
         <span className={styles.taskDay}>
           Tag {task.day_number} ({getEventDate()})
+        </span>
+        <span
+          className={styles.taskStatus}
+          style={{ backgroundColor: getStatusColor(task.status), color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}
+        >
+          {getStatusLabel(task.status)}
         </span>
       </div>
 
@@ -266,9 +306,31 @@ const TaskCard: React.FC<{
       )}
 
       {!task.completed ? (
-        <button onClick={() => onComplete(task.assignment_id)} className={styles.completeButton}>
-          Als erledigt markieren
-        </button>
+        <div className={styles.taskActions}>
+          {(task.status === 'not_started' || task.status === 'overdue') && (
+            <button
+              onClick={handleSetInProgress}
+              disabled={updatingStatus}
+              className={styles.inProgressButton}
+              style={{
+                backgroundColor: '#3b82f6',
+                color: 'white',
+                padding: '10px 20px',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: updatingStatus ? 'not-allowed' : 'pointer',
+                opacity: updatingStatus ? 0.6 : 1,
+                marginBottom: '8px',
+                width: '100%',
+              }}
+            >
+              {updatingStatus ? 'Wird aktualisiert...' : '▶️ In Arbeit setzen'}
+            </button>
+          )}
+          <button onClick={() => onComplete(task.assignment_id)} className={styles.completeButton}>
+            Als erledigt markieren
+          </button>
+        </div>
       ) : (
         <div className={styles.completedBadge}>Erledigt</div>
       )}

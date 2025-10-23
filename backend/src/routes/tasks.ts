@@ -291,6 +291,115 @@ router.put('/assignment/:assignmentId/reminder', authMiddleware, async (req: Aut
   }
 });
 
+// Task-Status ändern (für Mitarbeiter - nur in_progress erlaubt)
+router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const userId = req.user!.id;
+
+    // Prüfen ob der Benutzer Admin ist oder der Task zugewiesen ist
+    const isAdmin = req.user!.role === 'admin';
+
+    if (!isAdmin) {
+      // Prüfen ob der Task dem Mitarbeiter zugewiesen ist
+      const assignment = await query(
+        'SELECT ta.* FROM task_assignments ta WHERE ta.task_id = $1 AND ta.user_id = $2',
+        [id, userId]
+      );
+
+      if (assignment.rows.length === 0) {
+        return res.status(403).json({ error: 'Keine Berechtigung für diese Aufgabe' });
+      }
+
+      // Mitarbeiter dürfen nur auf 'in_progress' setzen
+      if (status !== 'in_progress') {
+        return res.status(403).json({ error: 'Mitarbeiter können den Status nur auf "In Arbeit" setzen' });
+      }
+    }
+
+    // Hole aktuelle Aufgabe für Benachrichtigungen
+    const current = await query('SELECT * FROM tasks WHERE id = $1', [id]);
+
+    if (current.rows.length === 0) {
+      return res.status(404).json({ error: 'Aufgabe nicht gefunden' });
+    }
+
+    const currentTask = current.rows[0];
+
+    // Status aktualisieren
+    const result = await query(
+      'UPDATE tasks SET status = $1 WHERE id = $2 RETURNING *',
+      [status, id]
+    );
+
+    // Wenn Status geändert wurde, sende Push-Benachrichtigungen (nur für Admin-Änderungen)
+    if (isAdmin && status !== currentTask.status) {
+      try {
+        let recipients;
+
+        // Bei öffentlichen Aufgaben: Alle Mitarbeiter im Event-Pool benachrichtigen
+        if (currentTask.is_public) {
+          recipients = await query(
+            `SELECT DISTINCT u.id, ps.endpoint, ps.keys
+             FROM users u
+             JOIN push_subscriptions ps ON ps.user_id = u.id
+             JOIN event_staff es ON es.user_id = u.id
+             WHERE es.event_id = $1 AND u.push_enabled = true AND u.role = 'staff'`,
+            [currentTask.event_id]
+          );
+        } else {
+          // Bei privaten Aufgaben: Nur zugewiesene Mitarbeiter benachrichtigen
+          recipients = await query(
+            `SELECT DISTINCT u.id, ps.endpoint, ps.keys
+             FROM task_assignments ta
+             JOIN users u ON ta.user_id = u.id
+             JOIN push_subscriptions ps ON ps.user_id = u.id
+             WHERE ta.task_id = $1 AND u.push_enabled = true`,
+            [id]
+          );
+        }
+
+        const webpush = require('web-push');
+        const statusLabels: { [key: string]: string } = {
+          not_started: 'Nicht gestartet',
+          in_progress: 'In Arbeit',
+          completed: 'Erledigt',
+          overdue: 'Überfällig',
+        };
+
+        const payload = JSON.stringify({
+          title: currentTask.is_public ? 'Öffentliche Aufgabe aktualisiert' : 'Aufgaben-Status geändert',
+          body: `"${currentTask.title}" ist jetzt: ${statusLabels[status] || status}`,
+          icon: '/icon.svg',
+          badge: '/badge.svg',
+        });
+
+        for (const sub of recipients.rows) {
+          try {
+            await webpush.sendNotification(
+              {
+                endpoint: sub.endpoint,
+                keys: sub.keys,
+              },
+              payload
+            );
+          } catch (pushError) {
+            console.error('Send push notification error:', pushError);
+          }
+        }
+      } catch (notifError) {
+        console.error('Push notification error:', notifError);
+      }
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Update status error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
 // Aufgabe aktualisieren
 router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
   try {
@@ -347,17 +456,31 @@ router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
     // Wenn Status geändert wurde, sende Push-Benachrichtigungen
     if (status !== currentTask.status) {
       try {
-        // Hole alle zugewiesenen Mitarbeiter
-        const assignments = await query(
-          `SELECT DISTINCT u.id, ps.endpoint, ps.keys
-           FROM task_assignments ta
-           JOIN users u ON ta.user_id = u.id
-           JOIN push_subscriptions ps ON ps.user_id = u.id
-           WHERE ta.task_id = $1 AND u.push_enabled = true`,
-          [id]
-        );
+        let recipients;
 
-        // Sende Benachrichtigung an jeden zugewiesenen Mitarbeiter
+        // Bei öffentlichen Aufgaben: Alle Mitarbeiter im Event-Pool benachrichtigen
+        if (is_public) {
+          recipients = await query(
+            `SELECT DISTINCT u.id, ps.endpoint, ps.keys
+             FROM users u
+             JOIN push_subscriptions ps ON ps.user_id = u.id
+             JOIN event_staff es ON es.user_id = u.id
+             WHERE es.event_id = $1 AND u.push_enabled = true AND u.role = 'staff'`,
+            [currentTask.event_id]
+          );
+        } else {
+          // Bei privaten Aufgaben: Nur zugewiesene Mitarbeiter benachrichtigen
+          recipients = await query(
+            `SELECT DISTINCT u.id, ps.endpoint, ps.keys
+             FROM task_assignments ta
+             JOIN users u ON ta.user_id = u.id
+             JOIN push_subscriptions ps ON ps.user_id = u.id
+             WHERE ta.task_id = $1 AND u.push_enabled = true`,
+            [id]
+          );
+        }
+
+        // Sende Benachrichtigungen
         const webpush = require('web-push');
         const statusLabels: { [key: string]: string } = {
           not_started: 'Nicht gestartet',
@@ -367,13 +490,13 @@ router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
         };
 
         const payload = JSON.stringify({
-          title: 'Aufgaben-Status geändert',
+          title: is_public ? 'Öffentliche Aufgabe aktualisiert' : 'Aufgaben-Status geändert',
           body: `"${title}" ist jetzt: ${statusLabels[status] || status}`,
           icon: '/icon.svg',
           badge: '/badge.svg',
         });
 
-        for (const sub of assignments.rows) {
+        for (const sub of recipients.rows) {
           try {
             await webpush.sendNotification(
               {
