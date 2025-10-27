@@ -8,6 +8,8 @@ services:
       POSTGRES_DB: eventmanager
       POSTGRES_USER: eventmanager
       POSTGRES_PASSWORD: ${DB_PASSWORD:-change_me_in_production}
+      TZ: Europe/Berlin
+      PGTZ: Europe/Berlin
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -25,6 +27,7 @@ services:
       NODE_ENV: production
       CONFIG_PATH: /app/config.json
       PORT: 3001
+      TZ: Europe/Berlin
       # Datenbank-Verbindung (überschreibt config.json)
       DB_HOST: postgres
       DB_PORT: 5432

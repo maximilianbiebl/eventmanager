@@ -360,15 +360,33 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
     // Prüfen ob der Benutzer Admin ist oder der Task zugewiesen ist
     const isAdmin = req.user!.role === 'admin';
 
-    if (!isAdmin) {
-      // Prüfen ob der Task dem Mitarbeiter zugewiesen ist
-      const assignment = await query(
-        'SELECT ta.* FROM task_assignments ta WHERE ta.task_id = $1 AND ta.user_id = $2',
-        [id, userId]
-      );
+    // Hole Task-Informationen
+    const taskInfo = await query('SELECT * FROM tasks WHERE id = $1', [id]);
+    if (taskInfo.rows.length === 0) {
+      return res.status(404).json({ error: 'Aufgabe nicht gefunden' });
+    }
+    const task = taskInfo.rows[0];
 
-      if (assignment.rows.length === 0) {
-        return res.status(403).json({ error: 'Keine Berechtigung für diese Aufgabe' });
+    if (!isAdmin) {
+      // Prüfen ob der Task dem Mitarbeiter zugewiesen ist ODER öffentlich und User im Event-Pool
+      if (task.is_public) {
+        // Bei öffentlichen Aufgaben: Prüfen ob User im Event-Pool ist
+        const inPool = await query(
+          'SELECT * FROM event_staff WHERE event_id = $1 AND user_id = $2',
+          [task.event_id, userId]
+        );
+        if (inPool.rows.length === 0) {
+          return res.status(403).json({ error: 'Keine Berechtigung für diese Aufgabe' });
+        }
+      } else {
+        // Bei privaten Aufgaben: Prüfen ob zugewiesen
+        const assignment = await query(
+          'SELECT ta.* FROM task_assignments ta WHERE ta.task_id = $1 AND ta.user_id = $2',
+          [id, userId]
+        );
+        if (assignment.rows.length === 0) {
+          return res.status(403).json({ error: 'Keine Berechtigung für diese Aufgabe' });
+        }
       }
 
       // Mitarbeiter dürfen nur auf 'in_progress' setzen
