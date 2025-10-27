@@ -18,17 +18,21 @@ export function startNotificationScheduler() {
 }
 
 async function sendTaskReminders() {
-  // Aktuelle Zeit + Reminder-Minuten
   const now = new Date();
+  const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
+  console.log(`[Notification Scheduler] Checking for reminders at ${currentTime}`);
 
   // Finde alle Event-Instanzen die heute laufen
   const instancesResult = await query(
-    `SELECT ei.*, e.days
+    `SELECT ei.*, e.days, e.name as event_name
      FROM event_instances ei
      JOIN events e ON ei.event_id = e.id
      WHERE ei.start_date <= CURRENT_DATE
        AND (ei.start_date + INTERVAL '1 day' * e.days) >= CURRENT_DATE`
   );
+
+  console.log(`[Notification Scheduler] Found ${instancesResult.rows.length} active event instances`);
 
   for (const instance of instancesResult.rows) {
     // Berechne den aktuellen Tag der Veranstaltung
@@ -40,34 +44,45 @@ async function sendTaskReminders() {
       continue;
     }
 
-    // Finde Aufgaben die bald anstehen
+    console.log(`[Notification Scheduler] Checking instance: ${instance.event_name} #${instance.instance_number}, Day ${currentDay}`);
+
+    // Finde Aufgaben die bald anstehen - mit scheduled_time ODER start_time
     const tasksResult = await query(
       `SELECT
         t.*,
         ta.id as assignment_id,
         ta.user_id,
-        ta.completed
+        ta.completed,
+        COALESCE(ta.reminder_minutes, t.reminder_minutes) as reminder_minutes
        FROM tasks t
        JOIN task_assignments ta ON t.id = ta.task_id
        WHERE ta.event_instance_id = $1
          AND t.day_number = $2
-         AND t.scheduled_time IS NOT NULL
+         AND (t.scheduled_time IS NOT NULL OR t.start_time IS NOT NULL)
          AND ta.completed = false`,
       [instance.id, currentDay]
     );
 
+    console.log(`[Notification Scheduler] Found ${tasksResult.rows.length} tasks for today`);
+
     for (const task of tasksResult.rows) {
-      // Berechne die Reminder-Zeit
-      const [hours, minutes] = task.scheduled_time.split(':');
+      // Nutze start_time als Fallback wenn scheduled_time nicht gesetzt
+      const timeToUse = task.scheduled_time || task.start_time;
+      if (!timeToUse) continue;
+
+      const [hours, minutes] = timeToUse.split(':');
       const taskTime = new Date(now);
       taskTime.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
 
-      const reminderTime = new Date(taskTime.getTime() - task.reminder_minutes * 60 * 1000);
+      const reminderMinutes = task.reminder_minutes || 15;
+      const reminderTime = new Date(taskTime.getTime() - reminderMinutes * 60 * 1000);
 
       // Prüfe ob jetzt der richtige Zeitpunkt ist (innerhalb der nächsten Minute)
       const timeDiff = reminderTime.getTime() - now.getTime();
 
       if (timeDiff > 0 && timeDiff < 60000) {
+        console.log(`[Notification Scheduler] Sending reminder for task "${task.title}" to user ${task.user_id}`);
+
         // Prüfe ob bereits gesendet
         const alreadySent = await query(
           `SELECT * FROM notifications_log
@@ -77,7 +92,7 @@ async function sendTaskReminders() {
         );
 
         if (alreadySent.rows.length === 0) {
-          await sendTaskNotification(task.user_id, task, instance);
+          await sendTaskNotification(task.user_id, task, instance, reminderMinutes);
 
           // Log erstellen
           await query(
@@ -90,14 +105,16 @@ async function sendTaskReminders() {
   }
 }
 
-async function sendTaskNotification(userId: number, task: any, instance: any) {
+async function sendTaskNotification(userId: number, task: any, instance: any, reminderMinutes: number) {
   try {
     // Hole alle Push Subscriptions des Benutzers
     const subscriptions = await query('SELECT * FROM push_subscriptions WHERE user_id = $1', [userId]);
 
+    console.log(`[sendTaskNotification] Found ${subscriptions.rows.length} subscriptions for user ${userId}`);
+
     const payload = JSON.stringify({
       title: 'Aufgaben-Erinnerung',
-      body: `In ${task.reminder_minutes} Minuten: ${task.title}`,
+      body: `In ${reminderMinutes} Minuten: ${task.title}`,
       icon: '/icon.png',
       tag: `task-${task.id}-${instance.id}`,
       data: {
@@ -120,7 +137,7 @@ async function sendTaskNotification(userId: number, task: any, instance: any) {
           payload
         );
 
-        console.log(`Notification sent to user ${userId} for task ${task.id}`);
+        console.log(`[sendTaskNotification] ✓ Notification sent to user ${userId} for task "${task.title}"`);
       } catch (error: any) {
         console.error('Push notification error:', error);
 
