@@ -373,6 +373,15 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
       [status, id]
     );
 
+    // Wenn Status von completed weg geändert wird, alle Assignments zurücksetzen
+    if (currentTask.status === 'completed' && status !== 'completed') {
+      await query(
+        'UPDATE task_assignments SET completed = false, completed_at = null WHERE task_id = $1',
+        [id]
+      );
+      console.log(`Reset completed status for all assignments of task ${id}`);
+    }
+
     // Wenn Status geändert wurde, sende Push-Benachrichtigungen (nur für Admin-Änderungen)
     if (isAdmin && status !== currentTask.status) {
       try {
@@ -492,6 +501,15 @@ router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
         id
       ]
     );
+
+    // Wenn Status von completed weg geändert wird, alle Assignments zurücksetzen
+    if (currentTask.status === 'completed' && status !== 'completed') {
+      await query(
+        'UPDATE task_assignments SET completed = false, completed_at = null WHERE task_id = $1',
+        [id]
+      );
+      console.log(`Reset completed status for all assignments of task ${id}`);
+    }
 
     // Wenn Status geändert wurde, sende Push-Benachrichtigungen
     if (status !== currentTask.status) {

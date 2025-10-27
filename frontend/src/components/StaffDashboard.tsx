@@ -245,7 +245,19 @@ const TaskCard: React.FC<{
     <div className={task.completed ? styles.taskCardCompleted : styles.taskCard}>
       <div className={styles.taskHeader}>
         <h3 className={styles.taskTitle}>{task.title}</h3>
-        {task.scheduled_time && <span className={styles.taskTime}>{task.scheduled_time} Uhr</span>}
+      </div>
+
+      {/* Zeitinformationen */}
+      <div style={{ marginBottom: '12px', fontSize: '14px', color: '#6b7280' }}>
+        {task.scheduled_time && (
+          <div>📅 Geplante Zeit: {task.scheduled_time} Uhr</div>
+        )}
+        {task.start_time && (
+          <div>🚀 Startzeit: {task.start_time} Uhr</div>
+        )}
+        {task.end_time && (
+          <div>🏁 Endzeit: {task.end_time} Uhr</div>
+        )}
       </div>
 
       {task.description && <p className={styles.taskDescription}>{task.description}</p>}
@@ -308,7 +320,7 @@ const TaskCard: React.FC<{
 
       {!task.completed ? (
         <div className={styles.taskActions}>
-          {(task.status === 'not_started' || task.status === 'overdue') && task.assignment_id && (
+          {(task.status === 'not_started' || task.status === 'overdue') && (
             <button
               onClick={handleSetInProgress}
               disabled={updatingStatus}
@@ -334,7 +346,7 @@ const TaskCard: React.FC<{
             </button>
           ) : (
             <div style={{ padding: '10px', textAlign: 'center', color: '#6b7280', fontSize: '14px', fontStyle: 'italic' }}>
-              Öffentliche Aufgabe - Keine Zuweisung erforderlich
+              Öffentliche Aufgabe
             </div>
           )}
         </div>
