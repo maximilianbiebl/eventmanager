@@ -83,21 +83,12 @@ export const StaffDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Benachrichtigungen */}
+      {/* Benachrichtigungen - Banner nur wenn nicht aktiviert */}
       {notifications.isSupported && !notifications.isSubscribed && (
         <div className={styles.notificationBanner}>
           <p>Aktiviere Benachrichtigungen um an deine Aufgaben erinnert zu werden!</p>
           <button onClick={handleEnableNotifications} className={styles.enableButton}>
             Benachrichtigungen aktivieren
-          </button>
-        </div>
-      )}
-
-      {notifications.isSubscribed && (
-        <div className={styles.notificationActive}>
-          Benachrichtigungen sind aktiv
-          <button onClick={handleTestNotification} className={styles.testButton}>
-            Test senden
           </button>
         </div>
       )}

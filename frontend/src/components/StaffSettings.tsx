@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import client from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { useNotifications } from '../hooks/useNotifications';
 
 interface Settings {
   default_reminder_minutes: number;
@@ -20,7 +21,9 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [testSuccess, setTestSuccess] = useState(false);
   const { user } = useAuth();
+  const notifications = useNotifications();
 
   useEffect(() => {
     loadSettings();
@@ -54,6 +57,17 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
       setError(error.response?.data?.error || 'Fehler beim Speichern');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleTestNotification = async () => {
+    try {
+      await notifications.sendTestNotification();
+      setTestSuccess(true);
+      setTimeout(() => setTestSuccess(false), 3000);
+    } catch (error) {
+      console.error('Test notification error:', error);
+      setError('Fehler beim Senden der Test-Benachrichtigung');
     }
   };
 
@@ -101,6 +115,22 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
               <p style={styles.hint}>
                 Du erhältst Benachrichtigungen vor deinen Aufgaben
               </p>
+              {notifications.isSubscribed && settings.push_enabled && (
+                <div style={{ marginTop: '0.75rem' }}>
+                  <button
+                    type="button"
+                    onClick={handleTestNotification}
+                    style={styles.testButton}
+                  >
+                    📬 Test-Nachricht senden
+                  </button>
+                  {testSuccess && (
+                    <p style={{ ...styles.hint, color: '#059669', marginTop: '0.5rem' }}>
+                      ✓ Test-Benachrichtigung gesendet!
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             <div style={styles.formGroup}>
@@ -275,6 +305,16 @@ const styles: { [key: string]: React.CSSProperties } = {
     border: 'none',
     borderRadius: '4px',
     fontSize: '1rem',
+    cursor: 'pointer',
+    fontWeight: '500',
+  },
+  testButton: {
+    padding: '0.5rem 1rem',
+    backgroundColor: '#10b981',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    fontSize: '0.875rem',
     cursor: 'pointer',
     fontWeight: '500',
   },
