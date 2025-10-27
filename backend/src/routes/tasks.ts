@@ -241,9 +241,26 @@ router.post('/assign', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const { task_id, event_instance_id, user_ids, reminder_minutes } = req.body;
 
+    // Hole aktuelle Zuweisungen
+    const current = await query(
+      'SELECT user_id FROM task_assignments WHERE task_id = $1 AND event_instance_id = $2',
+      [task_id, event_instance_id]
+    );
+    const currentUserIds = current.rows.map(r => r.user_id);
+
+    // Entferne Zuweisungen die nicht mehr in der Liste sind
+    const toRemove = currentUserIds.filter(id => !user_ids.includes(id));
+    if (toRemove.length > 0) {
+      await query(
+        'DELETE FROM task_assignments WHERE task_id = $1 AND event_instance_id = $2 AND user_id = ANY($3)',
+        [task_id, event_instance_id, toRemove]
+      );
+    }
+
     const assignments = [];
 
-    for (const user_id of user_ids) {
+    // Füge neue Zuweisungen hinzu (wenn user_ids nicht leer ist)
+    for (const user_id of (user_ids || [])) {
       // Prüfen ob bereits zugewiesen
       const existing = await query(
         'SELECT * FROM task_assignments WHERE task_id = $1 AND event_instance_id = $2 AND user_id = $3',
@@ -256,6 +273,8 @@ router.post('/assign', authMiddleware, adminMiddleware, async (req, res) => {
           [task_id, event_instance_id, user_id, reminder_minutes || 15]
         );
         assignments.push(result.rows[0]);
+      } else {
+        assignments.push(existing.rows[0]);
       }
     }
 

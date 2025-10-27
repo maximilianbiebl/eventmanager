@@ -20,7 +20,8 @@ export const TaskAssignmentModal: React.FC<Props> = ({ taskId, eventId, eventIns
 
   useEffect(() => {
     loadUsers();
-  }, [eventId]);
+    loadCurrentAssignments();
+  }, [eventId, eventInstanceId, taskId]);
 
   const loadUsers = async () => {
     try {
@@ -30,6 +31,18 @@ export const TaskAssignmentModal: React.FC<Props> = ({ taskId, eventId, eventIns
     } catch (error) {
       console.error('Load users error:', error);
       setError('Fehler beim Laden der Mitarbeiter');
+    }
+  };
+
+  const loadCurrentAssignments = async () => {
+    try {
+      // Lade aktuelle Zuweisungen für diese Task und Instanz
+      const response = await client.get(`/tasks/instance/${eventInstanceId}/assignments`);
+      const assignments = response.data.filter((a: any) => a.id === taskId && a.user_id);
+      const assignedUserIds = assignments.map((a: any) => a.user_id);
+      setSelectedUserIds(assignedUserIds);
+    } catch (error) {
+      console.error('Load assignments error:', error);
     }
   };
 
@@ -47,17 +60,12 @@ export const TaskAssignmentModal: React.FC<Props> = ({ taskId, eventId, eventIns
     e.preventDefault();
     setError('');
 
-    if (selectedUserIds.length === 0) {
-      setError('Bitte mindestens einen Mitarbeiter auswählen');
-      return;
-    }
-
     setLoading(true);
     try {
       await tasksApi.assign({
         task_id: taskId,
         event_instance_id: eventInstanceId,
-        user_ids: selectedUserIds,
+        user_ids: selectedUserIds, // Kann auch leer sein um alle Zuweisungen zu entfernen
         reminder_minutes: reminderMinutes,
       });
       onSuccess();
