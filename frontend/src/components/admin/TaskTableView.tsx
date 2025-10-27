@@ -123,17 +123,6 @@ export const TaskTableView: React.FC<Props> = ({ eventInstanceId, onEditTask, on
     }
   });
 
-  const formatTime = (task: TaskAssignment) => {
-    if (task.start_time && task.end_time) {
-      return `${task.start_time} - ${task.end_time}`;
-    } else if (task.start_time) {
-      return `ab ${task.start_time}`;
-    } else if (task.scheduled_time) {
-      return task.scheduled_time;
-    }
-    return '-';
-  };
-
   const handleStatusChange = async (taskId: number, newStatus: string) => {
     try {
       await client.put(`/tasks/${taskId}`, { status: newStatus });
