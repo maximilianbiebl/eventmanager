@@ -389,11 +389,23 @@ function groupTasksByEventDay(tasks: TaskAssignment[]) {
       return taskA.day_number - taskB.day_number;
     })
     .reduce((acc, key) => {
-      // Sortiere Tasks innerhalb jeder Gruppe nach Zeit
+      // Sortiere Tasks innerhalb jeder Gruppe nach Startzeit (ohne Startzeit zuerst)
       acc[key] = grouped[key].sort((a, b) => {
-        if (!a.scheduled_time) return 1;
-        if (!b.scheduled_time) return -1;
-        return a.scheduled_time.localeCompare(b.scheduled_time);
+        const hasStartA = !!a.start_time;
+        const hasStartB = !!b.start_time;
+
+        // Tasks ohne Startzeit zuerst
+        if (!hasStartA && !hasStartB) {
+          // Beide ohne Startzeit: nach scheduled_time sortieren
+          const timeA = a.scheduled_time || '23:59';
+          const timeB = b.scheduled_time || '23:59';
+          return timeA.localeCompare(timeB);
+        }
+        if (!hasStartA) return -1; // A hat keine Startzeit, kommt zuerst
+        if (!hasStartB) return 1;  // B hat keine Startzeit, kommt zuerst
+
+        // Beide haben Startzeit: normal sortieren
+        return a.start_time!.localeCompare(b.start_time!);
       });
       return acc;
     }, {} as { [key: string]: TaskAssignment[] });
@@ -434,10 +446,19 @@ function groupTasksByDay(tasks: TaskAssignment[]) {
       return dateA.getTime() - dateB.getTime();
     })
     .reduce((acc, key) => {
+      // Sortiere nach Startzeit (ohne Startzeit zuerst)
       acc[key] = grouped[key].sort((a, b) => {
-        if (!a.scheduled_time) return 1;
-        if (!b.scheduled_time) return -1;
-        return a.scheduled_time.localeCompare(b.scheduled_time);
+        const hasStartA = !!a.start_time;
+        const hasStartB = !!b.start_time;
+
+        if (!hasStartA && !hasStartB) {
+          const timeA = a.scheduled_time || '23:59';
+          const timeB = b.scheduled_time || '23:59';
+          return timeA.localeCompare(timeB);
+        }
+        if (!hasStartA) return -1;
+        if (!hasStartB) return 1;
+        return a.start_time!.localeCompare(b.start_time!);
       });
       return acc;
     }, {} as { [key: string]: TaskAssignment[] });
@@ -452,6 +473,28 @@ function groupTasksByEvent(tasks: TaskAssignment[]) {
       grouped[key] = [];
     }
     grouped[key].push(task);
+  });
+
+  // Sortiere Tasks innerhalb jeder Gruppe nach Startzeit (ohne Startzeit zuerst)
+  Object.keys(grouped).forEach(key => {
+    grouped[key].sort((a, b) => {
+      // Erst nach Tag sortieren
+      const dayCompare = a.day_number - b.day_number;
+      if (dayCompare !== 0) return dayCompare;
+
+      // Dann nach Startzeit (ohne Startzeit zuerst)
+      const hasStartA = !!a.start_time;
+      const hasStartB = !!b.start_time;
+
+      if (!hasStartA && !hasStartB) {
+        const timeA = a.scheduled_time || '23:59';
+        const timeB = b.scheduled_time || '23:59';
+        return timeA.localeCompare(timeB);
+      }
+      if (!hasStartA) return -1;
+      if (!hasStartB) return 1;
+      return a.start_time!.localeCompare(b.start_time!);
+    });
   });
 
   return grouped;

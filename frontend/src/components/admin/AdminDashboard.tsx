@@ -10,7 +10,16 @@ export const AdminDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('events');
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0); // Zum Zurücksetzen der Listen
   const { user, logout } = useAuth();
+
+  const handleTabClick = (tab: Tab) => {
+    if (tab === activeTab) {
+      // Wenn bereits aktiver Tab geklickt wird, Liste zurücksetzen
+      setRefreshKey(prev => prev + 1);
+    }
+    setActiveTab(tab);
+  };
 
   return (
     <div style={styles.container}>
@@ -46,13 +55,13 @@ export const AdminDashboard: React.FC = () => {
 
       <div style={styles.tabs}>
         <button
-          onClick={() => setActiveTab('events')}
+          onClick={() => handleTabClick('events')}
           style={activeTab === 'events' ? styles.activeTab : styles.tab}
         >
           Veranstaltungen
         </button>
         <button
-          onClick={() => setActiveTab('users')}
+          onClick={() => handleTabClick('users')}
           style={activeTab === 'users' ? styles.activeTab : styles.tab}
         >
           Mitarbeiter
@@ -60,8 +69,8 @@ export const AdminDashboard: React.FC = () => {
       </div>
 
       <div style={styles.content}>
-        {activeTab === 'events' && <EventsList />}
-        {activeTab === 'users' && <UsersList />}
+        {activeTab === 'events' && <EventsList key={`events-${refreshKey}`} />}
+        {activeTab === 'users' && <UsersList key={`users-${refreshKey}`} />}
       </div>
 
       {showChangePassword && <ChangePasswordDialog onClose={() => setShowChangePassword(false)} />}
