@@ -54,10 +54,6 @@ export const StaffDashboard: React.FC = () => {
     }
   };
 
-  const handleTestNotification = async () => {
-    await notifications.sendTestNotification();
-  };
-
   const groupedTasks = groupTasksByDay(tasks);
   const eventGroups = groupTasksByEvent(tasks);
   const eventDayGroups = groupTasksByEventDay(tasks);
