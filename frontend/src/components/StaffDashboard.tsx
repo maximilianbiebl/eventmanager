@@ -679,7 +679,7 @@ const StaffTableView: React.FC<{
                   <div className={styles.showOnMobile}>
                     <div className={styles.mobileMeta}>
                       {showEventColumn && <div>📅 {task.event_name}</div>}
-                      <div>Tag {task.day_number} • {getEventDate(task)}</div>}
+                      <div>Tag {task.day_number} • {getEventDate(task)}</div>
                       {task.start_time && <div>🚀 {task.start_time} Uhr</div>}
                       {task.end_time && <div>🏁 {task.end_time} Uhr</div>}
                     </div>
