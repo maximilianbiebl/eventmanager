@@ -395,49 +395,95 @@
   }
 
   .header {
-    flex-direction: column;
-    align-items: stretch;
-    padding: 1rem;
+    flex-direction: row;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .headerContent {
+    flex: 1;
+    min-width: 0;
   }
 
   .title {
-    font-size: 1.5rem;
+    font-size: 1.125rem;
+    margin: 0;
   }
 
   .subtitle {
-    font-size: 0.875rem;
+    font-size: 0.75rem;
+    margin: 0.25rem 0 0 0;
   }
 
   .headerButtons {
-    width: 100%;
-    flex-direction: column;
+    flex-direction: row;
+    gap: 0.375rem;
+    flex-shrink: 0;
   }
 
   .settingsButton, .logoutButton {
-    width: 100%;
+    padding: 0.375rem 0.625rem;
+    font-size: 0.8125rem;
+    white-space: nowrap;
+  }
+
+  .settingsButton {
+    /* Show only icon on mobile */
+  }
+
+  .logoutButton {
+    /* Show only icon on mobile */
   }
 
   .notificationBanner, .notificationActive {
     flex-direction: column;
     align-items: stretch;
-    padding: 1rem;
+    padding: 0.625rem;
+    margin-bottom: 0.5rem;
   }
 
   .notificationBanner p, .notificationActive p {
-    margin: 0 0 0.5rem 0;
+    margin: 0 0 0.375rem 0;
+    font-size: 0.8125rem;
   }
 
   .enableButton, .testButton {
     width: 100%;
+    padding: 0.5rem;
+    font-size: 0.8125rem;
   }
 
   .controls {
-    flex-direction: column;
+    flex-direction: row;
+    gap: 0.375rem;
+    margin-bottom: 0.5rem;
   }
 
   .tab, .activeTab {
-    width: 100%;
+    padding: 0.5rem 0.75rem;
     text-align: center;
+    font-size: 0.8125rem;
+    flex: 1;
+  }
+
+  .filterSection {
+    padding: 0.625rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .filterLabel {
+    font-size: 0.8125rem;
+  }
+
+  .filterToggleButton {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.8125rem;
+  }
+
+  .filterActionButton {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
   }
 
   .groupTitle {
