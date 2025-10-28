@@ -6,6 +6,8 @@ import { useNotifications } from '../hooks/useNotifications';
 interface Settings {
   default_reminder_minutes: number;
   push_enabled: boolean;
+  default_view: 'cards' | 'table';
+  start_notification_enabled: boolean;
 }
 
 interface Props {
@@ -16,6 +18,8 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
   const [settings, setSettings] = useState<Settings>({
     default_reminder_minutes: 15,
     push_enabled: true,
+    default_view: 'cards',
+    start_notification_enabled: false,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -150,6 +154,43 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
               />
               <p style={styles.hint}>
                 Wie viele Minuten vorher möchtest du erinnert werden? (0 = keine Erinnerung)
+              </p>
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  checked={settings.start_notification_enabled}
+                  onChange={(e) => setSettings({ ...settings, start_notification_enabled: e.target.checked })}
+                  style={styles.checkbox}
+                  disabled={!settings.push_enabled}
+                />
+                <span>"Aufgabe startet jetzt"-Benachrichtigung aktivieren</span>
+              </label>
+              <p style={styles.hint}>
+                Du erhältst eine zusätzliche Benachrichtigung zur genauen Startzeit, wenn die Aufgabe noch nicht begonnen wurde
+              </p>
+            </div>
+          </div>
+
+          <div style={styles.section}>
+            <h3 style={styles.sectionTitle}>Ansicht</h3>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>
+                Standard-Ansicht für Aufgabenliste
+              </label>
+              <select
+                value={settings.default_view}
+                onChange={(e) => setSettings({ ...settings, default_view: e.target.value as 'cards' | 'table' })}
+                style={styles.input}
+              >
+                <option value="cards">Karten</option>
+                <option value="table">Tabelle</option>
+              </select>
+              <p style={styles.hint}>
+                Wähle deine bevorzugte Ansicht für die Aufgabenliste
               </p>
             </div>
           </div>

@@ -131,34 +131,45 @@ async function sendTaskReminders() {
       }
 
       // Zusätzliche Erinnerung zur start_time wenn Task noch nicht in_progress
+      // Nur wenn der Benutzer diese Benachrichtigung aktiviert hat
       if (task.start_time && task.status !== 'in_progress' && task.status !== 'completed') {
-        const [startHours, startMinutes] = task.start_time.split(':');
-        const startTime = new Date(now);
-        startTime.setHours(parseInt(startHours, 10), parseInt(startMinutes, 10), 0, 0);
+        // Prüfe ob Benutzer start_notification aktiviert hat
+        const userSettingsResult = await query(
+          'SELECT start_notification_enabled FROM users WHERE id = $1',
+          [task.user_id]
+        );
 
-        // Prüfe ob jetzt genau die start_time ist (innerhalb der nächsten Minute)
-        const startTimeDiff = startTime.getTime() - now.getTime();
+        const startNotificationEnabled = userSettingsResult.rows[0]?.start_notification_enabled || false;
 
-        if (startTimeDiff > 0 && startTimeDiff < 60000) {
-          console.log(`[Notification Scheduler] Sending start_time reminder for task "${task.title}" to user ${task.user_id}`);
+        if (startNotificationEnabled) {
+          const [startHours, startMinutes] = task.start_time.split(':');
+          const startTime = new Date(now);
+          startTime.setHours(parseInt(startHours, 10), parseInt(startMinutes, 10), 0, 0);
 
-          // Prüfe ob bereits gesendet (mit speziellem Tag für start_time)
-          const alreadySent = await query(
-            `SELECT * FROM notifications_log
-             WHERE user_id = $1 AND task_id = $2 AND event_instance_id = $3 AND notification_type = 'start_time'
-               AND sent_at > (NOW() - INTERVAL '1 hour')`,
-            [task.user_id, task.id, instance.id]
-          );
+          // Prüfe ob jetzt genau die start_time ist (innerhalb der nächsten Minute)
+          const startTimeDiff = startTime.getTime() - now.getTime();
 
-          if (alreadySent.rows.length === 0) {
-            await sendStartTimeNotification(task.user_id, task, instance);
+          if (startTimeDiff > 0 && startTimeDiff < 60000) {
+            console.log(`[Notification Scheduler] Sending start_time reminder for task "${task.title}" to user ${task.user_id}`);
 
-            // Log erstellen mit speziellem Type
-            await query(
-              `INSERT INTO notifications_log (user_id, task_id, event_instance_id, notification_type)
-               VALUES ($1, $2, $3, 'start_time')`,
+            // Prüfe ob bereits gesendet (mit speziellem Tag für start_time)
+            const alreadySent = await query(
+              `SELECT * FROM notifications_log
+               WHERE user_id = $1 AND task_id = $2 AND event_instance_id = $3 AND notification_type = 'start_time'
+                 AND sent_at > (NOW() - INTERVAL '1 hour')`,
               [task.user_id, task.id, instance.id]
             );
+
+            if (alreadySent.rows.length === 0) {
+              await sendStartTimeNotification(task.user_id, task, instance);
+
+              // Log erstellen mit speziellem Type
+              await query(
+                `INSERT INTO notifications_log (user_id, task_id, event_instance_id, notification_type)
+                 VALUES ($1, $2, $3, 'start_time')`,
+                [task.user_id, task.id, instance.id]
+              );
+            }
           }
         }
       }

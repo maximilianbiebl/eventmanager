@@ -3,6 +3,7 @@ import { tasksApi, TaskAssignment } from '../api/tasks';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../hooks/useNotifications';
 import { StaffSettings } from './StaffSettings';
+import client from '../api/client';
 import styles from './StaffDashboard.module.css';
 
 export const StaffDashboard: React.FC = () => {
@@ -19,6 +20,7 @@ export const StaffDashboard: React.FC = () => {
   const notifications = useNotifications();
 
   useEffect(() => {
+    loadUserSettings();
     loadTasks();
 
     // Auto-refresh alle 30 Sekunden für Status-Synchronisation
@@ -28,6 +30,17 @@ export const StaffDashboard: React.FC = () => {
 
     return () => clearInterval(interval);
   }, []);
+
+  const loadUserSettings = async () => {
+    try {
+      const response = await client.get('/users/me/settings');
+      if (response.data.default_view) {
+        setViewMode(response.data.default_view);
+      }
+    } catch (error) {
+      console.error('Load user settings error:', error);
+    }
+  };
 
   const loadTasks = async () => {
     try {

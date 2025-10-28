@@ -145,7 +145,7 @@ router.get('/me/settings', authMiddleware, async (req: any, res) => {
     const userId = req.user!.id;
 
     const result = await query(
-      'SELECT default_reminder_minutes, push_enabled FROM users WHERE id = $1',
+      'SELECT default_reminder_minutes, push_enabled, default_view, start_notification_enabled FROM users WHERE id = $1',
       [userId]
     );
 
@@ -164,14 +164,14 @@ router.get('/me/settings', authMiddleware, async (req: any, res) => {
 router.put('/me/settings', authMiddleware, async (req: any, res) => {
   try {
     const userId = req.user!.id;
-    const { default_reminder_minutes, push_enabled } = req.body;
+    const { default_reminder_minutes, push_enabled, default_view, start_notification_enabled } = req.body;
 
     const result = await query(
       `UPDATE users
-       SET default_reminder_minutes = $1, push_enabled = $2
-       WHERE id = $3
-       RETURNING default_reminder_minutes, push_enabled`,
-      [default_reminder_minutes, push_enabled, userId]
+       SET default_reminder_minutes = $1, push_enabled = $2, default_view = $3, start_notification_enabled = $4
+       WHERE id = $5
+       RETURNING default_reminder_minutes, push_enabled, default_view, start_notification_enabled`,
+      [default_reminder_minutes, push_enabled, default_view, start_notification_enabled, userId]
     );
 
     if (result.rows.length === 0) {
