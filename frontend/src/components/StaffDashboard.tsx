@@ -11,6 +11,8 @@ export const StaffDashboard: React.FC = () => {
   const [groupBy, setGroupBy] = useState<'event-day' | 'event' | 'date'>('event-day');
   const [showSettings, setShowSettings] = useState(false);
   const [hideCompleted, setHideCompleted] = useState(false);
+  const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set());
+  const [showEventFilter, setShowEventFilter] = useState(false);
   const { user, logout } = useAuth();
   const notifications = useNotifications();
 
@@ -29,6 +31,12 @@ export const StaffDashboard: React.FC = () => {
     try {
       const data = await tasksApi.getMyTasks();
       setTasks(data);
+
+      // Initialize selectedEvents with all unique events if not yet set
+      if (selectedEvents.size === 0 && data.length > 0) {
+        const uniqueEvents = new Set(data.map(t => `${t.event_name} #${t.instance_number}`));
+        setSelectedEvents(uniqueEvents);
+      }
     } catch (error) {
       console.error('Load tasks error:', error);
     } finally {
@@ -65,10 +73,44 @@ export const StaffDashboard: React.FC = () => {
     }
   };
 
-  // Filter tasks based on hideCompleted
-  const filteredTasks = hideCompleted
-    ? tasks.filter(t => !t.completed && t.status !== 'completed')
-    : tasks;
+  const handleToggleEvent = (eventKey: string) => {
+    const newSelected = new Set(selectedEvents);
+    if (newSelected.has(eventKey)) {
+      newSelected.delete(eventKey);
+    } else {
+      newSelected.add(eventKey);
+    }
+    setSelectedEvents(newSelected);
+  };
+
+  const handleSelectAllEvents = () => {
+    const allEvents = new Set(tasks.map(t => `${t.event_name} #${t.instance_number}`));
+    setSelectedEvents(allEvents);
+  };
+
+  const handleDeselectAllEvents = () => {
+    setSelectedEvents(new Set());
+  };
+
+  // Get unique events for the filter
+  const uniqueEvents = Array.from(new Set(tasks.map(t => `${t.event_name} #${t.instance_number}`)))
+    .sort();
+
+  // Filter tasks based on hideCompleted and selectedEvents
+  const filteredTasks = tasks.filter(t => {
+    // Filter by completed status
+    if (hideCompleted && (t.completed || t.status === 'completed')) {
+      return false;
+    }
+
+    // Filter by selected events
+    const eventKey = `${t.event_name} #${t.instance_number}`;
+    if (selectedEvents.size > 0 && !selectedEvents.has(eventKey)) {
+      return false;
+    }
+
+    return true;
+  });
 
   const groupedTasks = groupTasksByDay(filteredTasks);
   const eventGroups = groupTasksByEvent(filteredTasks);
@@ -139,6 +181,44 @@ export const StaffDashboard: React.FC = () => {
           <span>Erledigte Aufgaben ausblenden</span>
         </label>
       </div>
+
+      {/* Filter für Veranstaltungen */}
+      {uniqueEvents.length > 1 && (
+        <div className={styles.filterSection}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+            <button
+              onClick={() => setShowEventFilter(!showEventFilter)}
+              className={styles.filterToggleButton}
+            >
+              📅 Veranstaltungen filtern ({selectedEvents.size}/{uniqueEvents.length})
+            </button>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button onClick={handleSelectAllEvents} className={styles.filterActionButton}>
+                Alle
+              </button>
+              <button onClick={handleDeselectAllEvents} className={styles.filterActionButton}>
+                Keine
+              </button>
+            </div>
+          </div>
+
+          {showEventFilter && (
+            <div className={styles.eventFilterList}>
+              {uniqueEvents.map(eventKey => (
+                <label key={eventKey} className={styles.filterLabel}>
+                  <input
+                    type="checkbox"
+                    checked={selectedEvents.has(eventKey)}
+                    onChange={() => handleToggleEvent(eventKey)}
+                    className={styles.filterCheckbox}
+                  />
+                  <span>{eventKey}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Aufgabenliste */}
       {tasks.length === 0 ? (
