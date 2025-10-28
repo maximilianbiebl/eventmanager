@@ -13,6 +13,7 @@ export interface Task {
   reminder_minutes: number;
   is_public: boolean;
   status: string;
+  is_active?: boolean;
 }
 
 export interface TaskAssignment extends Task {
@@ -95,6 +96,16 @@ export const tasksApi = {
 
   updateStatus: async (taskId: number, status: string) => {
     const response = await client.put(`/tasks/${taskId}/status`, { status });
+    return response.data;
+  },
+
+  activate: async (taskId: number) => {
+    const response = await client.put(`/tasks/${taskId}/activate`);
+    return response.data;
+  },
+
+  deactivate: async (taskId: number) => {
+    const response = await client.put(`/tasks/${taskId}/deactivate`);
     return response.data;
   },
 };

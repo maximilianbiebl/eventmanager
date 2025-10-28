@@ -9,12 +9,18 @@ const router = Router();
 router.get('/event/:eventId', authMiddleware, async (req, res) => {
   try {
     const { eventId } = req.params;
+    const { includeInactive } = req.query;
+
+    // Standardmäßig nur aktive Tasks anzeigen, es sei denn includeInactive=true
+    const whereClause = includeInactive === 'true'
+      ? 't.event_id = $1'
+      : 't.event_id = $1 AND (t.is_active IS NULL OR t.is_active = true)';
 
     const result = await query(
       `SELECT t.*, pi.title as program_item_title
        FROM tasks t
        LEFT JOIN program_items pi ON t.program_item_id = pi.id
-       WHERE t.event_id = $1
+       WHERE ${whereClause}
        ORDER BY t.day_number, t.start_time, t.scheduled_time`,
       [eventId]
     );
@@ -105,6 +111,7 @@ router.get('/my-tasks/:instanceId', authMiddleware, async (req: AuthRequest, res
        JOIN event_instances ei ON ta.event_instance_id = ei.id
        LEFT JOIN program_items pi ON t.program_item_id = pi.id
        WHERE ta.event_instance_id = $1 AND ta.user_id = $2
+         AND (t.is_active IS NULL OR t.is_active = true)
        ORDER BY t.day_number, t.scheduled_time`,
       [instanceId, userId]
     );
@@ -141,6 +148,7 @@ router.get('/my-tasks', authMiddleware, async (req: AuthRequest, res) => {
        JOIN event_instances ei ON ta.event_instance_id = ei.id
        LEFT JOIN program_items pi ON t.program_item_id = pi.id
        WHERE ta.user_id = $1
+         AND (t.is_active IS NULL OR t.is_active = true)
        ORDER BY ei.start_date, t.day_number, t.scheduled_time`,
       [userId]
     );
@@ -165,6 +173,7 @@ router.get('/my-tasks', authMiddleware, async (req: AuthRequest, res) => {
        LEFT JOIN program_items pi ON t.program_item_id = pi.id
        WHERE es.user_id = $1
          AND t.is_public = true
+         AND (t.is_active IS NULL OR t.is_active = true)
          AND ei.start_date >= CURRENT_DATE - INTERVAL '7 days'
          AND NOT EXISTS (
            SELECT 1 FROM task_assignments ta2
@@ -816,6 +825,48 @@ router.get('/status/:instanceId', authMiddleware, adminMiddleware, async (req, r
     res.json(result.rows);
   } catch (error) {
     console.error('Get task status error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// Aufgabe deaktivieren (Admin only)
+router.put('/:id/deactivate', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await query(
+      'UPDATE tasks SET is_active = false WHERE id = $1 RETURNING *',
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Aufgabe nicht gefunden' });
+    }
+
+    res.json({ message: 'Aufgabe wurde deaktiviert', task: result.rows[0] });
+  } catch (error) {
+    console.error('Deactivate task error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// Aufgabe aktivieren (Admin only)
+router.put('/:id/activate', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await query(
+      'UPDATE tasks SET is_active = true WHERE id = $1 RETURNING *',
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Aufgabe nicht gefunden' });
+    }
+
+    res.json({ message: 'Aufgabe wurde aktiviert', task: result.rows[0] });
+  } catch (error) {
+    console.error('Activate task error:', error);
     res.status(500).json({ error: 'Server Fehler' });
   }
 });

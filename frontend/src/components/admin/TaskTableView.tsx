@@ -120,6 +120,29 @@ export const TaskTableView: React.FC<Props> = ({
     }
   };
 
+  const handleToggleActive = async (taskId: number, taskTitle: string, currentlyActive: boolean) => {
+    const action = currentlyActive ? 'deaktivieren' : 'aktivieren';
+    const actionPast = currentlyActive ? 'deaktiviert' : 'aktiviert';
+
+    if (!window.confirm(`Möchten Sie die Aufgabe "${taskTitle}" wirklich ${action}?`)) {
+      return;
+    }
+
+    try {
+      if (currentlyActive) {
+        await tasksApi.deactivate(taskId);
+      } else {
+        await tasksApi.activate(taskId);
+      }
+      setSuccessMessage(`Aufgabe wurde ${actionPast}`);
+      setTimeout(() => setSuccessMessage(''), 3000);
+      await loadAssignments();
+    } catch (error) {
+      console.error('Toggle active error:', error);
+      alert(`Fehler beim ${action.slice(0, -2)}en der Aufgabe`);
+    }
+  };
+
   // Gruppiere Assignments nach Task ID
   const groupedTasks = assignments.reduce((acc, assignment) => {
     if (!acc[assignment.id]) {
@@ -407,21 +430,21 @@ export const TaskTableView: React.FC<Props> = ({
                         style={styles.editButton}
                         title="Aufgabe bearbeiten"
                       >
-                        Bearbeiten
+                        ✏️ Bearbeiten
                       </button>
                       <button
                         onClick={() => onAssignTask(task.id)}
                         style={styles.assignButton}
                         title="Mitarbeiter zuweisen"
                       >
-                        Zuweisen
+                        👥 Zuweisen
                       </button>
                       <button
-                        onClick={() => handleDeleteTask(task.id, task.title)}
-                        style={styles.deleteButton}
-                        title="Aufgabe löschen"
+                        onClick={() => handleToggleActive(task.id, task.title, task.is_active !== false)}
+                        style={task.is_active === false ? styles.activateButton : styles.deactivateButton}
+                        title={task.is_active === false ? "Aufgabe aktivieren" : "Aufgabe deaktivieren"}
                       >
-                        Löschen
+                        {task.is_active === false ? '✅ Aktivieren' : '🚫 Deaktivieren'}
                       </button>
                     </div>
                   </td>
@@ -618,6 +641,26 @@ const styles: { [key: string]: React.CSSProperties } = {
   deleteButton: {
     padding: '0.375rem 0.75rem',
     backgroundColor: '#ef4444',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    fontSize: '0.75rem',
+    cursor: 'pointer',
+    fontWeight: '500',
+  },
+  deactivateButton: {
+    padding: '0.375rem 0.75rem',
+    backgroundColor: '#f59e0b',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    fontSize: '0.75rem',
+    cursor: 'pointer',
+    fontWeight: '500',
+  },
+  activateButton: {
+    padding: '0.375rem 0.75rem',
+    backgroundColor: '#10b981',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
