@@ -101,6 +101,39 @@ async function sendTaskReminders() {
           );
         }
       }
+
+      // Zusätzliche Erinnerung zur start_time wenn Task noch nicht in_progress
+      if (task.start_time && task.status !== 'in_progress' && task.status !== 'completed') {
+        const [startHours, startMinutes] = task.start_time.split(':');
+        const startTime = new Date(now);
+        startTime.setHours(parseInt(startHours, 10), parseInt(startMinutes, 10), 0, 0);
+
+        // Prüfe ob jetzt genau die start_time ist (innerhalb der nächsten Minute)
+        const startTimeDiff = startTime.getTime() - now.getTime();
+
+        if (startTimeDiff > 0 && startTimeDiff < 60000) {
+          console.log(`[Notification Scheduler] Sending start_time reminder for task "${task.title}" to user ${task.user_id}`);
+
+          // Prüfe ob bereits gesendet (mit speziellem Tag für start_time)
+          const alreadySent = await query(
+            `SELECT * FROM notifications_log
+             WHERE user_id = $1 AND task_id = $2 AND event_instance_id = $3 AND notification_type = 'start_time'
+               AND sent_at > (NOW() - INTERVAL '1 hour')`,
+            [task.user_id, task.id, instance.id]
+          );
+
+          if (alreadySent.rows.length === 0) {
+            await sendStartTimeNotification(task.user_id, task, instance);
+
+            // Log erstellen mit speziellem Type
+            await query(
+              `INSERT INTO notifications_log (user_id, task_id, event_instance_id, notification_type)
+               VALUES ($1, $2, $3, 'start_time')`,
+              [task.user_id, task.id, instance.id]
+            );
+          }
+        }
+      }
     }
   }
 }
@@ -149,6 +182,54 @@ async function sendTaskNotification(userId: number, task: any, instance: any, re
     }
   } catch (error) {
     console.error('Send task notification error:', error);
+  }
+}
+
+async function sendStartTimeNotification(userId: number, task: any, instance: any) {
+  try {
+    // Hole alle Push Subscriptions des Benutzers
+    const subscriptions = await query('SELECT * FROM push_subscriptions WHERE user_id = $1', [userId]);
+
+    console.log(`[sendStartTimeNotification] Found ${subscriptions.rows.length} subscriptions for user ${userId}`);
+
+    const payload = JSON.stringify({
+      title: 'Aufgabe startet jetzt!',
+      body: `Es ist Zeit zu starten: ${task.title}`,
+      icon: '/icon.png',
+      tag: `task-start-${task.id}-${instance.id}`,
+      data: {
+        taskId: task.id,
+        instanceId: instance.id,
+        assignmentId: task.assignment_id,
+        type: 'start_time',
+      },
+    });
+
+    for (const sub of subscriptions.rows) {
+      try {
+        await webpush.sendNotification(
+          {
+            endpoint: sub.endpoint,
+            keys: {
+              p256dh: sub.keys_p256dh,
+              auth: sub.keys_auth,
+            },
+          },
+          payload
+        );
+
+        console.log(`[sendStartTimeNotification] ✓ Start notification sent to user ${userId} for task "${task.title}"`);
+      } catch (error: any) {
+        console.error('Push notification error:', error);
+
+        // Subscription entfernen wenn ungültig
+        if (error.statusCode === 410) {
+          await query('DELETE FROM push_subscriptions WHERE id = $1', [sub.id]);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Send start time notification error:', error);
   }
 }
 
