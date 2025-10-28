@@ -167,31 +167,13 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
         )}
 
         {viewMode === 'list' ? (
-          <div className={styles.tasksList}>
-            {tasks.filter(task => task.day_number === selectedDay).length === 0 ? (
-              <p>Keine Aufgaben für Tag {selectedDay} vorhanden</p>
-            ) : (
-              tasks.filter(task => task.day_number === selectedDay).map((task) => (
-                <div key={task.id} className={styles.taskItem}>
-                  <div className={styles.taskInfo}>
-                    <strong>{task.title}</strong>
-                    <div className={styles.taskMeta}>
-                      Tag {task.day_number}
-                      {task.scheduled_time && ` - ${task.scheduled_time} Uhr`}
-                    </div>
-                  </div>
-                  <div className={styles.taskActions}>
-                    <button onClick={() => handleEditTask(task)} className={styles.editButton}>
-                      Bearbeiten
-                    </button>
-                    <button onClick={() => handleAssignTask(task.id)} className={styles.assignButton}>
-                      Zuweisen
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+          <TaskListView
+            tasks={tasks.filter(task => task.day_number === selectedDay)}
+            selectedDay={selectedDay}
+            selectedInstance={selectedInstance}
+            onEditTask={handleEditTask}
+            onAssignTask={handleAssignTask}
+          />
         ) : (
           selectedInstance && (
             <TaskTableView
@@ -248,6 +230,167 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
           }}
         />
       )}
+    </div>
+  );
+};
+
+// Erweiterte Listen-Ansicht mit Zeiten, MAs und Status
+interface TaskListViewProps {
+  tasks: Task[];
+  selectedDay: number;
+  selectedInstance: number | null;
+  onEditTask: (task: Task) => void;
+  onAssignTask: (taskId: number) => void;
+}
+
+const TaskListView: React.FC<TaskListViewProps> = ({
+  tasks,
+  selectedDay,
+  selectedInstance,
+  onEditTask,
+  onAssignTask,
+}) => {
+  const [assignments, setAssignments] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    if (selectedInstance) {
+      loadAssignments();
+    }
+  }, [selectedInstance, tasks]);
+
+  const loadAssignments = async () => {
+    if (!selectedInstance) return;
+
+    try {
+      setLoading(true);
+      const client = (await import('../../api/client')).default;
+      const response = await client.get(`/tasks/instance/${selectedInstance}/assignments`);
+      setAssignments(response.data);
+    } catch (error) {
+      console.error('Load assignments error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getAssignmentsForTask = (taskId: number) => {
+    return assignments.filter(a => a.id === taskId && a.user_name);
+  };
+
+  const getStatusColor = (status: string) => {
+    const colors: { [key: string]: string } = {
+      not_started: '#6b7280',
+      in_progress: '#3b82f6',
+      completed: '#10b981',
+      overdue: '#ef4444',
+    };
+    return colors[status] || '#6b7280';
+  };
+
+  const getStatusLabel = (status: string) => {
+    const labels: { [key: string]: string } = {
+      not_started: 'Nicht gestartet',
+      in_progress: 'In Arbeit',
+      completed: 'Erledigt',
+      overdue: 'Überfällig',
+    };
+    return labels[status] || status;
+  };
+
+  if (tasks.length === 0) {
+    return (
+      <div className={styles.tasksList}>
+        <p>Keine Aufgaben für Tag {selectedDay} vorhanden</p>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className={styles.tasksList}>
+        <p>Lade Zuweisungen...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.tasksList}>
+      {tasks.map((task) => {
+        const taskAssignments = getAssignmentsForTask(task.id);
+
+        return (
+          <div key={task.id} className={styles.taskItemExtended}>
+            <div className={styles.taskMainInfo}>
+              <div className={styles.taskHeader}>
+                <strong className={styles.taskTitle}>{task.title}</strong>
+                <span
+                  className={styles.statusBadge}
+                  style={{ backgroundColor: getStatusColor(task.status) }}
+                >
+                  {getStatusLabel(task.status)}
+                </span>
+              </div>
+
+              {task.description && (
+                <div className={styles.taskDescription}>{task.description}</div>
+              )}
+
+              <div className={styles.taskDetails}>
+                <div className={styles.taskTimesGrid}>
+                  {task.scheduled_time && (
+                    <div className={styles.timeItem}>
+                      <span className={styles.timeLabel}>📅 Geplant:</span>
+                      <span className={styles.timeValue}>{task.scheduled_time} Uhr</span>
+                    </div>
+                  )}
+                  {task.start_time && (
+                    <div className={styles.timeItem}>
+                      <span className={styles.timeLabel}>🚀 Start:</span>
+                      <span className={styles.timeValue}>{task.start_time} Uhr</span>
+                    </div>
+                  )}
+                  {task.end_time && (
+                    <div className={styles.timeItem}>
+                      <span className={styles.timeLabel}>🏁 Ende:</span>
+                      <span className={styles.timeValue}>{task.end_time} Uhr</span>
+                    </div>
+                  )}
+                </div>
+
+                {taskAssignments.length > 0 && (
+                  <div className={styles.assignmentsSection}>
+                    <span className={styles.assignmentsLabel}>👥 Zugewiesen an:</span>
+                    <div className={styles.assignmentsList}>
+                      {taskAssignments.map((assignment, idx) => (
+                        <span key={idx} className={styles.assignmentBadge}>
+                          {assignment.user_name}
+                          {assignment.completed && <span className={styles.completedMark}>✓</span>}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {task.is_public && (
+                  <div className={styles.publicIndicator}>
+                    🌐 Öffentliche Aufgabe
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className={styles.taskActions}>
+              <button onClick={() => onEditTask(task)} className={styles.editButton}>
+                Bearbeiten
+              </button>
+              <button onClick={() => onAssignTask(task.id)} className={styles.assignButton}>
+                Zuweisen
+              </button>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 };

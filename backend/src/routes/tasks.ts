@@ -413,22 +413,72 @@ router.put('/assignment/:assignmentId/reminder', authMiddleware, async (req: Aut
     const { assignmentId } = req.params;
     const { reminder_minutes } = req.body;
     const userId = req.user!.id;
+    const isAdmin = req.user!.role === 'admin';
 
-    // Prüfen ob die Zuweisung dem Benutzer gehört
-    const assignment = await query('SELECT * FROM task_assignments WHERE id = $1 AND user_id = $2', [
-      assignmentId,
-      userId,
-    ]);
+    // Prüfen ob die Zuweisung dem Benutzer gehört oder Admin
+    let assignment;
+    if (isAdmin) {
+      assignment = await query('SELECT ta.*, t.title FROM task_assignments ta JOIN tasks t ON ta.task_id = t.id WHERE ta.id = $1', [assignmentId]);
+    } else {
+      assignment = await query('SELECT ta.*, t.title FROM task_assignments ta JOIN tasks t ON ta.task_id = t.id WHERE ta.id = $1 AND ta.user_id = $2', [
+        assignmentId,
+        userId,
+      ]);
+    }
 
     if (assignment.rows.length === 0) {
       return res.status(404).json({ error: 'Zuweisung nicht gefunden' });
     }
+
+    const oldReminder = assignment.rows[0].reminder_minutes;
+    const taskTitle = assignment.rows[0].title;
+    const affectedUserId = assignment.rows[0].user_id;
 
     // Erinnerungszeit aktualisieren
     const result = await query(
       'UPDATE task_assignments SET reminder_minutes = $1 WHERE id = $2 RETURNING *',
       [reminder_minutes, assignmentId]
     );
+
+    // Benachrichtigung senden wenn Admin die Zeit ändert
+    if (isAdmin && affectedUserId !== userId && oldReminder !== reminder_minutes) {
+      try {
+        const webpush = require('web-push');
+        const subscriptions = await query(
+          `SELECT ps.* FROM push_subscriptions ps
+           JOIN users u ON ps.user_id = u.id
+           WHERE ps.user_id = $1 AND u.push_enabled = true`,
+          [affectedUserId]
+        );
+
+        const payload = JSON.stringify({
+          title: 'Erinnerungszeit geändert',
+          body: `"${taskTitle}": Neue Erinnerung ${reminder_minutes} Minuten vorher`,
+          icon: '/icon.png',
+          badge: '/badge.png',
+          vibrate: [200, 100, 200],
+        });
+
+        for (const sub of subscriptions.rows) {
+          try {
+            await webpush.sendNotification(
+              {
+                endpoint: sub.endpoint,
+                keys: {
+                  p256dh: sub.keys_p256dh,
+                  auth: sub.keys_auth,
+                },
+              },
+              payload
+            );
+          } catch (pushError) {
+            console.error('Send reminder change notification error:', pushError);
+          }
+        }
+      } catch (notifError) {
+        console.error('Reminder change notification error:', notifError);
+      }
+    }
 
     res.json(result.rows[0]);
   } catch (error) {
@@ -514,7 +564,7 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
         // Bei öffentlichen Aufgaben: Alle Mitarbeiter im Event-Pool benachrichtigen
         if (currentTask.is_public) {
           recipients = await query(
-            `SELECT DISTINCT u.id, ps.endpoint, ps.keys
+            `SELECT DISTINCT u.id, ps.endpoint, ps.keys_p256dh, ps.keys_auth
              FROM users u
              JOIN push_subscriptions ps ON ps.user_id = u.id
              JOIN event_staff es ON es.user_id = u.id
@@ -524,7 +574,7 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
         } else {
           // Bei privaten Aufgaben: Nur zugewiesene Mitarbeiter benachrichtigen
           recipients = await query(
-            `SELECT DISTINCT u.id, ps.endpoint, ps.keys
+            `SELECT DISTINCT u.id, ps.endpoint, ps.keys_p256dh, ps.keys_auth
              FROM task_assignments ta
              JOIN users u ON ta.user_id = u.id
              JOIN push_subscriptions ps ON ps.user_id = u.id
@@ -544,8 +594,10 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
         const payload = JSON.stringify({
           title: currentTask.is_public ? 'Öffentliche Aufgabe aktualisiert' : 'Aufgaben-Status geändert',
           body: `"${currentTask.title}" ist jetzt: ${statusLabels[status] || status}`,
-          icon: '/icon.svg',
-          badge: '/badge.svg',
+          icon: '/icon.png',
+          badge: '/badge.png',
+          vibrate: [200, 100, 200],
+          requireInteraction: status === 'overdue',
         });
 
         for (const sub of recipients.rows) {
@@ -553,12 +605,20 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
             await webpush.sendNotification(
               {
                 endpoint: sub.endpoint,
-                keys: sub.keys,
+                keys: {
+                  p256dh: sub.keys_p256dh,
+                  auth: sub.keys_auth,
+                },
               },
               payload
             );
-          } catch (pushError) {
+            console.log(`Status change notification sent to user ${sub.id} for task ${id}`);
+          } catch (pushError: any) {
             console.error('Send push notification error:', pushError);
+            // Subscription entfernen wenn ungültig
+            if (pushError.statusCode === 410) {
+              await query('DELETE FROM push_subscriptions WHERE endpoint = $1', [sub.endpoint]);
+            }
           }
         }
       } catch (notifError) {

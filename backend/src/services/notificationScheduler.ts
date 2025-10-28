@@ -154,7 +154,10 @@ async function sendTaskNotification(userId: number, task: any, instance: any, re
       title: 'Aufgaben-Erinnerung',
       body: `In ${reminderMinutes} Minuten: ${task.title}`,
       icon: '/icon.png',
+      badge: '/badge.png',
       tag: `task-${task.id}-${instance.id}`,
+      vibrate: [200, 100, 200],
+      requireInteraction: false,
       data: {
         taskId: task.id,
         instanceId: instance.id,
@@ -206,7 +209,10 @@ async function sendStartTimeNotification(userId: number, task: any, instance: an
       title: 'Aufgabe startet jetzt!',
       body: `Es ist Zeit zu starten: ${task.title}`,
       icon: '/icon.png',
+      badge: '/badge.png',
       tag: `task-start-${task.id}-${instance.id}`,
+      vibrate: [300, 100, 300, 100, 300],
+      requireInteraction: true,
       data: {
         taskId: task.id,
         instanceId: instance.id,
@@ -299,7 +305,10 @@ async function updateOverdueTasks() {
             title: 'Aufgabe überfällig',
             body: `"${task.title}" ist jetzt überfällig`,
             icon: '/icon.png',
+            badge: '/badge.png',
             tag: `task-overdue-${task.id}`,
+            vibrate: [500, 200, 500],
+            requireInteraction: true,
             data: {
               taskId: task.id,
               instanceId: instance.id,
