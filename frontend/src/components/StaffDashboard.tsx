@@ -3,6 +3,7 @@ import { tasksApi, TaskAssignment } from '../api/tasks';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../hooks/useNotifications';
 import { StaffSettings } from './StaffSettings';
+import { ChangePasswordDialog } from './admin/ChangePasswordDialog';
 import client from '../api/client';
 import styles from './StaffDashboard.module.css';
 
@@ -12,6 +13,7 @@ export const StaffDashboard: React.FC = () => {
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [groupBy, setGroupBy] = useState<'event-day' | 'event' | 'date'>('event-day');
   const [showSettings, setShowSettings] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
   const [hideCompleted, setHideCompleted] = useState(false);
   const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set());
   const [showEventFilter, setShowEventFilter] = useState(false);
@@ -173,6 +175,9 @@ export const StaffDashboard: React.FC = () => {
         <div className={styles.headerButtons}>
           <button onClick={() => setShowSettings(true)} className={styles.settingsButton}>
             ⚙️ Einstellungen
+          </button>
+          <button onClick={() => setShowChangePassword(true)} className={styles.settingsButton}>
+            🔒 Passwort ändern
           </button>
           <button onClick={logout} className={styles.logoutButton}>
             Abmelden
@@ -373,6 +378,7 @@ export const StaffDashboard: React.FC = () => {
       )}
 
       {showSettings && <StaffSettings onClose={() => setShowSettings(false)} />}
+      {showChangePassword && <ChangePasswordDialog onClose={() => setShowChangePassword(false)} />}
     </div>
   );
 };
@@ -627,6 +633,8 @@ const StaffTableView: React.FC<{
   onCompletePublic: (taskId: number) => void;
 }> = ({ tasks, allTasks, selectedDay, onComplete, onCompletePublic }) => {
   const [showStatusDropdown, setShowStatusDropdown] = React.useState<number | null>(null);
+  const [sortColumn, setSortColumn] = React.useState<string>('day');
+  const [sortDirection, setSortDirection] = React.useState<'asc' | 'desc'>('asc');
 
   // Filter tasks by selected day
   const dayFilteredTasks = selectedDay === 'all'
@@ -637,24 +645,54 @@ const StaffTableView: React.FC<{
   const uniqueEventsInAll = new Set(allTasks.map(t => `${t.event_name}#${t.instance_start_date}`));
   const showEventColumn = uniqueEventsInAll.size > 1;
 
-  // Sort tasks by event, day, and time
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  // Sort tasks based on selected column and direction
   const sortedTasks = [...dayFilteredTasks].sort((a, b) => {
-    // First by event name
-    const eventCompare = a.event_name.localeCompare(b.event_name);
-    if (eventCompare !== 0) return eventCompare;
+    let compareResult = 0;
 
-    // Then by instance number
-    const instanceCompare = (a.instance_number || 0) - (b.instance_number || 0);
-    if (instanceCompare !== 0) return instanceCompare;
+    switch (sortColumn) {
+      case 'event':
+        compareResult = a.event_name.localeCompare(b.event_name);
+        break;
+      case 'day':
+        compareResult = a.day_number - b.day_number;
+        break;
+      case 'date':
+        const dateA = new Date(a.instance_start_date);
+        dateA.setDate(dateA.getDate() + a.day_number - 1);
+        const dateB = new Date(b.instance_start_date);
+        dateB.setDate(dateB.getDate() + b.day_number - 1);
+        compareResult = dateA.getTime() - dateB.getTime();
+        break;
+      case 'title':
+        compareResult = a.title.localeCompare(b.title);
+        break;
+      case 'start':
+        const startA = a.start_time || '99:99';
+        const startB = b.start_time || '99:99';
+        compareResult = startA.localeCompare(startB);
+        break;
+      case 'end':
+        const endA = a.end_time || '99:99';
+        const endB = b.end_time || '99:99';
+        compareResult = endA.localeCompare(endB);
+        break;
+      case 'status':
+        compareResult = a.status.localeCompare(b.status);
+        break;
+      default:
+        compareResult = 0;
+    }
 
-    // Then by day number
-    const dayCompare = a.day_number - b.day_number;
-    if (dayCompare !== 0) return dayCompare;
-
-    // Finally by earliest time (use start_time if available, otherwise scheduled_time)
-    const timeA = a.start_time || a.scheduled_time || '99:99';
-    const timeB = b.start_time || b.scheduled_time || '99:99';
-    return timeA.localeCompare(timeB);
+    return sortDirection === 'asc' ? compareResult : -compareResult;
   });
 
   const getStatusColor = (status: string) => {
@@ -699,18 +737,65 @@ const StaffTableView: React.FC<{
     return <div className={styles.empty}>Keine Aufgaben für den ausgewählten Tag</div>;
   }
 
+  const getSortIcon = (column: string) => {
+    if (sortColumn !== column) return ' ↕';
+    return sortDirection === 'asc' ? ' ▲' : ' ▼';
+  };
+
   return (
     <div className={styles.tableContainer}>
       <table className={styles.taskTable}>
         <thead>
           <tr>
-            {showEventColumn && <th className={styles.hideOnMobile}>Veranstaltung</th>}
-            <th className={styles.hideOnMobile}>Tag</th>
-            <th className={styles.hideOnMobile}>Datum</th>
-            <th>Aufgabe</th>
-            <th className={styles.hideOnMobile}>Start</th>
-            <th className={styles.hideOnMobile}>Ende</th>
-            <th>Status</th>
+            {showEventColumn && (
+              <th
+                className={styles.hideOnMobile}
+                onClick={() => handleSort('event')}
+                style={{ cursor: 'pointer', userSelect: 'none' }}
+              >
+                Veranstaltung{getSortIcon('event')}
+              </th>
+            )}
+            <th
+              className={styles.hideOnMobile}
+              onClick={() => handleSort('day')}
+              style={{ cursor: 'pointer', userSelect: 'none' }}
+            >
+              Tag{getSortIcon('day')}
+            </th>
+            <th
+              className={styles.hideOnMobile}
+              onClick={() => handleSort('date')}
+              style={{ cursor: 'pointer', userSelect: 'none' }}
+            >
+              Datum{getSortIcon('date')}
+            </th>
+            <th
+              onClick={() => handleSort('title')}
+              style={{ cursor: 'pointer', userSelect: 'none' }}
+            >
+              Aufgabe{getSortIcon('title')}
+            </th>
+            <th
+              className={styles.hideOnMobile}
+              onClick={() => handleSort('start')}
+              style={{ cursor: 'pointer', userSelect: 'none' }}
+            >
+              Start{getSortIcon('start')}
+            </th>
+            <th
+              className={styles.hideOnMobile}
+              onClick={() => handleSort('end')}
+              style={{ cursor: 'pointer', userSelect: 'none' }}
+            >
+              Ende{getSortIcon('end')}
+            </th>
+            <th
+              onClick={() => handleSort('status')}
+              style={{ cursor: 'pointer', userSelect: 'none' }}
+            >
+              Status{getSortIcon('status')}
+            </th>
             <th>Aktion</th>
           </tr>
         </thead>

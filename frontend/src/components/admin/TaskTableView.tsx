@@ -57,7 +57,8 @@ export const TaskTableView: React.FC<Props> = ({
   const [successMessage, setSuccessMessage] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [internalSelectedDay, setInternalSelectedDay] = useState<number | 'all'>('all');
-  const [sortBy, setSortBy] = useState<'time' | 'start' | 'end'>('start');
+  const [sortColumn, setSortColumn] = useState<string>('start');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // Use external selectedDay if provided, otherwise use internal state
   const selectedDay = externalSelectedDay !== undefined ? externalSelectedDay : internalSelectedDay;
@@ -150,35 +151,58 @@ export const TaskTableView: React.FC<Props> = ({
     filteredTasks = filteredTasks.filter(t => t.task.day_number === selectedDay);
   }
 
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
   // Sortierung
   const sortedTasks = [...filteredTasks].sort((a, b) => {
-    if (sortBy === 'start') {
-      // Bei Start-Sortierung: Tasks ohne Startzeit zuerst, dann nach Startzeit
-      const hasStartA = !!a.task.start_time;
-      const hasStartB = !!b.task.start_time;
+    let compareResult = 0;
 
-      if (!hasStartA && !hasStartB) {
-        // Beide ohne Startzeit: nach scheduled_time sortieren
-        const timeA = a.task.scheduled_time || '23:59';
-        const timeB = b.task.scheduled_time || '23:59';
-        return timeA.localeCompare(timeB);
-      }
-      if (!hasStartA) return -1; // A hat keine Startzeit, kommt zuerst
-      if (!hasStartB) return 1;  // B hat keine Startzeit, kommt zuerst
-
-      // Beide haben Startzeit: normal sortieren
-      return a.task.start_time!.localeCompare(b.task.start_time!);
-    } else if (sortBy === 'end') {
-      // Bei End-Sortierung: Tasks ohne Endzeit am Ende
-      const endA = a.task.end_time || '23:59';
-      const endB = b.task.end_time || '23:59';
-      return endA.localeCompare(endB);
-    } else {
-      // Standard (time): scheduled_time oder start_time
-      const timeA = a.task.scheduled_time || a.task.start_time || '23:59';
-      const timeB = b.task.scheduled_time || b.task.start_time || '23:59';
-      return timeA.localeCompare(timeB);
+    switch (sortColumn) {
+      case 'day':
+        compareResult = a.task.day_number - b.task.day_number;
+        break;
+      case 'date':
+        if (instanceStartDate) {
+          const dateA = new Date(instanceStartDate);
+          dateA.setDate(dateA.getDate() + a.task.day_number - 1);
+          const dateB = new Date(instanceStartDate);
+          dateB.setDate(dateB.getDate() + b.task.day_number - 1);
+          compareResult = dateA.getTime() - dateB.getTime();
+        }
+        break;
+      case 'title':
+        compareResult = a.task.title.localeCompare(b.task.title);
+        break;
+      case 'scheduled':
+        const schedA = a.task.scheduled_time || '99:99';
+        const schedB = b.task.scheduled_time || '99:99';
+        compareResult = schedA.localeCompare(schedB);
+        break;
+      case 'start':
+        const startA = a.task.start_time || '99:99';
+        const startB = b.task.start_time || '99:99';
+        compareResult = startA.localeCompare(startB);
+        break;
+      case 'end':
+        const endA = a.task.end_time || '99:99';
+        const endB = b.task.end_time || '99:99';
+        compareResult = endA.localeCompare(endB);
+        break;
+      case 'status':
+        compareResult = a.task.status.localeCompare(b.task.status);
+        break;
+      default:
+        compareResult = 0;
     }
+
+    return sortDirection === 'asc' ? compareResult : -compareResult;
   });
 
   const handleStatusChange = async (taskId: number, newStatus: string) => {
@@ -198,6 +222,11 @@ export const TaskTableView: React.FC<Props> = ({
     const startDate = new Date(instanceStartDate);
     startDate.setDate(startDate.getDate() + dayNumber - 1);
     return startDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+  };
+
+  const getSortIcon = (column: string) => {
+    if (sortColumn !== column) return ' ↕';
+    return sortDirection === 'asc' ? ' ▲' : ' ▼';
   };
 
   if (loading) {
@@ -228,17 +257,9 @@ export const TaskTableView: React.FC<Props> = ({
             <option value="completed">Erledigt</option>
             <option value="overdue">Überfällig</option>
           </select>
-
-          <label style={styles.filterLabel}>Sortierung:</label>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as 'time' | 'start' | 'end')}
-            style={styles.filterSelect}
-          >
-            <option value="time">Nach geplanter Zeit</option>
-            <option value="start">Nach Startzeit (ohne zuerst)</option>
-            <option value="end">Nach Fälligkeit (Endzeit)</option>
-          </select>
+          <span style={{ fontSize: '0.875rem', color: '#6b7280', marginLeft: '1rem' }}>
+            Tipp: Klicke auf Spaltenüberschriften zum Sortieren
+          </span>
         </div>
       </div>
 
@@ -274,13 +295,48 @@ export const TaskTableView: React.FC<Props> = ({
           <table style={styles.table}>
             <thead>
               <tr style={styles.headerRow}>
-                <th style={styles.th}>Tag</th>
-                <th style={styles.th}>Datum</th>
-                <th style={styles.th}>Aufgabe</th>
-                <th style={styles.th}>Geplante Zeit</th>
-                <th style={styles.th}>Startzeit</th>
-                <th style={styles.th}>Endzeit</th>
-                <th style={styles.th}>Status</th>
+                <th
+                  style={{ ...styles.th, cursor: 'pointer', userSelect: 'none' }}
+                  onClick={() => handleSort('day')}
+                >
+                  Tag{getSortIcon('day')}
+                </th>
+                <th
+                  style={{ ...styles.th, cursor: 'pointer', userSelect: 'none' }}
+                  onClick={() => handleSort('date')}
+                >
+                  Datum{getSortIcon('date')}
+                </th>
+                <th
+                  style={{ ...styles.th, cursor: 'pointer', userSelect: 'none' }}
+                  onClick={() => handleSort('title')}
+                >
+                  Aufgabe{getSortIcon('title')}
+                </th>
+                <th
+                  style={{ ...styles.th, cursor: 'pointer', userSelect: 'none' }}
+                  onClick={() => handleSort('scheduled')}
+                >
+                  Geplante Zeit{getSortIcon('scheduled')}
+                </th>
+                <th
+                  style={{ ...styles.th, cursor: 'pointer', userSelect: 'none' }}
+                  onClick={() => handleSort('start')}
+                >
+                  Startzeit{getSortIcon('start')}
+                </th>
+                <th
+                  style={{ ...styles.th, cursor: 'pointer', userSelect: 'none' }}
+                  onClick={() => handleSort('end')}
+                >
+                  Endzeit{getSortIcon('end')}
+                </th>
+                <th
+                  style={{ ...styles.th, cursor: 'pointer', userSelect: 'none' }}
+                  onClick={() => handleSort('status')}
+                >
+                  Status{getSortIcon('status')}
+                </th>
                 <th style={styles.th}>Zugewiesen an</th>
                 <th style={styles.th}>Aktionen</th>
               </tr>
