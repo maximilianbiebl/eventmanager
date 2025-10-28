@@ -33,6 +33,7 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [deleting, setDeleting] = useState(false);
   const [staffUsers, setStaffUsers] = useState<User[]>([]);
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
   const [showStaffSelection, setShowStaffSelection] = useState(false);
@@ -94,6 +95,24 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
       setError(err.response?.data?.error || 'Fehler beim Speichern');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm(`Möchten Sie die Aufgabe "${formData.title}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`)) {
+      return;
+    }
+
+    setDeleting(true);
+    setError('');
+
+    try {
+      await tasksApi.delete(task.id);
+      onSuccess();
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Fehler beim Löschen');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -254,6 +273,23 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
             </div>
           )}
 
+          {isEdit && (
+            <div style={styles.dangerZone}>
+              <h3 style={styles.dangerZoneTitle}>Gefahrenbereich</h3>
+              <button
+                type="button"
+                onClick={handleDelete}
+                style={styles.deleteButton}
+                disabled={deleting}
+              >
+                {deleting ? 'Löschen...' : '🗑️ Aufgabe löschen'}
+              </button>
+              <p style={styles.dangerZoneWarning}>
+                Diese Aktion kann nicht rückgängig gemacht werden.
+              </p>
+            </div>
+          )}
+
           <div style={styles.actions}>
             <button type="button" onClick={onClose} style={styles.cancelButton}>
               Abbrechen
@@ -375,6 +411,37 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: '4px',
     cursor: 'pointer',
     fontWeight: '500',
+  },
+  dangerZone: {
+    marginTop: '2rem',
+    padding: '1rem',
+    backgroundColor: '#fef2f2',
+    border: '1px solid #fecaca',
+    borderRadius: '8px',
+  },
+  dangerZoneTitle: {
+    fontSize: '1rem',
+    fontWeight: 'bold',
+    color: '#991b1b',
+    marginBottom: '0.5rem',
+    marginTop: 0,
+  },
+  dangerZoneWarning: {
+    fontSize: '0.75rem',
+    color: '#7f1d1d',
+    marginTop: '0.5rem',
+    marginBottom: 0,
+  },
+  deleteButton: {
+    width: '100%',
+    padding: '0.75rem',
+    backgroundColor: '#ef4444',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontWeight: '500',
+    fontSize: '0.875rem',
   },
   staffHeader: {
     display: 'flex',
