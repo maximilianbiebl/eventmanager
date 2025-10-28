@@ -68,6 +68,20 @@ export const TaskTableView: React.FC<Props> = ({ eventInstanceId, onEditTask, on
     await loadAssignments(); // Reload data when switching days
   };
 
+  const handleUnassign = async (assignmentId: number, userName: string) => {
+    if (!window.confirm(`Möchten Sie die Zuweisung von "${userName}" wirklich entfernen?`)) {
+      return;
+    }
+
+    try {
+      await client.delete(`/tasks/assignment/${assignmentId}`);
+      await loadAssignments(); // Reload to show updated assignments
+    } catch (error) {
+      console.error('Unassign error:', error);
+      alert('Fehler beim Entfernen der Zuweisung');
+    }
+  };
+
   // Gruppiere Assignments nach Task ID
   const groupedTasks = assignments.reduce((acc, assignment) => {
     if (!acc[assignment.id]) {
@@ -80,10 +94,12 @@ export const TaskTableView: React.FC<Props> = ({ eventInstanceId, onEditTask, on
       acc[assignment.id].assignedUsers.push({
         name: assignment.user_name,
         completed: assignment.completed || false,
+        assignmentId: assignment.assignment_id,
+        userId: assignment.user_id,
       });
     }
     return acc;
-  }, {} as { [key: number]: { task: TaskAssignment; assignedUsers: { name: string; completed: boolean }[] } });
+  }, {} as { [key: number]: { task: TaskAssignment; assignedUsers: { name: string; completed: boolean; assignmentId?: number; userId?: number }[] } });
 
   const tasks = Object.values(groupedTasks);
 
@@ -263,6 +279,15 @@ export const TaskTableView: React.FC<Props> = ({ eventInstanceId, onEditTask, on
                             {user.completed && (
                               <span style={styles.completedIcon}>✓</span>
                             )}
+                            {user.assignmentId && (
+                              <button
+                                onClick={() => handleUnassign(user.assignmentId!, user.name)}
+                                style={styles.unassignButton}
+                                title="Zuweisung entfernen"
+                              >
+                                ✕
+                              </button>
+                            )}
                           </span>
                         ))}
                       </div>
@@ -429,6 +454,19 @@ const styles: { [key: string]: React.CSSProperties } = {
   completedIcon: {
     color: '#10b981',
     fontWeight: 'bold',
+  },
+  unassignButton: {
+    marginLeft: '0.25rem',
+    padding: '0.125rem 0.25rem',
+    backgroundColor: '#ef4444',
+    color: 'white',
+    border: 'none',
+    borderRadius: '3px',
+    fontSize: '0.7rem',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    lineHeight: '1',
+    transition: 'background-color 0.2s',
   },
   actions: {
     display: 'flex',

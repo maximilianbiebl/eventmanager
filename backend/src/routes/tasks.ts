@@ -285,6 +285,27 @@ router.post('/assign', authMiddleware, adminMiddleware, async (req, res) => {
   }
 });
 
+// Einzelne Zuweisung entfernen
+router.delete('/assignment/:assignmentId', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { assignmentId } = req.params;
+
+    const result = await query(
+      'DELETE FROM task_assignments WHERE id = $1 RETURNING *',
+      [assignmentId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Zuweisung nicht gefunden' });
+    }
+
+    res.json({ success: true, assignment: result.rows[0] });
+  } catch (error) {
+    console.error('Delete assignment error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
 // Aufgabe als erledigt markieren
 router.put('/complete/:assignmentId', authMiddleware, async (req: AuthRequest, res) => {
   try {
