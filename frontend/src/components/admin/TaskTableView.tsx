@@ -63,6 +63,11 @@ export const TaskTableView: React.FC<Props> = ({ eventInstanceId, onEditTask, on
     }
   };
 
+  const handleDayChange = async (day: number | 'all') => {
+    setSelectedDay(day);
+    await loadAssignments(); // Reload data when switching days
+  };
+
   // Gruppiere Assignments nach Task ID
   const groupedTasks = assignments.reduce((acc, assignment) => {
     if (!acc[assignment.id]) {
@@ -176,7 +181,7 @@ export const TaskTableView: React.FC<Props> = ({ eventInstanceId, onEditTask, on
       {eventDays && eventDays > 1 && (
         <div style={styles.dayTabs}>
           <button
-            onClick={() => setSelectedDay('all')}
+            onClick={() => handleDayChange('all')}
             style={selectedDay === 'all' ? styles.dayTabActive : styles.dayTab}
           >
             Alle Tage
@@ -184,7 +189,7 @@ export const TaskTableView: React.FC<Props> = ({ eventInstanceId, onEditTask, on
           {Array.from({ length: eventDays }, (_, i) => i + 1).map((day) => (
             <button
               key={day}
-              onClick={() => setSelectedDay(day)}
+              onClick={() => handleDayChange(day)}
               style={selectedDay === day ? styles.dayTabActive : styles.dayTab}
             >
               Tag {day}

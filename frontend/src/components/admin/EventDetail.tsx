@@ -84,6 +84,11 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
     setShowAssignModal(true);
   };
 
+  const handleDayChange = async (day: number) => {
+    setSelectedDay(day);
+    await loadData(); // Reload data when switching days
+  };
+
   if (loading) {
     return <div>Lade Details...</div>;
   }
@@ -152,7 +157,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
             {Array.from({ length: event.days }, (_, i) => i + 1).map((day) => (
               <button
                 key={day}
-                onClick={() => setSelectedDay(day)}
+                onClick={() => handleDayChange(day)}
                 className={selectedDay === day ? styles.dayTabActive : styles.dayTab}
               >
                 Tag {day}
