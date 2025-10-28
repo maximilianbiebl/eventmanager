@@ -66,39 +66,67 @@ async function sendTaskReminders() {
     console.log(`[Notification Scheduler] Found ${tasksResult.rows.length} tasks for today`);
 
     for (const task of tasksResult.rows) {
-      // Nutze start_time als Fallback wenn scheduled_time nicht gesetzt
-      const timeToUse = task.scheduled_time || task.start_time;
-      if (!timeToUse) continue;
-
-      const [hours, minutes] = timeToUse.split(':');
-      const taskTime = new Date(now);
-      taskTime.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
-
       const reminderMinutes = task.reminder_minutes || 15;
-      const reminderTime = new Date(taskTime.getTime() - reminderMinutes * 60 * 1000);
 
-      // Prüfe ob jetzt der richtige Zeitpunkt ist (innerhalb der nächsten Minute)
-      const timeDiff = reminderTime.getTime() - now.getTime();
+      // Erinnerung für scheduled_time
+      if (task.scheduled_time) {
+        const [hours, minutes] = task.scheduled_time.split(':');
+        const taskTime = new Date(now);
+        taskTime.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
 
-      if (timeDiff > 0 && timeDiff < 60000) {
-        console.log(`[Notification Scheduler] Sending reminder for task "${task.title}" to user ${task.user_id}`);
+        const reminderTime = new Date(taskTime.getTime() - reminderMinutes * 60 * 1000);
+        const timeDiff = reminderTime.getTime() - now.getTime();
 
-        // Prüfe ob bereits gesendet
-        const alreadySent = await query(
-          `SELECT * FROM notifications_log
-           WHERE user_id = $1 AND task_id = $2 AND event_instance_id = $3
-             AND sent_at > (NOW() - INTERVAL '1 hour')`,
-          [task.user_id, task.id, instance.id]
-        );
+        if (timeDiff > 0 && timeDiff < 60000) {
+          console.log(`[Notification Scheduler] Sending scheduled_time reminder for task "${task.title}" to user ${task.user_id}`);
 
-        if (alreadySent.rows.length === 0) {
-          await sendTaskNotification(task.user_id, task, instance, reminderMinutes);
-
-          // Log erstellen
-          await query(
-            'INSERT INTO notifications_log (user_id, task_id, event_instance_id) VALUES ($1, $2, $3)',
+          const alreadySent = await query(
+            `SELECT * FROM notifications_log
+             WHERE user_id = $1 AND task_id = $2 AND event_instance_id = $3 AND notification_type = 'scheduled'
+               AND sent_at > (NOW() - INTERVAL '1 hour')`,
             [task.user_id, task.id, instance.id]
           );
+
+          if (alreadySent.rows.length === 0) {
+            await sendTaskNotification(task.user_id, task, instance, reminderMinutes, 'scheduled_time');
+
+            await query(
+              `INSERT INTO notifications_log (user_id, task_id, event_instance_id, notification_type)
+               VALUES ($1, $2, $3, 'scheduled')`,
+              [task.user_id, task.id, instance.id]
+            );
+          }
+        }
+      }
+
+      // Erinnerung für start_time (X Minuten vorher)
+      if (task.start_time && task.scheduled_time !== task.start_time) {
+        const [hours, minutes] = task.start_time.split(':');
+        const taskTime = new Date(now);
+        taskTime.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+
+        const reminderTime = new Date(taskTime.getTime() - reminderMinutes * 60 * 1000);
+        const timeDiff = reminderTime.getTime() - now.getTime();
+
+        if (timeDiff > 0 && timeDiff < 60000) {
+          console.log(`[Notification Scheduler] Sending start_time reminder (${reminderMinutes} min before) for task "${task.title}" to user ${task.user_id}`);
+
+          const alreadySent = await query(
+            `SELECT * FROM notifications_log
+             WHERE user_id = $1 AND task_id = $2 AND event_instance_id = $3 AND notification_type = 'start_reminder'
+               AND sent_at > (NOW() - INTERVAL '1 hour')`,
+            [task.user_id, task.id, instance.id]
+          );
+
+          if (alreadySent.rows.length === 0) {
+            await sendTaskNotification(task.user_id, task, instance, reminderMinutes, 'start_time');
+
+            await query(
+              `INSERT INTO notifications_log (user_id, task_id, event_instance_id, notification_type)
+               VALUES ($1, $2, $3, 'start_reminder')`,
+              [task.user_id, task.id, instance.id]
+            );
+          }
         }
       }
 
@@ -138,7 +166,7 @@ async function sendTaskReminders() {
   }
 }
 
-async function sendTaskNotification(userId: number, task: any, instance: any, reminderMinutes: number) {
+async function sendTaskNotification(userId: number, task: any, instance: any, reminderMinutes: number, timeType: string = 'scheduled_time') {
   try {
     // Hole alle Push Subscriptions des Benutzers (nur wenn push_enabled = true)
     const subscriptions = await query(
@@ -150,18 +178,27 @@ async function sendTaskNotification(userId: number, task: any, instance: any, re
 
     console.log(`[sendTaskNotification] Found ${subscriptions.rows.length} subscriptions for user ${userId}`);
 
+    const title = timeType === 'start_time'
+      ? 'Erinnerung: Aufgabe startet bald'
+      : 'Aufgaben-Erinnerung';
+
+    const body = timeType === 'start_time'
+      ? `Aufgabe startet in ${reminderMinutes} Minuten: ${task.title}`
+      : `In ${reminderMinutes} Minuten: ${task.title}`;
+
     const payload = JSON.stringify({
-      title: 'Aufgaben-Erinnerung',
-      body: `In ${reminderMinutes} Minuten: ${task.title}`,
+      title,
+      body,
       icon: '/icon.png',
       badge: '/badge.png',
-      tag: `task-${task.id}-${instance.id}`,
+      tag: `task-${timeType}-${task.id}-${instance.id}`,
       vibrate: [200, 100, 200],
       requireInteraction: false,
       data: {
         taskId: task.id,
         instanceId: instance.id,
         assignmentId: task.assignment_id,
+        type: timeType,
       },
     });
 
