@@ -28,7 +28,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
   const [assignTaskId, setAssignTaskId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'table'>('table'); // Table ist jetzt Standard
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
-  const [selectedDay, setSelectedDay] = useState<number>(1);
+  const [selectedDay, setSelectedDay] = useState<number | 'all'>('all');
 
   useEffect(() => {
     loadData();
@@ -181,6 +181,9 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
               onEditTask={handleEditTask}
               onAssignTask={handleAssignTask}
               eventDays={event?.days}
+              selectedDay={selectedDay}
+              onSelectedDayChange={setSelectedDay}
+              instanceStartDate={event?.instances.find((i: any) => i.id === selectedInstance)?.start_date}
             />
           )
         )}
@@ -191,6 +194,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
           eventId={eventId}
           task={editTask}
           eventInstances={event?.instances}
+          defaultDay={viewMode === 'table' && typeof selectedDay === 'number' ? selectedDay : undefined}
           onClose={() => {
             setShowTaskForm(false);
             setEditTask(null);

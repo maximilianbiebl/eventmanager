@@ -23,6 +23,9 @@ interface Props {
   onEditTask: (taskId: number) => void;
   onAssignTask: (taskId: number) => void;
   eventDays?: number; // Anzahl der Tage im Event
+  selectedDay?: number | 'all'; // Ausgewählter Tag von außen
+  onSelectedDayChange?: (day: number | 'all') => void; // Callback für Tag-Änderung
+  instanceStartDate?: string; // Startdatum der Event-Instanz
 }
 
 const STATUS_COLORS: { [key: string]: string } = {
@@ -39,13 +42,32 @@ const STATUS_LABELS: { [key: string]: string } = {
   overdue: 'Überfällig',
 };
 
-export const TaskTableView: React.FC<Props> = ({ eventInstanceId, onEditTask, onAssignTask, eventDays }) => {
+export const TaskTableView: React.FC<Props> = ({
+  eventInstanceId,
+  onEditTask,
+  onAssignTask,
+  eventDays,
+  selectedDay: externalSelectedDay,
+  onSelectedDayChange,
+  instanceStartDate
+}) => {
   const [assignments, setAssignments] = useState<TaskAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [selectedDay, setSelectedDay] = useState<number | 'all'>('all');
+  const [internalSelectedDay, setInternalSelectedDay] = useState<number | 'all'>('all');
   const [sortBy, setSortBy] = useState<'time' | 'start' | 'end'>('start');
+
+  // Use external selectedDay if provided, otherwise use internal state
+  const selectedDay = externalSelectedDay !== undefined ? externalSelectedDay : internalSelectedDay;
+  const setSelectedDay = (day: number | 'all') => {
+    if (onSelectedDayChange) {
+      onSelectedDayChange(day);
+    } else {
+      setInternalSelectedDay(day);
+    }
+  };
 
   useEffect(() => {
     loadAssignments();
@@ -162,11 +184,20 @@ export const TaskTableView: React.FC<Props> = ({ eventInstanceId, onEditTask, on
   const handleStatusChange = async (taskId: number, newStatus: string) => {
     try {
       await client.put(`/tasks/${taskId}`, { status: newStatus });
+      setSuccessMessage(`Status wurde auf "${STATUS_LABELS[newStatus]}" geändert`);
+      setTimeout(() => setSuccessMessage(''), 3000);
       await loadAssignments();
     } catch (error) {
       console.error('Change status error:', error);
       setError('Fehler beim Ändern des Status');
     }
+  };
+
+  const getTaskDate = (dayNumber: number) => {
+    if (!instanceStartDate) return '-';
+    const startDate = new Date(instanceStartDate);
+    startDate.setDate(startDate.getDate() + dayNumber - 1);
+    return startDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
   };
 
   if (loading) {
@@ -179,6 +210,9 @@ export const TaskTableView: React.FC<Props> = ({ eventInstanceId, onEditTask, on
 
   return (
     <div style={styles.container}>
+      {successMessage && (
+        <div style={styles.successBanner}>{successMessage}</div>
+      )}
       <div style={styles.header}>
         <h3 style={styles.title}>Aufgaben-Übersicht</h3>
         <div style={styles.filterGroup}>
@@ -241,6 +275,7 @@ export const TaskTableView: React.FC<Props> = ({ eventInstanceId, onEditTask, on
             <thead>
               <tr style={styles.headerRow}>
                 <th style={styles.th}>Tag</th>
+                <th style={styles.th}>Datum</th>
                 <th style={styles.th}>Aufgabe</th>
                 <th style={styles.th}>Geplante Zeit</th>
                 <th style={styles.th}>Startzeit</th>
@@ -254,6 +289,7 @@ export const TaskTableView: React.FC<Props> = ({ eventInstanceId, onEditTask, on
               {sortedTasks.map(({ task, assignedUsers }) => (
                 <tr key={task.id} style={styles.row}>
                   <td style={styles.td}>Tag {task.day_number}</td>
+                  <td style={styles.td}>{getTaskDate(task.day_number)}</td>
                   <td style={styles.td}>
                     <div style={styles.taskTitle}>
                       {task.title}
@@ -387,6 +423,15 @@ const styles: { [key: string]: React.CSSProperties } = {
     backgroundColor: '#fee2e2',
     color: '#991b1b',
     borderRadius: '4px',
+  },
+  successBanner: {
+    padding: '1rem',
+    backgroundColor: '#d1fae5',
+    color: '#065f46',
+    borderRadius: '4px',
+    marginBottom: '1rem',
+    textAlign: 'center',
+    fontWeight: '500',
   },
   noTasks: {
     padding: '2rem',

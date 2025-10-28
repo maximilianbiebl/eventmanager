@@ -308,6 +308,7 @@ export const StaffDashboard: React.FC = () => {
       ) : viewMode === 'table' ? (
         <StaffTableView
           tasks={filteredTasks}
+          allTasks={tasks}
           selectedDay={selectedDay}
           onComplete={handleComplete}
           onCompletePublic={handleCompletePublic}
@@ -386,6 +387,7 @@ const TaskCard: React.FC<{
   const [reminderMinutes, setReminderMinutes] = React.useState(task.reminder_minutes || 15);
   const [saving, setSaving] = React.useState(false);
   const [updatingStatus, setUpdatingStatus] = React.useState(false);
+  const [showStatusDropdown, setShowStatusDropdown] = React.useState(false);
 
   // Update reminder state when task prop changes
   React.useEffect(() => {
@@ -425,6 +427,17 @@ const TaskCard: React.FC<{
     }
   };
 
+  const handleStatusChange = async (newStatus: string) => {
+    try {
+      await tasksApi.updateStatus(task.id, newStatus);
+      setShowStatusDropdown(false);
+      onReminderUpdate(); // Reload tasks to get updated status
+    } catch (error) {
+      console.error('Status change error:', error);
+      alert('Fehler beim Ändern des Status');
+    }
+  };
+
   const getStatusLabel = (status: string) => {
     const labels: { [key: string]: string } = {
       not_started: 'Nicht gestartet',
@@ -446,7 +459,7 @@ const TaskCard: React.FC<{
   };
 
   // Check if task is completed (either assignment-specific or global status)
-  const isCompleted = task.completed || task.status === 'completed';
+  const isCompleted = task.status === 'completed';
 
   return (
     <div className={isCompleted ? styles.taskCardCompleted : styles.taskCard}>
@@ -474,12 +487,53 @@ const TaskCard: React.FC<{
         <span className={styles.taskDay}>
           Tag {task.day_number} ({getEventDate()})
         </span>
-        <span
-          className={styles.taskStatus}
-          style={{ backgroundColor: getStatusColor(task.status), color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}
-        >
-          {getStatusLabel(task.status)}
-        </span>
+        <div style={{ position: 'relative', display: 'inline-block' }}>
+          <span
+            className={styles.taskStatus}
+            style={{
+              backgroundColor: getStatusColor(task.status),
+              color: 'white',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              fontSize: '12px',
+              cursor: 'pointer',
+              userSelect: 'none'
+            }}
+            onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+          >
+            {getStatusLabel(task.status)} ▼
+          </span>
+          {showStatusDropdown && (
+            <div style={{
+              position: 'absolute',
+              top: '100%',
+              left: 0,
+              backgroundColor: 'white',
+              border: '1px solid #d1d5db',
+              borderRadius: '4px',
+              boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+              marginTop: '4px',
+              minWidth: '150px',
+              zIndex: 1000
+            }}>
+              {task.status !== 'in_progress' && (
+                <div
+                  style={{
+                    padding: '8px 12px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    borderBottom: '1px solid #e5e7eb'
+                  }}
+                  onClick={() => handleStatusChange('in_progress')}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                >
+                  In Arbeit
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Erinnerung bearbeiten - nur für zugewiesene Aufgaben */}
@@ -567,10 +621,11 @@ const TaskCard: React.FC<{
 // Staff Table View Komponente
 const StaffTableView: React.FC<{
   tasks: TaskAssignment[];
+  allTasks: TaskAssignment[];
   selectedDay: number | 'all';
   onComplete: (id: number) => void;
   onCompletePublic: (taskId: number) => void;
-}> = ({ tasks, selectedDay, onComplete, onCompletePublic }) => {
+}> = ({ tasks, allTasks, selectedDay, onComplete, onCompletePublic }) => {
   const [showStatusDropdown, setShowStatusDropdown] = React.useState<number | null>(null);
 
   // Filter tasks by selected day
@@ -578,9 +633,9 @@ const StaffTableView: React.FC<{
     ? tasks
     : tasks.filter(t => t.day_number === selectedDay);
 
-  // Check if only one unique event
-  const uniqueEventsInTable = new Set(dayFilteredTasks.map(t => `${t.event_name}#${t.instance_start_date}`));
-  const showEventColumn = uniqueEventsInTable.size > 1;
+  // Check if only one unique event in ALL tasks (not just filtered)
+  const uniqueEventsInAll = new Set(allTasks.map(t => `${t.event_name}#${t.instance_start_date}`));
+  const showEventColumn = uniqueEventsInAll.size > 1;
 
   // Sort tasks by event, day, and time
   const sortedTasks = [...dayFilteredTasks].sort((a, b) => {
@@ -632,7 +687,7 @@ const StaffTableView: React.FC<{
     try {
       await tasksApi.updateStatus(task.id, newStatus);
       // Reload tasks to show updated status
-      window.location.reload();
+      await loadTasks();
     } catch (error) {
       console.error('Status change error:', error);
       alert('Fehler beim Ändern des Status');
@@ -661,7 +716,7 @@ const StaffTableView: React.FC<{
         </thead>
         <tbody>
           {sortedTasks.map((task) => {
-            const isCompleted = task.completed || task.status === 'completed';
+            const isCompleted = task.status === 'completed';
             const taskKey = task.assignment_id || task.id;
             return (
               <tr key={taskKey} className={isCompleted ? styles.completedRow : ''}>

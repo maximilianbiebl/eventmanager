@@ -8,6 +8,7 @@ interface Props {
   onSuccess: () => void;
   task?: any; // Für Edit-Modus
   eventInstances?: any[]; // Für Mitarbeiter-Zuweisung
+  defaultDay?: number; // Vorausgewählter Tag beim Erstellen
 }
 
 interface User {
@@ -15,13 +16,13 @@ interface User {
   name: string;
 }
 
-export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, task, eventInstances }) => {
+export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, task, eventInstances, defaultDay }) => {
   const isEdit = !!task;
 
   const [formData, setFormData] = useState({
     title: task?.title || '',
     description: task?.description || '',
-    day_number: task?.day_number || 1,
+    day_number: task?.day_number || defaultDay || 1,
     scheduled_time: task?.scheduled_time || '',
     start_time: task?.start_time || '',
     end_time: task?.end_time || '',
