@@ -276,8 +276,11 @@ const TaskCard: React.FC<{
     return colors[status] || '#6b7280';
   };
 
+  // Check if task is completed (either assignment-specific or global status)
+  const isCompleted = task.completed || task.status === 'completed';
+
   return (
-    <div className={task.completed ? styles.taskCardCompleted : styles.taskCard}>
+    <div className={isCompleted ? styles.taskCardCompleted : styles.taskCard}>
       <div className={styles.taskHeader}>
         <h3 className={styles.taskTitle}>{task.title}</h3>
       </div>
@@ -311,7 +314,7 @@ const TaskCard: React.FC<{
       </div>
 
       {/* Erinnerung bearbeiten - nur für zugewiesene Aufgaben */}
-      {!task.completed && task.assignment_id && (
+      {!isCompleted && task.assignment_id && (
         <div className={styles.reminderSection}>
           {!showReminderEdit ? (
             <button
@@ -353,7 +356,7 @@ const TaskCard: React.FC<{
         </div>
       )}
 
-      {!task.completed ? (
+      {!isCompleted ? (
         <div className={styles.taskActions}>
           {(task.status === 'not_started' || task.status === 'overdue') && (
             <button
