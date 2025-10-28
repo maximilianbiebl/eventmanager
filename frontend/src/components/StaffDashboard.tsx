@@ -21,6 +21,7 @@ export const StaffDashboard: React.FC = () => {
 
   useEffect(() => {
     loadUserSettings();
+    loadSelectedEventsFromStorage();
     loadTasks();
 
     // Auto-refresh alle 30 Sekunden für Status-Synchronisation
@@ -30,6 +31,27 @@ export const StaffDashboard: React.FC = () => {
 
     return () => clearInterval(interval);
   }, []);
+
+  const loadSelectedEventsFromStorage = () => {
+    try {
+      const stored = localStorage.getItem('selectedEvents');
+      if (stored) {
+        const eventsArray = JSON.parse(stored);
+        setSelectedEvents(new Set(eventsArray));
+      }
+    } catch (error) {
+      console.error('Load selected events from storage error:', error);
+    }
+  };
+
+  const saveSelectedEventsToStorage = (events: Set<string>) => {
+    try {
+      const eventsArray = Array.from(events);
+      localStorage.setItem('selectedEvents', JSON.stringify(eventsArray));
+    } catch (error) {
+      console.error('Save selected events to storage error:', error);
+    }
+  };
 
   const loadUserSettings = async () => {
     try {
@@ -47,10 +69,12 @@ export const StaffDashboard: React.FC = () => {
       const data = await tasksApi.getMyTasks();
       setTasks(data);
 
-      // Initialize selectedEvents with all unique events if not yet set
-      if (selectedEvents.size === 0 && data.length > 0) {
+      // Initialize selectedEvents with all unique events if not yet set AND not loaded from storage
+      const stored = localStorage.getItem('selectedEvents');
+      if (!stored && selectedEvents.size === 0 && data.length > 0) {
         const uniqueEvents = new Set(data.map(t => `${t.event_name} #${t.instance_number}`));
         setSelectedEvents(uniqueEvents);
+        saveSelectedEventsToStorage(uniqueEvents);
       }
     } catch (error) {
       console.error('Load tasks error:', error);
@@ -96,15 +120,19 @@ export const StaffDashboard: React.FC = () => {
       newSelected.add(eventKey);
     }
     setSelectedEvents(newSelected);
+    saveSelectedEventsToStorage(newSelected);
   };
 
   const handleSelectAllEvents = () => {
     const allEvents = new Set(tasks.map(t => `${t.event_name} #${t.instance_number}`));
     setSelectedEvents(allEvents);
+    saveSelectedEventsToStorage(allEvents);
   };
 
   const handleDeselectAllEvents = () => {
-    setSelectedEvents(new Set());
+    const emptySet = new Set<string>();
+    setSelectedEvents(emptySet);
+    saveSelectedEventsToStorage(emptySet);
   };
 
   // Get unique events for the filter
