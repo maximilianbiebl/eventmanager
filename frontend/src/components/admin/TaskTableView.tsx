@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import client from '../../api/client';
+import { tasksApi } from '../../api/tasks';
 
 interface TaskAssignment {
   id: number;
@@ -79,6 +80,20 @@ export const TaskTableView: React.FC<Props> = ({ eventInstanceId, onEditTask, on
     } catch (error) {
       console.error('Unassign error:', error);
       alert('Fehler beim Entfernen der Zuweisung');
+    }
+  };
+
+  const handleDeleteTask = async (taskId: number, taskTitle: string) => {
+    if (!window.confirm(`Möchten Sie die Aufgabe "${taskTitle}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`)) {
+      return;
+    }
+
+    try {
+      await tasksApi.delete(taskId);
+      await loadAssignments(); // Reload to show updated tasks
+    } catch (error) {
+      console.error('Delete task error:', error);
+      alert('Fehler beim Löschen der Aufgabe');
     }
   };
 
@@ -309,6 +324,13 @@ export const TaskTableView: React.FC<Props> = ({ eventInstanceId, onEditTask, on
                       >
                         Zuweisen
                       </button>
+                      <button
+                        onClick={() => handleDeleteTask(task.id, task.title)}
+                        style={styles.deleteButton}
+                        title="Aufgabe löschen"
+                      >
+                        Löschen
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -485,6 +507,16 @@ const styles: { [key: string]: React.CSSProperties } = {
   assignButton: {
     padding: '0.375rem 0.75rem',
     backgroundColor: '#4f46e5',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    fontSize: '0.75rem',
+    cursor: 'pointer',
+    fontWeight: '500',
+  },
+  deleteButton: {
+    padding: '0.375rem 0.75rem',
+    backgroundColor: '#ef4444',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
