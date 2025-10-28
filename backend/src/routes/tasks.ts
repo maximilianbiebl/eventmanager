@@ -320,6 +320,42 @@ router.put('/complete/:assignmentId', authMiddleware, async (req: AuthRequest, r
   }
 });
 
+// Öffentliche Aufgabe als erledigt markieren (ohne Assignment)
+router.put('/:taskId/complete-public', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { taskId } = req.params;
+    const userId = req.user!.id;
+
+    // Task-Informationen laden
+    const taskInfo = await query('SELECT * FROM tasks WHERE id = $1', [taskId]);
+    if (taskInfo.rows.length === 0) {
+      return res.status(404).json({ error: 'Aufgabe nicht gefunden' });
+    }
+    const task = taskInfo.rows[0];
+
+    // Prüfen ob Task öffentlich ist und User im Event-Pool
+    if (!task.is_public) {
+      return res.status(403).json({ error: 'Diese Aufgabe ist nicht öffentlich' });
+    }
+
+    const inPool = await query(
+      'SELECT * FROM event_staff WHERE event_id = $1 AND user_id = $2',
+      [task.event_id, userId]
+    );
+    if (inPool.rows.length === 0) {
+      return res.status(403).json({ error: 'Keine Berechtigung für diese Aufgabe' });
+    }
+
+    // Task als completed markieren
+    await query('UPDATE tasks SET status = $1 WHERE id = $2', ['completed', taskId]);
+
+    res.json({ success: true, taskId: parseInt(taskId) });
+  } catch (error) {
+    console.error('Complete public task error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
 // Erinnerungszeit für Assignment aktualisieren
 router.put('/assignment/:assignmentId/reminder', authMiddleware, async (req: AuthRequest, res) => {
   try {

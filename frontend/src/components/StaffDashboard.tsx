@@ -10,6 +10,7 @@ export const StaffDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [groupBy, setGroupBy] = useState<'event-day' | 'event' | 'date'>('event-day');
   const [showSettings, setShowSettings] = useState(false);
+  const [hideCompleted, setHideCompleted] = useState(false);
   const { user, logout } = useAuth();
   const notifications = useNotifications();
 
@@ -45,6 +46,16 @@ export const StaffDashboard: React.FC = () => {
     }
   };
 
+  const handleCompletePublic = async (taskId: number) => {
+    try {
+      await tasksApi.completePublic(taskId);
+      await loadTasks();
+    } catch (error) {
+      console.error('Complete public task error:', error);
+      alert('Fehler beim Markieren der öffentlichen Aufgabe');
+    }
+  };
+
   const handleEnableNotifications = async () => {
     const success = await notifications.subscribe();
     if (success) {
@@ -54,9 +65,14 @@ export const StaffDashboard: React.FC = () => {
     }
   };
 
-  const groupedTasks = groupTasksByDay(tasks);
-  const eventGroups = groupTasksByEvent(tasks);
-  const eventDayGroups = groupTasksByEventDay(tasks);
+  // Filter tasks based on hideCompleted
+  const filteredTasks = hideCompleted
+    ? tasks.filter(t => !t.completed && t.status !== 'completed')
+    : tasks;
+
+  const groupedTasks = groupTasksByDay(filteredTasks);
+  const eventGroups = groupTasksByEvent(filteredTasks);
+  const eventDayGroups = groupTasksByEventDay(filteredTasks);
 
   if (loading) {
     return <div className={styles.loading}>Lade Aufgaben...</div>;
@@ -111,6 +127,19 @@ export const StaffDashboard: React.FC = () => {
         </button>
       </div>
 
+      {/* Filter für erledigte Aufgaben */}
+      <div className={styles.filterSection}>
+        <label className={styles.filterLabel}>
+          <input
+            type="checkbox"
+            checked={hideCompleted}
+            onChange={(e) => setHideCompleted(e.target.checked)}
+            className={styles.filterCheckbox}
+          />
+          <span>Erledigte Aufgaben ausblenden</span>
+        </label>
+      </div>
+
       {/* Aufgabenliste */}
       {tasks.length === 0 ? (
         <div className={styles.empty}>Keine Aufgaben vorhanden</div>
@@ -121,7 +150,13 @@ export const StaffDashboard: React.FC = () => {
               <h2 className={styles.groupTitle}>{groupKey}</h2>
               <div className={styles.taskList}>
                 {groupTasks.map((task) => (
-                  <TaskCard key={task.assignment_id} task={task} onComplete={handleComplete} onReminderUpdate={loadTasks} />
+                  <TaskCard
+                    key={task.assignment_id || task.id}
+                    task={task}
+                    onComplete={handleComplete}
+                    onCompletePublic={handleCompletePublic}
+                    onReminderUpdate={loadTasks}
+                  />
                 ))}
               </div>
             </div>
@@ -134,7 +169,13 @@ export const StaffDashboard: React.FC = () => {
               <h2 className={styles.groupTitle}>{day}</h2>
               <div className={styles.taskList}>
                 {dayTasks.map((task) => (
-                  <TaskCard key={task.assignment_id} task={task} onComplete={handleComplete} onReminderUpdate={loadTasks} />
+                  <TaskCard
+                    key={task.assignment_id || task.id}
+                    task={task}
+                    onComplete={handleComplete}
+                    onCompletePublic={handleCompletePublic}
+                    onReminderUpdate={loadTasks}
+                  />
                 ))}
               </div>
             </div>
@@ -147,7 +188,13 @@ export const StaffDashboard: React.FC = () => {
               <h2 className={styles.groupTitle}>{eventName}</h2>
               <div className={styles.taskList}>
                 {eventTasks.map((task) => (
-                  <TaskCard key={task.assignment_id} task={task} onComplete={handleComplete} onReminderUpdate={loadTasks} />
+                  <TaskCard
+                    key={task.assignment_id || task.id}
+                    task={task}
+                    onComplete={handleComplete}
+                    onCompletePublic={handleCompletePublic}
+                    onReminderUpdate={loadTasks}
+                  />
                 ))}
               </div>
             </div>
@@ -163,8 +210,9 @@ export const StaffDashboard: React.FC = () => {
 const TaskCard: React.FC<{
   task: TaskAssignment;
   onComplete: (id: number) => void;
+  onCompletePublic: (taskId: number) => void;
   onReminderUpdate: () => void;
-}> = ({ task, onComplete, onReminderUpdate }) => {
+}> = ({ task, onComplete, onCompletePublic, onReminderUpdate }) => {
   const [showReminderEdit, setShowReminderEdit] = React.useState(false);
   const [reminderMinutes, setReminderMinutes] = React.useState(task.reminder_minutes || 15);
   const [saving, setSaving] = React.useState(false);
@@ -332,9 +380,9 @@ const TaskCard: React.FC<{
               Als erledigt markieren
             </button>
           ) : (
-            <div style={{ padding: '10px', textAlign: 'center', color: '#6b7280', fontSize: '14px', fontStyle: 'italic' }}>
-              Öffentliche Aufgabe
-            </div>
+            <button onClick={() => onCompletePublic(task.id)} className={styles.completeButton}>
+              Als erledigt markieren (Öffentlich)
+            </button>
           )}
         </div>
       ) : (

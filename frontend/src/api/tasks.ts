@@ -68,6 +68,11 @@ export const tasksApi = {
     return response.data;
   },
 
+  completePublic: async (taskId: number) => {
+    const response = await client.put(`/tasks/${taskId}/complete-public`);
+    return response.data;
+  },
+
   updateReminder: async (assignmentId: number, reminderMinutes: number) => {
     const response = await client.put(`/tasks/assignment/${assignmentId}/reminder`, { reminder_minutes: reminderMinutes });
     return response.data;
