@@ -703,7 +703,7 @@ router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
         // Bei öffentlichen Aufgaben: Alle Mitarbeiter im Event-Pool benachrichtigen
         if (is_public) {
           recipients = await query(
-            `SELECT DISTINCT u.id, ps.endpoint, ps.keys
+            `SELECT DISTINCT u.id, ps.endpoint, ps.keys_p256dh, ps.keys_auth
              FROM users u
              JOIN push_subscriptions ps ON ps.user_id = u.id
              JOIN event_staff es ON es.user_id = u.id
@@ -713,7 +713,7 @@ router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
         } else {
           // Bei privaten Aufgaben: Nur zugewiesene Mitarbeiter benachrichtigen
           recipients = await query(
-            `SELECT DISTINCT u.id, ps.endpoint, ps.keys
+            `SELECT DISTINCT u.id, ps.endpoint, ps.keys_p256dh, ps.keys_auth
              FROM task_assignments ta
              JOIN users u ON ta.user_id = u.id
              JOIN push_subscriptions ps ON ps.user_id = u.id
@@ -734,8 +734,10 @@ router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
         const payload = JSON.stringify({
           title: is_public ? 'Öffentliche Aufgabe aktualisiert' : 'Aufgaben-Status geändert',
           body: `"${title}" ist jetzt: ${statusLabels[status] || status}`,
-          icon: '/icon.svg',
-          badge: '/badge.svg',
+          icon: '/icon.png',
+          badge: '/badge.png',
+          vibrate: [200, 100, 200],
+          requireInteraction: status === 'overdue',
         });
 
         for (const sub of recipients.rows) {
@@ -743,12 +745,20 @@ router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
             await webpush.sendNotification(
               {
                 endpoint: sub.endpoint,
-                keys: sub.keys,
+                keys: {
+                  p256dh: sub.keys_p256dh,
+                  auth: sub.keys_auth,
+                },
               },
               payload
             );
-          } catch (pushError) {
+            console.log(`Status change notification sent to user ${sub.id} for task ${id}`);
+          } catch (pushError: any) {
             console.error('Send push notification error:', pushError);
+            // Subscription entfernen wenn ungültig
+            if (pushError.statusCode === 410) {
+              await query('DELETE FROM push_subscriptions WHERE endpoint = $1', [sub.endpoint]);
+            }
           }
         }
       } catch (notifError) {
