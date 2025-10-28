@@ -8,11 +8,13 @@ import styles from './StaffDashboard.module.css';
 export const StaffDashboard: React.FC = () => {
   const [tasks, setTasks] = useState<TaskAssignment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [groupBy, setGroupBy] = useState<'event-day' | 'event' | 'date'>('event-day');
   const [showSettings, setShowSettings] = useState(false);
   const [hideCompleted, setHideCompleted] = useState(false);
   const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set());
   const [showEventFilter, setShowEventFilter] = useState(false);
+  const [selectedDay, setSelectedDay] = useState<number | 'all'>('all');
   const { user, logout } = useAuth();
   const notifications = useNotifications();
 
@@ -147,27 +149,66 @@ export const StaffDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Gruppierung wählen */}
+      {/* Ansichtsmodus wählen */}
       <div className={styles.controls}>
         <button
-          onClick={() => setGroupBy('event-day')}
-          className={groupBy === 'event-day' ? styles.activeTab : styles.tab}
+          onClick={() => setViewMode('cards')}
+          className={viewMode === 'cards' ? styles.activeTab : styles.tab}
         >
-          Nach Event-Tag
+          📋 Karten
         </button>
         <button
-          onClick={() => setGroupBy('event')}
-          className={groupBy === 'event' ? styles.activeTab : styles.tab}
+          onClick={() => setViewMode('table')}
+          className={viewMode === 'table' ? styles.activeTab : styles.tab}
         >
-          Nach Veranstaltung
-        </button>
-        <button
-          onClick={() => setGroupBy('date')}
-          className={groupBy === 'date' ? styles.activeTab : styles.tab}
-        >
-          Nach Datum
+          📊 Tabelle
         </button>
       </div>
+
+      {/* Gruppierung wählen - nur für Karten-Ansicht */}
+      {viewMode === 'cards' && (
+        <div className={styles.controls}>
+          <button
+            onClick={() => setGroupBy('event-day')}
+            className={groupBy === 'event-day' ? styles.activeTab : styles.tab}
+          >
+            Nach Event-Tag
+          </button>
+          <button
+            onClick={() => setGroupBy('event')}
+            className={groupBy === 'event' ? styles.activeTab : styles.tab}
+          >
+            Nach Veranstaltung
+          </button>
+          <button
+            onClick={() => setGroupBy('date')}
+            className={groupBy === 'date' ? styles.activeTab : styles.tab}
+          >
+            Nach Datum
+          </button>
+        </div>
+      )}
+
+      {/* Tag-Tabs - nur für Tabellen-Ansicht */}
+      {viewMode === 'table' && filteredTasks.length > 0 && (
+        <div className={styles.dayTabsContainer}>
+          <button
+            onClick={() => setSelectedDay('all')}
+            className={selectedDay === 'all' ? styles.dayTabActive : styles.dayTab}
+          >
+            Alle Tage
+          </button>
+          {Array.from(new Set(filteredTasks.map(t => t.day_number))).sort((a, b) => a - b).map(day => (
+            <button
+              key={day}
+              onClick={() => setSelectedDay(day)}
+              className={selectedDay === day ? styles.dayTabActive : styles.dayTab}
+            >
+              Tag {day}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Filter für erledigte Aufgaben */}
       <div className={styles.filterSection}>
@@ -223,6 +264,13 @@ export const StaffDashboard: React.FC = () => {
       {/* Aufgabenliste */}
       {tasks.length === 0 ? (
         <div className={styles.empty}>Keine Aufgaben vorhanden</div>
+      ) : viewMode === 'table' ? (
+        <StaffTableView
+          tasks={filteredTasks}
+          selectedDay={selectedDay}
+          onComplete={handleComplete}
+          onCompletePublic={handleCompletePublic}
+        />
       ) : groupBy === 'event-day' ? (
         <div>
           {Object.entries(eventDayGroups).map(([groupKey, groupTasks]) => (
@@ -471,6 +519,141 @@ const TaskCard: React.FC<{
       ) : (
         <div className={styles.completedBadge}>Erledigt</div>
       )}
+    </div>
+  );
+};
+
+// Staff Table View Komponente
+const StaffTableView: React.FC<{
+  tasks: TaskAssignment[];
+  selectedDay: number | 'all';
+  onComplete: (id: number) => void;
+  onCompletePublic: (taskId: number) => void;
+}> = ({ tasks, selectedDay, onComplete, onCompletePublic }) => {
+  // Filter tasks by selected day
+  const dayFilteredTasks = selectedDay === 'all'
+    ? tasks
+    : tasks.filter(t => t.day_number === selectedDay);
+
+  // Sort tasks by event, day, and time
+  const sortedTasks = [...dayFilteredTasks].sort((a, b) => {
+    // First by event name
+    const eventCompare = a.event_name.localeCompare(b.event_name);
+    if (eventCompare !== 0) return eventCompare;
+
+    // Then by instance number
+    const instanceCompare = (a.instance_number || 0) - (b.instance_number || 0);
+    if (instanceCompare !== 0) return instanceCompare;
+
+    // Then by day number
+    const dayCompare = a.day_number - b.day_number;
+    if (dayCompare !== 0) return dayCompare;
+
+    // Finally by start time
+    const timeA = a.start_time || a.scheduled_time || '23:59';
+    const timeB = b.start_time || b.scheduled_time || '23:59';
+    return timeA.localeCompare(timeB);
+  });
+
+  const getStatusColor = (status: string) => {
+    const colors: { [key: string]: string } = {
+      not_started: '#6b7280',
+      in_progress: '#3b82f6',
+      completed: '#10b981',
+      overdue: '#ef4444',
+    };
+    return colors[status] || '#6b7280';
+  };
+
+  const getStatusLabel = (status: string) => {
+    const labels: { [key: string]: string } = {
+      not_started: 'Nicht gestartet',
+      in_progress: 'In Arbeit',
+      completed: 'Erledigt',
+      overdue: 'Überfällig',
+    };
+    return labels[status] || status;
+  };
+
+  const getEventDate = (task: TaskAssignment) => {
+    const startDate = new Date(task.instance_start_date);
+    startDate.setDate(startDate.getDate() + task.day_number - 1);
+    return startDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+  };
+
+  if (sortedTasks.length === 0) {
+    return <div className={styles.empty}>Keine Aufgaben für den ausgewählten Tag</div>;
+  }
+
+  return (
+    <div className={styles.tableContainer}>
+      <table className={styles.taskTable}>
+        <thead>
+          <tr>
+            <th>Veranstaltung</th>
+            <th>Tag</th>
+            <th>Datum</th>
+            <th>Aufgabe</th>
+            <th>Start</th>
+            <th>Ende</th>
+            <th>Status</th>
+            <th>Aktion</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sortedTasks.map((task) => {
+            const isCompleted = task.completed || task.status === 'completed';
+            return (
+              <tr key={task.assignment_id || task.id} className={isCompleted ? styles.completedRow : ''}>
+                <td>{task.event_name} #{task.instance_number}</td>
+                <td>{task.day_number}</td>
+                <td>{getEventDate(task)}</td>
+                <td>
+                  <div className={styles.taskTitleCell}>
+                    <strong>{task.title}</strong>
+                    {task.is_public && <span className={styles.publicBadge}>Öffentlich</span>}
+                  </div>
+                  {task.description && (
+                    <div className={styles.taskDescCell}>{task.description}</div>
+                  )}
+                </td>
+                <td>{task.start_time || '-'}</td>
+                <td>{task.end_time || '-'}</td>
+                <td>
+                  <span
+                    className={styles.statusBadge}
+                    style={{ backgroundColor: getStatusColor(task.status) }}
+                  >
+                    {getStatusLabel(task.status)}
+                  </span>
+                </td>
+                <td>
+                  {!isCompleted && (
+                    task.assignment_id ? (
+                      <button
+                        onClick={() => onComplete(task.assignment_id)}
+                        className={styles.tableCompleteButton}
+                      >
+                        Erledigt
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => onCompletePublic(task.id)}
+                        className={styles.tableCompleteButton}
+                      >
+                        Erledigt
+                      </button>
+                    )
+                  )}
+                  {isCompleted && (
+                    <span className={styles.completedText}>✓ Erledigt</span>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 };
