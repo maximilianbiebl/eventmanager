@@ -140,8 +140,13 @@ async function sendTaskReminders() {
 
 async function sendTaskNotification(userId: number, task: any, instance: any, reminderMinutes: number) {
   try {
-    // Hole alle Push Subscriptions des Benutzers
-    const subscriptions = await query('SELECT * FROM push_subscriptions WHERE user_id = $1', [userId]);
+    // Hole alle Push Subscriptions des Benutzers (nur wenn push_enabled = true)
+    const subscriptions = await query(
+      `SELECT ps.* FROM push_subscriptions ps
+       JOIN users u ON ps.user_id = u.id
+       WHERE ps.user_id = $1 AND u.push_enabled = true`,
+      [userId]
+    );
 
     console.log(`[sendTaskNotification] Found ${subscriptions.rows.length} subscriptions for user ${userId}`);
 
@@ -187,8 +192,13 @@ async function sendTaskNotification(userId: number, task: any, instance: any, re
 
 async function sendStartTimeNotification(userId: number, task: any, instance: any) {
   try {
-    // Hole alle Push Subscriptions des Benutzers
-    const subscriptions = await query('SELECT * FROM push_subscriptions WHERE user_id = $1', [userId]);
+    // Hole alle Push Subscriptions des Benutzers (nur wenn push_enabled = true)
+    const subscriptions = await query(
+      `SELECT ps.* FROM push_subscriptions ps
+       JOIN users u ON ps.user_id = u.id
+       WHERE ps.user_id = $1 AND u.push_enabled = true`,
+      [userId]
+    );
 
     console.log(`[sendStartTimeNotification] Found ${subscriptions.rows.length} subscriptions for user ${userId}`);
 
