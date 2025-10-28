@@ -530,10 +530,16 @@ const StaffTableView: React.FC<{
   onComplete: (id: number) => void;
   onCompletePublic: (taskId: number) => void;
 }> = ({ tasks, selectedDay, onComplete, onCompletePublic }) => {
+  const [showStatusDropdown, setShowStatusDropdown] = React.useState<number | null>(null);
+
   // Filter tasks by selected day
   const dayFilteredTasks = selectedDay === 'all'
     ? tasks
     : tasks.filter(t => t.day_number === selectedDay);
+
+  // Check if only one unique event
+  const uniqueEvents = new Set(dayFilteredTasks.map(t => `${t.event_name}#${t.instance_number}`));
+  const showEventColumn = uniqueEvents.size > 1;
 
   // Sort tasks by event, day, and time
   const sortedTasks = [...dayFilteredTasks].sort((a, b) => {
@@ -549,9 +555,9 @@ const StaffTableView: React.FC<{
     const dayCompare = a.day_number - b.day_number;
     if (dayCompare !== 0) return dayCompare;
 
-    // Finally by start time
-    const timeA = a.start_time || a.scheduled_time || '23:59';
-    const timeB = b.start_time || b.scheduled_time || '23:59';
+    // Finally by earliest time (use start_time if available, otherwise scheduled_time)
+    const timeA = a.start_time || a.scheduled_time || '99:99';
+    const timeB = b.start_time || b.scheduled_time || '99:99';
     return timeA.localeCompare(timeB);
   });
 
@@ -581,6 +587,18 @@ const StaffTableView: React.FC<{
     return startDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
   };
 
+  const handleStatusChange = async (task: TaskAssignment, newStatus: string) => {
+    try {
+      await tasksApi.updateStatus(task.id, newStatus);
+      // Reload tasks to show updated status
+      window.location.reload();
+    } catch (error) {
+      console.error('Status change error:', error);
+      alert('Fehler beim Ändern des Status');
+    }
+    setShowStatusDropdown(null);
+  };
+
   if (sortedTasks.length === 0) {
     return <div className={styles.empty}>Keine Aufgaben für den ausgewählten Tag</div>;
   }
@@ -590,12 +608,12 @@ const StaffTableView: React.FC<{
       <table className={styles.taskTable}>
         <thead>
           <tr>
-            <th>Veranstaltung</th>
-            <th>Tag</th>
-            <th>Datum</th>
+            {showEventColumn && <th className={styles.hideOnMobile}>Veranstaltung</th>}
+            <th className={styles.hideOnMobile}>Tag</th>
+            <th className={styles.hideOnMobile}>Datum</th>
             <th>Aufgabe</th>
-            <th>Start</th>
-            <th>Ende</th>
+            <th className={styles.hideOnMobile}>Start</th>
+            <th className={styles.hideOnMobile}>Ende</th>
             <th>Status</th>
             <th>Aktion</th>
           </tr>
@@ -603,11 +621,12 @@ const StaffTableView: React.FC<{
         <tbody>
           {sortedTasks.map((task) => {
             const isCompleted = task.completed || task.status === 'completed';
+            const taskKey = task.assignment_id || task.id;
             return (
-              <tr key={task.assignment_id || task.id} className={isCompleted ? styles.completedRow : ''}>
-                <td>{task.event_name} #{task.instance_number}</td>
-                <td>{task.day_number}</td>
-                <td>{getEventDate(task)}</td>
+              <tr key={taskKey} className={isCompleted ? styles.completedRow : ''}>
+                {showEventColumn && <td className={styles.hideOnMobile}>{task.event_name} #{task.instance_number}</td>}
+                <td className={styles.hideOnMobile}>{task.day_number}</td>
+                <td className={styles.hideOnMobile}>{getEventDate(task)}</td>
                 <td>
                   <div className={styles.taskTitleCell}>
                     <strong>{task.title}</strong>
@@ -616,16 +635,39 @@ const StaffTableView: React.FC<{
                   {task.description && (
                     <div className={styles.taskDescCell}>{task.description}</div>
                   )}
+                  <div className={styles.showOnMobile}>
+                    <div className={styles.mobileMeta}>
+                      {showEventColumn && <div>📅 {task.event_name} #{task.instance_number}</div>}
+                      <div>Tag {task.day_number} • {getEventDate(task)}</div>
+                      {task.start_time && <div>🚀 {task.start_time} Uhr</div>}
+                      {task.end_time && <div>🏁 {task.end_time} Uhr</div>}
+                    </div>
+                  </div>
                 </td>
-                <td>{task.start_time || '-'}</td>
-                <td>{task.end_time || '-'}</td>
+                <td className={styles.hideOnMobile}>{task.start_time || '-'}</td>
+                <td className={styles.hideOnMobile}>{task.end_time || '-'}</td>
                 <td>
-                  <span
-                    className={styles.statusBadge}
-                    style={{ backgroundColor: getStatusColor(task.status) }}
-                  >
-                    {getStatusLabel(task.status)}
-                  </span>
+                  <div className={styles.statusDropdownContainer}>
+                    <span
+                      className={styles.statusBadgeClickable}
+                      style={{ backgroundColor: getStatusColor(task.status) }}
+                      onClick={() => setShowStatusDropdown(showStatusDropdown === taskKey ? null : taskKey)}
+                    >
+                      {getStatusLabel(task.status)} ▼
+                    </span>
+                    {showStatusDropdown === taskKey && (
+                      <div className={styles.statusDropdown}>
+                        {task.status !== 'in_progress' && (
+                          <div
+                            className={styles.statusOption}
+                            onClick={() => handleStatusChange(task, 'in_progress')}
+                          >
+                            In Arbeit
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </td>
                 <td>
                   {!isCompleted && (
@@ -690,23 +732,12 @@ function groupTasksByEventDay(tasks: TaskAssignment[]) {
       return taskA.day_number - taskB.day_number;
     })
     .reduce((acc, key) => {
-      // Sortiere Tasks innerhalb jeder Gruppe nach Startzeit (ohne Startzeit zuerst)
+      // Sortiere Tasks innerhalb jeder Gruppe nach frühester Zeit
       acc[key] = grouped[key].sort((a, b) => {
-        const hasStartA = !!a.start_time;
-        const hasStartB = !!b.start_time;
-
-        // Tasks ohne Startzeit zuerst
-        if (!hasStartA && !hasStartB) {
-          // Beide ohne Startzeit: nach scheduled_time sortieren
-          const timeA = a.scheduled_time || '23:59';
-          const timeB = b.scheduled_time || '23:59';
-          return timeA.localeCompare(timeB);
-        }
-        if (!hasStartA) return -1; // A hat keine Startzeit, kommt zuerst
-        if (!hasStartB) return 1;  // B hat keine Startzeit, kommt zuerst
-
-        // Beide haben Startzeit: normal sortieren
-        return a.start_time!.localeCompare(b.start_time!);
+        // Use start_time if available, otherwise scheduled_time
+        const timeA = a.start_time || a.scheduled_time || '99:99';
+        const timeB = b.start_time || b.scheduled_time || '99:99';
+        return timeA.localeCompare(timeB);
       });
       return acc;
     }, {} as { [key: string]: TaskAssignment[] });
@@ -776,25 +807,17 @@ function groupTasksByEvent(tasks: TaskAssignment[]) {
     grouped[key].push(task);
   });
 
-  // Sortiere Tasks innerhalb jeder Gruppe nach Startzeit (ohne Startzeit zuerst)
+  // Sortiere Tasks innerhalb jeder Gruppe nach Tag und frühester Zeit
   Object.keys(grouped).forEach(key => {
     grouped[key].sort((a, b) => {
       // Erst nach Tag sortieren
       const dayCompare = a.day_number - b.day_number;
       if (dayCompare !== 0) return dayCompare;
 
-      // Dann nach Startzeit (ohne Startzeit zuerst)
-      const hasStartA = !!a.start_time;
-      const hasStartB = !!b.start_time;
-
-      if (!hasStartA && !hasStartB) {
-        const timeA = a.scheduled_time || '23:59';
-        const timeB = b.scheduled_time || '23:59';
-        return timeA.localeCompare(timeB);
-      }
-      if (!hasStartA) return -1;
-      if (!hasStartB) return 1;
-      return a.start_time!.localeCompare(b.start_time!);
+      // Dann nach frühester Zeit
+      const timeA = a.start_time || a.scheduled_time || '99:99';
+      const timeB = b.start_time || b.scheduled_time || '99:99';
+      return timeA.localeCompare(timeB);
     });
   });
 

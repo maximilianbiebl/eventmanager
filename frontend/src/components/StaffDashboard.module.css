@@ -317,6 +317,66 @@
   font-size: 0.8125rem;
 }
 
+.statusDropdownContainer {
+  position: relative;
+}
+
+.statusBadgeClickable {
+  display: inline-block;
+  padding: 0.25rem 0.625rem;
+  color: white;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.statusBadgeClickable:hover {
+  opacity: 0.8;
+}
+
+.statusDropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 0.25rem;
+  background-color: white;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+  min-width: 120px;
+}
+
+.statusOption {
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: #374151;
+  transition: background-color 0.2s;
+}
+
+.statusOption:hover {
+  background-color: #f3f4f6;
+}
+
+.hideOnMobile {
+  display: table-cell;
+}
+
+.showOnMobile {
+  display: none;
+}
+
+.mobileMeta {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
 .tab {
   padding: 0.75rem 1.5rem;
   background-color: white;
@@ -685,6 +745,36 @@
   .tableCompleteButton {
     padding: 0.25rem 0.5rem;
     font-size: 0.75rem;
+  }
+
+  .hideOnMobile {
+    display: none !important;
+  }
+
+  .showOnMobile {
+    display: block;
+  }
+
+  .taskTable {
+    display: block;
+    overflow-x: visible;
+  }
+
+  .taskTable thead {
+    display: table-header-group;
+  }
+
+  .taskTable tbody {
+    display: table-row-group;
+  }
+
+  .taskTable tr {
+    display: table-row;
+  }
+
+  .taskTable th,
+  .taskTable td {
+    display: table-cell;
   }
 }
 
