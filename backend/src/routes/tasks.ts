@@ -191,6 +191,36 @@ router.get('/my-tasks', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
+// Alle Aufgaben-Zuweisungen für einen User in einem Event (für Admin)
+router.get('/event/:eventId/user/:userId/assignments', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { eventId, userId } = req.params;
+
+    const result = await query(
+      `SELECT
+        t.id,
+        t.title,
+        t.status,
+        t.day_number,
+        ta.id as assignment_id,
+        e.name as event_name,
+        ei.instance_number
+       FROM task_assignments ta
+       JOIN tasks t ON ta.task_id = t.id
+       JOIN events e ON t.event_id = e.id
+       JOIN event_instances ei ON ta.event_instance_id = ei.id
+       WHERE t.event_id = $1 AND ta.user_id = $2
+       ORDER BY ei.instance_number, t.day_number, t.start_time, t.scheduled_time`,
+      [eventId, userId]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Get user assignments for event error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
 // Aufgabe erstellen
 router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
   try {

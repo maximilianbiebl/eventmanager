@@ -11,12 +11,24 @@ interface EventStaff extends User {
   taskCount?: number;
 }
 
+interface StaffTask {
+  id: number;
+  title: string;
+  status: string;
+  day_number: number;
+  assignment_id: number;
+  event_name: string;
+  instance_number: number;
+}
+
 export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
   const [allStaff, setAllStaff] = useState<EventStaff[]>([]);
   const [eventStaff, setEventStaff] = useState<EventStaff[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedStaffForTasks, setSelectedStaffForTasks] = useState<EventStaff | null>(null);
+  const [staffTasks, setStaffTasks] = useState<StaffTask[]>([]);
 
   useEffect(() => {
     loadData();
@@ -91,6 +103,35 @@ export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
     }
   };
 
+  const handleShowTasks = async (staff: EventStaff) => {
+    try {
+      const response = await client.get(`/tasks/event/${eventId}/user/${staff.id}/assignments`);
+      setStaffTasks(response.data);
+      setSelectedStaffForTasks(staff);
+    } catch (error) {
+      console.error('Load staff tasks error:', error);
+      setError('Fehler beim Laden der Aufgaben');
+    }
+  };
+
+  const handleUnassignTask = async (assignmentId: number) => {
+    if (!confirm('Möchten Sie diese Zuweisung wirklich entfernen?')) {
+      return;
+    }
+
+    try {
+      await client.delete(`/tasks/assignment/${assignmentId}`);
+      // Refresh both task list and staff data
+      if (selectedStaffForTasks) {
+        await handleShowTasks(selectedStaffForTasks);
+      }
+      await loadData();
+    } catch (error) {
+      console.error('Unassign task error:', error);
+      setError('Fehler beim Entfernen der Zuweisung');
+    }
+  };
+
   if (loading) {
     return <div style={styles.loading}>Lade Mitarbeiter...</div>;
   }
@@ -126,9 +167,18 @@ export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
                 <span style={styles.staffName}>{staff.name}</span>
                 <div style={styles.staffMeta}>
                   <span style={styles.staffBadge}>Mitarbeiter</span>
-                  <span style={styles.taskCount}>
+                  <button
+                    onClick={() => handleShowTasks(staff)}
+                    style={{
+                      ...styles.taskCount,
+                      cursor: staff.taskCount ? 'pointer' : 'default',
+                      textDecoration: staff.taskCount ? 'underline' : 'none',
+                    }}
+                    disabled={!staff.taskCount}
+                    title={staff.taskCount ? 'Aufgaben anzeigen' : ''}
+                  >
                     📋 {staff.taskCount || 0} Aufgabe{(staff.taskCount || 0) !== 1 ? 'n' : ''}
-                  </span>
+                  </button>
                 </div>
               </div>
               <button
@@ -148,6 +198,18 @@ export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
           availableStaff={allStaff.filter(s => !s.isInPool)}
           onClose={() => setShowAddModal(false)}
           onAdd={handleAddStaff}
+        />
+      )}
+
+      {selectedStaffForTasks && (
+        <TaskListModal
+          staff={selectedStaffForTasks}
+          tasks={staffTasks}
+          onClose={() => {
+            setSelectedStaffForTasks(null);
+            setStaffTasks([]);
+          }}
+          onUnassign={handleUnassignTask}
         />
       )}
     </div>
@@ -218,6 +280,113 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ availableStaff, onClose, 
             {selectedIds.length > 0
               ? `${selectedIds.length} Mitarbeiter hinzufügen`
               : 'Mitarbeiter hinzufügen'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+interface TaskListModalProps {
+  staff: EventStaff;
+  tasks: StaffTask[];
+  onClose: () => void;
+  onUnassign: (assignmentId: number) => void;
+}
+
+const TaskListModal: React.FC<TaskListModalProps> = ({ staff, tasks, onClose, onUnassign }) => {
+  const handleOverlayClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    const colors: { [key: string]: string } = {
+      not_started: '#6b7280',
+      in_progress: '#3b82f6',
+      completed: '#10b981',
+      overdue: '#ef4444',
+    };
+    return colors[status] || '#6b7280';
+  };
+
+  const getStatusLabel = (status: string) => {
+    const labels: { [key: string]: string } = {
+      not_started: 'Nicht gestartet',
+      in_progress: 'In Arbeit',
+      completed: 'Erledigt',
+      overdue: 'Überfällig',
+    };
+    return labels[status] || status;
+  };
+
+  return (
+    <div style={styles.overlay} onClick={handleOverlayClick}>
+      <div style={{...styles.modal, maxWidth: '700px', maxHeight: '80vh', overflow: 'auto'}}>
+        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem'}}>
+          <h2 style={styles.modalTitle}>Aufgaben von {staff.name}</h2>
+          <button onClick={onClose} style={{...styles.removeButton, position: 'static'}}>✕</button>
+        </div>
+
+        {tasks.length === 0 ? (
+          <p style={styles.noStaff}>Diesem Mitarbeiter sind keine Aufgaben zugewiesen.</p>
+        ) : (
+          <div style={{display: 'flex', flexDirection: 'column', gap: '0.75rem'}}>
+            {tasks.map((task) => (
+              <div key={task.assignment_id} style={{
+                padding: '1rem',
+                border: '1px solid #e5e7eb',
+                borderRadius: '6px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '1rem',
+              }}>
+                <div style={{flex: 1}}>
+                  <div style={{fontWeight: '600', marginBottom: '0.25rem'}}>{task.title}</div>
+                  <div style={{fontSize: '0.875rem', color: '#6b7280'}}>
+                    {task.event_name} #{task.instance_number} - Tag {task.day_number}
+                  </div>
+                  <div style={{marginTop: '0.5rem'}}>
+                    <span style={{
+                      display: 'inline-block',
+                      padding: '0.25rem 0.625rem',
+                      backgroundColor: getStatusColor(task.status),
+                      color: 'white',
+                      borderRadius: '9999px',
+                      fontSize: '0.75rem',
+                      fontWeight: '500',
+                    }}>
+                      {getStatusLabel(task.status)}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => onUnassign(task.assignment_id)}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    backgroundColor: '#ef4444',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    fontWeight: '500',
+                    whiteSpace: 'nowrap',
+                  }}
+                  title="Zuweisung entfernen"
+                >
+                  ✕ Entfernen
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div style={{marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end'}}>
+          <button onClick={onClose} style={styles.cancelButton}>
+            Schließen
           </button>
         </div>
       </div>
