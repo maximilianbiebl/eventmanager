@@ -72,7 +72,7 @@ export const StaffDashboard: React.FC = () => {
       // Initialize selectedEvents with all unique events if not yet set AND not loaded from storage
       const stored = localStorage.getItem('selectedEvents');
       if (!stored && selectedEvents.size === 0 && data.length > 0) {
-        const uniqueEvents = new Set(data.map(t => `${t.event_name} #${t.instance_number}`));
+        const uniqueEvents = new Set(data.map(t => `${t.event_name} (${t.instance_start_date})`));
         setSelectedEvents(uniqueEvents);
         saveSelectedEventsToStorage(uniqueEvents);
       }
@@ -124,7 +124,7 @@ export const StaffDashboard: React.FC = () => {
   };
 
   const handleSelectAllEvents = () => {
-    const allEvents = new Set(tasks.map(t => `${t.event_name} #${t.instance_number}`));
+    const allEvents = new Set(tasks.map(t => `${t.event_name} (${t.instance_start_date})`));
     setSelectedEvents(allEvents);
     saveSelectedEventsToStorage(allEvents);
   };
@@ -136,7 +136,7 @@ export const StaffDashboard: React.FC = () => {
   };
 
   // Get unique events for the filter
-  const uniqueEvents = Array.from(new Set(tasks.map(t => `${t.event_name} #${t.instance_number}`)))
+  const uniqueEvents = Array.from(new Set(tasks.map(t => `${t.event_name} (${t.instance_start_date})`)))
     .sort();
 
   // Filter tasks based on hideCompleted and selectedEvents
@@ -147,7 +147,7 @@ export const StaffDashboard: React.FC = () => {
     }
 
     // Filter by selected events
-    const eventKey = `${t.event_name} #${t.instance_number}`;
+    const eventKey = `${t.event_name} (${t.instance_start_date})`;
     if (selectedEvents.size > 0 && !selectedEvents.has(eventKey)) {
       return false;
     }
@@ -579,8 +579,8 @@ const StaffTableView: React.FC<{
     : tasks.filter(t => t.day_number === selectedDay);
 
   // Check if only one unique event
-  const uniqueEvents = new Set(dayFilteredTasks.map(t => `${t.event_name}#${t.instance_number}`));
-  const showEventColumn = uniqueEvents.size > 1;
+  const uniqueEventsInTable = new Set(dayFilteredTasks.map(t => `${t.event_name}#${t.instance_start_date}`));
+  const showEventColumn = uniqueEventsInTable.size > 1;
 
   // Sort tasks by event, day, and time
   const sortedTasks = [...dayFilteredTasks].sort((a, b) => {
@@ -665,7 +665,7 @@ const StaffTableView: React.FC<{
             const taskKey = task.assignment_id || task.id;
             return (
               <tr key={taskKey} className={isCompleted ? styles.completedRow : ''}>
-                {showEventColumn && <td className={styles.hideOnMobile}>{task.event_name} #{task.instance_number}</td>}
+                {showEventColumn && <td className={styles.hideOnMobile}>{task.event_name}</td>}
                 <td className={styles.hideOnMobile}>{task.day_number}</td>
                 <td className={styles.hideOnMobile}>{getEventDate(task)}</td>
                 <td>
@@ -678,8 +678,8 @@ const StaffTableView: React.FC<{
                   )}
                   <div className={styles.showOnMobile}>
                     <div className={styles.mobileMeta}>
-                      {showEventColumn && <div>📅 {task.event_name} #{task.instance_number}</div>}
-                      <div>Tag {task.day_number} • {getEventDate(task)}</div>
+                      {showEventColumn && <div>📅 {task.event_name}</div>}
+                      <div>Tag {task.day_number} • {getEventDate(task)}</div>}
                       {task.start_time && <div>🚀 {task.start_time} Uhr</div>}
                       {task.end_time && <div>🏁 {task.end_time} Uhr</div>}
                     </div>
@@ -747,7 +747,7 @@ function groupTasksByEventDay(tasks: TaskAssignment[]) {
 
   tasks.forEach((task) => {
     // Gruppiere nach Event-Instanz und Tag
-    const key = `${task.event_name} #${task.instance_number} - Tag ${task.day_number}`;
+    const key = `${task.event_name} - Tag ${task.day_number}`;
 
     if (!grouped[key]) {
       grouped[key] = [];
@@ -841,7 +841,7 @@ function groupTasksByEvent(tasks: TaskAssignment[]) {
   const grouped: { [key: string]: TaskAssignment[] } = {};
 
   tasks.forEach((task) => {
-    const key = `${task.event_name} #${task.instance_number}`;
+    const key = `${task.event_name}`;
     if (!grouped[key]) {
       grouped[key] = [];
     }
