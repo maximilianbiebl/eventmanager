@@ -294,8 +294,8 @@ export const StaffDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Ansichtsmodus wählen */}
-      <div className={styles.controls}>
+      {/* Ansichtsmodus und Gruppierung wählen */}
+      <div className={styles.viewControls}>
         <button
           onClick={() => setViewMode('cards')}
           className={viewMode === 'cards' ? styles.activeTab : styles.tab}
@@ -308,31 +308,31 @@ export const StaffDashboard: React.FC = () => {
         >
           📊 Tabelle
         </button>
-      </div>
 
-      {/* Gruppierung wählen - nur für Karten-Ansicht */}
-      {viewMode === 'cards' && (
-        <div className={styles.controls}>
-          <button
-            onClick={() => setGroupBy('event-day')}
-            className={groupBy === 'event-day' ? styles.activeTab : styles.tab}
-          >
-            Nach Event-Tag
-          </button>
-          <button
-            onClick={() => setGroupBy('event')}
-            className={groupBy === 'event' ? styles.activeTab : styles.tab}
-          >
-            Nach Veranstaltung
-          </button>
-          <button
-            onClick={() => setGroupBy('date')}
-            className={groupBy === 'date' ? styles.activeTab : styles.tab}
-          >
-            Nach Datum
-          </button>
-        </div>
-      )}
+        {/* Gruppierung - nur für Karten-Ansicht */}
+        {viewMode === 'cards' && (
+          <>
+            <button
+              onClick={() => setGroupBy('event-day')}
+              className={groupBy === 'event-day' ? styles.activeTab : styles.tab}
+            >
+              Nach Event-Tag
+            </button>
+            <button
+              onClick={() => setGroupBy('event')}
+              className={groupBy === 'event' ? styles.activeTab : styles.tab}
+            >
+              Nach Veranstaltung
+            </button>
+            <button
+              onClick={() => setGroupBy('date')}
+              className={groupBy === 'date' ? styles.activeTab : styles.tab}
+            >
+              Nach Datum
+            </button>
+          </>
+        )}
+      </div>
 
       {/* Tag-Tabs - nur für Tabellen-Ansicht */}
       {viewMode === 'table' && filteredTasks.length > 0 && (
@@ -368,15 +368,15 @@ export const StaffDashboard: React.FC = () => {
         </label>
       </div>
 
-      {/* Filter für Veranstaltungen - nur in Kartenansicht */}
-      {uniqueEvents.length > 1 && viewMode !== 'table' && (
+      {/* Filter für Veranstaltungen */}
+      {uniqueEvents.length > 1 && (
         <div className={styles.filterSection}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
             <button
               onClick={() => setShowEventFilter(!showEventFilter)}
               className={styles.filterToggleButton}
             >
-              📅 Veranstaltungen filtern ({selectedEvents.size}/{uniqueEvents.length})
+              🎪 Veranstaltungen filtern ({selectedEvents.size}/{uniqueEvents.length})
             </button>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button onClick={handleSelectAllEvents} className={styles.filterActionButton}>
@@ -618,7 +618,7 @@ const TaskCard: React.FC<{
         <div className={styles.taskMeta} style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
         <span className={styles.taskEvent}>🎪 {task.event_name}</span>
         <span className={styles.taskDay}>
-          📆 Tag {task.day_number} ({getEventDate()})
+          🗓️ Tag {task.day_number} ({getEventDate()})
         </span>
         {task.is_public && (
           <span style={{
@@ -711,18 +711,77 @@ const TaskCard: React.FC<{
         </div>
       </div>
 
-      {/* Erinnerung bearbeiten - nur für zugewiesene Aufgaben */}
-      {!isCompleted && task.assignment_id && (
-        <div className={styles.reminderSection}>
-          {!showReminderEdit ? (
-            <button
-              onClick={() => setShowReminderEdit(true)}
-              className={styles.reminderButton}
-            >
-              🔔 Erinnerung: {task.reminder_minutes || 15} Min. vorher
-            </button>
-          ) : (
-            <div className={styles.reminderEdit}>
+      </div>
+
+      {!isCompleted ? (
+        <>
+          <div className={styles.taskActions} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'nowrap' }}>
+            {task.assignment_id && !showReminderEdit && (
+              <button
+                onClick={() => setShowReminderEdit(true)}
+                className={styles.reminderButton}
+                style={{
+                  flex: '1',
+                  minWidth: 0,
+                  fontSize: '0.875rem',
+                  padding: '10px 12px'
+                }}
+              >
+                🔔 Erinnerung
+              </button>
+            )}
+            {(task.status === 'not_started' || task.status === 'overdue') && (
+              <button
+                onClick={handleSetInProgress}
+                disabled={updatingStatus}
+                className={styles.inProgressButton}
+                style={{
+                  backgroundColor: '#3b82f6',
+                  color: 'white',
+                  padding: '10px 12px',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: updatingStatus ? 'not-allowed' : 'pointer',
+                  opacity: updatingStatus ? 0.6 : 1,
+                  flex: '1',
+                  minWidth: 0,
+                  fontSize: '0.875rem'
+                }}
+              >
+                {updatingStatus ? 'Wird aktualisiert...' : 'In Arbeit setzen'}
+              </button>
+            )}
+            {task.assignment_id ? (
+              <button
+                onClick={() => onComplete(task.assignment_id)}
+                className={styles.completeButton}
+                style={{
+                  flex: '1',
+                  minWidth: 0,
+                  fontSize: '0.875rem',
+                  padding: '10px 12px'
+                }}
+              >
+                Als erledigt markieren
+              </button>
+            ) : (
+              <button
+                onClick={() => onCompletePublic(task.id)}
+                className={styles.completeButton}
+                style={{
+                  flex: '1',
+                  minWidth: 0,
+                  fontSize: '0.875rem',
+                  padding: '10px 12px'
+                }}
+              >
+                Als erledigt markieren
+              </button>
+            )}
+          </div>
+          {/* Erinnerung bearbeiten - nur für zugewiesene Aufgaben */}
+          {task.assignment_id && showReminderEdit && (
+            <div className={styles.reminderEdit} style={{ marginTop: '0.5rem' }}>
               <label className={styles.reminderLabel}>
                 Erinnerungszeit (Minuten vorher):
               </label>
@@ -751,42 +810,7 @@ const TaskCard: React.FC<{
               </div>
             </div>
           )}
-        </div>
-      )}
-      </div>
-
-      {!isCompleted ? (
-        <div className={styles.taskActions}>
-          {(task.status === 'not_started' || task.status === 'overdue') && (
-            <button
-              onClick={handleSetInProgress}
-              disabled={updatingStatus}
-              className={styles.inProgressButton}
-              style={{
-                backgroundColor: '#3b82f6',
-                color: 'white',
-                padding: '10px 20px',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: updatingStatus ? 'not-allowed' : 'pointer',
-                opacity: updatingStatus ? 0.6 : 1,
-                marginBottom: '8px',
-                width: '100%',
-              }}
-            >
-              {updatingStatus ? 'Wird aktualisiert...' : '▶️ In Arbeit setzen'}
-            </button>
-          )}
-          {task.assignment_id ? (
-            <button onClick={() => onComplete(task.assignment_id)} className={styles.completeButton}>
-              Als erledigt markieren
-            </button>
-          ) : (
-            <button onClick={() => onCompletePublic(task.id)} className={styles.completeButton}>
-              Als erledigt markieren (Öffentlich)
-            </button>
-          )}
-        </div>
+        </>
       ) : (
         <div className={styles.completedBadge}>Erledigt</div>
       )}
@@ -823,7 +847,7 @@ const StaffTableView: React.FC<{
   onCompletePublic: (taskId: number) => void;
   onReload: () => void;
 }> = ({ tasks, allTasks, selectedDay, onComplete, onCompletePublic, onReload }) => {
-  const [showStatusDropdown, setShowStatusDropdown] = React.useState<number | null>(null);
+  const [showStatusDropdown, setShowStatusDropdown] = React.useState<string | null>(null);
   const [sortColumn, setSortColumn] = React.useState<string>('day');
   const [sortDirection, setSortDirection] = React.useState<'asc' | 'desc'>('asc');
   const [descriptionModal, setDescriptionModal] = React.useState<{ title: string; description: string } | null>(null);
@@ -1006,9 +1030,9 @@ const StaffTableView: React.FC<{
         <tbody>
           {sortedTasks.map((task) => {
             const isCompleted = task.status === 'completed';
-            const taskKey = task.assignment_id || task.id;
+            const taskKey = task.assignment_id ? `a-${task.assignment_id}` : `p-${task.id}`;
             return (
-              <tr key={taskKey} className={isCompleted ? styles.completedRow : ''}>
+              <tr key={taskKey} className={isCompleted ? styles.completedRow : ''}  style={{ position: 'relative', zIndex: showStatusDropdown === taskKey ? 200 : 1 }}>
                 {showEventColumn && <td className={styles.hideOnMobile}>{task.event_name}</td>}
                 <td className={styles.hideOnMobile}>{task.day_number}</td>
                 <td className={styles.hideOnMobile}>{getEventDate(task)}</td>
@@ -1025,19 +1049,20 @@ const StaffTableView: React.FC<{
                           <button
                             onClick={() => setDescriptionModal({ title: task.title, description: task.description! })}
                             style={{
-                              marginLeft: '0.25rem',
-                              padding: '0.125rem 0.375rem',
+                              marginLeft: '0.5rem',
+                              padding: '0.125rem 0.625rem',
                               fontSize: '0.7rem',
-                              backgroundColor: 'transparent',
+                              backgroundColor: '#f3f4f6',
                               border: '1px solid #d1d5db',
-                              borderRadius: '3px',
+                              borderRadius: '9999px',
                               cursor: 'pointer',
-                              color: '#6b7280'
+                              color: '#6b7280',
+                              fontWeight: '500'
                             }}
                           >
                             mehr
                           </button>
-                        </>
+</>
                       ) : (
                         task.description
                       )}

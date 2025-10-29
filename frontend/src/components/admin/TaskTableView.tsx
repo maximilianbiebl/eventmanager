@@ -63,6 +63,7 @@ export const TaskTableView: React.FC<Props> = ({
   const [internalSelectedDay, setInternalSelectedDay] = useState<number | 'all'>('all');
   const [sortColumn, setSortColumn] = useState<string>('manual');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [descriptionModal, setDescriptionModal] = useState<{ title: string; description: string } | null>(null);
 
   // Use external selectedDay if provided, otherwise use internal state
   const selectedDay = externalSelectedDay !== undefined ? externalSelectedDay : internalSelectedDay;
@@ -409,7 +410,31 @@ export const TaskTableView: React.FC<Props> = ({
                       )}
                     </div>
                     {task.description && (
-                      <div style={styles.taskDescription} className={responsiveStyles.taskDescription}>{task.description}</div>
+                      <div style={styles.taskDescription} className={responsiveStyles.taskDescription}>
+                        {task.description.length > 80 ? (
+                          <>
+                            {task.description.substring(0, 80)}...
+                            <button
+                              onClick={() => setDescriptionModal({ title: task.title, description: task.description! })}
+                              style={{
+                                marginLeft: '0.5rem',
+                                padding: '0.125rem 0.625rem',
+                                fontSize: '0.7rem',
+                                backgroundColor: '#f3f4f6',
+                                border: '1px solid #d1d5db',
+                                borderRadius: '9999px',
+                                cursor: 'pointer',
+                                color: '#6b7280',
+                                fontWeight: '500'
+                              }}
+                            >
+                              mehr
+                            </button>
+                          </>
+                        ) : (
+                          task.description
+                        )}
+                      </div>
                     )}
                   </td>
                   <td style={styles.td}>{task.scheduled_time || '-'}</td>
@@ -465,14 +490,14 @@ export const TaskTableView: React.FC<Props> = ({
                           style={styles.assignButton}
                           title="Mitarbeiter zuweisen"
                         >
-                          👥 Zuweisen
+                          Zuweisen
                         </button>
                         <button
                           onClick={() => onEditTask(task.id)}
                           style={styles.editButton}
                           title="Aufgabe bearbeiten"
                         >
-                          ✏️ Bearbeiten
+                          Bearbeiten
                         </button>
                       </div>
                       <div style={{display: 'flex', gap: '0.25rem', justifyContent: 'center'}}>
@@ -499,6 +524,60 @@ export const TaskTableView: React.FC<Props> = ({
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Description Modal */}
+      {descriptionModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            padding: '1rem'
+          }}
+          onClick={() => setDescriptionModal(null)}
+        >
+          <div
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '8px',
+              padding: '1.5rem',
+              maxWidth: '500px',
+              width: '100%',
+              maxHeight: '80vh',
+              overflow: 'auto'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '1.25rem', fontWeight: '600' }}>
+              {descriptionModal.title}
+            </h3>
+            <p style={{ marginBottom: '1.5rem', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
+              {descriptionModal.description}
+            </p>
+            <button
+              onClick={() => setDescriptionModal(null)}
+              style={{
+                padding: '0.5rem 1rem',
+                backgroundColor: '#4f46e5',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontWeight: '500'
+              }}
+            >
+              Schließen
+            </button>
+          </div>
         </div>
       )}
     </div>
