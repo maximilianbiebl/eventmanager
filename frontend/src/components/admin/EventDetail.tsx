@@ -133,7 +133,10 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
           <div className={styles.headerActions}>
             <div className={styles.viewToggle}>
               <button
-                onClick={() => setViewMode('list')}
+                onClick={() => {
+                  setViewMode('list');
+                  if (selectedDay === 'all') setSelectedDay(1);
+                }}
                 className={viewMode === 'list' ? styles.viewButtonActive : styles.viewButton}
               >
                 📋 Liste
@@ -168,8 +171,8 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
 
         {viewMode === 'list' ? (
           <TaskListView
-            tasks={tasks.filter(task => task.day_number === selectedDay)}
-            selectedDay={selectedDay}
+            tasks={tasks.filter(task => selectedDay === 'all' || task.day_number === selectedDay)}
+            selectedDay={typeof selectedDay === 'number' ? selectedDay : 1}
             selectedInstance={selectedInstance}
             onEditTask={handleEditTask}
             onAssignTask={handleAssignTask}

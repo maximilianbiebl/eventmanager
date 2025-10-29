@@ -317,6 +317,7 @@ export const StaffDashboard: React.FC = () => {
           selectedDay={selectedDay}
           onComplete={handleComplete}
           onCompletePublic={handleCompletePublic}
+          onReload={loadTasks}
         />
       ) : groupBy === 'event-day' ? (
         <div>
@@ -631,7 +632,8 @@ const StaffTableView: React.FC<{
   selectedDay: number | 'all';
   onComplete: (id: number) => void;
   onCompletePublic: (taskId: number) => void;
-}> = ({ tasks, allTasks, selectedDay, onComplete, onCompletePublic }) => {
+  onReload: () => void;
+}> = ({ tasks, allTasks, selectedDay, onComplete, onCompletePublic, onReload }) => {
   const [showStatusDropdown, setShowStatusDropdown] = React.useState<number | null>(null);
   const [sortColumn, setSortColumn] = React.useState<string>('day');
   const [sortDirection, setSortDirection] = React.useState<'asc' | 'desc'>('asc');
@@ -725,7 +727,7 @@ const StaffTableView: React.FC<{
     try {
       await tasksApi.updateStatus(task.id, newStatus);
       // Reload tasks to show updated status
-      await loadTasks();
+      await onReload();
     } catch (error) {
       console.error('Status change error:', error);
       alert('Fehler beim Ändern des Status');

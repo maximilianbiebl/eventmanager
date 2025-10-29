@@ -21,7 +21,7 @@ router.get('/event/:eventId', authMiddleware, async (req, res) => {
        FROM tasks t
        LEFT JOIN program_items pi ON t.program_item_id = pi.id
        WHERE ${whereClause}
-       ORDER BY t.day_number, t.start_time, t.scheduled_time`,
+       ORDER BY t.sort_order, t.day_number, t.start_time, t.scheduled_time`,
       [eventId]
     );
 
@@ -867,6 +867,80 @@ router.put('/:id/activate', authMiddleware, adminMiddleware, async (req, res) =>
     res.json({ message: 'Aufgabe wurde aktiviert', task: result.rows[0] });
   } catch (error) {
     console.error('Activate task error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// Aufgabe nach oben verschieben (Admin only)
+router.put('/:id/move-up', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Get current task
+    const taskResult = await query('SELECT * FROM tasks WHERE id = $1', [id]);
+    if (taskResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Aufgabe nicht gefunden' });
+    }
+
+    const currentTask = taskResult.rows[0];
+    const { event_id, sort_order } = currentTask;
+
+    // Find the task directly above (highest sort_order that is less than current)
+    const aboveResult = await query(
+      'SELECT * FROM tasks WHERE event_id = $1 AND sort_order < $2 ORDER BY sort_order DESC LIMIT 1',
+      [event_id, sort_order]
+    );
+
+    if (aboveResult.rows.length === 0) {
+      return res.json({ message: 'Aufgabe ist bereits an erster Position' });
+    }
+
+    const aboveTask = aboveResult.rows[0];
+
+    // Swap sort_order
+    await query('UPDATE tasks SET sort_order = $1 WHERE id = $2', [aboveTask.sort_order, id]);
+    await query('UPDATE tasks SET sort_order = $1 WHERE id = $2', [sort_order, aboveTask.id]);
+
+    res.json({ message: 'Reihenfolge aktualisiert' });
+  } catch (error) {
+    console.error('Move up error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// Aufgabe nach unten verschieben (Admin only)
+router.put('/:id/move-down', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Get current task
+    const taskResult = await query('SELECT * FROM tasks WHERE id = $1', [id]);
+    if (taskResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Aufgabe nicht gefunden' });
+    }
+
+    const currentTask = taskResult.rows[0];
+    const { event_id, sort_order } = currentTask;
+
+    // Find the task directly below (lowest sort_order that is greater than current)
+    const belowResult = await query(
+      'SELECT * FROM tasks WHERE event_id = $1 AND sort_order > $2 ORDER BY sort_order ASC LIMIT 1',
+      [event_id, sort_order]
+    );
+
+    if (belowResult.rows.length === 0) {
+      return res.json({ message: 'Aufgabe ist bereits an letzter Position' });
+    }
+
+    const belowTask = belowResult.rows[0];
+
+    // Swap sort_order
+    await query('UPDATE tasks SET sort_order = $1 WHERE id = $2', [belowTask.sort_order, id]);
+    await query('UPDATE tasks SET sort_order = $1 WHERE id = $2', [sort_order, belowTask.id]);
+
+    res.json({ message: 'Reihenfolge aktualisiert' });
+  } catch (error) {
+    console.error('Move down error:', error);
     res.status(500).json({ error: 'Server Fehler' });
   }
 });

@@ -16,6 +16,8 @@ interface TaskAssignment {
   user_id?: number;
   user_name?: string;
   completed?: boolean;
+  is_active?: boolean;
+  sort_order?: number;
 }
 
 interface Props {
@@ -106,20 +108,6 @@ export const TaskTableView: React.FC<Props> = ({
     }
   };
 
-  const handleDeleteTask = async (taskId: number, taskTitle: string) => {
-    if (!window.confirm(`Möchten Sie die Aufgabe "${taskTitle}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`)) {
-      return;
-    }
-
-    try {
-      await tasksApi.delete(taskId);
-      await loadAssignments(); // Reload to show updated tasks
-    } catch (error) {
-      console.error('Delete task error:', error);
-      alert('Fehler beim Löschen der Aufgabe');
-    }
-  };
-
   const handleToggleActive = async (taskId: number, taskTitle: string, currentlyActive: boolean) => {
     const action = currentlyActive ? 'deaktivieren' : 'aktivieren';
     const actionPast = currentlyActive ? 'deaktiviert' : 'aktiviert';
@@ -140,6 +128,38 @@ export const TaskTableView: React.FC<Props> = ({
     } catch (error) {
       console.error('Toggle active error:', error);
       alert(`Fehler beim ${action.slice(0, -2)}en der Aufgabe`);
+    }
+  };
+
+  const handleMoveUp = async (taskId: number) => {
+    try {
+      await tasksApi.moveUp(taskId);
+      setSuccessMessage('Aufgabe wurde nach oben verschoben');
+      setTimeout(() => setSuccessMessage(''), 3000);
+      await loadAssignments();
+    } catch (error: any) {
+      console.error('Move up error:', error);
+      if (error.response?.status === 400) {
+        alert('Aufgabe ist bereits an erster Position');
+      } else {
+        alert('Fehler beim Verschieben der Aufgabe');
+      }
+    }
+  };
+
+  const handleMoveDown = async (taskId: number) => {
+    try {
+      await tasksApi.moveDown(taskId);
+      setSuccessMessage('Aufgabe wurde nach unten verschoben');
+      setTimeout(() => setSuccessMessage(''), 3000);
+      await loadAssignments();
+    } catch (error: any) {
+      console.error('Move down error:', error);
+      if (error.response?.status === 400) {
+        alert('Aufgabe ist bereits an letzter Position');
+      } else {
+        alert('Fehler beim Verschieben der Aufgabe');
+      }
     }
   };
 
@@ -426,6 +446,20 @@ export const TaskTableView: React.FC<Props> = ({
                   <td style={styles.td}>
                     <div style={styles.actions}>
                       <button
+                        onClick={() => handleMoveUp(task.id)}
+                        style={styles.moveButton}
+                        title="Aufgabe nach oben verschieben"
+                      >
+                        ▲
+                      </button>
+                      <button
+                        onClick={() => handleMoveDown(task.id)}
+                        style={styles.moveButton}
+                        title="Aufgabe nach unten verschieben"
+                      >
+                        ▼
+                      </button>
+                      <button
                         onClick={() => onEditTask(task.id)}
                         style={styles.editButton}
                         title="Aufgabe bearbeiten"
@@ -667,6 +701,17 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '0.75rem',
     cursor: 'pointer',
     fontWeight: '500',
+  },
+  moveButton: {
+    padding: '0.375rem 0.5rem',
+    backgroundColor: '#6b7280',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    fontSize: '0.875rem',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    lineHeight: '1',
   },
   dayTabs: {
     display: 'flex',

@@ -14,6 +14,7 @@ export interface Task {
   is_public: boolean;
   status: string;
   is_active?: boolean;
+  sort_order?: number;
 }
 
 export interface TaskAssignment extends Task {
@@ -106,6 +107,16 @@ export const tasksApi = {
 
   deactivate: async (taskId: number) => {
     const response = await client.put(`/tasks/${taskId}/deactivate`);
+    return response.data;
+  },
+
+  moveUp: async (taskId: number) => {
+    const response = await client.put(`/tasks/${taskId}/move-up`);
+    return response.data;
+  },
+
+  moveDown: async (taskId: number) => {
+    const response = await client.put(`/tasks/${taskId}/move-down`);
     return response.data;
   },
 };
