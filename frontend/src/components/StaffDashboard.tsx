@@ -517,50 +517,82 @@ const TaskCard: React.FC<{
           Tag {task.day_number} ({getEventDate()})
         </span>
         <div style={{ position: 'relative', display: 'inline-block' }}>
-          <span
-            className={styles.taskStatus}
-            style={{
-              backgroundColor: getStatusColor(task.status),
-              color: 'white',
-              padding: '4px 8px',
-              borderRadius: '4px',
-              fontSize: '12px',
-              cursor: 'pointer',
-              userSelect: 'none'
-            }}
-            onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-          >
-            {getStatusLabel(task.status)} ▼
-          </span>
-          {showStatusDropdown && (
-            <div style={{
-              position: 'absolute',
-              top: '100%',
-              left: 0,
-              backgroundColor: 'white',
-              border: '1px solid #d1d5db',
-              borderRadius: '4px',
-              boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-              marginTop: '4px',
-              minWidth: '150px',
-              zIndex: 1000
-            }}>
-              {task.status !== 'in_progress' && (
-                <div
-                  style={{
-                    padding: '8px 12px',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    borderBottom: '1px solid #e5e7eb'
-                  }}
-                  onClick={() => handleStatusChange('in_progress')}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
-                >
-                  In Arbeit
+          {/* Nur Dropdown anzeigen wenn es Optionen gibt */}
+          {task.status === 'not_started' || task.status === 'in_progress' ? (
+            <>
+              <span
+                className={styles.taskStatus}
+                style={{
+                  backgroundColor: getStatusColor(task.status),
+                  color: 'white',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  userSelect: 'none'
+                }}
+                onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+              >
+                {getStatusLabel(task.status)} ▼
+              </span>
+              {showStatusDropdown && (
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  backgroundColor: 'white',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '4px',
+                  boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                  marginTop: '4px',
+                  minWidth: '150px',
+                  zIndex: 1000
+                }}>
+                  {task.status === 'not_started' && (
+                    <div
+                      style={{
+                        padding: '8px 12px',
+                        cursor: 'pointer',
+                        fontSize: '14px'
+                      }}
+                      onClick={() => handleStatusChange('in_progress')}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                    >
+                      ▶ In Arbeit setzen
+                    </div>
+                  )}
+                  {task.status === 'in_progress' && (
+                    <div
+                      style={{
+                        padding: '8px 12px',
+                        cursor: 'pointer',
+                        fontSize: '14px'
+                      }}
+                      onClick={() => handleStatusChange('not_started')}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                    >
+                      ↩ Zurück zu "Nicht gestartet"
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
+            </>
+          ) : (
+            /* Kein Dropdown für completed/overdue - nur Badge */
+            <span
+              className={styles.taskStatus}
+              style={{
+                backgroundColor: getStatusColor(task.status),
+                color: 'white',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                fontSize: '12px'
+              }}
+            >
+              {getStatusLabel(task.status)}
+            </span>
           )}
         </div>
       </div>
@@ -867,24 +899,45 @@ const StaffTableView: React.FC<{
                 <td className={styles.hideOnMobile}>{task.end_time || '-'}</td>
                 <td>
                   <div className={styles.statusDropdownContainer}>
-                    <span
-                      className={styles.statusBadgeClickable}
-                      style={{ backgroundColor: getStatusColor(task.status) }}
-                      onClick={() => setShowStatusDropdown(showStatusDropdown === taskKey ? null : taskKey)}
-                    >
-                      {getStatusLabel(task.status)} ▼
-                    </span>
-                    {showStatusDropdown === taskKey && (
-                      <div className={styles.statusDropdown}>
-                        {task.status !== 'in_progress' && (
-                          <div
-                            className={styles.statusOption}
-                            onClick={() => handleStatusChange(task, 'in_progress')}
-                          >
-                            In Arbeit
+                    {/* Nur Dropdown anzeigen wenn es Optionen gibt */}
+                    {task.status === 'not_started' || task.status === 'in_progress' ? (
+                      <>
+                        <span
+                          className={styles.statusBadgeClickable}
+                          style={{ backgroundColor: getStatusColor(task.status) }}
+                          onClick={() => setShowStatusDropdown(showStatusDropdown === taskKey ? null : taskKey)}
+                        >
+                          {getStatusLabel(task.status)} ▼
+                        </span>
+                        {showStatusDropdown === taskKey && (
+                          <div className={styles.statusDropdown}>
+                            {task.status === 'not_started' && (
+                              <div
+                                className={styles.statusOption}
+                                onClick={() => handleStatusChange(task, 'in_progress')}
+                              >
+                                ▶ In Arbeit setzen
+                              </div>
+                            )}
+                            {task.status === 'in_progress' && (
+                              <div
+                                className={styles.statusOption}
+                                onClick={() => handleStatusChange(task, 'not_started')}
+                              >
+                                ↩ Zurück zu "Nicht gestartet"
+                              </div>
+                            )}
                           </div>
                         )}
-                      </div>
+                      </>
+                    ) : (
+                      /* Kein Dropdown für completed/overdue - nur Badge */
+                      <span
+                        className={styles.statusBadge}
+                        style={{ backgroundColor: getStatusColor(task.status) }}
+                      >
+                        {getStatusLabel(task.status)}
+                      </span>
                     )}
                   </div>
                 </td>

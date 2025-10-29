@@ -39,11 +39,39 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
   const [showStaffSelection, setShowStaffSelection] = useState(false);
 
   useEffect(() => {
-    // Lade Event Staff Pool (nur wenn nicht im Edit-Modus)
-    if (!isEdit) {
-      loadStaff();
+    // Lade Event Staff Pool
+    loadStaff();
+
+    // Lade bestehende Zuweisungen im Edit-Modus
+    if (isEdit && task?.id && eventInstances && eventInstances.length > 0) {
+      loadExistingAssignments();
     }
   }, [eventId, isEdit]);
+
+  const loadExistingAssignments = async () => {
+    if (!task?.id || !eventInstances || eventInstances.length === 0) return;
+
+    try {
+      // Lade Zuweisungen für die erste Instanz (als Referenz)
+      const response = await client.get(`/tasks/instance/${eventInstances[0].id}/assignments`);
+      const assignments = response.data.filter((a: any) => a.id === task.id);
+
+      // Extrahiere eindeutige User-IDs
+      const userIds = new Set<number>();
+      assignments.forEach((assignment: any) => {
+        if (assignment.user_id) {
+          userIds.add(assignment.user_id);
+        }
+      });
+
+      setSelectedUserIds(Array.from(userIds));
+      if (userIds.size > 0) {
+        setShowStaffSelection(true);
+      }
+    } catch (error) {
+      console.error('Load existing assignments error:', error);
+    }
+  };
 
   const loadStaff = async () => {
     try {
@@ -70,6 +98,18 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
     try {
       if (isEdit) {
         await tasksApi.update(task.id, formData);
+
+        // Aktualisiere Zuweisungen für alle Event-Instanzen (falls ausgewählt)
+        if (eventInstances && eventInstances.length > 0) {
+          for (const instance of eventInstances) {
+            await tasksApi.assign({
+              task_id: task.id,
+              event_instance_id: instance.id,
+              user_ids: selectedUserIds,
+              reminder_minutes: formData.reminder_minutes,
+            });
+          }
+        }
       } else {
         // Erstelle Task
         const newTask = await tasksApi.create({
@@ -233,11 +273,13 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
             </label>
           </div>
 
-          {/* Mitarbeiter-Auswahl (nur beim Erstellen) */}
-          {!isEdit && staffUsers.length > 0 && (
+          {/* Mitarbeiter-Auswahl */}
+          {staffUsers.length > 0 && (
             <div style={styles.formGroup}>
               <div style={styles.staffHeader}>
-                <label style={styles.label}>Direkt Mitarbeiter zuweisen (optional)</label>
+                <label style={styles.label}>
+                  {isEdit ? 'Mitarbeiter-Zuweisungen bearbeiten' : 'Direkt Mitarbeiter zuweisen (optional)'}
+                </label>
                 <button
                   type="button"
                   onClick={() => setShowStaffSelection(!showStaffSelection)}
@@ -250,7 +292,9 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
               {showStaffSelection && (
                 <div style={styles.staffList}>
                   <small style={styles.hint}>
-                    Ausgewählte Mitarbeiter werden automatisch für alle Durchführungen zugewiesen
+                    {isEdit
+                      ? 'Änderungen gelten für alle Durchführungen dieser Aufgabe'
+                      : 'Ausgewählte Mitarbeiter werden automatisch für alle Durchführungen zugewiesen'}
                   </small>
                   {staffUsers.map((user) => (
                     <label key={user.id} style={styles.staffItem}>

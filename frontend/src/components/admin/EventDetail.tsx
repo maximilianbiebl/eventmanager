@@ -259,6 +259,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
 }) => {
   const [assignments, setAssignments] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [successMessage, setSuccessMessage] = React.useState('');
 
   React.useEffect(() => {
     if (selectedInstance) {
@@ -295,14 +296,17 @@ const TaskListView: React.FC<TaskListViewProps> = ({
     return colors[status] || '#6b7280';
   };
 
-  const getStatusLabel = (status: string) => {
-    const labels: { [key: string]: string } = {
-      not_started: 'Nicht gestartet',
-      in_progress: 'In Arbeit',
-      completed: 'Erledigt',
-      overdue: 'Überfällig',
-    };
-    return labels[status] || status;
+  const handleStatusChange = async (taskId: number, newStatus: string) => {
+    try {
+      const client = (await import('../../api/client')).default;
+      await client.put(`/tasks/${taskId}`, { status: newStatus });
+      setSuccessMessage(`Status wurde geändert`);
+      setTimeout(() => setSuccessMessage(''), 3000);
+      await loadAssignments();
+    } catch (error) {
+      console.error('Change status error:', error);
+      alert('Fehler beim Ändern des Status');
+    }
   };
 
   if (tasks.length === 0) {
@@ -323,6 +327,19 @@ const TaskListView: React.FC<TaskListViewProps> = ({
 
   return (
     <div className={styles.tasksList}>
+      {successMessage && (
+        <div style={{
+          padding: '1rem',
+          backgroundColor: '#d1fae5',
+          color: '#065f46',
+          borderRadius: '4px',
+          marginBottom: '1rem',
+          textAlign: 'center',
+          fontWeight: '500'
+        }}>
+          {successMessage}
+        </div>
+      )}
       {tasks.map((task) => {
         const taskAssignments = getAssignmentsForTask(task.id);
 
@@ -331,12 +348,17 @@ const TaskListView: React.FC<TaskListViewProps> = ({
             <div className={styles.taskMainInfo}>
               <div className={styles.taskHeader}>
                 <strong className={styles.taskTitle}>{task.title}</strong>
-                <span
-                  className={styles.statusBadge}
+                <select
+                  value={task.status}
+                  onChange={(e) => handleStatusChange(task.id, e.target.value)}
+                  className={styles.statusSelect}
                   style={{ backgroundColor: getStatusColor(task.status) }}
                 >
-                  {getStatusLabel(task.status)}
-                </span>
+                  <option value="not_started">Nicht gestartet</option>
+                  <option value="in_progress">In Arbeit</option>
+                  <option value="completed">Erledigt</option>
+                  <option value="overdue">Überfällig</option>
+                </select>
               </div>
 
               {task.description && (
