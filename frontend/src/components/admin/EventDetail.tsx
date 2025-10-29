@@ -263,6 +263,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   const [successMessage, setSuccessMessage] = React.useState('');
   const [sortBy, setSortBy] = React.useState<'manual' | 'time' | 'title' | 'status'>('manual');
   const [sortDirection, setSortDirection] = React.useState<'asc' | 'desc'>('asc');
+  const [expandedDescriptions, setExpandedDescriptions] = React.useState<Set<number>>(new Set());
 
   React.useEffect(() => {
     if (selectedInstance) {
@@ -485,11 +486,21 @@ const TaskListView: React.FC<TaskListViewProps> = ({
 
       {sortedTasks.map((task) => {
         const taskAssignments = getAssignmentsForTask(task.id);
-        const [showFullDesc, setShowFullDesc] = React.useState(false);
         const maxLength = 100;
+        const isExpanded = expandedDescriptions.has(task.id);
         const truncatedDesc = task.description && task.description.length > maxLength
           ? task.description.substring(0, maxLength) + '...'
           : task.description;
+
+        const toggleDescription = () => {
+          const newExpanded = new Set(expandedDescriptions);
+          if (isExpanded) {
+            newExpanded.delete(task.id);
+          } else {
+            newExpanded.add(task.id);
+          }
+          setExpandedDescriptions(newExpanded);
+        };
 
         return (
           <div key={task.id} className={styles.taskItemExtended}>
@@ -531,10 +542,10 @@ const TaskListView: React.FC<TaskListViewProps> = ({
 
               {task.description && (
                 <div className={styles.taskDescription}>
-                  {showFullDesc ? task.description : truncatedDesc}
+                  {isExpanded ? task.description : truncatedDesc}
                   {task.description.length > maxLength && (
                     <button
-                      onClick={() => setShowFullDesc(!showFullDesc)}
+                      onClick={toggleDescription}
                       style={{
                         marginLeft: '0.5rem',
                         padding: '0.125rem 0.375rem',
@@ -546,7 +557,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                         color: '#6b7280'
                       }}
                     >
-                      {showFullDesc ? 'weniger' : 'mehr'}
+                      {isExpanded ? 'weniger' : 'mehr'}
                     </button>
                   )}
                 </div>
