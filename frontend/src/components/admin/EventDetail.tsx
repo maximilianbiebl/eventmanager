@@ -506,18 +506,30 @@ const TaskListView: React.FC<TaskListViewProps> = ({
           <div key={task.id} className={styles.taskItemExtended}>
             <div className={styles.taskMainInfo}>
               <div className={styles.taskHeader}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <strong className={styles.taskTitle}>{task.title}</strong>
-                  {task.is_active === false && (
-                    <span style={{
-                      fontSize: '0.7rem',
-                      padding: '0.125rem 0.5rem',
-                      backgroundColor: '#fee2e2',
-                      color: '#991b1b',
-                      borderRadius: '9999px',
-                      fontWeight: '500'
-                    }}>Deaktiviert</span>
-                  )}
+                <div style={{ display: 'flex', alignItems: 'flex-start', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <strong className={styles.taskTitle}>{task.title}</strong>
+                    {task.is_public && (
+                      <span style={{
+                        fontSize: '0.7rem',
+                        padding: '0.125rem 0.5rem',
+                        backgroundColor: '#dbeafe',
+                        color: '#1e40af',
+                        borderRadius: '9999px',
+                        fontWeight: '500'
+                      }}>Öffentlich</span>
+                    )}
+                    {task.is_active === false && (
+                      <span style={{
+                        fontSize: '0.7rem',
+                        padding: '0.125rem 0.5rem',
+                        backgroundColor: '#fee2e2',
+                        color: '#991b1b',
+                        borderRadius: '9999px',
+                        fontWeight: '500'
+                      }}>Deaktiviert</span>
+                    )}
+                  </div>
                 </div>
                 <select
                   value={task.status}
@@ -542,19 +554,20 @@ const TaskListView: React.FC<TaskListViewProps> = ({
 
               {task.description && (
                 <div className={styles.taskDescription}>
-                  {isExpanded ? task.description : truncatedDesc}
+                  <span>{isExpanded ? task.description : truncatedDesc}</span>
                   {task.description.length > maxLength && (
                     <button
                       onClick={toggleDescription}
                       style={{
-                        marginLeft: '0.5rem',
+                        marginLeft: '0.375rem',
                         padding: '0.125rem 0.375rem',
-                        fontSize: '0.75rem',
+                        fontSize: '0.7rem',
                         backgroundColor: 'transparent',
                         border: '1px solid #d1d5db',
                         borderRadius: '3px',
                         cursor: 'pointer',
-                        color: '#6b7280'
+                        color: '#6b7280',
+                        verticalAlign: 'baseline'
                       }}
                     >
                       {isExpanded ? 'weniger' : 'mehr'}

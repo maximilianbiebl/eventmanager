@@ -407,13 +407,37 @@
     padding: 0.75rem;
   }
 
+  .taskItemExtended {
+    flex-direction: column;
+    padding: 1rem;
+    gap: 1rem;
+  }
+
+  .taskMainInfo {
+    width: 100%;
+  }
+
+  .taskDescription {
+    font-size: 0.8125rem;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  .taskTimesGrid {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
   .taskActions {
     width: 100%;
     flex-direction: column;
+    gap: 0.5rem;
   }
 
   .editButton, .assignButton {
     width: 100%;
+    padding: 0.625rem;
+    font-size: 0.875rem;
   }
 }
 
