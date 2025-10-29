@@ -76,22 +76,26 @@ export const TaskTableView: React.FC<Props> = ({
     loadAssignments();
   }, [eventInstanceId]);
 
-  const loadAssignments = async () => {
+  const loadAssignments = async (showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) {
+        setLoading(true);
+      }
       const response = await client.get(`/tasks/instance/${eventInstanceId}/assignments`);
       setAssignments(response.data);
     } catch (error) {
       console.error('Load assignments error:', error);
       setError('Fehler beim Laden der Aufgaben');
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   };
 
-  const handleDayChange = async (day: number | 'all') => {
+  const handleDayChange = (day: number | 'all') => {
     setSelectedDay(day);
-    await loadAssignments(); // Reload data when switching days
+    // No need to reload data, just filter client-side
   };
 
   const handleUnassign = async (assignmentId: number, userName: string) => {
@@ -136,7 +140,7 @@ export const TaskTableView: React.FC<Props> = ({
       await tasksApi.moveUp(taskId);
       setSuccessMessage('Aufgabe wurde nach oben verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
-      await loadAssignments();
+      await loadAssignments(false); // Reload without loading spinner
     } catch (error: any) {
       console.error('Move up error:', error);
       if (error.response?.status === 400) {
@@ -152,7 +156,7 @@ export const TaskTableView: React.FC<Props> = ({
       await tasksApi.moveDown(taskId);
       setSuccessMessage('Aufgabe wurde nach unten verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
-      await loadAssignments();
+      await loadAssignments(false); // Reload without loading spinner
     } catch (error: any) {
       console.error('Move down error:', error);
       if (error.response?.status === 400) {

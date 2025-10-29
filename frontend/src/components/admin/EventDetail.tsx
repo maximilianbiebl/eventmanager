@@ -260,6 +260,8 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   const [assignments, setAssignments] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [successMessage, setSuccessMessage] = React.useState('');
+  const [sortBy, setSortBy] = React.useState<'time' | 'title' | 'status'>('time');
+  const [sortDirection, setSortDirection] = React.useState<'asc' | 'desc'>('asc');
 
   React.useEffect(() => {
     if (selectedInstance) {
@@ -309,6 +311,28 @@ const TaskListView: React.FC<TaskListViewProps> = ({
     }
   };
 
+  const sortedTasks = React.useMemo(() => {
+    return [...tasks].sort((a, b) => {
+      let compareResult = 0;
+
+      switch (sortBy) {
+        case 'time':
+          const timeA = a.start_time || a.scheduled_time || '99:99';
+          const timeB = b.start_time || b.scheduled_time || '99:99';
+          compareResult = timeA.localeCompare(timeB);
+          break;
+        case 'title':
+          compareResult = a.title.localeCompare(b.title);
+          break;
+        case 'status':
+          compareResult = a.status.localeCompare(b.status);
+          break;
+      }
+
+      return sortDirection === 'asc' ? compareResult : -compareResult;
+    });
+  }, [tasks, sortBy, sortDirection]);
+
   if (tasks.length === 0) {
     return (
       <div className={styles.tasksList}>
@@ -340,7 +364,88 @@ const TaskListView: React.FC<TaskListViewProps> = ({
           {successMessage}
         </div>
       )}
-      {tasks.map((task) => {
+
+      {/* Sort Controls */}
+      <div style={{
+        display: 'flex',
+        gap: '0.75rem',
+        marginBottom: '1rem',
+        padding: '0.75rem',
+        backgroundColor: '#f9fafb',
+        borderRadius: '4px',
+        alignItems: 'center',
+        flexWrap: 'wrap'
+      }}>
+        <span style={{ fontWeight: '500', fontSize: '0.875rem', color: '#374151' }}>Sortieren nach:</span>
+        <button
+          onClick={() => {
+            if (sortBy === 'time') {
+              setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+            } else {
+              setSortBy('time');
+              setSortDirection('asc');
+            }
+          }}
+          style={{
+            padding: '0.375rem 0.75rem',
+            backgroundColor: sortBy === 'time' ? '#3b82f6' : 'white',
+            color: sortBy === 'time' ? 'white' : '#374151',
+            border: '1px solid #d1d5db',
+            borderRadius: '4px',
+            fontSize: '0.875rem',
+            cursor: 'pointer',
+            fontWeight: '500'
+          }}
+        >
+          Zeit {sortBy === 'time' ? (sortDirection === 'asc' ? '↑' : '↓') : ''}
+        </button>
+        <button
+          onClick={() => {
+            if (sortBy === 'title') {
+              setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+            } else {
+              setSortBy('title');
+              setSortDirection('asc');
+            }
+          }}
+          style={{
+            padding: '0.375rem 0.75rem',
+            backgroundColor: sortBy === 'title' ? '#3b82f6' : 'white',
+            color: sortBy === 'title' ? 'white' : '#374151',
+            border: '1px solid #d1d5db',
+            borderRadius: '4px',
+            fontSize: '0.875rem',
+            cursor: 'pointer',
+            fontWeight: '500'
+          }}
+        >
+          Titel {sortBy === 'title' ? (sortDirection === 'asc' ? '↑' : '↓') : ''}
+        </button>
+        <button
+          onClick={() => {
+            if (sortBy === 'status') {
+              setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+            } else {
+              setSortBy('status');
+              setSortDirection('asc');
+            }
+          }}
+          style={{
+            padding: '0.375rem 0.75rem',
+            backgroundColor: sortBy === 'status' ? '#3b82f6' : 'white',
+            color: sortBy === 'status' ? 'white' : '#374151',
+            border: '1px solid #d1d5db',
+            borderRadius: '4px',
+            fontSize: '0.875rem',
+            cursor: 'pointer',
+            fontWeight: '500'
+          }}
+        >
+          Status {sortBy === 'status' ? (sortDirection === 'asc' ? '↑' : '↓') : ''}
+        </button>
+      </div>
+
+      {sortedTasks.map((task) => {
         const taskAssignments = getAssignmentsForTask(task.id);
 
         return (

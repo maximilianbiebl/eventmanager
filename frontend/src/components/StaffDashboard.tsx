@@ -164,20 +164,22 @@ export const StaffDashboard: React.FC = () => {
   });
 
   // Filter tasks based on hideCompleted and selectedEvents
-  const filteredTasks = tasks.filter(t => {
-    // Filter by completed status
-    if (hideCompleted && (t.completed || t.status === 'completed')) {
-      return false;
-    }
+  const filteredTasks = React.useMemo(() => {
+    return tasks.filter(t => {
+      // Filter by completed status
+      if (hideCompleted && (t.completed || t.status === 'completed')) {
+        return false;
+      }
 
-    // Filter by selected events
-    const eventKey = `${t.event_name}#${t.instance_start_date}`;
-    if (selectedEvents.size > 0 && !selectedEvents.has(eventKey)) {
-      return false;
-    }
+      // Filter by selected events
+      const eventKey = `${t.event_name}#${t.instance_start_date}`;
+      if (selectedEvents.size > 0 && !selectedEvents.has(eventKey)) {
+        return false;
+      }
 
-    return true;
-  });
+      return true;
+    });
+  }, [tasks, hideCompleted, selectedEvents]);
 
   const groupedTasks = groupTasksByDay(filteredTasks);
   const eventGroups = groupTasksByEvent(filteredTasks);
