@@ -381,7 +381,7 @@ export const TaskTableView: React.FC<Props> = ({
                 >
                   Status{getSortIcon('status')}
                 </th>
-                <th style={styles.th} className={responsiveStyles.hideOnMobile}>Zugewiesen an</th>
+                <th style={styles.th}>Zugewiesen an</th>
                 <th style={styles.th}>Aktionen</th>
               </tr>
             </thead>
@@ -431,7 +431,7 @@ export const TaskTableView: React.FC<Props> = ({
                       <option value="overdue">Überfällig</option>
                     </select>
                   </td>
-                  <td style={styles.td} className={responsiveStyles.hideOnMobile}>
+                  <td style={styles.td}>
                     {assignedUsers.length === 0 ? (
                       <span style={styles.noAssignments}>Nicht zugewiesen</span>
                     ) : (
@@ -459,21 +459,23 @@ export const TaskTableView: React.FC<Props> = ({
                   </td>
                   <td style={styles.td}>
                     <div style={styles.actions} className={responsiveStyles.actions}>
-                      <button
-                        onClick={() => onEditTask(task.id)}
-                        style={styles.editButton}
-                        title="Aufgabe bearbeiten"
-                      >
-                        ✏️ Bearbeiten
-                      </button>
-                      <button
-                        onClick={() => onAssignTask(task.id)}
-                        style={styles.assignButton}
-                        title="Mitarbeiter zuweisen"
-                      >
-                        👥 Zuweisen
-                      </button>
-                      <div style={{marginLeft: 'auto', display: 'flex', gap: '0.25rem'}}>
+                      <div>
+                        <button
+                          onClick={() => onAssignTask(task.id)}
+                          style={styles.assignButton}
+                          title="Mitarbeiter zuweisen"
+                        >
+                          👥 Zuweisen
+                        </button>
+                        <button
+                          onClick={() => onEditTask(task.id)}
+                          style={styles.editButton}
+                          title="Aufgabe bearbeiten"
+                        >
+                          ✏️ Bearbeiten
+                        </button>
+                      </div>
+                      <div style={{display: 'flex', gap: '0.25rem', justifyContent: 'center'}}>
                         <button
                           onClick={() => handleMoveUp(task.id)}
                           style={styles.moveButton}

@@ -154,19 +154,31 @@
 
   .actions {
     flex-direction: column !important;
-    gap: 0.25rem !important;
+    gap: 0.375rem !important;
     align-items: stretch !important;
   }
 
+  .actions > div {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 0.25rem !important;
+  }
+
   .actions button {
-    font-size: 0.65rem !important;
-    padding: 0.25rem 0.375rem !important;
+    font-size: 0.6rem !important;
+    padding: 0.375rem 0.25rem !important;
     white-space: nowrap;
+    flex: 1;
   }
 
   .moveButton {
-    padding: 0.25rem !important;
-    font-size: 0.65rem !important;
+    padding: 0.25rem 0.375rem !important;
+    font-size: 0.6rem !important;
+  }
+
+  .statusSelect {
+    width: 100% !important;
+    margin-bottom: 0.25rem !important;
   }
 
   .unassignButton {

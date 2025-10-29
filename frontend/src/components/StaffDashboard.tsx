@@ -589,11 +589,21 @@ const TaskCard: React.FC<{
 
         {task.description && <p className={styles.taskDescription}>{task.description}</p>}
 
-        <div className={styles.taskMeta}>
-        <span className={styles.taskEvent}>{task.event_name}</span>
+        <div className={styles.taskMeta} style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
+        <span className={styles.taskEvent}>🎪 {task.event_name}</span>
         <span className={styles.taskDay}>
-          Tag {task.day_number} ({getEventDate()})
+          📆 Tag {task.day_number} ({getEventDate()})
         </span>
+        {task.is_public && (
+          <span style={{
+            fontSize: '0.7rem',
+            padding: '0.125rem 0.5rem',
+            backgroundColor: '#dbeafe',
+            color: '#1e40af',
+            borderRadius: '9999px',
+            fontWeight: '500'
+          }}>Öffentlich</span>
+        )}
         <div style={{ position: 'relative', display: 'inline-block' }}>
           {/* Nur Dropdown anzeigen wenn es Optionen gibt */}
           {task.status === 'not_started' || task.status === 'in_progress' ? (

@@ -269,7 +269,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
     if (selectedInstance) {
       loadAssignments();
     }
-  }, [selectedInstance, tasks]);
+  }, [selectedInstance]);
 
   const loadAssignments = async () => {
     if (!selectedInstance) return;

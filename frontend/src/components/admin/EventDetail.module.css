@@ -430,14 +430,14 @@
 
   .taskActions {
     width: 100%;
-    flex-direction: column;
+    flex-direction: row;
     gap: 0.5rem;
   }
 
   .editButton, .assignButton {
-    width: 100%;
+    flex: 1;
     padding: 0.625rem;
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
   }
 }
 
