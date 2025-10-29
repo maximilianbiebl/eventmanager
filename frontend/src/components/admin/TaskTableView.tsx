@@ -383,21 +383,18 @@ export const TaskTableView: React.FC<Props> = ({
                 <th
                   style={{ ...styles.th, cursor: 'pointer', userSelect: 'none' }}
                   onClick={() => handleSort('scheduled')}
-                  className={responsiveStyles.hideOnTablet}
                 >
                   Geplante Zeit{getSortIcon('scheduled')}
                 </th>
                 <th
                   style={{ ...styles.th, cursor: 'pointer', userSelect: 'none' }}
                   onClick={() => handleSort('start')}
-                  className={responsiveStyles.hideOnTablet}
                 >
                   Startzeit{getSortIcon('start')}
                 </th>
                 <th
                   style={{ ...styles.th, cursor: 'pointer', userSelect: 'none' }}
                   onClick={() => handleSort('end')}
-                  className={responsiveStyles.hideOnTablet}
                 >
                   Endzeit{getSortIcon('end')}
                 </th>
@@ -427,9 +424,9 @@ export const TaskTableView: React.FC<Props> = ({
                       <div style={styles.taskDescription} className={responsiveStyles.taskDescription}>{task.description}</div>
                     )}
                   </td>
-                  <td style={styles.td} className={responsiveStyles.hideOnTablet}>{task.scheduled_time || '-'}</td>
-                  <td style={styles.td} className={responsiveStyles.hideOnTablet}>{task.start_time || '-'}</td>
-                  <td style={styles.td} className={responsiveStyles.hideOnTablet}>{task.end_time || '-'}</td>
+                  <td style={styles.td}>{task.scheduled_time || '-'}</td>
+                  <td style={styles.td}>{task.start_time || '-'}</td>
+                  <td style={styles.td}>{task.end_time || '-'}</td>
                   <td style={styles.td}>
                     <select
                       value={task.status}
