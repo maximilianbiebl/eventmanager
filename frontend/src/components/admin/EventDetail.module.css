@@ -424,8 +424,20 @@
   }
 
   .taskTimesGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
     gap: 0.5rem;
+  }
+
+  .timeItem {
+    font-size: 0.75rem;
+  }
+
+  .timeLabel {
+    font-size: 0.7rem;
+  }
+
+  .timeValue {
+    font-size: 0.8rem;
   }
 
   .taskActions {
