@@ -8,6 +8,7 @@ import { TaskAssignmentModal } from './TaskAssignmentModal';
 import { TaskTableView } from './TaskTableView';
 import { DuplicateEventModal } from './DuplicateEventModal';
 import { EventStaffPool } from './EventStaffPool';
+import { Toast } from '../Toast';
 import styles from './EventDetail.module.css';
 
 interface Props {
@@ -384,17 +385,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   return (
     <div className={styles.tasksList}>
       {successMessage && (
-        <div style={{
-          padding: '1rem',
-          backgroundColor: '#d1fae5',
-          color: '#065f46',
-          borderRadius: '4px',
-          marginBottom: '1rem',
-          textAlign: 'center',
-          fontWeight: '500'
-        }}>
-          {successMessage}
-        </div>
+        <Toast message={successMessage} onClose={() => setSuccessMessage('')} />
       )}
 
       {/* Sort Controls */}

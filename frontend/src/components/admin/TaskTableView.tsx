@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import client from '../../api/client';
 import { tasksApi } from '../../api/tasks';
 import responsiveStyles from './TaskTableView.module.css';
+import { Toast } from '../Toast';
 
 interface TaskAssignment {
   id: number;
@@ -293,7 +294,7 @@ export const TaskTableView: React.FC<Props> = ({
   return (
     <div style={styles.container} className={responsiveStyles.container}>
       {successMessage && (
-        <div style={styles.successBanner} className={responsiveStyles.successBanner}>{successMessage}</div>
+        <Toast message={successMessage} onClose={() => setSuccessMessage('')} />
       )}
       <div style={styles.header} className={responsiveStyles.header}>
         <h3 style={styles.title} className={responsiveStyles.title}>Aufgaben-Übersicht</h3>
