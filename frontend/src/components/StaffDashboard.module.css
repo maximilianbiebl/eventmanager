@@ -786,9 +786,26 @@
     gap: 0.5rem;
   }
 
+  /* Portrait mode - buttons side by side */
+  .taskActions {
+    display: flex;
+    flex-direction: row;
+    gap: 0.5rem;
+    align-items: stretch;
+  }
+
+  .inProgressButton,
   .completeButton {
-    padding: 0.75rem;
-    font-size: 1rem;
+    flex: 1;
+    padding: 0.625rem 0.5rem !important;
+    font-size: 0.8125rem !important;
+    white-space: nowrap;
+    margin-bottom: 0 !important;
+    width: auto !important;
+  }
+
+  .reminderSection {
+    margin: 0.5rem 0;
   }
 
   .dayTabsContainer {
@@ -868,6 +885,40 @@
   .taskDescCell {
     max-width: none;
     word-break: break-word;
+  }
+}
+
+/* Mobile Landscape - buttons stacked on the right */
+@media (max-width: 926px) and (orientation: landscape) {
+  .taskCard, .taskCardCompleted {
+    display: flex;
+    flex-direction: row;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+
+  .taskContent {
+    flex: 1;
+  }
+
+  .taskActions {
+    flex-direction: column;
+    margin-left: auto;
+    min-width: 140px;
+    max-width: 160px;
+  }
+
+  .inProgressButton,
+  .completeButton {
+    width: 100% !important;
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.75rem !important;
+    white-space: normal;
+    margin-bottom: 0.25rem !important;
+  }
+
+  .reminderSection {
+    margin: 0.5rem 0 0 0;
   }
 }
 

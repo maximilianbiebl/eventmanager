@@ -569,26 +569,27 @@ const TaskCard: React.FC<{
 
   return (
     <div className={isCompleted ? styles.taskCardCompleted : styles.taskCard}>
-      <div className={styles.taskHeader}>
-        <h3 className={styles.taskTitle}>{task.title}</h3>
-      </div>
+      <div className={styles.taskContent}>
+        <div className={styles.taskHeader}>
+          <h3 className={styles.taskTitle}>{task.title}</h3>
+        </div>
 
-      {/* Zeitinformationen */}
-      <div style={{ marginBottom: '12px', fontSize: '14px', color: '#6b7280' }}>
-        {task.scheduled_time && (
-          <div>📅 Geplante Zeit: {task.scheduled_time} Uhr</div>
-        )}
-        {task.start_time && (
-          <div>🚀 Startzeit: {task.start_time} Uhr</div>
-        )}
-        {task.end_time && (
-          <div>🏁 Endzeit: {task.end_time} Uhr</div>
-        )}
-      </div>
+        {/* Zeitinformationen */}
+        <div style={{ marginBottom: '12px', fontSize: '14px', color: '#6b7280' }}>
+          {task.scheduled_time && (
+            <div>📅 Geplante Zeit: {task.scheduled_time} Uhr</div>
+          )}
+          {task.start_time && (
+            <div>🚀 Startzeit: {task.start_time} Uhr</div>
+          )}
+          {task.end_time && (
+            <div>🏁 Endzeit: {task.end_time} Uhr</div>
+          )}
+        </div>
 
-      {task.description && <p className={styles.taskDescription}>{task.description}</p>}
+        {task.description && <p className={styles.taskDescription}>{task.description}</p>}
 
-      <div className={styles.taskMeta}>
+        <div className={styles.taskMeta}>
         <span className={styles.taskEvent}>{task.event_name}</span>
         <span className={styles.taskDay}>
           Tag {task.day_number} ({getEventDate()})
@@ -716,6 +717,7 @@ const TaskCard: React.FC<{
           )}
         </div>
       )}
+      </div>
 
       {!isCompleted ? (
         <div className={styles.taskActions}>
