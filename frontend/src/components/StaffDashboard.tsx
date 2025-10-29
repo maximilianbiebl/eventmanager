@@ -494,6 +494,7 @@ const TaskCard: React.FC<{
   const [saving, setSaving] = React.useState(false);
   const [updatingStatus, setUpdatingStatus] = React.useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = React.useState(false);
+  const [showFullDescription, setShowFullDescription] = React.useState(false);
 
   // Update reminder state when task prop changes
   React.useEffect(() => {
@@ -587,7 +588,32 @@ const TaskCard: React.FC<{
           )}
         </div>
 
-        {task.description && <p className={styles.taskDescription}>{task.description}</p>}
+        {task.description && (
+          <div className={styles.taskDescription}>
+            {!showFullDescription && task.description.length > 150 ? (
+              <>
+                {task.description.substring(0, 150)}...
+                <button
+                  onClick={() => setShowFullDescription(true)}
+                  style={{
+                    marginLeft: '0.5rem',
+                    padding: '0.25rem 0.75rem',
+                    fontSize: '0.75rem',
+                    backgroundColor: 'transparent',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    color: '#6b7280'
+                  }}
+                >
+                  mehr
+                </button>
+              </>
+            ) : (
+              <>{task.description}</>
+            )}
+          </div>
+        )}
 
         <div className={styles.taskMeta} style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
         <span className={styles.taskEvent}>🎪 {task.event_name}</span>
@@ -763,6 +789,26 @@ const TaskCard: React.FC<{
         </div>
       ) : (
         <div className={styles.completedBadge}>Erledigt</div>
+      )}
+
+      {/* "weniger" button when description is expanded */}
+      {showFullDescription && task.description && task.description.length > 150 && (
+        <button
+          onClick={() => setShowFullDescription(false)}
+          style={{
+            width: '100%',
+            padding: '0.375rem',
+            marginTop: '0.5rem',
+            fontSize: '0.75rem',
+            backgroundColor: 'transparent',
+            border: '1px solid #d1d5db',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            color: '#6b7280'
+          }}
+        >
+          weniger
+        </button>
       )}
     </div>
   );
