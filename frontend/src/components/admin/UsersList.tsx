@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { usersApi, User } from '../../api/users';
 import { authApi } from '../../api/auth';
+import responsiveStyles from './UsersList.module.css';
 
 export const UsersList: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -75,14 +76,14 @@ export const UsersList: React.FC = () => {
 
   return (
     <div>
-      <div style={styles.header}>
+      <div style={styles.header} className={responsiveStyles.header}>
         <h2 style={styles.title}>Mitarbeiter</h2>
-        <button onClick={handleCreate} style={styles.createButton}>
+        <button onClick={handleCreate} style={styles.createButton} className={responsiveStyles.createButton}>
           + Neuer Mitarbeiter
         </button>
       </div>
 
-      <table style={styles.table}>
+      <table style={styles.table} className={responsiveStyles.table}>
         <thead>
           <tr>
             <th style={styles.th}>ID</th>
@@ -102,7 +103,7 @@ export const UsersList: React.FC = () => {
                 </span>
               </td>
               <td style={styles.td}>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div className={responsiveStyles.userActions}>
                   <button onClick={() => handleResetPassword(user.id, user.name)} style={styles.resetButton}>
                     🔒 Passwort ändern
                   </button>

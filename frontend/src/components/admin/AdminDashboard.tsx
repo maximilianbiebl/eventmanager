@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { EventsList } from './EventsList';
 import { UsersList } from './UsersList';
 import { ChangePasswordDialog } from './ChangePasswordDialog';
+import responsiveStyles from './AdminDashboard.module.css';
 
 type Tab = 'events' | 'users';
 
@@ -28,8 +29,8 @@ export const AdminDashboard: React.FC = () => {
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
+    <div style={styles.container} className={responsiveStyles.container}>
+      <div style={styles.header} className={responsiveStyles.header}>
         <div>
           <h1 style={styles.title}>Event Manager - Admin</h1>
           <p style={styles.subtitle}>Willkommen, {user?.name}!</p>

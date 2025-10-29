@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { eventsApi, Event } from '../../api/events';
 import { CreateEventModal } from './CreateEventModal';
 import { EventDetail } from './EventDetail';
+import responsiveStyles from './EventsList.module.css';
 
 export const EventsList: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);
@@ -46,9 +47,9 @@ export const EventsList: React.FC = () => {
 
   return (
     <div>
-      <div style={styles.header}>
+      <div style={styles.header} className={responsiveStyles.header}>
         <h2 style={styles.title}>Veranstaltungen</h2>
-        <button onClick={() => setShowCreateModal(true)} style={styles.createButton}>
+        <button onClick={() => setShowCreateModal(true)} style={styles.createButton} className={responsiveStyles.createButton}>
           + Neue Veranstaltung
         </button>
       </div>
@@ -56,7 +57,7 @@ export const EventsList: React.FC = () => {
       {events.length === 0 ? (
         <div style={styles.empty}>Keine Veranstaltungen vorhanden</div>
       ) : (
-        <div style={styles.grid}>
+        <div style={styles.grid} className={responsiveStyles.grid}>
           {events.map((event) => (
             <div key={event.id} style={styles.card}>
               <h3 style={styles.eventName}>{event.name}</h3>
