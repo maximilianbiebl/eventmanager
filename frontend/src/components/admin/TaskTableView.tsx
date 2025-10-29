@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import client from '../../api/client';
 import { tasksApi } from '../../api/tasks';
+import responsiveStyles from './TaskTableView.module.css';
 
 interface TaskAssignment {
   id: number;
@@ -290,18 +291,19 @@ export const TaskTableView: React.FC<Props> = ({
   }
 
   return (
-    <div style={styles.container}>
+    <div style={styles.container} className={responsiveStyles.container}>
       {successMessage && (
-        <div style={styles.successBanner}>{successMessage}</div>
+        <div style={styles.successBanner} className={responsiveStyles.successBanner}>{successMessage}</div>
       )}
-      <div style={styles.header}>
-        <h3 style={styles.title}>Aufgaben-Übersicht</h3>
-        <div style={styles.filterGroup}>
-          <label style={styles.filterLabel}>Status:</label>
+      <div style={styles.header} className={responsiveStyles.header}>
+        <h3 style={styles.title} className={responsiveStyles.title}>Aufgaben-Übersicht</h3>
+        <div style={styles.filterGroup} className={responsiveStyles.filterGroup}>
+          <label style={styles.filterLabel} className={responsiveStyles.filterLabel}>Status:</label>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             style={styles.filterSelect}
+            className={responsiveStyles.filterSelect}
           >
             <option value="all">Alle</option>
             <option value="not_started">Nicht gestartet</option>
@@ -309,7 +311,7 @@ export const TaskTableView: React.FC<Props> = ({
             <option value="completed">Erledigt</option>
             <option value="overdue">Überfällig</option>
           </select>
-          <span style={{ fontSize: '0.875rem', color: '#6b7280', marginLeft: '1rem' }}>
+          <span style={{ fontSize: '0.875rem', color: '#6b7280', marginLeft: '1rem' }} className={responsiveStyles.sortIndicator}>
             {sortColumn === 'manual' ? '📌 Manuelle Sortierung aktiv' : '⚠️ Spalten-Sortierung aktiv'}
             {sortColumn !== 'manual' && (
               <button
@@ -325,10 +327,11 @@ export const TaskTableView: React.FC<Props> = ({
 
       {/* Tag-Tabs */}
       {eventDays && eventDays > 1 && (
-        <div style={styles.dayTabs}>
+        <div style={styles.dayTabs} className={responsiveStyles.dayTabs}>
           <button
             onClick={() => handleDayChange('all')}
             style={selectedDay === 'all' ? styles.dayTabActive : styles.dayTab}
+            className={selectedDay === 'all' ? responsiveStyles.dayTabActive : responsiveStyles.dayTab}
           >
             Alle Tage
           </button>
@@ -337,6 +340,7 @@ export const TaskTableView: React.FC<Props> = ({
               key={day}
               onClick={() => handleDayChange(day)}
               style={selectedDay === day ? styles.dayTabActive : styles.dayTab}
+              className={selectedDay === day ? responsiveStyles.dayTabActive : responsiveStyles.dayTab}
             >
               Tag {day}
             </button>
@@ -351,19 +355,21 @@ export const TaskTableView: React.FC<Props> = ({
             : `Keine Aufgaben mit Status "${STATUS_LABELS[statusFilter]}"`}
         </div>
       ) : (
-        <div style={styles.tableWrapper}>
+        <div style={styles.tableWrapper} className={responsiveStyles.tableWrapper}>
           <table style={styles.table}>
             <thead>
               <tr style={styles.headerRow}>
                 <th
                   style={{ ...styles.th, cursor: 'pointer', userSelect: 'none' }}
                   onClick={() => handleSort('day')}
+                  className={responsiveStyles.hideOnMobile}
                 >
                   Tag{getSortIcon('day')}
                 </th>
                 <th
                   style={{ ...styles.th, cursor: 'pointer', userSelect: 'none' }}
                   onClick={() => handleSort('date')}
+                  className={responsiveStyles.hideOnMobile}
                 >
                   Datum{getSortIcon('date')}
                 </th>
@@ -376,18 +382,21 @@ export const TaskTableView: React.FC<Props> = ({
                 <th
                   style={{ ...styles.th, cursor: 'pointer', userSelect: 'none' }}
                   onClick={() => handleSort('scheduled')}
+                  className={responsiveStyles.hideOnTablet}
                 >
                   Geplante Zeit{getSortIcon('scheduled')}
                 </th>
                 <th
                   style={{ ...styles.th, cursor: 'pointer', userSelect: 'none' }}
                   onClick={() => handleSort('start')}
+                  className={responsiveStyles.hideOnTablet}
                 >
                   Startzeit{getSortIcon('start')}
                 </th>
                 <th
                   style={{ ...styles.th, cursor: 'pointer', userSelect: 'none' }}
                   onClick={() => handleSort('end')}
+                  className={responsiveStyles.hideOnTablet}
                 >
                   Endzeit{getSortIcon('end')}
                 </th>
@@ -397,29 +406,29 @@ export const TaskTableView: React.FC<Props> = ({
                 >
                   Status{getSortIcon('status')}
                 </th>
-                <th style={styles.th}>Zugewiesen an</th>
+                <th style={styles.th} className={responsiveStyles.hideOnMobile}>Zugewiesen an</th>
                 <th style={styles.th}>Aktionen</th>
               </tr>
             </thead>
             <tbody>
               {sortedTasks.map(({ task, assignedUsers }) => (
                 <tr key={task.id} style={styles.row}>
-                  <td style={styles.td}>Tag {task.day_number}</td>
-                  <td style={styles.td}>{getTaskDate(task.day_number)}</td>
+                  <td style={styles.td} className={responsiveStyles.hideOnMobile}>Tag {task.day_number}</td>
+                  <td style={styles.td} className={responsiveStyles.hideOnMobile}>{getTaskDate(task.day_number)}</td>
                   <td style={styles.td}>
-                    <div style={styles.taskTitle}>
+                    <div style={styles.taskTitle} className={responsiveStyles.taskTitle}>
                       {task.title}
                       {task.is_public && (
-                        <span style={styles.publicBadge}>Öffentlich</span>
+                        <span style={styles.publicBadge} className={responsiveStyles.publicBadge}>Öffentlich</span>
                       )}
                     </div>
                     {task.description && (
-                      <div style={styles.taskDescription}>{task.description}</div>
+                      <div style={styles.taskDescription} className={responsiveStyles.taskDescription}>{task.description}</div>
                     )}
                   </td>
-                  <td style={styles.td}>{task.scheduled_time || '-'}</td>
-                  <td style={styles.td}>{task.start_time || '-'}</td>
-                  <td style={styles.td}>{task.end_time || '-'}</td>
+                  <td style={styles.td} className={responsiveStyles.hideOnTablet}>{task.scheduled_time || '-'}</td>
+                  <td style={styles.td} className={responsiveStyles.hideOnTablet}>{task.start_time || '-'}</td>
+                  <td style={styles.td} className={responsiveStyles.hideOnTablet}>{task.end_time || '-'}</td>
                   <td style={styles.td}>
                     <select
                       value={task.status}
@@ -428,6 +437,7 @@ export const TaskTableView: React.FC<Props> = ({
                         ...styles.statusSelect,
                         backgroundColor: STATUS_COLORS[task.status] || '#6b7280',
                       }}
+                      className={responsiveStyles.statusSelect}
                     >
                       <option value="not_started">Nicht gestartet</option>
                       <option value="in_progress">In Arbeit</option>
@@ -435,13 +445,13 @@ export const TaskTableView: React.FC<Props> = ({
                       <option value="overdue">Überfällig</option>
                     </select>
                   </td>
-                  <td style={styles.td}>
+                  <td style={styles.td} className={responsiveStyles.hideOnMobile}>
                     {assignedUsers.length === 0 ? (
                       <span style={styles.noAssignments}>Nicht zugewiesen</span>
                     ) : (
-                      <div style={styles.usersList}>
+                      <div style={styles.usersList} className={responsiveStyles.usersList}>
                         {assignedUsers.map((user, idx) => (
-                          <span key={idx} style={styles.userBadge}>
+                          <span key={idx} style={styles.userBadge} className={responsiveStyles.userBadge}>
                             {user.name}
                             {user.completed && (
                               <span style={styles.completedIcon}>✓</span>
@@ -450,6 +460,7 @@ export const TaskTableView: React.FC<Props> = ({
                               <button
                                 onClick={() => handleUnassign(user.assignmentId!, user.name)}
                                 style={styles.unassignButton}
+                                className={responsiveStyles.unassignButton}
                                 title="Zuweisung entfernen"
                               >
                                 ✕
@@ -461,7 +472,7 @@ export const TaskTableView: React.FC<Props> = ({
                     )}
                   </td>
                   <td style={styles.td}>
-                    <div style={styles.actions}>
+                    <div style={styles.actions} className={responsiveStyles.actions}>
                       <button
                         onClick={() => onEditTask(task.id)}
                         style={styles.editButton}
@@ -487,6 +498,7 @@ export const TaskTableView: React.FC<Props> = ({
                         <button
                           onClick={() => handleMoveUp(task.id)}
                           style={styles.moveButton}
+                          className={responsiveStyles.moveButton}
                           title="Aufgabe nach oben verschieben"
                         >
                           ▲
@@ -494,6 +506,7 @@ export const TaskTableView: React.FC<Props> = ({
                         <button
                           onClick={() => handleMoveDown(task.id)}
                           style={styles.moveButton}
+                          className={responsiveStyles.moveButton}
                           title="Aufgabe nach unten verschieben"
                         >
                           ▼

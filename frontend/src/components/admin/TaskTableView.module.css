@@ -1,0 +1,190 @@
+/* Mobile responsive styles for TaskTableView */
+
+/* Desktop - no changes needed, inline styles work fine */
+@media (min-width: 769px) {
+  .mobileOnly {
+    display: none;
+  }
+}
+
+/* Tablet and below - start hiding some columns */
+@media (max-width: 768px) {
+  .hideOnTablet {
+    display: none !important;
+  }
+
+  .container {
+    padding: 0.75rem !important;
+  }
+
+  .header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.75rem !important;
+  }
+
+  .filterGroup {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    width: 100%;
+  }
+
+  .dayTabs {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  table td,
+  table th {
+    padding: 0.5rem !important;
+    font-size: 0.75rem !important;
+  }
+
+  .actions {
+    flex-direction: column !important;
+    gap: 0.25rem !important;
+  }
+
+  .actions button {
+    font-size: 0.7rem !important;
+    padding: 0.25rem 0.5rem !important;
+    white-space: nowrap;
+  }
+}
+
+/* Mobile - hide more columns and make very compact */
+@media (max-width: 640px) {
+  .hideOnMobile {
+    display: none !important;
+  }
+
+  .container {
+    padding: 0.5rem !important;
+    border-radius: 4px !important;
+  }
+
+  .title {
+    font-size: 1rem !important;
+  }
+
+  .header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.5rem !important;
+    margin-bottom: 1rem !important;
+  }
+
+  .filterGroup {
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    width: 100%;
+    gap: 0.5rem !important;
+  }
+
+  .filterLabel {
+    font-size: 0.75rem !important;
+  }
+
+  .filterSelect {
+    font-size: 0.75rem !important;
+    padding: 0.375rem !important;
+  }
+
+  .dayTabs {
+    gap: 0.25rem !important;
+    margin-bottom: 0.75rem !important;
+    padding-bottom: 0.25rem !important;
+  }
+
+  .dayTab,
+  .dayTabActive {
+    padding: 0.375rem 0.625rem !important;
+    font-size: 0.75rem !important;
+  }
+
+  .tableWrapper {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 -0.5rem;
+    padding: 0 0.5rem;
+  }
+
+  table {
+    min-width: 100% !important;
+  }
+
+  table th,
+  table td {
+    padding: 0.375rem !important;
+    font-size: 0.7rem !important;
+    white-space: nowrap;
+  }
+
+  .taskTitle {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap !important;
+  }
+
+  .taskDescription {
+    display: none !important;
+  }
+
+  .publicBadge {
+    font-size: 0.6rem !important;
+    padding: 0.125rem 0.375rem !important;
+  }
+
+  .statusSelect {
+    font-size: 0.65rem !important;
+    padding: 0.25rem !important;
+  }
+
+  .usersList {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .userBadge {
+    font-size: 0.65rem !important;
+    padding: 0.125rem 0.375rem !important;
+  }
+
+  .actions {
+    flex-direction: column !important;
+    gap: 0.25rem !important;
+    align-items: stretch !important;
+  }
+
+  .actions button {
+    font-size: 0.65rem !important;
+    padding: 0.25rem 0.375rem !important;
+    white-space: nowrap;
+  }
+
+  .moveButton {
+    padding: 0.25rem !important;
+    font-size: 0.65rem !important;
+  }
+
+  .unassignButton {
+    font-size: 0.6rem !important;
+    padding: 0.125rem 0.25rem !important;
+  }
+
+  /* Compact the sort indicator area */
+  .sortIndicator {
+    font-size: 0.7rem !important;
+    padding: 0.25rem !important;
+  }
+
+  /* Success and error messages */
+  .successBanner,
+  .error {
+    font-size: 0.75rem !important;
+    padding: 0.625rem !important;
+    margin-bottom: 0.75rem !important;
+  }
+}
