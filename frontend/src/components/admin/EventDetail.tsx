@@ -84,9 +84,9 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
     setShowAssignModal(true);
   };
 
-  const handleDayChange = async (day: number) => {
+  const handleDayChange = (day: number) => {
     setSelectedDay(day);
-    await loadData(); // Reload data when switching days
+    // No reload needed - filter client-side
   };
 
   if (loading) {

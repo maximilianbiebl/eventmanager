@@ -72,12 +72,30 @@ export const StaffDashboard: React.FC = () => {
       const data = await tasksApi.getMyTasks();
       setTasks(data);
 
+      // Get unique events from current tasks
+      const currentUniqueEvents = new Set(data.map(t => `${t.event_name}#${t.instance_start_date}`));
+
       // Initialize selectedEvents with all unique events if not yet set AND not loaded from storage
       const stored = localStorage.getItem('selectedEvents');
       if (!stored && selectedEvents.size === 0 && data.length > 0) {
-        const uniqueEvents = new Set(data.map(t => `${t.event_name}#${t.instance_start_date}`));
-        setSelectedEvents(uniqueEvents);
-        saveSelectedEventsToStorage(uniqueEvents);
+        setSelectedEvents(currentUniqueEvents);
+        saveSelectedEventsToStorage(currentUniqueEvents);
+      } else if (stored) {
+        // Validate stored events against current tasks
+        const storedEvents = new Set<string>(JSON.parse(stored));
+        const validEvents = new Set<string>(
+          Array.from(storedEvents).filter((key: string) => currentUniqueEvents.has(key))
+        );
+
+        // If no valid events remain, select all current events
+        if (validEvents.size === 0 && currentUniqueEvents.size > 0) {
+          setSelectedEvents(currentUniqueEvents);
+          saveSelectedEventsToStorage(currentUniqueEvents);
+        } else if (validEvents.size !== storedEvents.size) {
+          // Update if some stored events are no longer valid
+          setSelectedEvents(validEvents);
+          saveSelectedEventsToStorage(validEvents);
+        }
       }
     } catch (error) {
       console.error('Load tasks error:', error);
