@@ -411,21 +411,23 @@ export const TaskTableView: React.FC<Props> = ({
                     </div>
                     {task.description && (
                       <div style={styles.taskDescription} className={responsiveStyles.taskDescription}>
-                        {task.description.length > 80 ? (
+                        {task.description.length > 50 ? (
                           <>
-                            {task.description.substring(0, 80)}...
+                            {task.description.substring(0, 50)}...
                             <button
                               onClick={() => setDescriptionModal({ title: task.title, description: task.description! })}
                               style={{
                                 marginLeft: '0.5rem',
-                                padding: '0.125rem 0.625rem',
+                                padding: '0.125rem 0.5rem',
                                 fontSize: '0.7rem',
                                 backgroundColor: '#f3f4f6',
                                 border: '1px solid #d1d5db',
-                                borderRadius: '9999px',
+                                borderRadius: '8px',
                                 cursor: 'pointer',
                                 color: '#6b7280',
-                                fontWeight: '500'
+                                fontWeight: '500',
+                                display: 'inline-block',
+                                verticalAlign: 'baseline'
                               }}
                             >
                               mehr
@@ -464,6 +466,9 @@ export const TaskTableView: React.FC<Props> = ({
                         {assignedUsers.map((user, idx) => (
                           <span key={idx} style={styles.userBadge} className={responsiveStyles.userBadge}>
                             {user.name}
+                            {user.completed && (
+                              <span style={styles.completedIcon}>✓</span>
+                            )}
                             {user.assignmentId && (
                               <button
                                 onClick={() => handleUnassign(user.assignmentId!, user.name)}
@@ -471,7 +476,7 @@ export const TaskTableView: React.FC<Props> = ({
                                 className={responsiveStyles.unassignButton}
                                 title="Zuweisung entfernen"
                               >
-                                ✓
+                                ✕
                               </button>
                             )}
                           </span>
@@ -734,7 +739,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'transparent',
-    color: '#10b981',
+    color: '#ef4444',
     border: 'none',
     cursor: 'pointer',
     fontSize: '0.7rem',

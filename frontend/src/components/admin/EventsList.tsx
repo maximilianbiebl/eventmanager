@@ -8,11 +8,24 @@ export const EventsList: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
+  const [selectedEventId, setSelectedEventId] = useState<number | null>(() => {
+    // Load selected event from localStorage
+    const saved = localStorage.getItem('adminSelectedEventId');
+    return saved ? parseInt(saved, 10) : null;
+  });
 
   useEffect(() => {
     loadEvents();
   }, []);
+
+  useEffect(() => {
+    // Save selected event to localStorage
+    if (selectedEventId !== null) {
+      localStorage.setItem('adminSelectedEventId', selectedEventId.toString());
+    } else {
+      localStorage.removeItem('adminSelectedEventId');
+    }
+  }, [selectedEventId]);
 
   const loadEvents = async () => {
     try {

@@ -1043,22 +1043,12 @@ const StaffTableView: React.FC<{
                   </div>
                   {task.description && (
                     <div className={styles.taskDescCell}>
-                      {task.description.length > 60 ? (
+                      {task.description.length > 40 ? (
                         <>
-                          {task.description.substring(0, 60)}...
+                          {task.description.substring(0, 40)}...
                           <button
                             onClick={() => setDescriptionModal({ title: task.title, description: task.description! })}
-                            style={{
-                              marginLeft: '0.5rem',
-                              padding: '0.125rem 0.625rem',
-                              fontSize: '0.7rem',
-                              backgroundColor: '#f3f4f6',
-                              border: '1px solid #d1d5db',
-                              borderRadius: '9999px',
-                              cursor: 'pointer',
-                              color: '#6b7280',
-                              fontWeight: '500'
-                            }}
+                            className={styles.moreButton}
                           >
                             mehr
                           </button>

@@ -128,7 +128,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
       </div>
 
       <div className={styles.section}>
-        <EventStaffPool eventId={eventId} />
+        <EventStaffPool key={tableRefreshKey} eventId={eventId} />
       </div>
 
       <div className={styles.section}>

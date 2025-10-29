@@ -170,7 +170,7 @@ export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
                   style={styles.removeButtonEllipse}
                   title="Aus Pool entfernen"
                 >
-                  ✓
+                  ✕
                 </button>
               </div>
               <button
@@ -512,7 +512,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'transparent',
-    color: '#10b981',
+    color: '#ef4444',
     border: 'none',
     cursor: 'pointer',
     fontSize: '0.75rem',
