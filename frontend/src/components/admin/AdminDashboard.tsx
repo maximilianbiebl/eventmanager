@@ -32,13 +32,15 @@ export const AdminDashboard: React.FC = () => {
     <div style={styles.container} className={responsiveStyles.container}>
       <div style={styles.header} className={responsiveStyles.header}>
         <div>
-          <h1 style={styles.title}>Event Manager - Admin</h1>
+          <h1 style={styles.title} className={responsiveStyles.title}>Event Manager - Admin</h1>
           <p style={styles.subtitle}>Willkommen, {user?.name}!</p>
         </div>
-        <div style={styles.headerActions}>
+
+        {/* Desktop Menu */}
+        <div style={styles.headerActions} className={responsiveStyles.headerButtons}>
           <div style={styles.menuContainer}>
             <button onClick={() => setShowMenu(!showMenu)} style={styles.menuButton}>
-              ⚙️ Menü
+              Menü
             </button>
             {showMenu && (
               <div style={styles.dropdown}>
@@ -49,14 +51,55 @@ export const AdminDashboard: React.FC = () => {
                   }}
                   style={styles.dropdownItem}
                 >
-                  🔒 Passwort ändern
+                  Passwort ändern
                 </button>
                 <button onClick={logout} style={styles.dropdownItemDanger}>
-                  🚪 Abmelden
+                  Abmelden
                 </button>
               </div>
             )}
           </div>
+        </div>
+
+        {/* Mobile hamburger menu */}
+        <div className={responsiveStyles.mobileMenuContainer}>
+          <button
+            onClick={() => setShowMenu(!showMenu)}
+            className={responsiveStyles.hamburgerButton}
+            aria-label="Menu"
+          >
+            <div className={responsiveStyles.hamburgerIcon}>
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </button>
+
+          {showMenu && (
+            <>
+              <div
+                className={responsiveStyles.mobileMenuOverlay}
+                onClick={() => setShowMenu(false)}
+              />
+              <div className={responsiveStyles.mobileMenu}>
+                <button
+                  onClick={() => {
+                    setShowChangePassword(true);
+                    setShowMenu(false);
+                  }}
+                  className={responsiveStyles.mobileMenuItem}
+                >
+                  Passwort ändern
+                </button>
+                <button
+                  onClick={logout}
+                  className={responsiveStyles.mobileMenuItemLogout}
+                >
+                  Abmelden
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
