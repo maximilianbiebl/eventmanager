@@ -462,8 +462,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     gap: '0.5rem',
     padding: '0.375rem 0.75rem',
-    backgroundColor: '#f3f4f6',
-    border: '1px solid #d1d5db',
+    backgroundColor: '#e0e7ff',
+    color: '#3730a3',
     borderRadius: '9999px',
     position: 'relative',
   },
@@ -474,7 +474,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   staffName: {
     fontWeight: '500',
-    color: '#1f2937',
+    color: '#3730a3',
     fontSize: '0.875rem',
   },
   staffMeta: {
