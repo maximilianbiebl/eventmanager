@@ -7,7 +7,11 @@ import { ChangePasswordDialog } from './ChangePasswordDialog';
 type Tab = 'events' | 'users';
 
 export const AdminDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<Tab>('events');
+  const [activeTab, setActiveTab] = useState<Tab>(() => {
+    // Load last active tab from localStorage
+    const saved = localStorage.getItem('adminActiveTab');
+    return (saved === 'events' || saved === 'users') ? saved : 'events';
+  });
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0); // Zum Zurücksetzen der Listen
@@ -19,6 +23,8 @@ export const AdminDashboard: React.FC = () => {
       setRefreshKey(prev => prev + 1);
     }
     setActiveTab(tab);
+    // Save to localStorage
+    localStorage.setItem('adminActiveTab', tab);
   };
 
   return (
