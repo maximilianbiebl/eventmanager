@@ -368,8 +368,8 @@ export const StaffDashboard: React.FC = () => {
         </label>
       </div>
 
-      {/* Filter für Veranstaltungen */}
-      {uniqueEvents.length > 1 && (
+      {/* Filter für Veranstaltungen - nur in Kartenansicht */}
+      {uniqueEvents.length > 1 && viewMode !== 'table' && (
         <div className={styles.filterSection}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
             <button
