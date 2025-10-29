@@ -832,9 +832,14 @@
     display: block;
   }
 
-  .taskTable {
-    display: block;
+  .tableContainer {
     overflow-x: visible;
+  }
+
+  .taskTable {
+    display: table;
+    table-layout: fixed;
+    width: 100%;
   }
 
   .taskTable thead {
@@ -852,6 +857,17 @@
   .taskTable th,
   .taskTable td {
     display: table-cell;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  .taskTitleCell {
+    max-width: none;
+  }
+
+  .taskDescCell {
+    max-width: none;
+    word-break: break-word;
   }
 }
 

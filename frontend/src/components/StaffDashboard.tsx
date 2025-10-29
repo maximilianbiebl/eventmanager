@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../hooks/useNotifications';
 import { StaffSettings } from './StaffSettings';
 import { ChangePasswordDialog } from './admin/ChangePasswordDialog';
+import { DescriptionModal } from './DescriptionModal';
 import client from '../api/client';
 import styles from './StaffDashboard.module.css';
 
@@ -767,6 +768,7 @@ const StaffTableView: React.FC<{
   const [showStatusDropdown, setShowStatusDropdown] = React.useState<number | null>(null);
   const [sortColumn, setSortColumn] = React.useState<string>('day');
   const [sortDirection, setSortDirection] = React.useState<'asc' | 'desc'>('asc');
+  const [descriptionModal, setDescriptionModal] = React.useState<{ title: string; description: string } | null>(null);
 
   // Filter tasks by selected day
   const dayFilteredTasks = selectedDay === 'all'
@@ -958,7 +960,30 @@ const StaffTableView: React.FC<{
                     {task.is_public && <span className={styles.publicBadge}>Öffentlich</span>}
                   </div>
                   {task.description && (
-                    <div className={styles.taskDescCell}>{task.description}</div>
+                    <div className={styles.taskDescCell}>
+                      {task.description.length > 60 ? (
+                        <>
+                          {task.description.substring(0, 60)}...
+                          <button
+                            onClick={() => setDescriptionModal({ title: task.title, description: task.description! })}
+                            style={{
+                              marginLeft: '0.25rem',
+                              padding: '0.125rem 0.375rem',
+                              fontSize: '0.7rem',
+                              backgroundColor: 'transparent',
+                              border: '1px solid #d1d5db',
+                              borderRadius: '3px',
+                              cursor: 'pointer',
+                              color: '#6b7280'
+                            }}
+                          >
+                            mehr
+                          </button>
+                        </>
+                      ) : (
+                        task.description
+                      )}
+                    </div>
                   )}
                   <div className={styles.showOnMobile}>
                     <div className={styles.mobileMeta}>
@@ -1044,6 +1069,13 @@ const StaffTableView: React.FC<{
           })}
         </tbody>
       </table>
+      {descriptionModal && (
+        <DescriptionModal
+          title={descriptionModal.title}
+          description={descriptionModal.description}
+          onClose={() => setDescriptionModal(null)}
+        />
+      )}
     </div>
   );
 };
