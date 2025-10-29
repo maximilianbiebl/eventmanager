@@ -26,4 +26,9 @@ export const authApi = {
     const response = await client.post('/auth/register', data);
     return response.data;
   },
+
+  resetPassword: async (userId: number, newPassword: string) => {
+    const response = await client.put(`/auth/admin/reset-password/${userId}`, { newPassword });
+    return response.data;
+  },
 };

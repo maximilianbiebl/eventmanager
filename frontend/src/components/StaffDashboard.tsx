@@ -74,7 +74,7 @@ export const StaffDashboard: React.FC = () => {
       // Initialize selectedEvents with all unique events if not yet set AND not loaded from storage
       const stored = localStorage.getItem('selectedEvents');
       if (!stored && selectedEvents.size === 0 && data.length > 0) {
-        const uniqueEvents = new Set(data.map(t => `${t.event_name} (${t.instance_start_date})`));
+        const uniqueEvents = new Set(data.map(t => `${t.event_name}#${t.instance_start_date}`));
         setSelectedEvents(uniqueEvents);
         saveSelectedEventsToStorage(uniqueEvents);
       }
@@ -126,7 +126,7 @@ export const StaffDashboard: React.FC = () => {
   };
 
   const handleSelectAllEvents = () => {
-    const allEvents = new Set(tasks.map(t => `${t.event_name} (${t.instance_start_date})`));
+    const allEvents = new Set(tasks.map(t => `${t.event_name}#${t.instance_start_date}`));
     setSelectedEvents(allEvents);
     saveSelectedEventsToStorage(allEvents);
   };
@@ -138,8 +138,30 @@ export const StaffDashboard: React.FC = () => {
   };
 
   // Get unique events for the filter
-  const uniqueEvents = Array.from(new Set(tasks.map(t => `${t.event_name} (${t.instance_start_date})`)))
-    .sort();
+  const uniqueEvents = Array.from(new Set(tasks.map(t => `${t.event_name}#${t.instance_start_date}`))).sort();
+
+  // Create display names for events (show date only if multiple instances exist)
+  const eventDisplayNames: { [key: string]: string } = {};
+  const eventNameCounts: { [name: string]: number } = {};
+
+  // Count how many instances of each event name exist
+  uniqueEvents.forEach(key => {
+    const name = key.split('#')[0];
+    eventNameCounts[name] = (eventNameCounts[name] || 0) + 1;
+  });
+
+  // Create display names
+  uniqueEvents.forEach(key => {
+    const [name, date] = key.split('#');
+    if (eventNameCounts[name] > 1) {
+      // Multiple instances - show date
+      const formattedDate = new Date(date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      eventDisplayNames[key] = `${name} (${formattedDate})`;
+    } else {
+      // Single instance - show only name
+      eventDisplayNames[key] = name;
+    }
+  });
 
   // Filter tasks based on hideCompleted and selectedEvents
   const filteredTasks = tasks.filter(t => {
@@ -149,7 +171,7 @@ export const StaffDashboard: React.FC = () => {
     }
 
     // Filter by selected events
-    const eventKey = `${t.event_name} (${t.instance_start_date})`;
+    const eventKey = `${t.event_name}#${t.instance_start_date}`;
     if (selectedEvents.size > 0 && !selectedEvents.has(eventKey)) {
       return false;
     }
@@ -299,7 +321,7 @@ export const StaffDashboard: React.FC = () => {
                     onChange={() => handleToggleEvent(eventKey)}
                     className={styles.filterCheckbox}
                   />
-                  <span>{eventKey}</span>
+                  <span>{eventDisplayNames[eventKey]}</span>
                 </label>
               ))}
             </div>
@@ -677,6 +699,11 @@ const StaffTableView: React.FC<{
       case 'title':
         compareResult = a.title.localeCompare(b.title);
         break;
+      case 'scheduled':
+        const schedA = a.scheduled_time || '99:99';
+        const schedB = b.scheduled_time || '99:99';
+        compareResult = schedA.localeCompare(schedB);
+        break;
       case 'start':
         const startA = a.start_time || '99:99';
         const startB = b.start_time || '99:99';
@@ -780,6 +807,13 @@ const StaffTableView: React.FC<{
             </th>
             <th
               className={styles.hideOnMobile}
+              onClick={() => handleSort('scheduled')}
+              style={{ cursor: 'pointer', userSelect: 'none' }}
+            >
+              Geplante Zeit{getSortIcon('scheduled')}
+            </th>
+            <th
+              className={styles.hideOnMobile}
               onClick={() => handleSort('start')}
               style={{ cursor: 'pointer', userSelect: 'none' }}
             >
@@ -822,11 +856,13 @@ const StaffTableView: React.FC<{
                     <div className={styles.mobileMeta}>
                       {showEventColumn && <div>📅 {task.event_name}</div>}
                       <div>Tag {task.day_number} • {getEventDate(task)}</div>
+                      {task.scheduled_time && <div>📅 {task.scheduled_time} Uhr</div>}
                       {task.start_time && <div>🚀 {task.start_time} Uhr</div>}
                       {task.end_time && <div>🏁 {task.end_time} Uhr</div>}
                     </div>
                   </div>
                 </td>
+                <td className={styles.hideOnMobile}>{task.scheduled_time || '-'}</td>
                 <td className={styles.hideOnMobile}>{task.start_time || '-'}</td>
                 <td className={styles.hideOnMobile}>{task.end_time || '-'}</td>
                 <td>

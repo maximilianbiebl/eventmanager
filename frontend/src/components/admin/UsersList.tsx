@@ -51,6 +51,24 @@ export const UsersList: React.FC = () => {
     }
   };
 
+  const handleResetPassword = async (userId: number, userName: string) => {
+    const newPassword = prompt(`Neues Passwort für ${userName}:`);
+    if (!newPassword) return;
+
+    if (newPassword.length < 4) {
+      alert('Passwort muss mindestens 4 Zeichen lang sein');
+      return;
+    }
+
+    try {
+      await authApi.resetPassword(userId, newPassword);
+      alert('Passwort wurde erfolgreich zurückgesetzt');
+    } catch (error: any) {
+      console.error('Reset password error:', error);
+      alert(error.response?.data?.error || 'Fehler beim Zurücksetzen des Passworts');
+    }
+  };
+
   if (loading) {
     return <div>Lade Mitarbeiter...</div>;
   }
@@ -84,9 +102,14 @@ export const UsersList: React.FC = () => {
                 </span>
               </td>
               <td style={styles.td}>
-                <button onClick={() => handleDelete(user.id)} style={styles.deleteButton}>
-                  Löschen
-                </button>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button onClick={() => handleResetPassword(user.id, user.name)} style={styles.resetButton}>
+                    🔒 Passwort ändern
+                  </button>
+                  <button onClick={() => handleDelete(user.id)} style={styles.deleteButton}>
+                    Löschen
+                  </button>
+                </div>
               </td>
             </tr>
           ))}
@@ -145,6 +168,16 @@ const styles: { [key: string]: React.CSSProperties } = {
     backgroundColor: '#dbeafe',
     color: '#1e40af',
     borderRadius: '9999px',
+    fontSize: '0.875rem',
+    fontWeight: '500',
+  },
+  resetButton: {
+    padding: '0.5rem 1rem',
+    backgroundColor: '#f59e0b',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
     fontSize: '0.875rem',
     fontWeight: '500',
   },

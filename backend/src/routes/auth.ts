@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import { query } from '../database/connection';
 import config from '../config';
 import { LoginRequest, LoginResponse } from '../types';
-import { authMiddleware, AuthRequest } from '../middleware/auth';
+import { authMiddleware, adminMiddleware, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
@@ -77,6 +77,40 @@ router.post('/register', async (req, res) => {
   } catch (error) {
     console.error('Register error:', error);
     res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// Admin: Reset user password (ohne altes Passwort)
+router.put('/admin/reset-password/:userId', authMiddleware, adminMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { userId } = req.params;
+    const { newPassword } = req.body;
+
+    if (!newPassword) {
+      return res.status(400).json({ error: 'Neues Passwort erforderlich' });
+    }
+
+    if (newPassword.length < 4) {
+      return res.status(400).json({ error: 'Passwort muss mindestens 4 Zeichen lang sein' });
+    }
+
+    // Benutzer laden
+    const userResult = await query('SELECT * FROM users WHERE id = $1', [userId]);
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    }
+
+    // Neues Passwort hashen
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Passwort aktualisieren
+    await query('UPDATE users SET password_hash = $1 WHERE id = $2', [hashedPassword, userId]);
+
+    res.json({ message: 'Passwort wurde erfolgreich zurückgesetzt' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ error: 'Interner Serverfehler' });
   }
 });
 

@@ -197,7 +197,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
           eventId={eventId}
           task={editTask}
           eventInstances={event?.instances}
-          defaultDay={viewMode === 'table' && typeof selectedDay === 'number' ? selectedDay : undefined}
+          defaultDay={typeof selectedDay === 'number' ? selectedDay : 1}
           onClose={() => {
             setShowTaskForm(false);
             setEditTask(null);

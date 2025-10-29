@@ -59,7 +59,7 @@ export const TaskTableView: React.FC<Props> = ({
   const [successMessage, setSuccessMessage] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [internalSelectedDay, setInternalSelectedDay] = useState<number | 'all'>('all');
-  const [sortColumn, setSortColumn] = useState<string>('start');
+  const [sortColumn, setSortColumn] = useState<string>('manual');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // Use external selectedDay if provided, otherwise use internal state
@@ -208,6 +208,11 @@ export const TaskTableView: React.FC<Props> = ({
     let compareResult = 0;
 
     switch (sortColumn) {
+      case 'manual':
+        const sortOrderA = a.task.sort_order ?? 999999;
+        const sortOrderB = b.task.sort_order ?? 999999;
+        compareResult = sortOrderA - sortOrderB;
+        break;
       case 'day':
         compareResult = a.task.day_number - b.task.day_number;
         break;
@@ -301,7 +306,15 @@ export const TaskTableView: React.FC<Props> = ({
             <option value="overdue">Überfällig</option>
           </select>
           <span style={{ fontSize: '0.875rem', color: '#6b7280', marginLeft: '1rem' }}>
-            Tipp: Klicke auf Spaltenüberschriften zum Sortieren
+            {sortColumn === 'manual' ? '📌 Manuelle Sortierung aktiv' : '⚠️ Spalten-Sortierung aktiv'}
+            {sortColumn !== 'manual' && (
+              <button
+                onClick={() => setSortColumn('manual')}
+                style={{ marginLeft: '0.5rem', padding: '0.25rem 0.5rem', fontSize: '0.75rem', cursor: 'pointer' }}
+              >
+                Zurück zu manueller Sortierung
+              </button>
+            )}
           </span>
         </div>
       </div>
