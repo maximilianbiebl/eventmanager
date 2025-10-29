@@ -18,6 +18,7 @@ export const StaffDashboard: React.FC = () => {
   const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set());
   const [showEventFilter, setShowEventFilter] = useState(false);
   const [selectedDay, setSelectedDay] = useState<number | 'all'>('all');
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const { user, logout } = useAuth();
   const notifications = useNotifications();
 
@@ -196,6 +197,8 @@ export const StaffDashboard: React.FC = () => {
           <h1 className={styles.title}>Meine Aufgaben</h1>
           <p className={styles.subtitle}>Willkommen, {user?.name}!</p>
         </div>
+
+        {/* Desktop buttons */}
         <div className={styles.headerButtons}>
           <button onClick={() => setShowSettings(true)} className={styles.settingsButton}>
             ⚙️ Einstellungen
@@ -206,6 +209,59 @@ export const StaffDashboard: React.FC = () => {
           <button onClick={logout} className={styles.logoutButton}>
             Abmelden
           </button>
+        </div>
+
+        {/* Mobile hamburger menu */}
+        <div className={styles.mobileMenuContainer}>
+          <button
+            onClick={() => setShowMobileMenu(!showMobileMenu)}
+            className={styles.hamburgerButton}
+            aria-label="Menu"
+          >
+            <div className={styles.hamburgerIcon}>
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </button>
+
+          {showMobileMenu && (
+            <>
+              <div
+                className={styles.mobileMenuOverlay}
+                onClick={() => setShowMobileMenu(false)}
+              />
+              <div className={styles.mobileMenu}>
+                <button
+                  onClick={() => {
+                    setShowSettings(true);
+                    setShowMobileMenu(false);
+                  }}
+                  className={styles.mobileMenuItem}
+                >
+                  ⚙️ Einstellungen
+                </button>
+                <button
+                  onClick={() => {
+                    setShowChangePassword(true);
+                    setShowMobileMenu(false);
+                  }}
+                  className={styles.mobileMenuItem}
+                >
+                  🔒 Passwort ändern
+                </button>
+                <button
+                  onClick={() => {
+                    logout();
+                    setShowMobileMenu(false);
+                  }}
+                  className={styles.mobileMenuItemLogout}
+                >
+                  Abmelden
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
