@@ -464,9 +464,6 @@ export const TaskTableView: React.FC<Props> = ({
                         {assignedUsers.map((user, idx) => (
                           <span key={idx} style={styles.userBadge} className={responsiveStyles.userBadge}>
                             {user.name}
-                            {user.completed && (
-                              <span style={styles.completedIcon}>✓</span>
-                            )}
                             {user.assignmentId && (
                               <button
                                 onClick={() => handleUnassign(user.assignmentId!, user.name)}
@@ -474,7 +471,7 @@ export const TaskTableView: React.FC<Props> = ({
                                 className={responsiveStyles.unassignButton}
                                 title="Zuweisung entfernen"
                               >
-                                ✕
+                                ✓
                               </button>
                             )}
                           </span>
@@ -717,27 +714,32 @@ const styles: { [key: string]: React.CSSProperties } = {
   userBadge: {
     display: 'inline-flex',
     alignItems: 'center',
-    gap: '0.25rem',
-    padding: '0.25rem 0.5rem',
+    gap: '0.375rem',
+    padding: '0.25rem 0.625rem',
     backgroundColor: '#f3f4f6',
-    borderRadius: '4px',
-    fontSize: '0.75rem',
+    border: '1px solid #d1d5db',
+    borderRadius: '9999px',
+    fontSize: '0.8125rem',
+    fontWeight: '500',
   },
   completedIcon: {
     color: '#10b981',
     fontWeight: 'bold',
   },
   unassignButton: {
-    marginLeft: '0.25rem',
-    padding: '0.125rem 0.25rem',
-    backgroundColor: '#ef4444',
-    color: 'white',
+    padding: '0',
+    width: '16px',
+    height: '16px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    color: '#10b981',
     border: 'none',
-    borderRadius: '3px',
-    fontSize: '0.7rem',
     cursor: 'pointer',
-    fontWeight: 'bold',
-    lineHeight: '1',
+    fontSize: '0.7rem',
+    fontWeight: '600',
+    borderRadius: '50%',
     transition: 'background-color 0.2s',
   },
   actions: {

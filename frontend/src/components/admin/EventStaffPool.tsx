@@ -163,30 +163,27 @@ export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
         <div style={styles.staffGrid}>
           {eventStaff.map((staff) => (
             <div key={staff.id} style={styles.staffCard}>
-              <div style={styles.staffInfo}>
+              <div style={styles.staffEllipse}>
                 <span style={styles.staffName}>{staff.name}</span>
-                <div style={styles.staffMeta}>
-                  <span style={styles.staffBadge}>Mitarbeiter</span>
-                  <button
-                    onClick={() => handleShowTasks(staff)}
-                    style={{
-                      ...styles.taskCount,
-                      cursor: staff.taskCount ? 'pointer' : 'default',
-                      textDecoration: staff.taskCount ? 'underline' : 'none',
-                    }}
-                    disabled={!staff.taskCount}
-                    title={staff.taskCount ? 'Aufgaben anzeigen' : ''}
-                  >
-                    📋 {staff.taskCount || 0} Aufgabe{(staff.taskCount || 0) !== 1 ? 'n' : ''}
-                  </button>
-                </div>
+                <button
+                  onClick={() => handleRemoveStaff(staff.id)}
+                  style={styles.removeButtonEllipse}
+                  title="Aus Pool entfernen"
+                >
+                  ✓
+                </button>
               </div>
               <button
-                onClick={() => handleRemoveStaff(staff.id)}
-                style={styles.removeButton}
-                title="Aus Pool entfernen"
+                onClick={() => handleShowTasks(staff)}
+                style={{
+                  ...styles.taskCount,
+                  cursor: staff.taskCount ? 'pointer' : 'default',
+                  textDecoration: staff.taskCount ? 'underline' : 'none',
+                }}
+                disabled={!staff.taskCount}
+                title={staff.taskCount ? 'Aufgaben anzeigen' : ''}
               >
-                ✕
+                {staff.taskCount || 0} Aufgabe{(staff.taskCount || 0) !== 1 ? 'n' : ''}
               </button>
             </div>
           ))}
@@ -450,18 +447,25 @@ const styles: { [key: string]: React.CSSProperties } = {
     marginTop: '0.5rem',
   },
   staffGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
+    display: 'flex',
+    flexWrap: 'wrap',
     gap: '0.75rem',
   },
   staffCard: {
     display: 'flex',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
     alignItems: 'center',
-    padding: '0.75rem',
-    backgroundColor: '#f9fafb',
-    border: '1px solid #e5e7eb',
-    borderRadius: '4px',
+    gap: '0.375rem',
+  },
+  staffEllipse: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    padding: '0.375rem 0.75rem',
+    backgroundColor: '#f3f4f6',
+    border: '1px solid #d1d5db',
+    borderRadius: '9999px',
+    position: 'relative',
   },
   staffInfo: {
     display: 'flex',
@@ -471,6 +475,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   staffName: {
     fontWeight: '500',
     color: '#1f2937',
+    fontSize: '0.875rem',
   },
   staffMeta: {
     display: 'flex',
@@ -485,6 +490,9 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '0.75rem',
     color: '#4f46e5',
     fontWeight: '500',
+    backgroundColor: 'transparent',
+    border: 'none',
+    padding: '0.125rem 0.25rem',
   },
   removeButton: {
     padding: '0.25rem 0.5rem',
@@ -495,6 +503,22 @@ const styles: { [key: string]: React.CSSProperties } = {
     cursor: 'pointer',
     fontSize: '1.25rem',
     lineHeight: 1,
+  },
+  removeButtonEllipse: {
+    padding: '0',
+    width: '18px',
+    height: '18px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    color: '#10b981',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: '0.75rem',
+    lineHeight: 1,
+    borderRadius: '50%',
+    transition: 'background-color 0.2s',
   },
   overlay: {
     position: 'fixed',

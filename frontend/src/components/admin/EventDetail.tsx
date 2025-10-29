@@ -30,6 +30,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
   const [viewMode, setViewMode] = useState<'list' | 'table'>('table'); // Table ist jetzt Standard
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [selectedDay, setSelectedDay] = useState<number | 'all'>('all');
+  const [tableRefreshKey, setTableRefreshKey] = useState(0);
 
   useEffect(() => {
     loadData();
@@ -51,6 +52,8 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
       if (eventData.instances.length > 0) {
         setSelectedInstance(eventData.instances[0].id);
       }
+      // Trigger refresh of TaskTableView
+      setTableRefreshKey(prev => prev + 1);
     } catch (error) {
       console.error('Load event detail error:', error);
     } finally {
@@ -181,6 +184,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
         ) : (
           selectedInstance && (
             <TaskTableView
+              key={tableRefreshKey}
               eventInstanceId={selectedInstance}
               onEditTask={handleEditTask}
               onAssignTask={handleAssignTask}
