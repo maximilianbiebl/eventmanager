@@ -156,6 +156,24 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
     }
   };
 
+  const handleToggleActive = async () => {
+    const isCurrentlyActive = task.is_active !== false;
+    const action = isCurrentlyActive ? 'deaktivieren' : 'aktivieren';
+
+    if (!window.confirm(`Möchten Sie die Aufgabe "${formData.title}" wirklich ${action}?`)) {
+      return;
+    }
+
+    try {
+      await client.patch(`/tasks/${task.id}/active`, {
+        is_active: !isCurrentlyActive
+      });
+      onSuccess();
+    } catch (err: any) {
+      setError(err.response?.data?.error || `Fehler beim ${action.charAt(0).toUpperCase() + action.slice(1)}`);
+    }
+  };
+
   return (
     <div style={styles.overlay} onClick={onClose}>
       <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -322,6 +340,17 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
               <h3 style={styles.dangerZoneTitle}>Gefahrenbereich</h3>
               <button
                 type="button"
+                onClick={handleToggleActive}
+                style={{
+                  ...styles.deleteButton,
+                  backgroundColor: task.is_active === false ? '#10b981' : '#f59e0b',
+                  marginBottom: '0.75rem'
+                }}
+              >
+                {task.is_active === false ? '✅ Aufgabe aktivieren' : '🚫 Aufgabe deaktivieren'}
+              </button>
+              <button
+                type="button"
                 onClick={handleDelete}
                 style={styles.deleteButton}
                 disabled={deleting}
@@ -329,7 +358,7 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
                 {deleting ? 'Löschen...' : '🗑️ Aufgabe löschen'}
               </button>
               <p style={styles.dangerZoneWarning}>
-                Diese Aktion kann nicht rückgängig gemacht werden.
+                Diese Aktionen können nicht rückgängig gemacht werden.
               </p>
             </div>
           )}

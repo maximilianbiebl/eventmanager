@@ -114,29 +114,6 @@ export const TaskTableView: React.FC<Props> = ({
     }
   };
 
-  const handleToggleActive = async (taskId: number, taskTitle: string, currentlyActive: boolean) => {
-    const action = currentlyActive ? 'deaktivieren' : 'aktivieren';
-    const actionPast = currentlyActive ? 'deaktiviert' : 'aktiviert';
-
-    if (!window.confirm(`Möchten Sie die Aufgabe "${taskTitle}" wirklich ${action}?`)) {
-      return;
-    }
-
-    try {
-      if (currentlyActive) {
-        await tasksApi.deactivate(taskId);
-      } else {
-        await tasksApi.activate(taskId);
-      }
-      setSuccessMessage(`Aufgabe wurde ${actionPast}`);
-      setTimeout(() => setSuccessMessage(''), 3000);
-      await loadAssignments();
-    } catch (error) {
-      console.error('Toggle active error:', error);
-      alert(`Fehler beim ${action.slice(0, -2)}en der Aufgabe`);
-    }
-  };
-
   const handleMoveUp = async (taskId: number) => {
     try {
       await tasksApi.moveUp(taskId);
@@ -419,6 +396,17 @@ export const TaskTableView: React.FC<Props> = ({
                       {task.is_public && (
                         <span style={styles.publicBadge} className={responsiveStyles.publicBadge}>Öffentlich</span>
                       )}
+                      {task.is_active === false && (
+                        <span style={{
+                          fontSize: '0.7rem',
+                          padding: '0.125rem 0.5rem',
+                          backgroundColor: '#fee2e2',
+                          color: '#991b1b',
+                          borderRadius: '9999px',
+                          fontWeight: '500',
+                          marginLeft: '0.5rem'
+                        }}>Deaktiviert</span>
+                      )}
                     </div>
                     {task.description && (
                       <div style={styles.taskDescription} className={responsiveStyles.taskDescription}>{task.description}</div>
@@ -484,13 +472,6 @@ export const TaskTableView: React.FC<Props> = ({
                         title="Mitarbeiter zuweisen"
                       >
                         👥 Zuweisen
-                      </button>
-                      <button
-                        onClick={() => handleToggleActive(task.id, task.title, task.is_active !== false)}
-                        style={task.is_active === false ? styles.activateButton : styles.deactivateButton}
-                        title={task.is_active === false ? "Aufgabe aktivieren" : "Aufgabe deaktivieren"}
-                      >
-                        {task.is_active === false ? '✅ Aktivieren' : '🚫 Deaktivieren'}
                       </button>
                       <div style={{marginLeft: 'auto', display: 'flex', gap: '0.25rem'}}>
                         <button

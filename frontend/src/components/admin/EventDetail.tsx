@@ -495,7 +495,19 @@ const TaskListView: React.FC<TaskListViewProps> = ({
           <div key={task.id} className={styles.taskItemExtended}>
             <div className={styles.taskMainInfo}>
               <div className={styles.taskHeader}>
-                <strong className={styles.taskTitle}>{task.title}</strong>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <strong className={styles.taskTitle}>{task.title}</strong>
+                  {task.is_active === false && (
+                    <span style={{
+                      fontSize: '0.7rem',
+                      padding: '0.125rem 0.5rem',
+                      backgroundColor: '#fee2e2',
+                      color: '#991b1b',
+                      borderRadius: '9999px',
+                      fontWeight: '500'
+                    }}>Deaktiviert</span>
+                  )}
+                </div>
                 <select
                   value={task.status}
                   onChange={(e) => handleStatusChange(task.id, e.target.value)}
