@@ -545,8 +545,8 @@ const TaskCard: React.FC<{
                   borderRadius: '4px',
                   boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
                   marginTop: '4px',
-                  minWidth: '150px',
-                  zIndex: 1000
+                  minWidth: '180px',
+                  zIndex: 9999
                 }}>
                   {task.status === 'not_started' && (
                     <div

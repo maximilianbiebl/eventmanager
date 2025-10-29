@@ -459,20 +459,6 @@ export const TaskTableView: React.FC<Props> = ({
                   <td style={styles.td}>
                     <div style={styles.actions}>
                       <button
-                        onClick={() => handleMoveUp(task.id)}
-                        style={styles.moveButton}
-                        title="Aufgabe nach oben verschieben"
-                      >
-                        ▲
-                      </button>
-                      <button
-                        onClick={() => handleMoveDown(task.id)}
-                        style={styles.moveButton}
-                        title="Aufgabe nach unten verschieben"
-                      >
-                        ▼
-                      </button>
-                      <button
                         onClick={() => onEditTask(task.id)}
                         style={styles.editButton}
                         title="Aufgabe bearbeiten"
@@ -493,6 +479,22 @@ export const TaskTableView: React.FC<Props> = ({
                       >
                         {task.is_active === false ? '✅ Aktivieren' : '🚫 Deaktivieren'}
                       </button>
+                      <div style={{marginLeft: 'auto', display: 'flex', gap: '0.25rem'}}>
+                        <button
+                          onClick={() => handleMoveUp(task.id)}
+                          style={styles.moveButton}
+                          title="Aufgabe nach oben verschieben"
+                        >
+                          ▲
+                        </button>
+                        <button
+                          onClick={() => handleMoveDown(task.id)}
+                          style={styles.moveButton}
+                          title="Aufgabe nach unten verschieben"
+                        >
+                          ▼
+                        </button>
+                      </div>
                     </div>
                   </td>
                 </tr>
@@ -716,15 +718,16 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: '500',
   },
   moveButton: {
-    padding: '0.375rem 0.5rem',
-    backgroundColor: '#6b7280',
-    color: 'white',
-    border: 'none',
+    padding: '0.25rem 0.375rem',
+    backgroundColor: 'transparent',
+    color: '#9ca3af',
+    border: '1px solid #e5e7eb',
     borderRadius: '4px',
-    fontSize: '0.875rem',
+    fontSize: '0.75rem',
     cursor: 'pointer',
-    fontWeight: 'bold',
+    fontWeight: 'normal',
     lineHeight: '1',
+    transition: 'all 0.2s',
   },
   dayTabs: {
     display: 'flex',

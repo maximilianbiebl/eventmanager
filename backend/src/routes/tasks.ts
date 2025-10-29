@@ -535,9 +535,9 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
         }
       }
 
-      // Mitarbeiter dürfen nur auf 'in_progress' setzen
-      if (status !== 'in_progress') {
-        return res.status(403).json({ error: 'Mitarbeiter können den Status nur auf "In Arbeit" setzen' });
+      // Mitarbeiter dürfen nur zwischen 'not_started' und 'in_progress' wechseln
+      if (status !== 'in_progress' && status !== 'not_started') {
+        return res.status(403).json({ error: 'Mitarbeiter können den Status nur auf "Nicht gestartet" oder "In Arbeit" setzen' });
       }
     }
 
