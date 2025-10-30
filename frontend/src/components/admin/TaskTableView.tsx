@@ -77,7 +77,45 @@ export const TaskTableView: React.FC<Props> = ({
 
   useEffect(() => {
     loadAssignments();
+
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(() => {
+      loadAssignments(false); // Don't show loading indicator on auto-refresh
+    }, 30000);
+
+    return () => clearInterval(interval);
   }, [eventInstanceId]);
+
+  const checkAndUpdateOverdueTasks = async (tasks: TaskAssignment[]) => {
+    const now = new Date();
+    const updates: Promise<void>[] = [];
+
+    for (const task of tasks) {
+      if (task.status !== 'completed' && task.status !== 'overdue' && task.end_time && instanceStartDate) {
+        // Parse task date and time
+        const taskDate = new Date(instanceStartDate);
+        taskDate.setDate(taskDate.getDate() + task.day_number - 1);
+
+        // Parse end time (format: "HH:MM")
+        const [hours, minutes] = task.end_time.split(':').map(Number);
+        taskDate.setHours(hours, minutes, 0, 0);
+
+        // Check if task is overdue
+        if (now > taskDate) {
+          updates.push(
+            tasksApi.updateStatus(task.id, 'overdue').catch(err => {
+              console.error('Failed to mark task as overdue:', err);
+            })
+          );
+          task.status = 'overdue';
+        }
+      }
+    }
+
+    if (updates.length > 0) {
+      await Promise.all(updates);
+    }
+  };
 
   const loadAssignments = async (showLoading = true) => {
     try {
@@ -85,7 +123,12 @@ export const TaskTableView: React.FC<Props> = ({
         setLoading(true);
       }
       const response = await client.get(`/tasks/instance/${eventInstanceId}/assignments`);
-      setAssignments(response.data);
+      const data = response.data;
+
+      // Check for overdue tasks
+      await checkAndUpdateOverdueTasks(data);
+
+      setAssignments(data);
     } catch (error) {
       console.error('Load assignments error:', error);
       setError('Fehler beim Laden der Aufgaben');

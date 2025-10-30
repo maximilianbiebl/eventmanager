@@ -68,9 +68,48 @@ export const StaffDashboard: React.FC = () => {
     }
   };
 
+  const checkAndUpdateOverdueTasks = async (tasks: any[]) => {
+    const now = new Date();
+    const updates: Promise<void>[] = [];
+
+    for (const task of tasks) {
+      // Only check tasks that are not completed
+      if (task.status !== 'completed' && task.status !== 'overdue' && task.end_time) {
+        // Parse task date and time
+        const taskDate = new Date(task.instance_start_date);
+        taskDate.setDate(taskDate.getDate() + task.day_number - 1);
+
+        // Parse end time (format: "HH:MM")
+        const [hours, minutes] = task.end_time.split(':').map(Number);
+        taskDate.setHours(hours, minutes, 0, 0);
+
+        // Check if task is overdue
+        if (now > taskDate) {
+          // Update task status to overdue
+          updates.push(
+            tasksApi.updateStatus(task.id, 'overdue').catch(err => {
+              console.error('Failed to mark task as overdue:', err);
+            })
+          );
+          // Update local task object
+          task.status = 'overdue';
+        }
+      }
+    }
+
+    // Wait for all updates to complete
+    if (updates.length > 0) {
+      await Promise.all(updates);
+    }
+  };
+
   const loadTasks = async () => {
     try {
       const data = await tasksApi.getMyTasks();
+
+      // Check for overdue tasks and update their status
+      await checkAndUpdateOverdueTasks(data);
+
       setTasks(data);
 
       // Get unique events from current tasks

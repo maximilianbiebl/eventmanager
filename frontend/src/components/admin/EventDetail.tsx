@@ -34,6 +34,13 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
 
   useEffect(() => {
     loadData();
+
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(() => {
+      loadData();
+    }, 30000);
+
+    return () => clearInterval(interval);
   }, [eventId]);
 
   const loadData = async () => {
@@ -272,8 +279,49 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   React.useEffect(() => {
     if (selectedInstance) {
       loadAssignments();
+
+      // Auto-refresh every 30 seconds
+      const interval = setInterval(() => {
+        loadAssignments();
+      }, 30000);
+
+      return () => clearInterval(interval);
     }
   }, [selectedInstance]);
+
+  const checkAndUpdateOverdueTasks = async (tasks: any[], instance: any) => {
+    if (!instance) return;
+
+    const now = new Date();
+    const updates: Promise<void>[] = [];
+
+    for (const task of tasks) {
+      if (task.status !== 'completed' && task.status !== 'overdue' && task.end_time) {
+        // Parse task date and time
+        const taskDate = new Date(instance.start_date);
+        taskDate.setDate(taskDate.getDate() + task.day_number - 1);
+
+        // Parse end time (format: "HH:MM")
+        const [hours, minutes] = task.end_time.split(':').map(Number);
+        taskDate.setHours(hours, minutes, 0, 0);
+
+        // Check if task is overdue
+        if (now > taskDate) {
+          const { tasksApi } = await import('../../api/tasks');
+          updates.push(
+            tasksApi.updateStatus(task.id, 'overdue').catch(err => {
+              console.error('Failed to mark task as overdue:', err);
+            })
+          );
+          task.status = 'overdue';
+        }
+      }
+    }
+
+    if (updates.length > 0) {
+      await Promise.all(updates);
+    }
+  };
 
   const loadAssignments = async () => {
     if (!selectedInstance) return;
@@ -282,7 +330,19 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       setLoading(true);
       const client = (await import('../../api/client')).default;
       const response = await client.get(`/tasks/instance/${selectedInstance}/assignments`);
-      setAssignments(response.data);
+      const data = response.data;
+
+      // Get current instance for date calculation
+      const currentInstance = tasks.length > 0 && event?.instances
+        ? event.instances.find((i: any) => i.id === selectedInstance)
+        : null;
+
+      // Check for overdue tasks
+      if (currentInstance) {
+        await checkAndUpdateOverdueTasks(data, currentInstance);
+      }
+
+      setAssignments(data);
     } catch (error) {
       console.error('Load assignments error:', error);
     } finally {
