@@ -152,7 +152,8 @@ export const StaffDashboard: React.FC = () => {
   const handleComplete = async (assignmentId: number) => {
     try {
       await tasksApi.complete(assignmentId);
-      await loadTasks();
+      // Reload in background without blocking UI
+      loadTasks(false);
     } catch (error) {
       console.error('Complete task error:', error);
       alert('Fehler beim Markieren der Aufgabe');
@@ -162,7 +163,8 @@ export const StaffDashboard: React.FC = () => {
   const handleCompletePublic = async (taskId: number) => {
     try {
       await tasksApi.completePublic(taskId);
-      await loadTasks();
+      // Reload in background without blocking UI
+      loadTasks(false);
     } catch (error) {
       console.error('Complete public task error:', error);
       alert('Fehler beim Markieren der öffentlichen Aufgabe');
@@ -1261,8 +1263,10 @@ function groupTasksByEventDay(tasks: TaskAssignment[]) {
   const grouped: { [key: string]: TaskAssignment[] } = {};
 
   tasks.forEach((task) => {
-    // Gruppiere nach Event-Instanz und Tag
-    const key = `${task.event_name} - Tag ${task.day_number}`;
+    // Gruppiere nach Event-Instanz und Tag (mit Fallback für fehlende Werte)
+    const eventName = task.event_name || 'Unbekanntes Event';
+    const dayNumber = task.day_number || 1;
+    const key = `${eventName} - Tag ${dayNumber}`;
 
     if (!grouped[key]) {
       grouped[key] = [];
@@ -1277,7 +1281,9 @@ function groupTasksByEventDay(tasks: TaskAssignment[]) {
       const taskB = grouped[b][0];
 
       // Erst nach Event-Namen sortieren
-      const eventCompare = taskA.event_name.localeCompare(taskB.event_name);
+      const eventA = taskA.event_name || '';
+      const eventB = taskB.event_name || '';
+      const eventCompare = eventA.localeCompare(eventB);
       if (eventCompare !== 0) return eventCompare;
 
       // Dann nach Instanz-Nummer
@@ -1285,7 +1291,9 @@ function groupTasksByEventDay(tasks: TaskAssignment[]) {
       if (instanceCompare !== 0) return instanceCompare;
 
       // Dann nach Tag-Nummer
-      return taskA.day_number - taskB.day_number;
+      const dayA = taskA.day_number || 0;
+      const dayB = taskB.day_number || 0;
+      return dayA - dayB;
     })
     .reduce((acc, key) => {
       // Sortiere Tasks innerhalb jeder Gruppe nach Admin-Sortierung (sort_order)
@@ -1303,33 +1311,46 @@ function groupTasksByDay(tasks: TaskAssignment[]) {
   const grouped: { [key: string]: TaskAssignment[] } = {};
 
   tasks.forEach((task) => {
-    const startDate = new Date(task.instance_start_date);
-    startDate.setDate(startDate.getDate() + task.day_number - 1);
-    const dateStr = startDate.toLocaleDateString('de-DE', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
+    try {
+      const startDate = new Date(task.instance_start_date || Date.now());
+      const dayNumber = task.day_number || 1;
+      startDate.setDate(startDate.getDate() + dayNumber - 1);
+      const dateStr = startDate.toLocaleDateString('de-DE', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
 
-    if (!grouped[dateStr]) {
-      grouped[dateStr] = [];
+      if (!grouped[dateStr]) {
+        grouped[dateStr] = [];
+      }
+      grouped[dateStr].push(task);
+    } catch (error) {
+      // Fallback für ungültige Daten
+      const fallbackKey = 'Unbekanntes Datum';
+      if (!grouped[fallbackKey]) {
+        grouped[fallbackKey] = [];
+      }
+      grouped[fallbackKey].push(task);
     }
-    grouped[dateStr].push(task);
   });
 
   // Sortiere nach tatsächlichem Datum (Start-Datum + Tag-Nummer)
   return Object.keys(grouped)
     .sort((a, b) => {
+      if (a === 'Unbekanntes Datum') return 1;
+      if (b === 'Unbekanntes Datum') return -1;
+
       const taskA = grouped[a][0];
       const taskB = grouped[b][0];
 
       // Berechne tatsächliches Datum für jede Task
-      const dateA = new Date(taskA.instance_start_date);
-      dateA.setDate(dateA.getDate() + taskA.day_number - 1);
+      const dateA = new Date(taskA.instance_start_date || Date.now());
+      dateA.setDate(dateA.getDate() + (taskA.day_number || 1) - 1);
 
-      const dateB = new Date(taskB.instance_start_date);
-      dateB.setDate(dateB.getDate() + taskB.day_number - 1);
+      const dateB = new Date(taskB.instance_start_date || Date.now());
+      dateB.setDate(dateB.getDate() + (taskB.day_number || 1) - 1);
 
       return dateA.getTime() - dateB.getTime();
     })
@@ -1348,7 +1369,7 @@ function groupTasksByEvent(tasks: TaskAssignment[]) {
   const grouped: { [key: string]: TaskAssignment[] } = {};
 
   tasks.forEach((task) => {
-    const key = `${task.event_name}`;
+    const key = task.event_name || 'Unbekanntes Event';
     if (!grouped[key]) {
       grouped[key] = [];
     }
@@ -1359,7 +1380,9 @@ function groupTasksByEvent(tasks: TaskAssignment[]) {
   Object.keys(grouped).forEach(key => {
     grouped[key].sort((a, b) => {
       // Erst nach Tag sortieren
-      const dayCompare = a.day_number - b.day_number;
+      const dayA = a.day_number || 0;
+      const dayB = b.day_number || 0;
+      const dayCompare = dayA - dayB;
       if (dayCompare !== 0) return dayCompare;
 
       // Dann nach Admin-Sortierung (sort_order)
