@@ -390,13 +390,23 @@ const TaskListView: React.FC<TaskListViewProps> = ({
     try {
       const { tasksApi } = await import('../../api/tasks');
 
-      // Optimistic update: update UI immediately
-      const currentIndex = assignments.findIndex((a: any) => a.id === taskId);
+      // Optimistic update: swap sort_order values immediately
+      const sortedByOrder = [...assignments].sort((a: any, b: any) => {
+        const orderA = a.sort_order ?? 999999;
+        const orderB = b.sort_order ?? 999999;
+        return orderA - orderB;
+      });
+
+      const currentIndex = sortedByOrder.findIndex((a: any) => a.id === taskId);
       if (currentIndex > 0) {
-        const newAssignments = [...assignments];
-        const temp = newAssignments[currentIndex];
-        newAssignments[currentIndex] = newAssignments[currentIndex - 1];
-        newAssignments[currentIndex - 1] = temp;
+        const newAssignments = assignments.map((a: any) => {
+          if (a.id === sortedByOrder[currentIndex].id) {
+            return { ...a, sort_order: sortedByOrder[currentIndex - 1].sort_order };
+          } else if (a.id === sortedByOrder[currentIndex - 1].id) {
+            return { ...a, sort_order: sortedByOrder[currentIndex].sort_order };
+          }
+          return a;
+        });
         setAssignments(newAssignments);
       }
 
@@ -418,13 +428,23 @@ const TaskListView: React.FC<TaskListViewProps> = ({
     try {
       const { tasksApi } = await import('../../api/tasks');
 
-      // Optimistic update: update UI immediately
-      const currentIndex = assignments.findIndex((a: any) => a.id === taskId);
-      if (currentIndex < assignments.length - 1 && currentIndex !== -1) {
-        const newAssignments = [...assignments];
-        const temp = newAssignments[currentIndex];
-        newAssignments[currentIndex] = newAssignments[currentIndex + 1];
-        newAssignments[currentIndex + 1] = temp;
+      // Optimistic update: swap sort_order values immediately
+      const sortedByOrder = [...assignments].sort((a: any, b: any) => {
+        const orderA = a.sort_order ?? 999999;
+        const orderB = b.sort_order ?? 999999;
+        return orderA - orderB;
+      });
+
+      const currentIndex = sortedByOrder.findIndex((a: any) => a.id === taskId);
+      if (currentIndex < sortedByOrder.length - 1 && currentIndex !== -1) {
+        const newAssignments = assignments.map((a: any) => {
+          if (a.id === sortedByOrder[currentIndex].id) {
+            return { ...a, sort_order: sortedByOrder[currentIndex + 1].sort_order };
+          } else if (a.id === sortedByOrder[currentIndex + 1].id) {
+            return { ...a, sort_order: sortedByOrder[currentIndex].sort_order };
+          }
+          return a;
+        });
         setAssignments(newAssignments);
       }
 

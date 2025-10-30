@@ -12,7 +12,7 @@ export const StaffDashboard: React.FC = () => {
   const [tasks, setTasks] = useState<TaskAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
-  const [groupBy, setGroupBy] = useState<'event-day' | 'event' | 'date'>('event-day');
+  const [groupBy, setGroupBy] = useState<'standard' | 'event-day' | 'event' | 'date'>('standard');
   const [showSettings, setShowSettings] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [hideCompleted, setHideCompleted] = useState(false);
@@ -357,6 +357,12 @@ export const StaffDashboard: React.FC = () => {
         {viewMode === 'cards' && (
           <>
             <button
+              onClick={() => setGroupBy('standard')}
+              className={groupBy === 'standard' ? styles.activeTab : styles.tab}
+            >
+              Standard
+            </button>
+            <button
               onClick={() => setGroupBy('event-day')}
               className={groupBy === 'event-day' ? styles.activeTab : styles.tab}
             >
@@ -462,6 +468,22 @@ export const StaffDashboard: React.FC = () => {
           onCompletePublic={handleCompletePublic}
           onReload={loadTasks}
         />
+      ) : groupBy === 'standard' ? (
+        <div className={styles.taskList}>
+          {[...filteredTasks].sort((a, b) => {
+            const orderA = a.sort_order ?? 999999;
+            const orderB = b.sort_order ?? 999999;
+            return orderA - orderB;
+          }).map((task) => (
+            <TaskCard
+              key={task.assignment_id || task.id}
+              task={task}
+              onComplete={handleComplete}
+              onCompletePublic={handleCompletePublic}
+              onReminderUpdate={() => loadTasks(false)}
+            />
+          ))}
+        </div>
       ) : groupBy === 'event-day' ? (
         <div>
           {Object.entries(eventDayGroups).map(([groupKey, groupTasks]) => (
@@ -1014,7 +1036,7 @@ const StaffTableView: React.FC<{
         gap: '0.5rem'
       }}>
         <span style={{ fontSize: '0.875rem', color: '#374151', fontWeight: '500' }}>
-          {sortColumn === 'manual' ? '📌 Admin-Sortierung aktiv' : '⚠️ Spalten-Sortierung aktiv'}
+          {sortColumn === 'manual' ? '📌 Standard-Sortierung aktiv' : '⚠️ Spalten-Sortierung aktiv'}
         </span>
         {sortColumn !== 'manual' && (
           <button
@@ -1030,7 +1052,7 @@ const StaffTableView: React.FC<{
               fontWeight: '500'
             }}
           >
-            Zurück zur Admin-Sortierung
+            Zurück zur Standard-Sortierung
           </button>
         )}
       </div>
