@@ -178,8 +178,8 @@ export const TaskTableView: React.FC<Props> = ({
       loadAssignments(false);
     } catch (error: any) {
       console.error('Move up error:', error);
-      // Reload on error to revert optimistic update
-      await loadAssignments(false);
+      // Reload on error to revert optimistic update (non-blocking)
+      loadAssignments(false);
       if (error.response?.status === 400) {
         alert('Aufgabe ist bereits an erster Position');
       } else {
@@ -208,8 +208,8 @@ export const TaskTableView: React.FC<Props> = ({
       loadAssignments(false);
     } catch (error: any) {
       console.error('Move down error:', error);
-      // Reload on error to revert optimistic update
-      await loadAssignments(false);
+      // Reload on error to revert optimistic update (non-blocking)
+      loadAssignments(false);
       if (error.response?.status === 400) {
         alert('Aufgabe ist bereits an letzter Position');
       } else {

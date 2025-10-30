@@ -408,8 +408,8 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       loadAssignments(false);
     } catch (error: any) {
       console.error('Move up error:', error);
-      // Reload on error to revert optimistic update
-      await loadAssignments(false);
+      // Reload on error to revert optimistic update (non-blocking)
+      loadAssignments(false);
       alert(error.response?.data?.error || 'Fehler beim Verschieben der Aufgabe');
     }
   };
@@ -436,8 +436,8 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       loadAssignments(false);
     } catch (error: any) {
       console.error('Move down error:', error);
-      // Reload on error to revert optimistic update
-      await loadAssignments(false);
+      // Reload on error to revert optimistic update (non-blocking)
+      loadAssignments(false);
       alert(error.response?.data?.error || 'Fehler beim Verschieben der Aufgabe');
     }
   };
