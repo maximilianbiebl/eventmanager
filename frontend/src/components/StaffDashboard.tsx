@@ -30,7 +30,7 @@ export const StaffDashboard: React.FC = () => {
 
     // Auto-refresh alle 30 Sekunden für Status-Synchronisation
     const interval = setInterval(() => {
-      loadTasks();
+      loadTasks(false); // Don't show loading indicator on auto-refresh
     }, 30000);
 
     return () => clearInterval(interval);
@@ -103,8 +103,11 @@ export const StaffDashboard: React.FC = () => {
     }
   };
 
-  const loadTasks = async () => {
+  const loadTasks = async (showLoading = true) => {
     try {
+      if (showLoading) {
+        setLoading(true);
+      }
       const data = await tasksApi.getMyTasks();
 
       // Check for overdue tasks and update their status
@@ -140,7 +143,9 @@ export const StaffDashboard: React.FC = () => {
     } catch (error) {
       console.error('Load tasks error:', error);
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   };
 

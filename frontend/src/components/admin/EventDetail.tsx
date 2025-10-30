@@ -37,14 +37,17 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
 
     // Auto-refresh every 30 seconds
     const interval = setInterval(() => {
-      loadData();
+      loadData(false); // Don't show loading indicator on auto-refresh
     }, 30000);
 
     return () => clearInterval(interval);
   }, [eventId]);
 
-  const loadData = async () => {
+  const loadData = async (showLoading = true) => {
     try {
+      if (showLoading) {
+        setLoading(true);
+      }
       const [eventData, tasksData, programData, usersData] = await Promise.all([
         eventsApi.getById(eventId),
         tasksApi.getByEvent(eventId),
@@ -56,7 +59,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
       setTasks(tasksData);
       setProgram(programData);
       setUsers(usersData);
-      if (eventData.instances.length > 0) {
+      if (eventData.instances.length > 0 && !selectedInstance) {
         setSelectedInstance(eventData.instances[0].id);
       }
       // Trigger refresh of TaskTableView
@@ -64,7 +67,9 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
     } catch (error) {
       console.error('Load event detail error:', error);
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   };
 
@@ -282,7 +287,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
 
       // Auto-refresh every 30 seconds
       const interval = setInterval(() => {
-        loadAssignments();
+        loadAssignments(false); // Don't show loading indicator on auto-refresh
       }, 30000);
 
       return () => clearInterval(interval);
@@ -323,11 +328,13 @@ const TaskListView: React.FC<TaskListViewProps> = ({
     }
   };
 
-  const loadAssignments = async () => {
+  const loadAssignments = async (showLoading = true) => {
     if (!selectedInstance) return;
 
     try {
-      setLoading(true);
+      if (showLoading) {
+        setLoading(true);
+      }
       const client = (await import('../../api/client')).default;
       const response = await client.get(`/tasks/instance/${selectedInstance}/assignments`);
       const data = response.data;
@@ -346,7 +353,9 @@ const TaskListView: React.FC<TaskListViewProps> = ({
     } catch (error) {
       console.error('Load assignments error:', error);
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   };
 
