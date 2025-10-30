@@ -16,12 +16,20 @@ export const AdminDashboard: React.FC = () => {
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0); // Zum Zurücksetzen der Listen
+  const [previousEventId, setPreviousEventId] = useState<number | null>(null);
   const { user, logout } = useAuth();
 
   const handleTabClick = (tab: Tab) => {
+    // Wenn zu Mitarbeiter gewechselt wird, Event-ID merken (falls vorhanden)
+    if (tab === 'users') {
+      const savedEventId = localStorage.getItem('adminSelectedEventId');
+      setPreviousEventId(savedEventId ? parseInt(savedEventId, 10) : null);
+    }
+
     // Wenn Events Tab angeklickt wird, IMMER EventDetail zurücksetzen
     if (tab === 'events') {
       localStorage.removeItem('adminSelectedEventId');
+      setPreviousEventId(null);
     }
 
     if (tab === activeTab) {
@@ -31,6 +39,13 @@ export const AdminDashboard: React.FC = () => {
     setActiveTab(tab);
     // Save to localStorage
     localStorage.setItem('adminActiveTab', tab);
+  };
+
+  const handleBackToEvent = (eventId: number) => {
+    localStorage.setItem('adminSelectedEventId', eventId.toString());
+    setActiveTab('events');
+    localStorage.setItem('adminActiveTab', 'events');
+    setPreviousEventId(null);
   };
 
   return (
@@ -125,7 +140,14 @@ export const AdminDashboard: React.FC = () => {
 
       <div style={styles.content}>
         {activeTab === 'events' && <EventsList key={`events-${refreshKey}`} />}
-        {activeTab === 'users' && <UsersList key={`users-${refreshKey}`} onBackToEvents={() => handleTabClick('events')} />}
+        {activeTab === 'users' && (
+          <UsersList
+            key={`users-${refreshKey}`}
+            previousEventId={previousEventId}
+            onBackToEvents={() => handleTabClick('events')}
+            onBackToEvent={handleBackToEvent}
+          />
+        )}
       </div>
 
       {showChangePassword && <ChangePasswordDialog onClose={() => setShowChangePassword(false)} />}

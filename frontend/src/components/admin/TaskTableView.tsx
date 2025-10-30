@@ -454,9 +454,9 @@ export const TaskTableView: React.FC<Props> = ({
                     </div>
                     {task.description && (
                       <div style={styles.taskDescription} className={responsiveStyles.taskDescription}>
-                        {task.description.length > 50 ? (
+                        {task.description.length > 30 ? (
                           <>
-                            {task.description.substring(0, 50)}...
+                            {task.description.substring(0, 30)}...
                             <button
                               onClick={() => setDescriptionModal({ title: task.title, description: task.description! })}
                               style={{

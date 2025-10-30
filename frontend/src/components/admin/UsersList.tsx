@@ -4,10 +4,12 @@ import { authApi } from '../../api/auth';
 import responsiveStyles from './UsersList.module.css';
 
 interface Props {
+  previousEventId: number | null;
   onBackToEvents: () => void;
+  onBackToEvent: (eventId: number) => void;
 }
 
-export const UsersList: React.FC<Props> = ({ onBackToEvents }) => {
+export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvents, onBackToEvent }) => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -85,11 +87,13 @@ export const UsersList: React.FC<Props> = ({ onBackToEvents }) => {
 
   return (
     <div>
-      <div style={styles.topBar}>
-        <button onClick={onBackToEvents} style={styles.backButton}>
-          ← Zurück zu Veranstaltungen
-        </button>
-      </div>
+      {previousEventId && (
+        <div style={styles.topBar}>
+          <button onClick={() => onBackToEvent(previousEventId)} style={styles.backButton}>
+            ← Zurück zur Veranstaltung
+          </button>
+        </div>
+      )}
 
       <div style={styles.header} className={responsiveStyles.header}>
         <h2 style={styles.title}>Mitarbeiter</h2>
