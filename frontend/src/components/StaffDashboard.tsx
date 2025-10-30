@@ -469,22 +469,20 @@ export const StaffDashboard: React.FC = () => {
           onReload={loadTasks}
         />
       ) : groupBy === 'standard' ? (
-        <div>
-          <div className={styles.taskList}>
-            {[...filteredTasks].sort((a, b) => {
-              const orderA = a.sort_order ?? 999999;
-              const orderB = b.sort_order ?? 999999;
-              return orderA - orderB;
-            }).map((task) => (
-              <TaskCard
-                key={task.assignment_id || task.id}
-                task={task}
-                onComplete={handleComplete}
-                onCompletePublic={handleCompletePublic}
-                onReminderUpdate={() => loadTasks(false)}
-              />
-            ))}
-          </div>
+        <div className={styles.taskList}>
+          {[...filteredTasks].sort((a, b) => {
+            const orderA = a.sort_order ?? 999999;
+            const orderB = b.sort_order ?? 999999;
+            return orderA - orderB;
+          }).map((task) => (
+            <TaskCard
+              key={task.assignment_id || task.id}
+              task={task}
+              onComplete={handleComplete}
+              onCompletePublic={handleCompletePublic}
+              onReminderUpdate={() => loadTasks(false)}
+            />
+          ))}
         </div>
       ) : groupBy === 'event-day' ? (
         <div>
