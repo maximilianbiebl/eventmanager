@@ -45,10 +45,17 @@
     gap: 0.25rem !important;
   }
 
+  .actions > div {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 0.25rem !important;
+  }
+
   .actions button {
     font-size: 0.7rem !important;
     padding: 0.25rem 0.5rem !important;
     white-space: nowrap;
+    flex: 1 !important;
   }
 }
 

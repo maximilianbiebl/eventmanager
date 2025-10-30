@@ -563,14 +563,15 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                     <button
                       onClick={toggleDescription}
                       style={{
-                        marginLeft: '0.375rem',
-                        padding: '0.125rem 0.375rem',
+                        marginLeft: '0.5rem',
+                        padding: '0.25rem 0.625rem',
                         fontSize: '0.7rem',
-                        backgroundColor: 'transparent',
-                        border: '1px solid #d1d5db',
-                        borderRadius: '3px',
+                        backgroundColor: '#e0e7ff',
+                        border: 'none',
+                        borderRadius: '9999px',
                         cursor: 'pointer',
-                        color: '#6b7280',
+                        color: '#3730a3',
+                        fontWeight: '500',
                         verticalAlign: 'baseline'
                       }}
                     >
@@ -584,7 +585,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                 <div className={styles.taskTimesGrid}>
                   {task.scheduled_time && (
                     <div className={styles.timeItem}>
-                      <span className={styles.timeLabel}>📅 Geplant:</span>
+                      <span className={styles.timeLabel}>⏰ Geplant:</span>
                       <span className={styles.timeValue}>{task.scheduled_time} Uhr</span>
                     </div>
                   )}

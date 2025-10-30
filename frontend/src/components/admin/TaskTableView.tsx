@@ -418,13 +418,13 @@ export const TaskTableView: React.FC<Props> = ({
                               onClick={() => setDescriptionModal({ title: task.title, description: task.description! })}
                               style={{
                                 marginLeft: '0.5rem',
-                                padding: '0.125rem 0.5rem',
+                                padding: '0.25rem 0.625rem',
                                 fontSize: '0.7rem',
-                                backgroundColor: '#f3f4f6',
-                                border: '1px solid #d1d5db',
-                                borderRadius: '8px',
+                                backgroundColor: '#e0e7ff',
+                                border: 'none',
+                                borderRadius: '9999px',
                                 cursor: 'pointer',
-                                color: '#6b7280',
+                                color: '#3730a3',
                                 fontWeight: '500',
                                 display: 'inline-block',
                                 verticalAlign: 'baseline'
@@ -719,12 +719,12 @@ const styles: { [key: string]: React.CSSProperties } = {
   userBadge: {
     display: 'inline-flex',
     alignItems: 'center',
-    gap: '0.375rem',
-    padding: '0.375rem 0.75rem',
+    gap: '0.25rem',
+    padding: '0.2rem 0.625rem',
     backgroundColor: '#e0e7ff',
     color: '#3730a3',
     borderRadius: '9999px',
-    fontSize: '0.8125rem',
+    fontSize: '0.75rem',
     fontWeight: '500',
   },
   completedIcon: {

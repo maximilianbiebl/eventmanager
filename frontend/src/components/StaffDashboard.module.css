@@ -381,14 +381,14 @@
 }
 
 .moreButton {
-  margin-left: 0.5rem;
-  padding: 0.125rem 0.5rem;
+  margin-left: 0;
+  padding: 0.25rem 0.625rem;
   font-size: 0.7rem;
-  background-color: #f3f4f6;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
+  background-color: #e0e7ff;
+  border: none;
+  border-radius: 9999px;
   cursor: pointer;
-  color: #6b7280;
+  color: #3730a3;
   font-weight: 500;
   display: inline-block;
   vertical-align: baseline;

@@ -578,7 +578,7 @@ const TaskCard: React.FC<{
         {/* Zeitinformationen */}
         <div style={{ marginBottom: '12px', fontSize: '14px', color: '#6b7280' }}>
           {task.scheduled_time && (
-            <div>📅 Geplante Zeit: {task.scheduled_time} Uhr</div>
+            <div>⏰ Geplante Zeit: {task.scheduled_time} Uhr</div>
           )}
           {task.start_time && (
             <div>🚀 Startzeit: {task.start_time} Uhr</div>
@@ -589,30 +589,24 @@ const TaskCard: React.FC<{
         </div>
 
         {task.description && (
-          <div className={styles.taskDescription}>
-            {!showFullDescription && task.description.length > 150 ? (
-              <>
-                {task.description.substring(0, 150)}...
-                <button
-                  onClick={() => setShowFullDescription(true)}
-                  style={{
-                    marginLeft: '0.5rem',
-                    padding: '0.25rem 0.75rem',
-                    fontSize: '0.75rem',
-                    backgroundColor: 'transparent',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    color: '#6b7280'
-                  }}
-                >
-                  mehr
-                </button>
-              </>
-            ) : (
-              <>{task.description}</>
+          <>
+            <div className={styles.taskDescription}>
+              {!showFullDescription && task.description.length > 150 ? (
+                <>{task.description.substring(0, 150)}...</>
+              ) : (
+                <>{task.description}</>
+              )}
+            </div>
+            {task.description.length > 150 && (
+              <button
+                onClick={() => setShowFullDescription(!showFullDescription)}
+                className={styles.moreButton}
+                style={{ marginTop: '0.25rem', display: 'inline-block' }}
+              >
+                {showFullDescription ? 'weniger' : 'mehr'}
+              </button>
             )}
-          </div>
+          </>
         )}
 
         <div className={styles.taskMeta} style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
@@ -681,13 +675,14 @@ const TaskCard: React.FC<{
                       style={{
                         padding: '8px 12px',
                         cursor: 'pointer',
-                        fontSize: '14px'
+                        fontSize: '14px',
+                        whiteSpace: 'nowrap'
                       }}
                       onClick={() => handleStatusChange('not_started')}
                       onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
                       onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
                     >
-                      ↩ Zurück zu "Nicht gestartet"
+                      ↩ Nicht gestartet
                     </div>
                   )}
                 </div>
@@ -813,26 +808,6 @@ const TaskCard: React.FC<{
         </>
       ) : (
         <div className={styles.completedBadge}>Erledigt</div>
-      )}
-
-      {/* "weniger" button when description is expanded */}
-      {showFullDescription && task.description && task.description.length > 150 && (
-        <button
-          onClick={() => setShowFullDescription(false)}
-          style={{
-            width: '100%',
-            padding: '0.375rem',
-            marginTop: '0.5rem',
-            fontSize: '0.75rem',
-            backgroundColor: 'transparent',
-            border: '1px solid #d1d5db',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            color: '#6b7280'
-          }}
-        >
-          weniger
-        </button>
       )}
     </div>
   );
@@ -1042,27 +1017,26 @@ const StaffTableView: React.FC<{
                     {task.is_public && <span className={styles.publicBadge}>Öffentlich</span>}
                   </div>
                   {task.description && (
-                    <div className={styles.taskDescCell}>
-                      {task.description.length > 40 ? (
-                        <>
-                          {task.description.substring(0, 40)}...
-                          <button
-                            onClick={() => setDescriptionModal({ title: task.title, description: task.description! })}
-                            className={styles.moreButton}
-                          >
-                            mehr
-                          </button>
-</>
-                      ) : (
-                        task.description
+                    <>
+                      <div className={styles.taskDescCell}>
+                        {task.description.length > 25 ? `${task.description.substring(0, 25)}...` : task.description}
+                      </div>
+                      {task.description.length > 25 && (
+                        <button
+                          onClick={() => setDescriptionModal({ title: task.title, description: task.description! })}
+                          className={styles.moreButton}
+                          style={{ marginTop: '0.25rem', display: 'block' }}
+                        >
+                          mehr
+                        </button>
                       )}
-                    </div>
+                    </>
                   )}
                   <div className={styles.showOnMobile}>
                     <div className={styles.mobileMeta}>
-                      {showEventColumn && <div>📅 {task.event_name}</div>}
-                      <div>Tag {task.day_number} • {getEventDate(task)}</div>
-                      {task.scheduled_time && <div>📅 {task.scheduled_time} Uhr</div>}
+                      {showEventColumn && <div>🎪 {task.event_name}</div>}
+                      <div>📅 Tag {task.day_number} • {getEventDate(task)}</div>
+                      {task.scheduled_time && <div>⏰ {task.scheduled_time} Uhr</div>}
                       {task.start_time && <div>🚀 {task.start_time} Uhr</div>}
                       {task.end_time && <div>🏁 {task.end_time} Uhr</div>}
                     </div>
@@ -1098,7 +1072,7 @@ const StaffTableView: React.FC<{
                                 className={styles.statusOption}
                                 onClick={() => handleStatusChange(task, 'not_started')}
                               >
-                                ↩ Zurück zu "Nicht gestartet"
+                                ↩ Nicht gestartet
                               </div>
                             )}
                           </div>

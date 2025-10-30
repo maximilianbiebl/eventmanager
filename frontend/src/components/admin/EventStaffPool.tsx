@@ -455,13 +455,13 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    gap: '0.375rem',
+    gap: '0.125rem',
   },
   staffEllipse: {
     display: 'flex',
     alignItems: 'center',
-    gap: '0.5rem',
-    padding: '0.375rem 0.75rem',
+    gap: '0.375rem',
+    padding: '0.2rem 0.625rem',
     backgroundColor: '#e0e7ff',
     color: '#3730a3',
     borderRadius: '9999px',
@@ -475,7 +475,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   staffName: {
     fontWeight: '500',
     color: '#3730a3',
-    fontSize: '0.875rem',
+    fontSize: '0.75rem',
   },
   staffMeta: {
     display: 'flex',
