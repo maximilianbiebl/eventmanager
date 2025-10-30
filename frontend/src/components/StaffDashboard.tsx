@@ -474,7 +474,7 @@ export const StaffDashboard: React.FC = () => {
                     task={task}
                     onComplete={handleComplete}
                     onCompletePublic={handleCompletePublic}
-                    onReminderUpdate={loadTasks}
+                    onReminderUpdate={() => loadTasks(false)}
                   />
                 ))}
               </div>
@@ -493,7 +493,7 @@ export const StaffDashboard: React.FC = () => {
                     task={task}
                     onComplete={handleComplete}
                     onCompletePublic={handleCompletePublic}
-                    onReminderUpdate={loadTasks}
+                    onReminderUpdate={() => loadTasks(false)}
                   />
                 ))}
               </div>
@@ -512,7 +512,7 @@ export const StaffDashboard: React.FC = () => {
                     task={task}
                     onComplete={handleComplete}
                     onCompletePublic={handleCompletePublic}
-                    onReminderUpdate={loadTasks}
+                    onReminderUpdate={() => loadTasks(false)}
                   />
                 ))}
               </div>
@@ -612,8 +612,19 @@ const TaskCard: React.FC<{
   // Check if task is completed (either assignment-specific or global status)
   const isCompleted = task.status === 'completed';
 
+  // Get border color based on status
+  const getBorderColor = () => {
+    if (task.status === 'overdue') return '#ef4444'; // red
+    if (task.status === 'in_progress') return '#3b82f6'; // blue
+    if (task.status === 'completed') return '#10b981'; // green
+    return '#4f46e5'; // default purple
+  };
+
   return (
-    <div className={isCompleted ? styles.taskCardCompleted : styles.taskCard}>
+    <div
+      className={isCompleted ? styles.taskCardCompleted : styles.taskCard}
+      style={{ borderLeftColor: getBorderColor() }}
+    >
       <div className={styles.taskContent}>
         <div className={styles.taskHeader}>
           <h3 className={styles.taskTitle}>{task.title}</h3>

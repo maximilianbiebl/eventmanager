@@ -222,7 +222,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
           onSuccess={() => {
             setShowTaskForm(false);
             setEditTask(null);
-            loadData();
+            loadData(false); // Update without loading indicator
           }}
         />
       )}
@@ -239,7 +239,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
           onSuccess={() => {
             setShowAssignModal(false);
             setAssignTaskId(null);
-            loadData();
+            loadData(false); // Update without loading indicator
           }}
         />
       )}
@@ -379,7 +379,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       await client.put(`/tasks/${taskId}`, { status: newStatus });
       setSuccessMessage(`Status wurde geändert`);
       setTimeout(() => setSuccessMessage(''), 3000);
-      await loadAssignments();
+      await loadAssignments(false); // Update without loading indicator
     } catch (error) {
       console.error('Change status error:', error);
       alert('Fehler beim Ändern des Status');
@@ -392,7 +392,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       await tasksApi.moveUp(taskId);
       setSuccessMessage('Aufgabe wurde nach oben verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
-      await loadAssignments();
+      await loadAssignments(false); // Update without loading indicator
     } catch (error: any) {
       console.error('Move up error:', error);
       alert(error.response?.data?.error || 'Fehler beim Verschieben der Aufgabe');
@@ -405,7 +405,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       await tasksApi.moveDown(taskId);
       setSuccessMessage('Aufgabe wurde nach unten verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
-      await loadAssignments();
+      await loadAssignments(false); // Update without loading indicator
     } catch (error: any) {
       console.error('Move down error:', error);
       alert(error.response?.data?.error || 'Fehler beim Verschieben der Aufgabe');
