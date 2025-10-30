@@ -878,7 +878,7 @@ const StaffTableView: React.FC<{
   onReload: () => void;
 }> = ({ tasks, allTasks, selectedDay, onComplete, onCompletePublic, onReload }) => {
   const [showStatusDropdown, setShowStatusDropdown] = React.useState<string | null>(null);
-  const [sortColumn, setSortColumn] = React.useState<string>('day');
+  const [sortColumn, setSortColumn] = React.useState<string>('manual');
   const [sortDirection, setSortDirection] = React.useState<'asc' | 'desc'>('asc');
   const [descriptionModal, setDescriptionModal] = React.useState<{ title: string; description: string } | null>(null);
 
@@ -905,6 +905,12 @@ const StaffTableView: React.FC<{
     let compareResult = 0;
 
     switch (sortColumn) {
+      case 'manual':
+        // Sort by admin's manual sort order
+        const orderA = a.sort_order ?? 999999;
+        const orderB = b.sort_order ?? 999999;
+        compareResult = orderA - orderB;
+        break;
       case 'event':
         compareResult = a.event_name.localeCompare(b.event_name);
         break;
@@ -995,6 +1001,39 @@ const StaffTableView: React.FC<{
 
   return (
     <div className={styles.tableContainer}>
+      {/* Sort mode indicator */}
+      <div style={{
+        padding: '0.75rem',
+        marginBottom: '1rem',
+        backgroundColor: '#f3f4f6',
+        borderRadius: '4px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '0.5rem'
+      }}>
+        <span style={{ fontSize: '0.875rem', color: '#374151', fontWeight: '500' }}>
+          {sortColumn === 'manual' ? '📌 Admin-Sortierung aktiv' : '⚠️ Spalten-Sortierung aktiv'}
+        </span>
+        {sortColumn !== 'manual' && (
+          <button
+            onClick={() => setSortColumn('manual')}
+            style={{
+              padding: '0.25rem 0.75rem',
+              fontSize: '0.75rem',
+              backgroundColor: '#4f46e5',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: '500'
+            }}
+          >
+            Zurück zur Admin-Sortierung
+          </button>
+        )}
+      </div>
       <table className={styles.taskTable}>
         <thead>
           <tr>
@@ -1214,12 +1253,12 @@ function groupTasksByEventDay(tasks: TaskAssignment[]) {
       return taskA.day_number - taskB.day_number;
     })
     .reduce((acc, key) => {
-      // Sortiere Tasks innerhalb jeder Gruppe nach frühester Zeit
+      // Sortiere Tasks innerhalb jeder Gruppe nach Admin-Sortierung (sort_order)
       acc[key] = grouped[key].sort((a, b) => {
-        // Use start_time if available, otherwise scheduled_time
-        const timeA = a.start_time || a.scheduled_time || '99:99';
-        const timeB = b.start_time || b.scheduled_time || '99:99';
-        return timeA.localeCompare(timeB);
+        // Prioritize sort_order (admin's manual sorting)
+        const orderA = a.sort_order ?? 999999;
+        const orderB = b.sort_order ?? 999999;
+        return orderA - orderB;
       });
       return acc;
     }, {} as { [key: string]: TaskAssignment[] });
@@ -1260,19 +1299,11 @@ function groupTasksByDay(tasks: TaskAssignment[]) {
       return dateA.getTime() - dateB.getTime();
     })
     .reduce((acc, key) => {
-      // Sortiere nach Startzeit (ohne Startzeit zuerst)
+      // Sortiere nach Admin-Sortierung (sort_order)
       acc[key] = grouped[key].sort((a, b) => {
-        const hasStartA = !!a.start_time;
-        const hasStartB = !!b.start_time;
-
-        if (!hasStartA && !hasStartB) {
-          const timeA = a.scheduled_time || '23:59';
-          const timeB = b.scheduled_time || '23:59';
-          return timeA.localeCompare(timeB);
-        }
-        if (!hasStartA) return -1;
-        if (!hasStartB) return 1;
-        return a.start_time!.localeCompare(b.start_time!);
+        const orderA = a.sort_order ?? 999999;
+        const orderB = b.sort_order ?? 999999;
+        return orderA - orderB;
       });
       return acc;
     }, {} as { [key: string]: TaskAssignment[] });
@@ -1289,17 +1320,17 @@ function groupTasksByEvent(tasks: TaskAssignment[]) {
     grouped[key].push(task);
   });
 
-  // Sortiere Tasks innerhalb jeder Gruppe nach Tag und frühester Zeit
+  // Sortiere Tasks innerhalb jeder Gruppe nach Tag und Admin-Sortierung
   Object.keys(grouped).forEach(key => {
     grouped[key].sort((a, b) => {
       // Erst nach Tag sortieren
       const dayCompare = a.day_number - b.day_number;
       if (dayCompare !== 0) return dayCompare;
 
-      // Dann nach frühester Zeit
-      const timeA = a.start_time || a.scheduled_time || '99:99';
-      const timeB = b.start_time || b.scheduled_time || '99:99';
-      return timeA.localeCompare(timeB);
+      // Dann nach Admin-Sortierung (sort_order)
+      const orderA = a.sort_order ?? 999999;
+      const orderB = b.sort_order ?? 999999;
+      return orderA - orderB;
     });
   });
 

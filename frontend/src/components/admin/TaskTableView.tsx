@@ -160,12 +160,26 @@ export const TaskTableView: React.FC<Props> = ({
 
   const handleMoveUp = async (taskId: number) => {
     try {
+      // Optimistic update: update UI immediately
+      const currentIndex = assignments.findIndex(a => a.id === taskId);
+      if (currentIndex > 0) {
+        const newAssignments = [...assignments];
+        const temp = newAssignments[currentIndex];
+        newAssignments[currentIndex] = newAssignments[currentIndex - 1];
+        newAssignments[currentIndex - 1] = temp;
+        setAssignments(newAssignments);
+      }
+
       await tasksApi.moveUp(taskId);
       setSuccessMessage('Aufgabe wurde nach oben verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
-      await loadAssignments(false); // Reload without loading spinner
+
+      // Reload in background to sync with server
+      loadAssignments(false);
     } catch (error: any) {
       console.error('Move up error:', error);
+      // Reload on error to revert optimistic update
+      await loadAssignments(false);
       if (error.response?.status === 400) {
         alert('Aufgabe ist bereits an erster Position');
       } else {
@@ -176,12 +190,26 @@ export const TaskTableView: React.FC<Props> = ({
 
   const handleMoveDown = async (taskId: number) => {
     try {
+      // Optimistic update: update UI immediately
+      const currentIndex = assignments.findIndex(a => a.id === taskId);
+      if (currentIndex < assignments.length - 1 && currentIndex !== -1) {
+        const newAssignments = [...assignments];
+        const temp = newAssignments[currentIndex];
+        newAssignments[currentIndex] = newAssignments[currentIndex + 1];
+        newAssignments[currentIndex + 1] = temp;
+        setAssignments(newAssignments);
+      }
+
       await tasksApi.moveDown(taskId);
       setSuccessMessage('Aufgabe wurde nach unten verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
-      await loadAssignments(false); // Reload without loading spinner
+
+      // Reload in background to sync with server
+      loadAssignments(false);
     } catch (error: any) {
       console.error('Move down error:', error);
+      // Reload on error to revert optimistic update
+      await loadAssignments(false);
       if (error.response?.status === 400) {
         alert('Aufgabe ist bereits an letzter Position');
       } else {
