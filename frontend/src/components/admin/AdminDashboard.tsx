@@ -19,13 +19,14 @@ export const AdminDashboard: React.FC = () => {
   const { user, logout } = useAuth();
 
   const handleTabClick = (tab: Tab) => {
+    // Wenn Events Tab angeklickt wird, IMMER EventDetail zurücksetzen
+    if (tab === 'events') {
+      localStorage.removeItem('adminSelectedEventId');
+    }
+
     if (tab === activeTab) {
       // Wenn bereits aktiver Tab geklickt wird, Liste zurücksetzen
       setRefreshKey(prev => prev + 1);
-      // Wenn Events Tab: auch EventDetail zurücksetzen
-      if (tab === 'events') {
-        localStorage.removeItem('adminSelectedEventId');
-      }
     }
     setActiveTab(tab);
     // Save to localStorage
@@ -124,7 +125,7 @@ export const AdminDashboard: React.FC = () => {
 
       <div style={styles.content}>
         {activeTab === 'events' && <EventsList key={`events-${refreshKey}`} />}
-        {activeTab === 'users' && <UsersList key={`users-${refreshKey}`} />}
+        {activeTab === 'users' && <UsersList key={`users-${refreshKey}`} onBackToEvents={() => handleTabClick('events')} />}
       </div>
 
       {showChangePassword && <ChangePasswordDialog onClose={() => setShowChangePassword(false)} />}

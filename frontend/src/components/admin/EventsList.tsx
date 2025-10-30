@@ -27,14 +27,19 @@ export const EventsList: React.FC = () => {
     }
   }, [selectedEventId]);
 
-  const loadEvents = async () => {
+  const loadEvents = async (showLoading = true) => {
     try {
+      if (showLoading) {
+        setLoading(true);
+      }
       const data = await eventsApi.getAll();
       setEvents(data);
     } catch (error) {
       console.error('Load events error:', error);
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   };
 
@@ -43,7 +48,7 @@ export const EventsList: React.FC = () => {
 
     try {
       await eventsApi.delete(id);
-      await loadEvents();
+      await loadEvents(false); // Reload without showing loading indicator
     } catch (error) {
       console.error('Delete event error:', error);
       alert('Fehler beim Löschen');
@@ -97,7 +102,7 @@ export const EventsList: React.FC = () => {
           onClose={() => setShowCreateModal(false)}
           onSuccess={() => {
             setShowCreateModal(false);
-            loadEvents();
+            loadEvents(false); // Reload without showing loading indicator
           }}
         />
       )}

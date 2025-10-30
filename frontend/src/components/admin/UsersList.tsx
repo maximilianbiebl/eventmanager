@@ -3,7 +3,11 @@ import { usersApi, User } from '../../api/users';
 import { authApi } from '../../api/auth';
 import responsiveStyles from './UsersList.module.css';
 
-export const UsersList: React.FC = () => {
+interface Props {
+  onBackToEvents: () => void;
+}
+
+export const UsersList: React.FC<Props> = ({ onBackToEvents }) => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -11,14 +15,19 @@ export const UsersList: React.FC = () => {
     loadUsers();
   }, []);
 
-  const loadUsers = async () => {
+  const loadUsers = async (showLoading = true) => {
     try {
+      if (showLoading) {
+        setLoading(true);
+      }
       const data = await usersApi.getAll();
       setUsers(data);
     } catch (error) {
       console.error('Load users error:', error);
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   };
 
@@ -33,7 +42,7 @@ export const UsersList: React.FC = () => {
 
     try {
       await authApi.register({ name, password, role });
-      await loadUsers();
+      await loadUsers(false); // Reload without showing loading indicator
     } catch (error: any) {
       console.error('Create user error:', error);
       alert(error.response?.data?.error || 'Fehler beim Anlegen');
@@ -45,7 +54,7 @@ export const UsersList: React.FC = () => {
 
     try {
       await usersApi.delete(id);
-      await loadUsers();
+      await loadUsers(false); // Reload without showing loading indicator
     } catch (error) {
       console.error('Delete user error:', error);
       alert('Fehler beim Löschen');
@@ -76,6 +85,12 @@ export const UsersList: React.FC = () => {
 
   return (
     <div>
+      <div style={styles.topBar}>
+        <button onClick={onBackToEvents} style={styles.backButton}>
+          ← Zurück zu Veranstaltungen
+        </button>
+      </div>
+
       <div style={styles.header} className={responsiveStyles.header}>
         <h2 style={styles.title}>Mitarbeiter</h2>
         <button onClick={handleCreate} style={styles.createButton} className={responsiveStyles.createButton}>
@@ -121,6 +136,18 @@ export const UsersList: React.FC = () => {
 };
 
 const styles: { [key: string]: React.CSSProperties } = {
+  topBar: {
+    marginBottom: '1rem',
+  },
+  backButton: {
+    padding: '0.5rem 1rem',
+    backgroundColor: '#6b7280',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
+  },
   header: {
     display: 'flex',
     justifyContent: 'space-between',
