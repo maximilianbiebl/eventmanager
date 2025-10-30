@@ -151,7 +151,7 @@ export const TaskTableView: React.FC<Props> = ({
 
     try {
       await client.delete(`/tasks/assignment/${assignmentId}`);
-      await loadAssignments(); // Reload to show updated assignments
+      await loadAssignments(false); // Reload without loading indicator
     } catch (error) {
       console.error('Unassign error:', error);
       alert('Fehler beim Entfernen der Zuweisung');
@@ -285,7 +285,7 @@ export const TaskTableView: React.FC<Props> = ({
       await client.put(`/tasks/${taskId}`, { status: newStatus });
       setSuccessMessage(`Status wurde auf "${STATUS_LABELS[newStatus]}" geändert`);
       setTimeout(() => setSuccessMessage(''), 3000);
-      await loadAssignments();
+      await loadAssignments(false); // Reload without loading indicator
     } catch (error) {
       console.error('Change status error:', error);
       setError('Fehler beim Ändern des Status');
