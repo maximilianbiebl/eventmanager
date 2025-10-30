@@ -460,8 +460,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   staffEllipse: {
     display: 'flex',
     alignItems: 'center',
-    gap: '0.375rem',
-    padding: '0.2rem 0.625rem',
+    gap: '0.25rem',
+    padding: '0.2rem 0.5rem',
     backgroundColor: '#e0e7ff',
     color: '#3730a3',
     borderRadius: '9999px',

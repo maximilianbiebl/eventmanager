@@ -507,7 +507,11 @@ const TaskListView: React.FC<TaskListViewProps> = ({
         };
 
         return (
-          <div key={task.id} className={styles.taskItemExtended}>
+          <div
+            key={task.id}
+            className={styles.taskItemExtended}
+            style={{ borderLeft: `4px solid ${getStatusColor(task.status)}` }}
+          >
             <div className={styles.taskMainInfo}>
               <div className={styles.taskHeader}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', flexDirection: 'column', gap: '0.5rem' }}>
@@ -564,7 +568,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                       onClick={toggleDescription}
                       style={{
                         marginLeft: '0.5rem',
-                        padding: '0.25rem 0.625rem',
+                        padding: '0.25rem 0.5rem',
                         fontSize: '0.7rem',
                         backgroundColor: '#e0e7ff',
                         border: 'none',
@@ -614,12 +618,6 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                         </span>
                       ))}
                     </div>
-                  </div>
-                )}
-
-                {task.is_public && (
-                  <div className={styles.publicIndicator}>
-                    🌐 Öffentliche Aufgabe
                   </div>
                 )}
               </div>

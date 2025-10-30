@@ -45,13 +45,13 @@
     gap: 0.25rem !important;
   }
 
-  .actions > div {
+  .buttonGroup {
     display: flex !important;
     flex-direction: row !important;
     gap: 0.25rem !important;
   }
 
-  .actions button {
+  .buttonGroup button {
     font-size: 0.7rem !important;
     padding: 0.25rem 0.5rem !important;
     white-space: nowrap;
@@ -170,17 +170,25 @@
     align-items: stretch !important;
   }
 
-  .actions > div {
+  .buttonGroup {
     display: flex !important;
     flex-direction: column !important;
     gap: 0.25rem !important;
+    width: 100% !important;
   }
 
-  .actions button {
+  .buttonGroup button {
     font-size: 0.65rem !important;
     padding: 0.5rem 0.375rem !important;
     white-space: nowrap;
     width: 100% !important;
+  }
+
+  .moveButtonGroup {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 0.25rem !important;
+    justify-content: center !important;
   }
 
   .moveButton {

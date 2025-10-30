@@ -418,7 +418,7 @@ export const TaskTableView: React.FC<Props> = ({
                               onClick={() => setDescriptionModal({ title: task.title, description: task.description! })}
                               style={{
                                 marginLeft: '0.5rem',
-                                padding: '0.25rem 0.625rem',
+                                padding: '0.25rem 0.5rem',
                                 fontSize: '0.7rem',
                                 backgroundColor: '#e0e7ff',
                                 border: 'none',
@@ -486,7 +486,7 @@ export const TaskTableView: React.FC<Props> = ({
                   </td>
                   <td style={styles.td}>
                     <div style={styles.actions} className={responsiveStyles.actions}>
-                      <div>
+                      <div className={responsiveStyles.buttonGroup}>
                         <button
                           onClick={() => onAssignTask(task.id)}
                           style={styles.assignButton}
@@ -502,7 +502,7 @@ export const TaskTableView: React.FC<Props> = ({
                           Bearbeiten
                         </button>
                       </div>
-                      <div style={{display: 'flex', gap: '0.25rem', justifyContent: 'center'}}>
+                      <div style={{display: 'flex', gap: '0.25rem', justifyContent: 'center'}} className={responsiveStyles.moveButtonGroup}>
                         <button
                           onClick={() => handleMoveUp(task.id)}
                           style={styles.moveButton}
@@ -720,7 +720,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'inline-flex',
     alignItems: 'center',
     gap: '0.25rem',
-    padding: '0.2rem 0.625rem',
+    padding: '0.2rem 0.5rem',
     backgroundColor: '#e0e7ff',
     color: '#3730a3',
     borderRadius: '9999px',

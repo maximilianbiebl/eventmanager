@@ -22,6 +22,10 @@ export const AdminDashboard: React.FC = () => {
     if (tab === activeTab) {
       // Wenn bereits aktiver Tab geklickt wird, Liste zurücksetzen
       setRefreshKey(prev => prev + 1);
+      // Wenn Events Tab: auch EventDetail zurücksetzen
+      if (tab === 'events') {
+        localStorage.removeItem('adminSelectedEventId');
+      }
     }
     setActiveTab(tab);
     // Save to localStorage
