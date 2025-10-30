@@ -878,6 +878,8 @@ const StaffTableView: React.FC<{
   onReload: () => void;
 }> = ({ tasks, allTasks, selectedDay, onComplete, onCompletePublic, onReload }) => {
   const [showStatusDropdown, setShowStatusDropdown] = React.useState<string | null>(null);
+  const [sortColumn, setSortColumn] = React.useState<string>('day');
+  const [sortDirection, setSortDirection] = React.useState<'asc' | 'desc'>('asc');
   const [descriptionModal, setDescriptionModal] = React.useState<{ title: string; description: string } | null>(null);
 
   // Filter tasks by selected day
@@ -889,11 +891,59 @@ const StaffTableView: React.FC<{
   const uniqueEventsInAll = new Set(allTasks.map(t => `${t.event_name}#${t.instance_start_date}`));
   const showEventColumn = uniqueEventsInAll.size > 1;
 
-  // Sort tasks by manual sort_order from admin
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  // Sort tasks based on selected column and direction
   const sortedTasks = [...dayFilteredTasks].sort((a, b) => {
-    const orderA = a.sort_order ?? 999999;
-    const orderB = b.sort_order ?? 999999;
-    return orderA - orderB;
+    let compareResult = 0;
+
+    switch (sortColumn) {
+      case 'event':
+        compareResult = a.event_name.localeCompare(b.event_name);
+        break;
+      case 'day':
+        compareResult = a.day_number - b.day_number;
+        break;
+      case 'date':
+        const dateA = new Date(a.instance_start_date);
+        dateA.setDate(dateA.getDate() + a.day_number - 1);
+        const dateB = new Date(b.instance_start_date);
+        dateB.setDate(dateB.getDate() + b.day_number - 1);
+        compareResult = dateA.getTime() - dateB.getTime();
+        break;
+      case 'title':
+        compareResult = a.title.localeCompare(b.title);
+        break;
+      case 'scheduled':
+        const schedA = a.scheduled_time || '99:99';
+        const schedB = b.scheduled_time || '99:99';
+        compareResult = schedA.localeCompare(schedB);
+        break;
+      case 'start':
+        const startA = a.start_time || '99:99';
+        const startB = b.start_time || '99:99';
+        compareResult = startA.localeCompare(startB);
+        break;
+      case 'end':
+        const endA = a.end_time || '99:99';
+        const endB = b.end_time || '99:99';
+        compareResult = endA.localeCompare(endB);
+        break;
+      case 'status':
+        compareResult = a.status.localeCompare(b.status);
+        break;
+      default:
+        compareResult = 0;
+    }
+
+    return sortDirection === 'asc' ? compareResult : -compareResult;
   });
 
   const getStatusColor = (status: string) => {
@@ -938,36 +988,71 @@ const StaffTableView: React.FC<{
     return <div className={styles.empty}>Keine Aufgaben für den ausgewählten Tag</div>;
   }
 
+  const getSortIcon = (column: string) => {
+    if (sortColumn !== column) return ' ↕';
+    return sortDirection === 'asc' ? ' ▲' : ' ▼';
+  };
+
   return (
     <div className={styles.tableContainer}>
       <table className={styles.taskTable}>
         <thead>
           <tr>
             {showEventColumn && (
-              <th className={styles.hideOnMobile}>
-                Veranstaltung
+              <th
+                className={styles.hideOnMobile}
+                onClick={() => handleSort('event')}
+                style={{ cursor: 'pointer', userSelect: 'none' }}
+              >
+                Veranstaltung{getSortIcon('event')}
               </th>
             )}
-            <th className={styles.hideOnMobile}>
-              Tag
+            <th
+              className={styles.hideOnMobile}
+              onClick={() => handleSort('day')}
+              style={{ cursor: 'pointer', userSelect: 'none' }}
+            >
+              Tag{getSortIcon('day')}
             </th>
-            <th className={styles.hideOnMobile}>
-              Datum
+            <th
+              className={styles.hideOnMobile}
+              onClick={() => handleSort('date')}
+              style={{ cursor: 'pointer', userSelect: 'none' }}
+            >
+              Datum{getSortIcon('date')}
             </th>
-            <th>
-              Aufgabe
+            <th
+              onClick={() => handleSort('title')}
+              style={{ cursor: 'pointer', userSelect: 'none' }}
+            >
+              Aufgabe{getSortIcon('title')}
             </th>
-            <th className={styles.hideOnMobile}>
-              Geplante Zeit
+            <th
+              className={styles.hideOnMobile}
+              onClick={() => handleSort('scheduled')}
+              style={{ cursor: 'pointer', userSelect: 'none' }}
+            >
+              Geplante Zeit{getSortIcon('scheduled')}
             </th>
-            <th className={styles.hideOnMobile}>
-              Start
+            <th
+              className={styles.hideOnMobile}
+              onClick={() => handleSort('start')}
+              style={{ cursor: 'pointer', userSelect: 'none' }}
+            >
+              Start{getSortIcon('start')}
             </th>
-            <th className={styles.hideOnMobile}>
-              Ende
+            <th
+              className={styles.hideOnMobile}
+              onClick={() => handleSort('end')}
+              style={{ cursor: 'pointer', userSelect: 'none' }}
+            >
+              Ende{getSortIcon('end')}
             </th>
-            <th>
-              Status
+            <th
+              onClick={() => handleSort('status')}
+              style={{ cursor: 'pointer', userSelect: 'none' }}
+            >
+              Status{getSortIcon('status')}
             </th>
             <th>Aktion</th>
           </tr>
@@ -1129,11 +1214,12 @@ function groupTasksByEventDay(tasks: TaskAssignment[]) {
       return taskA.day_number - taskB.day_number;
     })
     .reduce((acc, key) => {
-      // Sortiere Tasks innerhalb jeder Gruppe nach manueller sort_order vom Admin
+      // Sortiere Tasks innerhalb jeder Gruppe nach frühester Zeit
       acc[key] = grouped[key].sort((a, b) => {
-        const orderA = a.sort_order ?? 999999;
-        const orderB = b.sort_order ?? 999999;
-        return orderA - orderB;
+        // Use start_time if available, otherwise scheduled_time
+        const timeA = a.start_time || a.scheduled_time || '99:99';
+        const timeB = b.start_time || b.scheduled_time || '99:99';
+        return timeA.localeCompare(timeB);
       });
       return acc;
     }, {} as { [key: string]: TaskAssignment[] });
@@ -1174,11 +1260,19 @@ function groupTasksByDay(tasks: TaskAssignment[]) {
       return dateA.getTime() - dateB.getTime();
     })
     .reduce((acc, key) => {
-      // Sortiere nach manueller sort_order vom Admin
+      // Sortiere nach Startzeit (ohne Startzeit zuerst)
       acc[key] = grouped[key].sort((a, b) => {
-        const orderA = a.sort_order ?? 999999;
-        const orderB = b.sort_order ?? 999999;
-        return orderA - orderB;
+        const hasStartA = !!a.start_time;
+        const hasStartB = !!b.start_time;
+
+        if (!hasStartA && !hasStartB) {
+          const timeA = a.scheduled_time || '23:59';
+          const timeB = b.scheduled_time || '23:59';
+          return timeA.localeCompare(timeB);
+        }
+        if (!hasStartA) return -1;
+        if (!hasStartB) return 1;
+        return a.start_time!.localeCompare(b.start_time!);
       });
       return acc;
     }, {} as { [key: string]: TaskAssignment[] });
@@ -1195,12 +1289,17 @@ function groupTasksByEvent(tasks: TaskAssignment[]) {
     grouped[key].push(task);
   });
 
-  // Sortiere Tasks innerhalb jeder Gruppe nach manueller sort_order vom Admin
+  // Sortiere Tasks innerhalb jeder Gruppe nach Tag und frühester Zeit
   Object.keys(grouped).forEach(key => {
     grouped[key].sort((a, b) => {
-      const orderA = a.sort_order ?? 999999;
-      const orderB = b.sort_order ?? 999999;
-      return orderA - orderB;
+      // Erst nach Tag sortieren
+      const dayCompare = a.day_number - b.day_number;
+      if (dayCompare !== 0) return dayCompare;
+
+      // Dann nach frühester Zeit
+      const timeA = a.start_time || a.scheduled_time || '99:99';
+      const timeB = b.start_time || b.scheduled_time || '99:99';
+      return timeA.localeCompare(timeB);
     });
   });
 
