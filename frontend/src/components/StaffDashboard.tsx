@@ -151,23 +151,64 @@ export const StaffDashboard: React.FC = () => {
 
   const handleComplete = async (assignmentId: number) => {
     try {
+      // Optimistic update: update UI immediately
+      setTasks(prevTasks => prevTasks.map(task =>
+        task.assignment_id === assignmentId
+          ? { ...task, status: 'completed' }
+          : task
+      ));
+
       await tasksApi.complete(assignmentId);
-      // Reload in background without blocking UI
+
+      // Reload in background to sync with server
       loadTasks(false);
     } catch (error) {
       console.error('Complete task error:', error);
+      // Reload on error to revert optimistic update
+      loadTasks(false);
       alert('Fehler beim Markieren der Aufgabe');
     }
   };
 
   const handleCompletePublic = async (taskId: number) => {
     try {
+      // Optimistic update: update UI immediately
+      setTasks(prevTasks => prevTasks.map(task =>
+        task.id === taskId && !task.assignment_id
+          ? { ...task, status: 'completed' }
+          : task
+      ));
+
       await tasksApi.completePublic(taskId);
-      // Reload in background without blocking UI
+
+      // Reload in background to sync with server
       loadTasks(false);
     } catch (error) {
       console.error('Complete public task error:', error);
+      // Reload on error to revert optimistic update
+      loadTasks(false);
       alert('Fehler beim Markieren der öffentlichen Aufgabe');
+    }
+  };
+
+  const handleStatusUpdate = async (taskId: number, newStatus: string) => {
+    try {
+      // Optimistic update: update UI immediately
+      setTasks(prevTasks => prevTasks.map(task =>
+        task.id === taskId
+          ? { ...task, status: newStatus }
+          : task
+      ));
+
+      await tasksApi.updateStatus(taskId, newStatus);
+
+      // Reload in background to sync with server
+      loadTasks(false);
+    } catch (error) {
+      console.error('Update status error:', error);
+      // Reload on error to revert optimistic update
+      loadTasks(false);
+      alert('Fehler beim Aktualisieren des Status');
     }
   };
 
@@ -481,6 +522,7 @@ export const StaffDashboard: React.FC = () => {
           selectedDay={selectedDay}
           onComplete={handleComplete}
           onCompletePublic={handleCompletePublic}
+          onStatusUpdate={handleStatusUpdate}
           onReload={loadTasks}
         />
       ) : groupBy === 'standard' ? (
@@ -495,6 +537,7 @@ export const StaffDashboard: React.FC = () => {
               task={task}
               onComplete={handleComplete}
               onCompletePublic={handleCompletePublic}
+              onStatusUpdate={handleStatusUpdate}
               onReminderUpdate={() => loadTasks(false)}
             />
           ))}
@@ -511,6 +554,7 @@ export const StaffDashboard: React.FC = () => {
                     task={task}
                     onComplete={handleComplete}
                     onCompletePublic={handleCompletePublic}
+                    onStatusUpdate={handleStatusUpdate}
                     onReminderUpdate={() => loadTasks(false)}
                   />
                 ))}
@@ -530,6 +574,7 @@ export const StaffDashboard: React.FC = () => {
                     task={task}
                     onComplete={handleComplete}
                     onCompletePublic={handleCompletePublic}
+                    onStatusUpdate={handleStatusUpdate}
                     onReminderUpdate={() => loadTasks(false)}
                   />
                 ))}
@@ -549,6 +594,7 @@ export const StaffDashboard: React.FC = () => {
                     task={task}
                     onComplete={handleComplete}
                     onCompletePublic={handleCompletePublic}
+                    onStatusUpdate={handleStatusUpdate}
                     onReminderUpdate={() => loadTasks(false)}
                   />
                 ))}
@@ -568,8 +614,9 @@ const TaskCard: React.FC<{
   task: TaskAssignment;
   onComplete: (id: number) => void;
   onCompletePublic: (taskId: number) => void;
+  onStatusUpdate: (taskId: number, newStatus: string) => void;
   onReminderUpdate: () => void;
-}> = ({ task, onComplete, onCompletePublic, onReminderUpdate }) => {
+}> = ({ task, onComplete, onCompletePublic, onStatusUpdate, onReminderUpdate }) => {
   const [showReminderEdit, setShowReminderEdit] = React.useState(false);
   const [reminderMinutes, setReminderMinutes] = React.useState(task.reminder_minutes || 15);
   const [saving, setSaving] = React.useState(false);
@@ -604,25 +651,22 @@ const TaskCard: React.FC<{
 
   const handleSetInProgress = async () => {
     setUpdatingStatus(true);
+    setShowStatusDropdown(false);
     try {
-      await tasksApi.updateStatus(task.id, 'in_progress');
-      onReminderUpdate(); // Reload tasks to get updated status
+      await onStatusUpdate(task.id, 'in_progress');
     } catch (error) {
       console.error('Update status error:', error);
-      alert('Fehler beim Aktualisieren des Status');
     } finally {
       setUpdatingStatus(false);
     }
   };
 
   const handleStatusChange = async (newStatus: string) => {
+    setShowStatusDropdown(false);
     try {
-      await tasksApi.updateStatus(task.id, newStatus);
-      setShowStatusDropdown(false);
-      onReminderUpdate(); // Reload tasks to get updated status
+      await onStatusUpdate(task.id, newStatus);
     } catch (error) {
       console.error('Status change error:', error);
-      alert('Fehler beim Ändern des Status');
     }
   };
 
@@ -912,8 +956,9 @@ const StaffTableView: React.FC<{
   selectedDay: number | 'all';
   onComplete: (id: number) => void;
   onCompletePublic: (taskId: number) => void;
+  onStatusUpdate: (taskId: number, newStatus: string) => void;
   onReload: () => void;
-}> = ({ tasks, allTasks, selectedDay, onComplete, onCompletePublic, onReload }) => {
+}> = ({ tasks, allTasks, selectedDay, onComplete, onCompletePublic, onStatusUpdate, onReload: _onReload }) => {
   const [showStatusDropdown, setShowStatusDropdown] = React.useState<string | null>(null);
   const [sortColumn, setSortColumn] = React.useState<string>('manual');
   const [sortDirection, setSortDirection] = React.useState<'asc' | 'desc'>('asc');
@@ -1016,15 +1061,12 @@ const StaffTableView: React.FC<{
   };
 
   const handleStatusChange = async (task: TaskAssignment, newStatus: string) => {
+    setShowStatusDropdown(null);
     try {
-      await tasksApi.updateStatus(task.id, newStatus);
-      // Reload tasks to show updated status
-      await onReload();
+      await onStatusUpdate(task.id, newStatus);
     } catch (error) {
       console.error('Status change error:', error);
-      alert('Fehler beim Ändern des Status');
     }
-    setShowStatusDropdown(null);
   };
 
   if (sortedTasks.length === 0) {
