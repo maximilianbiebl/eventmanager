@@ -249,6 +249,19 @@ export const StaffDashboard: React.FC = () => {
   const eventGroups = groupTasksByEvent(filteredTasks);
   const eventDayGroups = groupTasksByEventDay(filteredTasks);
 
+  // Debug: Check if all tasks are in groups
+  React.useEffect(() => {
+    if (groupBy !== 'standard' && filteredTasks.length > 0) {
+      const groups = groupBy === 'event-day' ? eventDayGroups : groupBy === 'date' ? groupedTasks : eventGroups;
+      const tasksInGroups = Object.values(groups).flat().length;
+      if (tasksInGroups !== filteredTasks.length) {
+        console.warn(`Missing tasks in ${groupBy} view! Expected ${filteredTasks.length}, got ${tasksInGroups}`);
+        console.log('Groups:', groups);
+        console.log('Filtered tasks:', filteredTasks);
+      }
+    }
+  }, [groupBy, filteredTasks, eventDayGroups, groupedTasks, eventGroups]);
+
   if (loading) {
     return <div className={styles.loading}>Lade Aufgaben...</div>;
   }
