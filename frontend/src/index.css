@@ -40,7 +40,7 @@ select {
 /* Touch Target Sizes - Minimum 44px for better mobile accessibility */
 button,
 a {
-  min-height: 44px;
+  /* min-height: 44px; */
   display: inline-flex;
   align-items: center;
   justify-content: center;
