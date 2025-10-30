@@ -310,12 +310,22 @@ export const TaskTableView: React.FC<Props> = ({
 
   const handleStatusChange = async (taskId: number, newStatus: string) => {
     try {
+      // Optimistic update: update UI immediately
+      const newAssignments = assignments.map(a =>
+        a.id === taskId ? { ...a, status: newStatus } : a
+      );
+      setAssignments(newAssignments);
+
       await client.put(`/tasks/${taskId}`, { status: newStatus });
       setSuccessMessage(`Status wurde auf "${STATUS_LABELS[newStatus]}" geändert`);
       setTimeout(() => setSuccessMessage(''), 3000);
-      await loadAssignments();
+
+      // Reload in background to sync with server
+      loadAssignments(false);
     } catch (error) {
       console.error('Change status error:', error);
+      // Reload on error to revert optimistic update (non-blocking)
+      loadAssignments(false);
       setError('Fehler beim Ändern des Status');
     }
   };

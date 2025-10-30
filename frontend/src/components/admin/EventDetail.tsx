@@ -375,13 +375,23 @@ const TaskListView: React.FC<TaskListViewProps> = ({
 
   const handleStatusChange = async (taskId: number, newStatus: string) => {
     try {
+      // Optimistic update: update UI immediately
+      const newAssignments = assignments.map(a =>
+        a.id === taskId ? { ...a, status: newStatus } : a
+      );
+      setAssignments(newAssignments);
+
       const client = (await import('../../api/client')).default;
       await client.put(`/tasks/${taskId}`, { status: newStatus });
       setSuccessMessage(`Status wurde geändert`);
       setTimeout(() => setSuccessMessage(''), 3000);
-      await loadAssignments(false); // Update without loading indicator
+
+      // Reload in background to sync with server
+      loadAssignments(false);
     } catch (error) {
       console.error('Change status error:', error);
+      // Reload on error to revert optimistic update (non-blocking)
+      loadAssignments(false);
       alert('Fehler beim Ändern des Status');
     }
   };
