@@ -121,7 +121,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
       <div className={styles.section}>
         <h3>Durchführungen</h3>
         <div className={styles.instances}>
-          {event.instances.map((instance: any) => (
+          {(event as any).instances.map((instance: any) => (
             <button
               key={instance.id}
               onClick={() => setSelectedInstance(instance.id)}
@@ -198,7 +198,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
               eventDays={event?.days}
               selectedDay={selectedDay}
               onSelectedDayChange={setSelectedDay}
-              instanceStartDate={event?.instances.find((i: any) => i.id === selectedInstance)?.start_date}
+              instanceStartDate={(event as any)?.instances.find((i: any) => i.id === selectedInstance)?.start_date}
             />
           )
         )}
@@ -208,7 +208,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
         <TaskFormModal
           eventId={eventId}
           task={editTask}
-          eventInstances={event?.instances}
+          eventInstances={(event as any)?.instances}
           defaultDay={typeof selectedDay === 'number' ? selectedDay : 1}
           onClose={() => {
             setShowTaskForm(false);
@@ -333,8 +333,8 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       const data = response.data;
 
       // Get current instance for date calculation
-      const currentInstance = tasks.length > 0 && event?.instances
-        ? event.instances.find((i: any) => i.id === selectedInstance)
+      const currentInstance = event && (event as any).instances
+        ? (event as any).instances.find((i: any) => i.id === selectedInstance)
         : null;
 
       // Check for overdue tasks
