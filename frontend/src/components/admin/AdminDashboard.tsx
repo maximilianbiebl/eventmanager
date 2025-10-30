@@ -144,7 +144,6 @@ export const AdminDashboard: React.FC = () => {
           <UsersList
             key={`users-${refreshKey}`}
             previousEventId={previousEventId}
-            onBackToEvents={() => handleTabClick('events')}
             onBackToEvent={handleBackToEvent}
           />
         )}

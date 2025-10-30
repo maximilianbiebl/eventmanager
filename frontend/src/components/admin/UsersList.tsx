@@ -5,11 +5,10 @@ import responsiveStyles from './UsersList.module.css';
 
 interface Props {
   previousEventId: number | null;
-  onBackToEvents: () => void;
   onBackToEvent: (eventId: number) => void;
 }
 
-export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvents, onBackToEvent }) => {
+export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvent }) => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
