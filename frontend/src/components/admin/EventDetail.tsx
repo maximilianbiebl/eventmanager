@@ -73,14 +73,27 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
       ]);
 
       setEvent(eventData);
-      setTasks(tasksData);
+
+      // Only update tasks if data has actually changed (prevent flicker)
+      setTasks(prevTasks => {
+        const prevSignature = prevTasks.map(t => `${t.id}-${t.status}-${t.is_active}`).sort().join(',');
+        const newSignature = tasksData.map(t => `${t.id}-${t.status}-${t.is_active}`).sort().join(',');
+
+        if (prevSignature !== newSignature) {
+          console.log('Admin tasks changed, updating state');
+          // Trigger refresh of TaskTableView only when tasks actually changed
+          setTableRefreshKey(prev => prev + 1);
+          return tasksData;
+        }
+        console.log('Admin tasks unchanged, skipping update (prevent flicker)');
+        return prevTasks;
+      });
+
       setProgram(programData);
       setUsers(usersData);
       if (eventData.instances.length > 0 && !selectedInstance) {
         setSelectedInstance(eventData.instances[0].id);
       }
-      // Trigger refresh of TaskTableView
-      setTableRefreshKey(prev => prev + 1);
     } catch (error) {
       console.error('Load event detail error:', error);
     } finally {

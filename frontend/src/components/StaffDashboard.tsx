@@ -130,7 +130,20 @@ export const StaffDashboard: React.FC = () => {
       // Check for overdue tasks and update their status
       await checkAndUpdateOverdueTasks(data);
 
-      setTasks(data);
+      // Only update state if data has actually changed (prevent flicker)
+      setTasks(prevTasks => {
+        // Compare by creating a simple signature
+        const prevSignature = prevTasks.map(t => `${t.id}-${t.status}-${t.assignment_id}`).sort().join(',');
+        const newSignature = data.map(t => `${t.id}-${t.status}-${t.assignment_id}`).sort().join(',');
+
+        // Only update if something changed
+        if (prevSignature !== newSignature) {
+          console.log('Tasks changed, updating state');
+          return data;
+        }
+        console.log('Tasks unchanged, skipping update (prevent flicker)');
+        return prevTasks;
+      });
 
       // Get unique events from current tasks
       const currentUniqueEvents = new Set(data.map(t => `${t.event_name}#${t.instance_start_date}`));
@@ -560,7 +573,7 @@ export const StaffDashboard: React.FC = () => {
           ))}
         </div>
       ) : groupBy === 'event-day' ? (
-        <div>
+        <div className={styles.groupedView}>
           {Object.entries(eventDayGroups).map(([groupKey, groupTasks]) => (
             <div key={groupKey} className={styles.group}>
               <h2 className={styles.groupTitle}>{groupKey}</h2>
@@ -580,7 +593,7 @@ export const StaffDashboard: React.FC = () => {
           ))}
         </div>
       ) : groupBy === 'date' ? (
-        <div>
+        <div className={styles.groupedView}>
           {Object.entries(groupedTasks).map(([day, dayTasks]) => (
             <div key={day} className={styles.group}>
               <h2 className={styles.groupTitle}>{day}</h2>
@@ -600,7 +613,7 @@ export const StaffDashboard: React.FC = () => {
           ))}
         </div>
       ) : (
-        <div>
+        <div className={styles.groupedView}>
           {Object.entries(eventGroups).map(([eventName, eventTasks]) => (
             <div key={eventName} className={styles.group}>
               <h2 className={styles.groupTitle}>{eventName}</h2>

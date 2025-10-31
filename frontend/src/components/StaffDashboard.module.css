@@ -511,19 +511,28 @@
   white-space: nowrap;
 }
 
+.groupedView {
+  /* Container for all grouped views to ensure proper spacing */
+}
+
 .group {
-  margin-bottom: 2rem;
+  margin-bottom: 2.5rem;
+}
+
+.group:last-child {
+  margin-bottom: 0;
 }
 
 .groupTitle {
   font-size: 1.25rem;
   font-weight: bold;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
   color: #374151;
   background-color: white;
-  padding: 0.75rem 1rem;
+  padding: 1rem 1.25rem;
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  border-left: 4px solid #4f46e5;
 }
 
 .taskList {
