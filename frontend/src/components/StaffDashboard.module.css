@@ -544,6 +544,11 @@
   width: 100%;
 }
 
+/* Remove all margins from children - let grid gap handle spacing */
+.taskList > * {
+  margin: 0 !important;
+}
+
 /* Ensure task cards within groups have proper spacing */
 .groupedView .group .taskList {
   display: grid !important;
@@ -553,22 +558,8 @@
   width: 100%;
 }
 
-/* Very specific rule for task cards in grouped views */
-.groupedView .taskList > div {
-  margin-bottom: 1rem !important;
-}
-
-.groupedView .taskList > div:last-child {
-  margin-bottom: 0 !important;
-}
-
-/* Additional fallback for all task cards in taskList */
-.taskList > [class*="taskCard"] {
-  margin-bottom: 1rem !important;
-}
-
-.taskList > [class*="taskCard"]:last-child {
-  margin-bottom: 0 !important;
+.groupedView .group .taskList > * {
+  margin: 0 !important;
 }
 
 .taskCard, .taskCardCompleted {

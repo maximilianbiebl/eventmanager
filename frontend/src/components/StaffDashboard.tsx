@@ -320,15 +320,42 @@ export const StaffDashboard: React.FC = () => {
 
   // Gruppierungs-Funktionen - arbeiten mit gefilterten Tasks
   const groupedTasks = React.useMemo(() => {
-    return groupTasksByEventDay(filteredTasks);
+    const result = groupTasksByEventDay(filteredTasks);
+    const tasksInGroups = Object.values(result).flat().length;
+    if (tasksInGroups !== filteredTasks.length) {
+      console.warn('Event-Day Gruppierung: Fehlende Tasks!', {
+        filtered: filteredTasks.length,
+        inGroups: tasksInGroups,
+        groups: Object.keys(result)
+      });
+    }
+    return result;
   }, [filteredTasks]);
 
   const eventGroups = React.useMemo(() => {
-    return groupTasksByEvent(filteredTasks);
+    const result = groupTasksByEvent(filteredTasks);
+    const tasksInGroups = Object.values(result).flat().length;
+    if (tasksInGroups !== filteredTasks.length) {
+      console.warn('Event Gruppierung: Fehlende Tasks!', {
+        filtered: filteredTasks.length,
+        inGroups: tasksInGroups,
+        groups: Object.keys(result)
+      });
+    }
+    return result;
   }, [filteredTasks]);
 
   const dateGroups = React.useMemo(() => {
-    return groupTasksByDate(filteredTasks);
+    const result = groupTasksByDate(filteredTasks);
+    const tasksInGroups = Object.values(result).flat().length;
+    if (tasksInGroups !== filteredTasks.length) {
+      console.warn('Datum Gruppierung: Fehlende Tasks!', {
+        filtered: filteredTasks.length,
+        inGroups: tasksInGroups,
+        groups: Object.keys(result)
+      });
+    }
+    return result;
   }, [filteredTasks]);
 
   // Standard-Ansicht: einfach sortierte Liste
@@ -1344,9 +1371,11 @@ function groupTasksByEventDay(tasks: TaskAssignment[]): { [key: string]: TaskAss
   const grouped: { [key: string]: TaskAssignment[] } = {};
 
   tasks.forEach((task) => {
-    const eventName = task.event_name || 'Unbekanntes Event';
-    const dayNumber = task.day_number || 1;
-    const key = `${eventName} - Tag ${dayNumber}`;
+    // Stelle sicher dass JEDE Task eine Gruppe bekommt
+    const eventName = task.event_name || task.event_title || 'Unbekanntes Event';
+    const dayNumber = task.day_number ?? 1; // Use nullish coalescing to catch 0
+    const instanceNumber = task.instance_number ?? 1;
+    const key = `${eventName} ${instanceNumber > 1 ? `(#${instanceNumber})` : ''} - Tag ${dayNumber}`;
 
     if (!grouped[key]) {
       grouped[key] = [];
@@ -1383,7 +1412,11 @@ function groupTasksByEvent(tasks: TaskAssignment[]): { [key: string]: TaskAssign
   const grouped: { [key: string]: TaskAssignment[] } = {};
 
   tasks.forEach((task) => {
-    const key = task.event_name || 'Unbekanntes Event';
+    // Stelle sicher dass JEDE Task eine Gruppe bekommt
+    const eventName = task.event_name || task.event_title || 'Unbekanntes Event';
+    const instanceNumber = task.instance_number ?? 1;
+    const key = instanceNumber > 1 ? `${eventName} (#${instanceNumber})` : eventName;
+
     if (!grouped[key]) {
       grouped[key] = [];
     }
@@ -1410,8 +1443,18 @@ function groupTasksByDate(tasks: TaskAssignment[]): { [key: string]: TaskAssignm
 
   tasks.forEach((task) => {
     try {
-      const startDate = new Date(task.instance_start_date || Date.now());
-      startDate.setDate(startDate.getDate() + (task.day_number || 1) - 1);
+      // Stelle sicher dass JEDE Task eine Gruppe bekommt
+      if (!task.instance_start_date) {
+        throw new Error('Kein Startdatum');
+      }
+      const startDate = new Date(task.instance_start_date);
+      if (isNaN(startDate.getTime())) {
+        throw new Error('Ungültiges Datum');
+      }
+
+      const dayNumber = task.day_number ?? 1;
+      startDate.setDate(startDate.getDate() + dayNumber - 1);
+
       const dateStr = startDate.toLocaleDateString('de-DE', {
         weekday: 'long',
         year: 'numeric',
@@ -1424,7 +1467,9 @@ function groupTasksByDate(tasks: TaskAssignment[]): { [key: string]: TaskAssignm
       }
       grouped[dateStr].push(task);
     } catch (error) {
-      const fallbackKey = 'Unbekanntes Datum';
+      // Fallback für Tasks ohne gültiges Datum
+      const eventName = task.event_name || task.event_title || 'Unbekanntes Event';
+      const fallbackKey = `${eventName} - Unbekanntes Datum`;
       if (!grouped[fallbackKey]) {
         grouped[fallbackKey] = [];
       }
@@ -1435,19 +1480,24 @@ function groupTasksByDate(tasks: TaskAssignment[]): { [key: string]: TaskAssignm
   // Sortiere nach tatsächlichem Datum
   return Object.keys(grouped)
     .sort((a, b) => {
-      if (a === 'Unbekanntes Datum') return 1;
-      if (b === 'Unbekanntes Datum') return -1;
+      // "Unbekanntes Datum" Gruppen ans Ende
+      if (a.includes('Unbekanntes Datum')) return 1;
+      if (b.includes('Unbekanntes Datum')) return -1;
 
       const taskA = grouped[a][0];
       const taskB = grouped[b][0];
 
-      const dateA = new Date(taskA.instance_start_date || Date.now());
-      dateA.setDate(dateA.getDate() + (taskA.day_number || 1) - 1);
+      try {
+        const dateA = new Date(taskA.instance_start_date || Date.now());
+        dateA.setDate(dateA.getDate() + (taskA.day_number ?? 1) - 1);
 
-      const dateB = new Date(taskB.instance_start_date || Date.now());
-      dateB.setDate(dateB.getDate() + (taskB.day_number || 1) - 1);
+        const dateB = new Date(taskB.instance_start_date || Date.now());
+        dateB.setDate(dateB.getDate() + (taskB.day_number ?? 1) - 1);
 
-      return dateA.getTime() - dateB.getTime();
+        return dateA.getTime() - dateB.getTime();
+      } catch (error) {
+        return 0; // Fallback: keine Sortierung
+      }
     })
     .reduce((acc, key) => {
       // Sortiere Tasks innerhalb jeder Gruppe nach sort_order
