@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { query } from '../database/connection';
 import { authMiddleware, adminMiddleware, AuthRequest } from '../middleware/auth';
 import { CreateTaskRequest, AssignTaskRequest } from '../types';
+import { broadcastUpdate } from './sse';
 
 const router = Router();
 
@@ -373,6 +374,9 @@ router.put('/complete/:assignmentId', authMiddleware, async (req: AuthRequest, r
       ['completed', assignment.rows[0].task_id]
     );
 
+    // Broadcast update to all connected clients
+    broadcastUpdate('task', { action: 'complete', taskId: assignment.rows[0].task_id, assignmentId: parseInt(assignmentId) });
+
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Complete task error:', error);
@@ -408,6 +412,9 @@ router.put('/:taskId/complete-public', authMiddleware, async (req: AuthRequest, 
 
     // Task als completed markieren
     await query('UPDATE tasks SET status = $1 WHERE id = $2', ['completed', taskId]);
+
+    // Broadcast update to all connected clients
+    broadcastUpdate('task', { action: 'complete_public', taskId: parseInt(taskId) });
 
     res.json({ success: true, taskId: parseInt(taskId) });
   } catch (error) {
@@ -634,6 +641,9 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
         console.error('Push notification error:', notifError);
       }
     }
+
+    // Broadcast update to all connected clients
+    broadcastUpdate('task', { action: 'status_update', task: result.rows[0] });
 
     res.json(result.rows[0]);
   } catch (error) {

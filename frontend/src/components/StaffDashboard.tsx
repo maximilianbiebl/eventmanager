@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { tasksApi, TaskAssignment } from '../api/tasks';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../hooks/useNotifications';
+import { useSSE } from '../hooks/useSSE';
 import { StaffSettings } from './StaffSettings';
 import { ChangePasswordDialog } from './admin/ChangePasswordDialog';
 import { DescriptionModal } from './DescriptionModal';
@@ -23,12 +24,28 @@ export const StaffDashboard: React.FC = () => {
   const { user, logout } = useAuth();
   const notifications = useNotifications();
 
+  // SSE for real-time updates
+  useSSE({
+    enabled: true,
+    onTaskUpdate: (data) => {
+      console.log('SSE: Task update received', data);
+      // Reload tasks in background when update is received
+      loadTasks(false);
+    },
+    onConnected: () => {
+      console.log('SSE: Connected to real-time updates');
+    },
+    onError: (error) => {
+      console.error('SSE: Connection error', error);
+    }
+  });
+
   useEffect(() => {
     loadUserSettings();
     loadSelectedEventsFromStorage();
     loadTasks();
 
-    // Auto-refresh alle 30 Sekunden für Status-Synchronisation
+    // Auto-refresh alle 30 Sekunden als Fallback (SSE sollte primär Updates liefern)
     const interval = setInterval(() => {
       loadTasks(false); // Don't show loading indicator on auto-refresh
     }, 30000);

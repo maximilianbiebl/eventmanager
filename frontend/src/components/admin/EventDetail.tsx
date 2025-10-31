@@ -3,6 +3,7 @@ import { eventsApi } from '../../api/events';
 import { tasksApi, Task } from '../../api/tasks';
 import { usersApi, User } from '../../api/users';
 import { programApi, ProgramItem } from '../../api/program';
+import { useSSE } from '../../hooks/useSSE';
 import { TaskFormModal } from './TaskFormModal';
 import { TaskAssignmentModal } from './TaskAssignmentModal';
 import { TaskTableView } from './TaskTableView';
@@ -32,10 +33,26 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
   const [selectedDay, setSelectedDay] = useState<number | 'all'>('all');
   const [tableRefreshKey, setTableRefreshKey] = useState(0);
 
+  // SSE for real-time updates
+  useSSE({
+    enabled: true,
+    onTaskUpdate: (data) => {
+      console.log('SSE: Admin task update received', data);
+      // Reload data in background when update is received
+      loadData(false);
+    },
+    onConnected: () => {
+      console.log('SSE: Admin connected to real-time updates');
+    },
+    onError: (error) => {
+      console.error('SSE: Admin connection error', error);
+    }
+  });
+
   useEffect(() => {
     loadData();
 
-    // Auto-refresh every 30 seconds
+    // Auto-refresh every 30 seconds as fallback (SSE should handle most updates)
     const interval = setInterval(() => {
       loadData(false); // Don't show loading indicator on auto-refresh
     }, 30000);
