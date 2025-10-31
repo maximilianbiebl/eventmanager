@@ -318,71 +318,27 @@ export const StaffDashboard: React.FC = () => {
     });
   }, [tasks, hideCompleted, selectedEvents]);
 
-  // Sort tasks based on selected sort option - WITHOUT visual grouping
+  // Gruppierungs-Funktionen - arbeiten mit gefilterten Tasks
+  const groupedTasks = React.useMemo(() => {
+    return groupTasksByEventDay(filteredTasks);
+  }, [filteredTasks]);
+
+  const eventGroups = React.useMemo(() => {
+    return groupTasksByEvent(filteredTasks);
+  }, [filteredTasks]);
+
+  const dateGroups = React.useMemo(() => {
+    return groupTasksByDate(filteredTasks);
+  }, [filteredTasks]);
+
+  // Standard-Ansicht: einfach sortierte Liste
   const sortedTasks = React.useMemo(() => {
-    const tasksCopy = [...filteredTasks];
-
-    switch (sortBy) {
-      case 'standard':
-        // Sort by manual sort_order
-        return tasksCopy.sort((a, b) => {
-          const orderA = a.sort_order ?? 999999;
-          const orderB = b.sort_order ?? 999999;
-          return orderA - orderB;
-        });
-
-      case 'event-day':
-        // Sort by event name, then instance, then day, then sort_order
-        return tasksCopy.sort((a, b) => {
-          const eventCompare = (a.event_name || '').localeCompare(b.event_name || '');
-          if (eventCompare !== 0) return eventCompare;
-
-          const instanceCompare = (a.instance_number || 0) - (b.instance_number || 0);
-          if (instanceCompare !== 0) return instanceCompare;
-
-          const dayCompare = (a.day_number || 0) - (b.day_number || 0);
-          if (dayCompare !== 0) return dayCompare;
-
-          const orderA = a.sort_order ?? 999999;
-          const orderB = b.sort_order ?? 999999;
-          return orderA - orderB;
-        });
-
-      case 'event':
-        // Sort by event name, then day, then sort_order
-        return tasksCopy.sort((a, b) => {
-          const eventCompare = (a.event_name || '').localeCompare(b.event_name || '');
-          if (eventCompare !== 0) return eventCompare;
-
-          const dayCompare = (a.day_number || 0) - (b.day_number || 0);
-          if (dayCompare !== 0) return dayCompare;
-
-          const orderA = a.sort_order ?? 999999;
-          const orderB = b.sort_order ?? 999999;
-          return orderA - orderB;
-        });
-
-      case 'date':
-        // Sort by actual date (instance_start_date + day_number), then sort_order
-        return tasksCopy.sort((a, b) => {
-          const dateA = new Date(a.instance_start_date || Date.now());
-          dateA.setDate(dateA.getDate() + (a.day_number || 1) - 1);
-
-          const dateB = new Date(b.instance_start_date || Date.now());
-          dateB.setDate(dateB.getDate() + (b.day_number || 1) - 1);
-
-          const dateCompare = dateA.getTime() - dateB.getTime();
-          if (dateCompare !== 0) return dateCompare;
-
-          const orderA = a.sort_order ?? 999999;
-          const orderB = b.sort_order ?? 999999;
-          return orderA - orderB;
-        });
-
-      default:
-        return tasksCopy;
-    }
-  }, [filteredTasks, sortBy]);
+    return [...filteredTasks].sort((a, b) => {
+      const orderA = a.sort_order ?? 999999;
+      const orderB = b.sort_order ?? 999999;
+      return orderA - orderB;
+    });
+  }, [filteredTasks]);
 
   if (loading) {
     return <div className={styles.loading}>Lade Aufgaben...</div>;
@@ -612,7 +568,7 @@ export const StaffDashboard: React.FC = () => {
           onStatusUpdate={handleStatusUpdate}
           onReload={loadTasks}
         />
-      ) : (
+      ) : sortBy === 'standard' ? (
         <div className={styles.taskList}>
           {sortedTasks.map((task) => (
             <TaskCard
@@ -623,6 +579,66 @@ export const StaffDashboard: React.FC = () => {
               onStatusUpdate={handleStatusUpdate}
               onReminderUpdate={() => loadTasks(false)}
             />
+          ))}
+        </div>
+      ) : sortBy === 'event-day' ? (
+        <div className={styles.groupedView}>
+          {Object.entries(groupedTasks).map(([groupKey, groupTasks]) => (
+            <div key={groupKey} className={styles.group}>
+              <h2 className={styles.groupTitle}>{groupKey}</h2>
+              <div className={styles.taskList}>
+                {groupTasks.map((task) => (
+                  <TaskCard
+                    key={task.assignment_id || task.id}
+                    task={task}
+                    onComplete={handleComplete}
+                    onCompletePublic={handleCompletePublic}
+                    onStatusUpdate={handleStatusUpdate}
+                    onReminderUpdate={() => loadTasks(false)}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : sortBy === 'event' ? (
+        <div className={styles.groupedView}>
+          {Object.entries(eventGroups).map(([groupKey, groupTasks]) => (
+            <div key={groupKey} className={styles.group}>
+              <h2 className={styles.groupTitle}>{groupKey}</h2>
+              <div className={styles.taskList}>
+                {groupTasks.map((task) => (
+                  <TaskCard
+                    key={task.assignment_id || task.id}
+                    task={task}
+                    onComplete={handleComplete}
+                    onCompletePublic={handleCompletePublic}
+                    onStatusUpdate={handleStatusUpdate}
+                    onReminderUpdate={() => loadTasks(false)}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className={styles.groupedView}>
+          {Object.entries(dateGroups).map(([groupKey, groupTasks]) => (
+            <div key={groupKey} className={styles.group}>
+              <h2 className={styles.groupTitle}>{groupKey}</h2>
+              <div className={styles.taskList}>
+                {groupTasks.map((task) => (
+                  <TaskCard
+                    key={task.assignment_id || task.id}
+                    task={task}
+                    onComplete={handleComplete}
+                    onCompletePublic={handleCompletePublic}
+                    onStatusUpdate={handleStatusUpdate}
+                    onReminderUpdate={() => loadTasks(false)}
+                  />
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       )}
@@ -1323,5 +1339,123 @@ const StaffTableView: React.FC<{
   );
 };
 
-// Helper Funktionen entfernt - wir verwenden jetzt nur noch die Standard-Ansicht
-// ohne Gruppierungen, da diese Probleme mit Filtern und Abständen verursacht haben
+// Helper Funktionen für Gruppierungen - arbeiten mit gefilterten Tasks
+function groupTasksByEventDay(tasks: TaskAssignment[]): { [key: string]: TaskAssignment[] } {
+  const grouped: { [key: string]: TaskAssignment[] } = {};
+
+  tasks.forEach((task) => {
+    const eventName = task.event_name || 'Unbekanntes Event';
+    const dayNumber = task.day_number || 1;
+    const key = `${eventName} - Tag ${dayNumber}`;
+
+    if (!grouped[key]) {
+      grouped[key] = [];
+    }
+    grouped[key].push(task);
+  });
+
+  // Sortiere Gruppen nach Event, Instanz und Tag
+  return Object.keys(grouped)
+    .sort((a, b) => {
+      const taskA = grouped[a][0];
+      const taskB = grouped[b][0];
+
+      const eventCompare = (taskA.event_name || '').localeCompare(taskB.event_name || '');
+      if (eventCompare !== 0) return eventCompare;
+
+      const instanceCompare = (taskA.instance_number || 0) - (taskB.instance_number || 0);
+      if (instanceCompare !== 0) return instanceCompare;
+
+      return (taskA.day_number || 0) - (taskB.day_number || 0);
+    })
+    .reduce((acc, key) => {
+      // Sortiere Tasks innerhalb jeder Gruppe nach sort_order
+      acc[key] = grouped[key].sort((a, b) => {
+        const orderA = a.sort_order ?? 999999;
+        const orderB = b.sort_order ?? 999999;
+        return orderA - orderB;
+      });
+      return acc;
+    }, {} as { [key: string]: TaskAssignment[] });
+}
+
+function groupTasksByEvent(tasks: TaskAssignment[]): { [key: string]: TaskAssignment[] } {
+  const grouped: { [key: string]: TaskAssignment[] } = {};
+
+  tasks.forEach((task) => {
+    const key = task.event_name || 'Unbekanntes Event';
+    if (!grouped[key]) {
+      grouped[key] = [];
+    }
+    grouped[key].push(task);
+  });
+
+  // Sortiere Tasks innerhalb jeder Gruppe nach Tag und sort_order
+  Object.keys(grouped).forEach(key => {
+    grouped[key].sort((a, b) => {
+      const dayCompare = (a.day_number || 0) - (b.day_number || 0);
+      if (dayCompare !== 0) return dayCompare;
+
+      const orderA = a.sort_order ?? 999999;
+      const orderB = b.sort_order ?? 999999;
+      return orderA - orderB;
+    });
+  });
+
+  return grouped;
+}
+
+function groupTasksByDate(tasks: TaskAssignment[]): { [key: string]: TaskAssignment[] } {
+  const grouped: { [key: string]: TaskAssignment[] } = {};
+
+  tasks.forEach((task) => {
+    try {
+      const startDate = new Date(task.instance_start_date || Date.now());
+      startDate.setDate(startDate.getDate() + (task.day_number || 1) - 1);
+      const dateStr = startDate.toLocaleDateString('de-DE', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+
+      if (!grouped[dateStr]) {
+        grouped[dateStr] = [];
+      }
+      grouped[dateStr].push(task);
+    } catch (error) {
+      const fallbackKey = 'Unbekanntes Datum';
+      if (!grouped[fallbackKey]) {
+        grouped[fallbackKey] = [];
+      }
+      grouped[fallbackKey].push(task);
+    }
+  });
+
+  // Sortiere nach tatsächlichem Datum
+  return Object.keys(grouped)
+    .sort((a, b) => {
+      if (a === 'Unbekanntes Datum') return 1;
+      if (b === 'Unbekanntes Datum') return -1;
+
+      const taskA = grouped[a][0];
+      const taskB = grouped[b][0];
+
+      const dateA = new Date(taskA.instance_start_date || Date.now());
+      dateA.setDate(dateA.getDate() + (taskA.day_number || 1) - 1);
+
+      const dateB = new Date(taskB.instance_start_date || Date.now());
+      dateB.setDate(dateB.getDate() + (taskB.day_number || 1) - 1);
+
+      return dateA.getTime() - dateB.getTime();
+    })
+    .reduce((acc, key) => {
+      // Sortiere Tasks innerhalb jeder Gruppe nach sort_order
+      acc[key] = grouped[key].sort((a, b) => {
+        const orderA = a.sort_order ?? 999999;
+        const orderB = b.sort_order ?? 999999;
+        return orderA - orderB;
+      });
+      return acc;
+    }, {} as { [key: string]: TaskAssignment[] });
+}
