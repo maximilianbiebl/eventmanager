@@ -40,6 +40,8 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
       console.log('SSE: Admin task update received', data);
       // Reload data in background when update is received
       loadData(false);
+      // Force refresh of table view by incrementing key
+      setTableRefreshKey(prev => prev + 1);
     },
     onConnected: () => {
       console.log('SSE: Admin connected to real-time updates');
@@ -193,6 +195,16 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
               >
                 📊 Tabelle
               </button>
+              <button
+                onClick={() => {
+                  loadData(false);
+                  setTableRefreshKey(prev => prev + 1);
+                }}
+                className={styles.viewButton}
+                title="Daten aktualisieren"
+              >
+                🔄 Aktualisieren
+              </button>
             </div>
             <button onClick={handleCreateTask} className={styles.addButton}>
               + Neue Aufgabe
@@ -217,6 +229,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
 
         {viewMode === 'list' ? (
           <TaskListView
+            key={tableRefreshKey}
             tasks={tasks.filter(task => selectedDay === 'all' || task.day_number === selectedDay)}
             selectedDay={typeof selectedDay === 'number' ? selectedDay : 1}
             selectedInstance={selectedInstance}
