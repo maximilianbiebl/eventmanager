@@ -47,10 +47,11 @@ export function useSSE(options: UseSSEOptions = {}) {
       return;
     }
 
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-    const url = `${apiUrl}/api/sse/stream?token=${encodeURIComponent(token)}`;
+    // Use same logic as client.ts - VITE_API_URL already includes /api if needed
+    const apiUrl = import.meta.env.VITE_API_URL || '/api';
+    const url = `${apiUrl}/sse/stream?token=${encodeURIComponent(token)}`;
 
-    console.log('SSE: Connecting to server...');
+    console.log('SSE: Connecting to', url);
 
     const eventSource = new EventSource(url);
 

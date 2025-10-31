@@ -269,6 +269,9 @@ router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
       ]
     );
 
+    // Broadcast update for live sync
+    broadcastUpdate('task', { action: 'create', task: result.rows[0] });
+
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error('Create task error:', error);
@@ -318,6 +321,9 @@ router.post('/assign', authMiddleware, adminMiddleware, async (req, res) => {
       }
     }
 
+    // Broadcast update for live sync
+    broadcastUpdate('task', { action: 'assign', taskId: task_id, eventInstanceId: event_instance_id });
+
     res.status(201).json(assignments);
   } catch (error) {
     console.error('Assign task error:', error);
@@ -338,6 +344,10 @@ router.delete('/assignment/:assignmentId', authMiddleware, adminMiddleware, asyn
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Zuweisung nicht gefunden' });
     }
+
+    // Broadcast update for live sync
+    const deletedAssignment = result.rows[0];
+    broadcastUpdate('task', { action: 'unassign', taskId: deletedAssignment.task_id, eventInstanceId: deletedAssignment.event_instance_id });
 
     res.json({ success: true, assignment: result.rows[0] });
   } catch (error) {
@@ -786,6 +796,9 @@ router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
       }
     }
 
+    // Broadcast update for live sync
+    broadcastUpdate('task', { action: 'update', task: result.rows[0] });
+
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Update task error:', error);
@@ -803,6 +816,10 @@ router.delete('/:id', authMiddleware, adminMiddleware, async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Aufgabe nicht gefunden' });
     }
+
+    // Broadcast update for live sync
+    const deletedTask = result.rows[0];
+    broadcastUpdate('task', { action: 'delete', taskId: deletedTask.id, eventId: deletedTask.event_id });
 
     res.json({ message: 'Aufgabe gelöscht' });
   } catch (error) {
@@ -853,6 +870,9 @@ router.put('/:id/deactivate', authMiddleware, adminMiddleware, async (req, res) 
       return res.status(404).json({ error: 'Aufgabe nicht gefunden' });
     }
 
+    // Broadcast update for live sync
+    broadcastUpdate('task', { action: 'deactivate', task: result.rows[0] });
+
     res.json({ message: 'Aufgabe wurde deaktiviert', task: result.rows[0] });
   } catch (error) {
     console.error('Deactivate task error:', error);
@@ -873,6 +893,9 @@ router.put('/:id/activate', authMiddleware, adminMiddleware, async (req, res) =>
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Aufgabe nicht gefunden' });
     }
+
+    // Broadcast update for live sync
+    broadcastUpdate('task', { action: 'activate', task: result.rows[0] });
 
     res.json({ message: 'Aufgabe wurde aktiviert', task: result.rows[0] });
   } catch (error) {
@@ -911,6 +934,9 @@ router.put('/:id/move-up', authMiddleware, adminMiddleware, async (req, res) => 
     await query('UPDATE tasks SET sort_order = $1 WHERE id = $2', [aboveTask.sort_order, id]);
     await query('UPDATE tasks SET sort_order = $1 WHERE id = $2', [sort_order, aboveTask.id]);
 
+    // Broadcast update for live sync
+    broadcastUpdate('task', { action: 'move', taskId: parseInt(id), eventId: event_id });
+
     res.json({ message: 'Reihenfolge aktualisiert' });
   } catch (error) {
     console.error('Move up error:', error);
@@ -947,6 +973,9 @@ router.put('/:id/move-down', authMiddleware, adminMiddleware, async (req, res) =
     // Swap sort_order
     await query('UPDATE tasks SET sort_order = $1 WHERE id = $2', [belowTask.sort_order, id]);
     await query('UPDATE tasks SET sort_order = $1 WHERE id = $2', [sort_order, belowTask.id]);
+
+    // Broadcast update for live sync
+    broadcastUpdate('task', { action: 'move', taskId: parseInt(id), eventId: event_id });
 
     res.json({ message: 'Reihenfolge aktualisiert' });
   } catch (error) {
