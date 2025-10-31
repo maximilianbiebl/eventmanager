@@ -13,6 +13,7 @@ export const StaffDashboard: React.FC = () => {
   const [tasks, setTasks] = useState<TaskAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
+  const [sortBy, setSortBy] = useState<'standard' | 'event-day' | 'event' | 'date'>('standard');
   const [showSettings, setShowSettings] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [hideCompleted, setHideCompleted] = useState(false);
@@ -317,8 +318,71 @@ export const StaffDashboard: React.FC = () => {
     });
   }, [tasks, hideCompleted, selectedEvents]);
 
-  // All grouping logic removed - we only use standard view with manual sorting
-  // Gruppierungen verursachen Probleme mit Filtern und Abständen
+  // Sort tasks based on selected sort option - WITHOUT visual grouping
+  const sortedTasks = React.useMemo(() => {
+    const tasksCopy = [...filteredTasks];
+
+    switch (sortBy) {
+      case 'standard':
+        // Sort by manual sort_order
+        return tasksCopy.sort((a, b) => {
+          const orderA = a.sort_order ?? 999999;
+          const orderB = b.sort_order ?? 999999;
+          return orderA - orderB;
+        });
+
+      case 'event-day':
+        // Sort by event name, then instance, then day, then sort_order
+        return tasksCopy.sort((a, b) => {
+          const eventCompare = (a.event_name || '').localeCompare(b.event_name || '');
+          if (eventCompare !== 0) return eventCompare;
+
+          const instanceCompare = (a.instance_number || 0) - (b.instance_number || 0);
+          if (instanceCompare !== 0) return instanceCompare;
+
+          const dayCompare = (a.day_number || 0) - (b.day_number || 0);
+          if (dayCompare !== 0) return dayCompare;
+
+          const orderA = a.sort_order ?? 999999;
+          const orderB = b.sort_order ?? 999999;
+          return orderA - orderB;
+        });
+
+      case 'event':
+        // Sort by event name, then day, then sort_order
+        return tasksCopy.sort((a, b) => {
+          const eventCompare = (a.event_name || '').localeCompare(b.event_name || '');
+          if (eventCompare !== 0) return eventCompare;
+
+          const dayCompare = (a.day_number || 0) - (b.day_number || 0);
+          if (dayCompare !== 0) return dayCompare;
+
+          const orderA = a.sort_order ?? 999999;
+          const orderB = b.sort_order ?? 999999;
+          return orderA - orderB;
+        });
+
+      case 'date':
+        // Sort by actual date (instance_start_date + day_number), then sort_order
+        return tasksCopy.sort((a, b) => {
+          const dateA = new Date(a.instance_start_date || Date.now());
+          dateA.setDate(dateA.getDate() + (a.day_number || 1) - 1);
+
+          const dateB = new Date(b.instance_start_date || Date.now());
+          dateB.setDate(dateB.getDate() + (b.day_number || 1) - 1);
+
+          const dateCompare = dateA.getTime() - dateB.getTime();
+          if (dateCompare !== 0) return dateCompare;
+
+          const orderA = a.sort_order ?? 999999;
+          const orderB = b.sort_order ?? 999999;
+          return orderA - orderB;
+        });
+
+      default:
+        return tasksCopy;
+    }
+  }, [filteredTasks, sortBy]);
 
   if (loading) {
     return <div className={styles.loading}>Lade Aufgaben...</div>;
@@ -409,7 +473,7 @@ export const StaffDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Ansichtsmodus wählen */}
+      {/* Ansichtsmodus und Sortierung wählen */}
       <div className={styles.viewControls}>
         <button
           onClick={() => setViewMode('cards')}
@@ -423,6 +487,37 @@ export const StaffDashboard: React.FC = () => {
         >
           📊 Tabelle
         </button>
+
+        {/* Sortierung - nur für Karten-Ansicht */}
+        {viewMode === 'cards' && (
+          <>
+            <button
+              onClick={() => setSortBy('standard')}
+              className={sortBy === 'standard' ? styles.activeTab : styles.tab}
+            >
+              Standard
+            </button>
+            <button
+              onClick={() => setSortBy('event-day')}
+              className={sortBy === 'event-day' ? styles.activeTab : styles.tab}
+            >
+              Nach Event-Tag
+            </button>
+            <button
+              onClick={() => setSortBy('event')}
+              className={sortBy === 'event' ? styles.activeTab : styles.tab}
+            >
+              Nach Veranstaltung
+            </button>
+            <button
+              onClick={() => setSortBy('date')}
+              className={sortBy === 'date' ? styles.activeTab : styles.tab}
+            >
+              Nach Datum
+            </button>
+          </>
+        )}
+
         <button
           onClick={() => loadTasks(false)}
           className={styles.tab}
@@ -519,11 +614,7 @@ export const StaffDashboard: React.FC = () => {
         />
       ) : (
         <div className={styles.taskList}>
-          {[...filteredTasks].sort((a, b) => {
-            const orderA = a.sort_order ?? 999999;
-            const orderB = b.sort_order ?? 999999;
-            return orderA - orderB;
-          }).map((task) => (
+          {sortedTasks.map((task) => (
             <TaskCard
               key={task.assignment_id || task.id}
               task={task}
