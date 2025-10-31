@@ -536,8 +536,39 @@
 }
 
 .taskList {
-  display: grid;
-  gap: 1rem;
+  display: grid !important;
+  grid-template-columns: 1fr;
+  grid-auto-rows: auto;
+  gap: 1rem !important;
+  row-gap: 1rem !important;
+  width: 100%;
+}
+
+/* Ensure task cards within groups have proper spacing */
+.groupedView .group .taskList {
+  display: grid !important;
+  grid-template-columns: 1fr;
+  gap: 1rem !important;
+  row-gap: 1rem !important;
+  width: 100%;
+}
+
+/* Very specific rule for task cards in grouped views */
+.groupedView .taskList > div {
+  margin-bottom: 1rem !important;
+}
+
+.groupedView .taskList > div:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* Additional fallback for all task cards in taskList */
+.taskList > [class*="taskCard"] {
+  margin-bottom: 1rem !important;
+}
+
+.taskList > [class*="taskCard"]:last-child {
+  margin-bottom: 0 !important;
 }
 
 .taskCard, .taskCardCompleted {
@@ -546,6 +577,8 @@
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
   border-left: 4px solid #4f46e5;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .taskCardCompleted {
