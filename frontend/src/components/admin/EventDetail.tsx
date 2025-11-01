@@ -177,27 +177,35 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
           <div className={styles.headerActions}>
             <div className={styles.viewToggle}>
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.preventDefault();
                   setViewMode('list');
                   if (selectedDay === 'all') setSelectedDay(1);
                 }}
                 className={viewMode === 'list' ? styles.viewButtonActive : styles.viewButton}
+                type="button"
               >
                 📋 Liste
               </button>
               <button
-                onClick={() => setViewMode('table')}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setViewMode('table');
+                }}
                 className={viewMode === 'table' ? styles.viewButtonActive : styles.viewButton}
+                type="button"
               >
                 📊 Tabelle
               </button>
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.preventDefault();
                   loadData(false);
                   setTableRefreshKey(prev => prev + 1);
                 }}
                 className={styles.viewButton}
                 title="Daten aktualisieren"
+                type="button"
               >
                 🔄 Aktualisieren
               </button>

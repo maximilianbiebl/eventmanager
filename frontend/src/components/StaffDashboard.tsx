@@ -583,7 +583,7 @@ export const StaffDashboard: React.FC = () => {
         <div key="standard-view" className={styles.taskList}>
           {sortedTasks.map((task) => (
             <TaskCard
-              key={task.assignment_id || task.id}
+              key={`${task.assignment_id || 'task'}-${task.id}`}
               task={task}
               onComplete={handleComplete}
               onCompletePublic={handleCompletePublic}
@@ -600,7 +600,7 @@ export const StaffDashboard: React.FC = () => {
               <div className={styles.taskList}>
                 {groupTasks.map((task) => (
                   <TaskCard
-                    key={task.assignment_id || task.id}
+                    key={`${task.assignment_id || 'task'}-${task.id}`}
                     task={task}
                     onComplete={handleComplete}
                     onCompletePublic={handleCompletePublic}
@@ -620,7 +620,7 @@ export const StaffDashboard: React.FC = () => {
               <div className={styles.taskList}>
                 {groupTasks.map((task) => (
                   <TaskCard
-                    key={task.assignment_id || task.id}
+                    key={`${task.assignment_id || 'task'}-${task.id}`}
                     task={task}
                     onComplete={handleComplete}
                     onCompletePublic={handleCompletePublic}
@@ -640,7 +640,7 @@ export const StaffDashboard: React.FC = () => {
               <div className={styles.taskList}>
                 {groupTasks.map((task) => (
                   <TaskCard
-                    key={task.assignment_id || task.id}
+                    key={`${task.assignment_id || 'task'}-${task.id}`}
                     task={task}
                     onComplete={handleComplete}
                     onCompletePublic={handleCompletePublic}
