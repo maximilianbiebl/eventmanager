@@ -48,18 +48,6 @@ export const StaffDashboard: React.FC = () => {
     // selectedEvents are loaded inside loadTasks on first load only
   }, []);
 
-  const loadSelectedEventsFromStorage = () => {
-    try {
-      const stored = localStorage.getItem('selectedEvents');
-      if (stored) {
-        const eventsArray = JSON.parse(stored);
-        setSelectedEvents(new Set(eventsArray));
-      }
-    } catch (error) {
-      console.error('Load selected events from storage error:', error);
-    }
-  };
-
   const saveSelectedEventsToStorage = (events: Set<string>) => {
     try {
       const eventsArray = Array.from(events);
