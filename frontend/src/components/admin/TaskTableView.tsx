@@ -66,7 +66,6 @@ export const TaskTableView: React.FC<Props> = ({
   const [sortColumn, setSortColumn] = useState<string>('manual');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [descriptionModal, setDescriptionModal] = useState<{ title: string; description: string } | null>(null);
-  const [movingTaskId, setMovingTaskId] = useState<number | null>(null);
 
   // Use external selectedDay if provided, otherwise use internal state
   const selectedDay = externalSelectedDay !== undefined ? externalSelectedDay : internalSelectedDay;
@@ -164,11 +163,7 @@ export const TaskTableView: React.FC<Props> = ({
   };
 
   const handleMoveUp = async (taskId: number) => {
-    if (movingTaskId !== null) return; // Prevent concurrent moves
-
     try {
-      setMovingTaskId(taskId);
-
       // Optimistic update: update UI immediately
       const currentIndex = assignments.findIndex(a => a.id === taskId);
       if (currentIndex > 0) {
@@ -183,8 +178,8 @@ export const TaskTableView: React.FC<Props> = ({
       setSuccessMessage('Aufgabe wurde nach oben verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
 
-      // Wait briefly for server to process and SSE to broadcast before syncing
-      setTimeout(() => loadAssignments(false), 300);
+      // Reload in background to sync with server
+      loadAssignments(false);
     } catch (error: any) {
       console.error('Move up error:', error);
       // Reload immediately on error to revert optimistic update
@@ -194,17 +189,11 @@ export const TaskTableView: React.FC<Props> = ({
       } else {
         alert('Fehler beim Verschieben der Aufgabe');
       }
-    } finally {
-      setMovingTaskId(null);
     }
   };
 
   const handleMoveDown = async (taskId: number) => {
-    if (movingTaskId !== null) return; // Prevent concurrent moves
-
     try {
-      setMovingTaskId(taskId);
-
       // Optimistic update: update UI immediately
       const currentIndex = assignments.findIndex(a => a.id === taskId);
       if (currentIndex < assignments.length - 1 && currentIndex !== -1) {
@@ -219,8 +208,8 @@ export const TaskTableView: React.FC<Props> = ({
       setSuccessMessage('Aufgabe wurde nach unten verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
 
-      // Wait briefly for server to process and SSE to broadcast before syncing
-      setTimeout(() => loadAssignments(false), 300);
+      // Reload in background to sync with server
+      loadAssignments(false);
     } catch (error: any) {
       console.error('Move down error:', error);
       // Reload immediately on error to revert optimistic update
@@ -230,8 +219,6 @@ export const TaskTableView: React.FC<Props> = ({
       } else {
         alert('Fehler beim Verschieben der Aufgabe');
       }
-    } finally {
-      setMovingTaskId(null);
     }
   };
 
@@ -603,12 +590,7 @@ export const TaskTableView: React.FC<Props> = ({
                       <div style={{display: 'flex', gap: '0.25rem', justifyContent: 'center'}} className={responsiveStyles.moveButtonGroup}>
                         <button
                           onClick={() => handleMoveUp(task.id)}
-                          disabled={movingTaskId !== null}
-                          style={{
-                            ...styles.moveButton,
-                            opacity: movingTaskId !== null ? 0.5 : 1,
-                            cursor: movingTaskId !== null ? 'not-allowed' : 'pointer'
-                          }}
+                          style={styles.moveButton}
                           className={responsiveStyles.moveButton}
                           title="Aufgabe nach oben verschieben"
                         >
@@ -616,12 +598,7 @@ export const TaskTableView: React.FC<Props> = ({
                         </button>
                         <button
                           onClick={() => handleMoveDown(task.id)}
-                          disabled={movingTaskId !== null}
-                          style={{
-                            ...styles.moveButton,
-                            opacity: movingTaskId !== null ? 0.5 : 1,
-                            cursor: movingTaskId !== null ? 'not-allowed' : 'pointer'
-                          }}
+                          style={styles.moveButton}
                           className={responsiveStyles.moveButton}
                           title="Aufgabe nach unten verschieben"
                         >

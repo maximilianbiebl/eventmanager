@@ -177,8 +177,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
           <div className={styles.headerActions}>
             <div className={styles.viewToggle}>
               <button
-                onClick={(e) => {
-                  e.preventDefault();
+                onClick={() => {
                   setViewMode('list');
                   if (selectedDay === 'all') setSelectedDay(1);
                 }}
@@ -188,18 +187,14 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
                 📋 Liste
               </button>
               <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  setViewMode('table');
-                }}
+                onClick={() => setViewMode('table')}
                 className={viewMode === 'table' ? styles.viewButtonActive : styles.viewButton}
                 type="button"
               >
                 📊 Tabelle
               </button>
               <button
-                onClick={(e) => {
-                  e.preventDefault();
+                onClick={() => {
                   loadData(false);
                   setTableRefreshKey(prev => prev + 1);
                 }}
@@ -329,7 +324,6 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   const [sortBy, setSortBy] = React.useState<'manual' | 'time' | 'title' | 'status'>('manual');
   const [sortDirection, setSortDirection] = React.useState<'asc' | 'desc'>('asc');
   const [expandedDescriptions, setExpandedDescriptions] = React.useState<Set<number>>(new Set());
-  const [movingTaskId, setMovingTaskId] = React.useState<number | null>(null);
 
   React.useEffect(() => {
     if (selectedInstance) {
@@ -449,10 +443,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   };
 
   const handleMoveUp = async (taskId: number) => {
-    if (movingTaskId !== null) return; // Prevent concurrent moves
-
     try {
-      setMovingTaskId(taskId);
       const { tasksApi } = await import('../../api/tasks');
 
       // Optimistic update: update UI immediately
@@ -469,24 +460,18 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       setSuccessMessage('Aufgabe wurde nach oben verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
 
-      // Wait briefly for server to process and SSE to broadcast before syncing
-      // This prevents overwriting optimistic update before server confirms
-      setTimeout(() => loadAssignments(false), 300);
+      // Reload in background to sync with server
+      loadAssignments(false);
     } catch (error: any) {
       console.error('Move up error:', error);
       // Reload immediately on error to revert optimistic update
       loadAssignments(false);
       alert(error.response?.data?.error || 'Fehler beim Verschieben der Aufgabe');
-    } finally {
-      setMovingTaskId(null);
     }
   };
 
   const handleMoveDown = async (taskId: number) => {
-    if (movingTaskId !== null) return; // Prevent concurrent moves
-
     try {
-      setMovingTaskId(taskId);
       const { tasksApi } = await import('../../api/tasks');
 
       // Optimistic update: update UI immediately
@@ -503,15 +488,13 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       setSuccessMessage('Aufgabe wurde nach unten verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
 
-      // Wait briefly for server to process and SSE to broadcast before syncing
-      setTimeout(() => loadAssignments(false), 300);
+      // Reload in background to sync with server
+      loadAssignments(false);
     } catch (error: any) {
       console.error('Move down error:', error);
       // Reload immediately on error to revert optimistic update
       loadAssignments(false);
       alert(error.response?.data?.error || 'Fehler beim Verschieben der Aufgabe');
-    } finally {
-      setMovingTaskId(null);
     }
   };
 
@@ -831,19 +814,17 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                 <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.25rem' }}>
                   <button
                     onClick={() => handleMoveUp(task.id)}
-                    disabled={movingTaskId !== null}
                     style={{
                       padding: '0.25rem 0.375rem',
                       backgroundColor: 'transparent',
-                      color: movingTaskId !== null ? '#d1d5db' : '#9ca3af',
+                      color: '#9ca3af',
                       border: '1px solid #e5e7eb',
                       borderRadius: '4px',
                       fontSize: '0.75rem',
-                      cursor: movingTaskId !== null ? 'not-allowed' : 'pointer',
+                      cursor: 'pointer',
                       fontWeight: 'normal',
                       lineHeight: '1',
-                      transition: 'all 0.2s',
-                      opacity: movingTaskId !== null ? 0.5 : 1
+                      transition: 'all 0.2s'
                     }}
                     title="Aufgabe nach oben verschieben"
                   >
@@ -851,19 +832,17 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                   </button>
                   <button
                     onClick={() => handleMoveDown(task.id)}
-                    disabled={movingTaskId !== null}
                     style={{
                       padding: '0.25rem 0.375rem',
                       backgroundColor: 'transparent',
-                      color: movingTaskId !== null ? '#d1d5db' : '#9ca3af',
+                      color: '#9ca3af',
                       border: '1px solid #e5e7eb',
                       borderRadius: '4px',
                       fontSize: '0.75rem',
-                      cursor: movingTaskId !== null ? 'not-allowed' : 'pointer',
+                      cursor: 'pointer',
                       fontWeight: 'normal',
                       lineHeight: '1',
-                      transition: 'all 0.2s',
-                      opacity: movingTaskId !== null ? 0.5 : 1
+                      transition: 'all 0.2s'
                     }}
                     title="Aufgabe nach unten verschieben"
                   >
