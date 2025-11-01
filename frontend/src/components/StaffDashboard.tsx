@@ -287,8 +287,8 @@ export const StaffDashboard: React.FC = () => {
   // Filter tasks based on hideCompleted and selectedEvents
   const filteredTasks = React.useMemo(() => {
     return tasks.filter(t => {
-      // Filter by completed status (only global task status, not individual assignment)
-      if (hideCompleted && t.status === 'completed') {
+      // Filter by completed status - check both status field and completed flag
+      if (hideCompleted && (t.status === 'completed' || t.completed === true)) {
         return false;
       }
 

@@ -4,6 +4,7 @@ import client from '../../api/client';
 
 interface Props {
   eventId: number;
+  reloadTrigger?: number; // Trigger für SSE-Updates
 }
 
 interface EventStaff extends User {
@@ -21,7 +22,7 @@ interface StaffTask {
   instance_number: number;
 }
 
-export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
+export const EventStaffPool: React.FC<Props> = ({ eventId, reloadTrigger }) => {
   const [allStaff, setAllStaff] = useState<EventStaff[]>([]);
   const [eventStaff, setEventStaff] = useState<EventStaff[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,9 +35,18 @@ export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
     loadData();
   }, [eventId]);
 
-  const loadData = async () => {
+  // React to SSE updates from parent component
+  useEffect(() => {
+    if (reloadTrigger !== undefined && reloadTrigger > 0) {
+      loadData(false);
+    }
+  }, [reloadTrigger]);
+
+  const loadData = async (showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) {
+        setLoading(true);
+      }
       const [allUsers, eventUsers, assignments] = await Promise.all([
         usersApi.getAll(),
         client.get(`/users/event/${eventId}/staff`).then(res => res.data),
@@ -74,7 +84,9 @@ export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
       console.error('Load staff pool error:', error);
       setError('Fehler beim Laden der Mitarbeiter');
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   };
 

@@ -168,7 +168,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
       </div>
 
       <div className={styles.section}>
-        <EventStaffPool key={tableRefreshKey} eventId={eventId} />
+        <EventStaffPool eventId={eventId} reloadTrigger={tableRefreshKey} />
       </div>
 
       <div className={styles.section}>
@@ -321,6 +321,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   const [sortBy, setSortBy] = React.useState<'manual' | 'time' | 'title' | 'status'>('manual');
   const [sortDirection, setSortDirection] = React.useState<'asc' | 'desc'>('asc');
   const [expandedDescriptions, setExpandedDescriptions] = React.useState<Set<number>>(new Set());
+  const [movingTaskId, setMovingTaskId] = React.useState<number | null>(null);
 
   React.useEffect(() => {
     if (selectedInstance) {
@@ -440,7 +441,10 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   };
 
   const handleMoveUp = async (taskId: number) => {
+    if (movingTaskId !== null) return; // Prevent concurrent moves
+
     try {
+      setMovingTaskId(taskId);
       const { tasksApi } = await import('../../api/tasks');
 
       // Optimistic update: update UI immediately
@@ -465,11 +469,16 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       // Reload immediately on error to revert optimistic update
       loadAssignments(false);
       alert(error.response?.data?.error || 'Fehler beim Verschieben der Aufgabe');
+    } finally {
+      setMovingTaskId(null);
     }
   };
 
   const handleMoveDown = async (taskId: number) => {
+    if (movingTaskId !== null) return; // Prevent concurrent moves
+
     try {
+      setMovingTaskId(taskId);
       const { tasksApi } = await import('../../api/tasks');
 
       // Optimistic update: update UI immediately
@@ -493,6 +502,8 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       // Reload immediately on error to revert optimistic update
       loadAssignments(false);
       alert(error.response?.data?.error || 'Fehler beim Verschieben der Aufgabe');
+    } finally {
+      setMovingTaskId(null);
     }
   };
 
@@ -812,17 +823,19 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                 <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.25rem' }}>
                   <button
                     onClick={() => handleMoveUp(task.id)}
+                    disabled={movingTaskId !== null}
                     style={{
                       padding: '0.25rem 0.375rem',
                       backgroundColor: 'transparent',
-                      color: '#9ca3af',
+                      color: movingTaskId !== null ? '#d1d5db' : '#9ca3af',
                       border: '1px solid #e5e7eb',
                       borderRadius: '4px',
                       fontSize: '0.75rem',
-                      cursor: 'pointer',
+                      cursor: movingTaskId !== null ? 'not-allowed' : 'pointer',
                       fontWeight: 'normal',
                       lineHeight: '1',
-                      transition: 'all 0.2s'
+                      transition: 'all 0.2s',
+                      opacity: movingTaskId !== null ? 0.5 : 1
                     }}
                     title="Aufgabe nach oben verschieben"
                   >
@@ -830,17 +843,19 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                   </button>
                   <button
                     onClick={() => handleMoveDown(task.id)}
+                    disabled={movingTaskId !== null}
                     style={{
                       padding: '0.25rem 0.375rem',
                       backgroundColor: 'transparent',
-                      color: '#9ca3af',
+                      color: movingTaskId !== null ? '#d1d5db' : '#9ca3af',
                       border: '1px solid #e5e7eb',
                       borderRadius: '4px',
                       fontSize: '0.75rem',
-                      cursor: 'pointer',
+                      cursor: movingTaskId !== null ? 'not-allowed' : 'pointer',
                       fontWeight: 'normal',
                       lineHeight: '1',
-                      transition: 'all 0.2s'
+                      transition: 'all 0.2s',
+                      opacity: movingTaskId !== null ? 0.5 : 1
                     }}
                     title="Aufgabe nach unten verschieben"
                   >
