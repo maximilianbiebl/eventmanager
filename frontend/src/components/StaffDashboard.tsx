@@ -45,12 +45,8 @@ export const StaffDashboard: React.FC = () => {
     loadSelectedEventsFromStorage();
     loadTasks();
 
-    // Auto-refresh alle 30 Sekunden als Fallback (SSE sollte primär Updates liefern)
-    const interval = setInterval(() => {
-      loadTasks(false); // Don't show loading indicator on auto-refresh
-    }, 30000);
-
-    return () => clearInterval(interval);
+    // SSE handles live updates, no need for polling fallback
+    // The 30-second interval was causing filter resets and unnecessary reloads
   }, []);
 
   const loadSelectedEventsFromStorage = () => {

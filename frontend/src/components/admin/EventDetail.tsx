@@ -54,12 +54,8 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
   useEffect(() => {
     loadData();
 
-    // Auto-refresh every 30 seconds as fallback (SSE should handle most updates)
-    const interval = setInterval(() => {
-      loadData(false); // Don't show loading indicator on auto-refresh
-    }, 30000);
-
-    return () => clearInterval(interval);
+    // SSE handles live updates, no need for polling fallback
+    // The 30-second interval was causing unnecessary reloads
   }, [eventId]);
 
   const loadData = async (showLoading = true) => {
