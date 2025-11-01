@@ -580,7 +580,7 @@ export const StaffDashboard: React.FC = () => {
           onReload={loadTasks}
         />
       ) : sortBy === 'standard' ? (
-        <div className={styles.taskList}>
+        <div key="standard-view" className={styles.taskList}>
           {sortedTasks.map((task) => (
             <TaskCard
               key={task.assignment_id || task.id}
@@ -593,7 +593,7 @@ export const StaffDashboard: React.FC = () => {
           ))}
         </div>
       ) : sortBy === 'event-day' ? (
-        <div className={styles.groupedView}>
+        <div key="event-day-view" className={styles.groupedView}>
           {Object.entries(groupedTasks).map(([groupKey, groupTasks]) => (
             <div key={groupKey} className={styles.group}>
               <h2 className={styles.groupTitle}>{groupKey}</h2>
@@ -613,7 +613,7 @@ export const StaffDashboard: React.FC = () => {
           ))}
         </div>
       ) : sortBy === 'event' ? (
-        <div className={styles.groupedView}>
+        <div key="event-view" className={styles.groupedView}>
           {Object.entries(eventGroups).map(([groupKey, groupTasks]) => (
             <div key={groupKey} className={styles.group}>
               <h2 className={styles.groupTitle}>{groupKey}</h2>
@@ -633,7 +633,7 @@ export const StaffDashboard: React.FC = () => {
           ))}
         </div>
       ) : (
-        <div className={styles.groupedView}>
+        <div key="date-view" className={styles.groupedView}>
           {Object.entries(dateGroups).map(([groupKey, groupTasks]) => (
             <div key={groupKey} className={styles.group}>
               <h2 className={styles.groupTitle}>{groupKey}</h2>

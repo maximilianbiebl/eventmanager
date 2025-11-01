@@ -178,11 +178,11 @@ export const TaskTableView: React.FC<Props> = ({
       setSuccessMessage('Aufgabe wurde nach oben verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
 
-      // Reload in background to sync with server
-      loadAssignments(false);
+      // Wait briefly for server to process and SSE to broadcast before syncing
+      setTimeout(() => loadAssignments(false), 300);
     } catch (error: any) {
       console.error('Move up error:', error);
-      // Reload on error to revert optimistic update (non-blocking)
+      // Reload immediately on error to revert optimistic update
       loadAssignments(false);
       if (error.response?.status === 400) {
         alert('Aufgabe ist bereits an erster Position');
@@ -208,11 +208,11 @@ export const TaskTableView: React.FC<Props> = ({
       setSuccessMessage('Aufgabe wurde nach unten verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
 
-      // Reload in background to sync with server
-      loadAssignments(false);
+      // Wait briefly for server to process and SSE to broadcast before syncing
+      setTimeout(() => loadAssignments(false), 300);
     } catch (error: any) {
       console.error('Move down error:', error);
-      // Reload on error to revert optimistic update (non-blocking)
+      // Reload immediately on error to revert optimistic update
       loadAssignments(false);
       if (error.response?.status === 400) {
         alert('Aufgabe ist bereits an letzter Position');

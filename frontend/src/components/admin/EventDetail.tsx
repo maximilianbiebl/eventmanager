@@ -429,11 +429,11 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       setSuccessMessage(`Status wurde geändert`);
       setTimeout(() => setSuccessMessage(''), 3000);
 
-      // Reload in background to sync with server
-      loadAssignments(false);
+      // Wait briefly for server to process and SSE to broadcast before syncing
+      setTimeout(() => loadAssignments(false), 300);
     } catch (error) {
       console.error('Change status error:', error);
-      // Reload on error to revert optimistic update (non-blocking)
+      // Reload immediately on error to revert optimistic update
       loadAssignments(false);
       alert('Fehler beim Ändern des Status');
     }
@@ -457,11 +457,12 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       setSuccessMessage('Aufgabe wurde nach oben verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
 
-      // Reload in background to sync with server
-      loadAssignments(false);
+      // Wait briefly for server to process and SSE to broadcast before syncing
+      // This prevents overwriting optimistic update before server confirms
+      setTimeout(() => loadAssignments(false), 300);
     } catch (error: any) {
       console.error('Move up error:', error);
-      // Reload on error to revert optimistic update (non-blocking)
+      // Reload immediately on error to revert optimistic update
       loadAssignments(false);
       alert(error.response?.data?.error || 'Fehler beim Verschieben der Aufgabe');
     }
@@ -485,11 +486,11 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       setSuccessMessage('Aufgabe wurde nach unten verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
 
-      // Reload in background to sync with server
-      loadAssignments(false);
+      // Wait briefly for server to process and SSE to broadcast before syncing
+      setTimeout(() => loadAssignments(false), 300);
     } catch (error: any) {
       console.error('Move down error:', error);
-      // Reload on error to revert optimistic update (non-blocking)
+      // Reload immediately on error to revert optimistic update
       loadAssignments(false);
       alert(error.response?.data?.error || 'Fehler beim Verschieben der Aufgabe');
     }
