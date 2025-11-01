@@ -225,12 +225,12 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
 
         {viewMode === 'list' ? (
           <TaskListView
-            tasks={tasks.filter(task => selectedDay === 'all' || task.day_number === selectedDay)}
-            selectedDay={typeof selectedDay === 'number' ? selectedDay : 1}
+            selectedDay={selectedDay}
             selectedInstance={selectedInstance}
             onEditTask={handleEditTask}
             onAssignTask={handleAssignTask}
             reloadTrigger={tableRefreshKey}
+            event={event}
           />
         ) : (
           selectedInstance && (
@@ -299,21 +299,21 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
 
 // Erweiterte Listen-Ansicht mit Zeiten, MAs und Status
 interface TaskListViewProps {
-  tasks: Task[];
-  selectedDay: number;
+  selectedDay: number | 'all';
   selectedInstance: number | null;
   onEditTask: (task: Task) => void;
   onAssignTask: (taskId: number) => void;
   reloadTrigger?: number; // Trigger für SSE-Updates
+  event?: any; // Für overdue check
 }
 
 const TaskListView: React.FC<TaskListViewProps> = ({
-  tasks,
   selectedDay,
   selectedInstance,
   onEditTask,
   onAssignTask,
   reloadTrigger,
+  event,
 }) => {
   const [assignments, setAssignments] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -495,8 +495,25 @@ const TaskListView: React.FC<TaskListViewProps> = ({
     }
   };
 
+  // Group assignments by task ID and get unique tasks
+  const uniqueTasks = React.useMemo(() => {
+    const taskMap = new Map<number, any>();
+    assignments.forEach(a => {
+      if (!taskMap.has(a.id)) {
+        taskMap.set(a.id, a);
+      }
+    });
+    return Array.from(taskMap.values());
+  }, [assignments]);
+
+  // Filter by selected day
+  const filteredTasks = React.useMemo(() => {
+    if (selectedDay === 'all') return uniqueTasks;
+    return uniqueTasks.filter(t => t.day_number === selectedDay);
+  }, [uniqueTasks, selectedDay]);
+
   const sortedTasks = React.useMemo(() => {
-    return [...tasks].sort((a, b) => {
+    return [...filteredTasks].sort((a, b) => {
       let compareResult = 0;
 
       switch (sortBy) {
@@ -521,9 +538,17 @@ const TaskListView: React.FC<TaskListViewProps> = ({
 
       return sortDirection === 'asc' ? compareResult : -compareResult;
     });
-  }, [tasks, sortBy, sortDirection]);
+  }, [filteredTasks, sortBy, sortDirection]);
 
-  if (tasks.length === 0) {
+  if (uniqueTasks.length === 0 && !loading) {
+    return (
+      <div className={styles.tasksList}>
+        <p>Keine Aufgaben vorhanden</p>
+      </div>
+    );
+  }
+
+  if (filteredTasks.length === 0 && !loading && uniqueTasks.length > 0) {
     return (
       <div className={styles.tasksList}>
         <p>Keine Aufgaben für Tag {selectedDay} vorhanden</p>

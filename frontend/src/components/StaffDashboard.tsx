@@ -21,6 +21,7 @@ export const StaffDashboard: React.FC = () => {
   const [showEventFilter, setShowEventFilter] = useState(false);
   const [selectedDay, setSelectedDay] = useState<number | 'all'>('all');
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [filtersInitialized, setFiltersInitialized] = useState(false);
   const { user, logout } = useAuth();
   const notifications = useNotifications();
 
@@ -128,14 +129,15 @@ export const StaffDashboard: React.FC = () => {
         return prevTasks;
       });
 
-      // Only initialize selectedEvents on first load when showing is true
+      // Only initialize selectedEvents on first load (when not yet initialized)
       // This prevents SSE updates from resetting user filter selections
-      if (showLoading && selectedEvents.size === 0 && data.length > 0) {
+      if (!filtersInitialized && data.length > 0) {
         const stored = localStorage.getItem('selectedEvents');
         if (stored) {
           try {
             const storedEvents = JSON.parse(stored);
             setSelectedEvents(new Set(storedEvents));
+            console.log('Loaded filters from localStorage:', storedEvents);
           } catch (error) {
             console.error('Load selected events from storage error:', error);
             // Fallback: select all events
@@ -148,7 +150,9 @@ export const StaffDashboard: React.FC = () => {
           const allEvents = new Set(data.map(t => `${t.event_name}#${t.instance_start_date}`));
           setSelectedEvents(allEvents);
           saveSelectedEventsToStorage(allEvents);
+          console.log('Initialized filters with all events');
         }
+        setFiltersInitialized(true);
       }
     } catch (error) {
       console.error('Load tasks error:', error);
