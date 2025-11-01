@@ -324,12 +324,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
     if (selectedInstance) {
       loadAssignments();
 
-      // Auto-refresh every 30 seconds
-      const interval = setInterval(() => {
-        loadAssignments(false); // Don't show loading indicator on auto-refresh
-      }, 30000);
-
-      return () => clearInterval(interval);
+      // SSE handles live updates, no polling needed
     }
   }, [selectedInstance]);
 

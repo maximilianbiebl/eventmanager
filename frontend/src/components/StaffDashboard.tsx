@@ -42,11 +42,10 @@ export const StaffDashboard: React.FC = () => {
 
   useEffect(() => {
     loadUserSettings();
-    loadSelectedEventsFromStorage();
     loadTasks();
 
     // SSE handles live updates, no need for polling fallback
-    // The 30-second interval was causing filter resets and unnecessary reloads
+    // selectedEvents are loaded inside loadTasks on first load only
   }, []);
 
   const loadSelectedEventsFromStorage = () => {
@@ -141,29 +140,26 @@ export const StaffDashboard: React.FC = () => {
         return prevTasks;
       });
 
-      // Get unique events from current tasks
-      const currentUniqueEvents = new Set(data.map(t => `${t.event_name}#${t.instance_start_date}`));
-
-      // Initialize selectedEvents with all unique events if not yet set AND not loaded from storage
-      const stored = localStorage.getItem('selectedEvents');
-      if (!stored && selectedEvents.size === 0 && data.length > 0) {
-        setSelectedEvents(currentUniqueEvents);
-        saveSelectedEventsToStorage(currentUniqueEvents);
-      } else if (stored) {
-        // Validate stored events against current tasks
-        const storedEvents = new Set<string>(JSON.parse(stored));
-        const validEvents = new Set<string>(
-          Array.from(storedEvents).filter((key: string) => currentUniqueEvents.has(key))
-        );
-
-        // If no valid events remain, select all current events
-        if (validEvents.size === 0 && currentUniqueEvents.size > 0) {
-          setSelectedEvents(currentUniqueEvents);
-          saveSelectedEventsToStorage(currentUniqueEvents);
-        } else if (validEvents.size !== storedEvents.size) {
-          // Update if some stored events are no longer valid
-          setSelectedEvents(validEvents);
-          saveSelectedEventsToStorage(validEvents);
+      // Only initialize selectedEvents on first load when showing is true
+      // This prevents SSE updates from resetting user filter selections
+      if (showLoading && selectedEvents.size === 0 && data.length > 0) {
+        const stored = localStorage.getItem('selectedEvents');
+        if (stored) {
+          try {
+            const storedEvents = JSON.parse(stored);
+            setSelectedEvents(new Set(storedEvents));
+          } catch (error) {
+            console.error('Load selected events from storage error:', error);
+            // Fallback: select all events
+            const allEvents = new Set(data.map(t => `${t.event_name}#${t.instance_start_date}`));
+            setSelectedEvents(allEvents);
+            saveSelectedEventsToStorage(allEvents);
+          }
+        } else {
+          // No stored value: select all events
+          const allEvents = new Set(data.map(t => `${t.event_name}#${t.instance_start_date}`));
+          setSelectedEvents(allEvents);
+          saveSelectedEventsToStorage(allEvents);
         }
       }
     } catch (error) {
