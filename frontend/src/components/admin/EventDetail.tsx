@@ -227,26 +227,30 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
         )}
 
         {viewMode === 'list' ? (
-          <TaskListView
-            selectedDay={selectedDay}
-            selectedInstance={selectedInstance}
-            onEditTask={handleEditTask}
-            onAssignTask={handleAssignTask}
-            reloadTrigger={tableRefreshKey}
-            event={event}
-          />
-        ) : (
-          selectedInstance && (
-            <TaskTableView
-              eventInstanceId={selectedInstance}
+          <div key="list-view">
+            <TaskListView
+              selectedDay={selectedDay}
+              selectedInstance={selectedInstance}
               onEditTask={handleEditTask}
               onAssignTask={handleAssignTask}
-              eventDays={event?.days}
-              selectedDay={selectedDay}
-              onSelectedDayChange={setSelectedDay}
-              instanceStartDate={(event as any)?.instances.find((i: any) => i.id === selectedInstance)?.start_date}
               reloadTrigger={tableRefreshKey}
+              event={event}
             />
+          </div>
+        ) : (
+          selectedInstance && (
+            <div key="table-view">
+              <TaskTableView
+                eventInstanceId={selectedInstance}
+                onEditTask={handleEditTask}
+                onAssignTask={handleAssignTask}
+                eventDays={event?.days}
+                selectedDay={selectedDay}
+                onSelectedDayChange={setSelectedDay}
+                instanceStartDate={(event as any)?.instances.find((i: any) => i.id === selectedInstance)?.start_date}
+                reloadTrigger={tableRefreshKey}
+              />
+            </div>
           )
         )}
       </div>
@@ -421,23 +425,13 @@ const TaskListView: React.FC<TaskListViewProps> = ({
 
   const handleStatusChange = async (taskId: number, newStatus: string) => {
     try {
-      // Optimistic update: update UI immediately
-      const newAssignments = assignments.map(a =>
-        a.id === taskId ? { ...a, status: newStatus } : a
-      );
-      setAssignments(newAssignments);
-
       const client = (await import('../../api/client')).default;
       await client.put(`/tasks/${taskId}`, { status: newStatus });
       setSuccessMessage(`Status wurde geändert`);
       setTimeout(() => setSuccessMessage(''), 3000);
-
-      // Wait briefly for server to process and SSE to broadcast before syncing
-      setTimeout(() => loadAssignments(false), 300);
+      // SSE will handle the update automatically
     } catch (error) {
       console.error('Change status error:', error);
-      // Reload immediately on error to revert optimistic update
-      loadAssignments(false);
       alert('Fehler beim Ändern des Status');
     }
   };
@@ -445,27 +439,12 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   const handleMoveUp = async (taskId: number) => {
     try {
       const { tasksApi } = await import('../../api/tasks');
-
-      // Optimistic update: update UI immediately
-      const currentIndex = assignments.findIndex((a: any) => a.id === taskId);
-      if (currentIndex > 0) {
-        const newAssignments = [...assignments];
-        const temp = newAssignments[currentIndex];
-        newAssignments[currentIndex] = newAssignments[currentIndex - 1];
-        newAssignments[currentIndex - 1] = temp;
-        setAssignments(newAssignments);
-      }
-
       await tasksApi.moveUp(taskId);
       setSuccessMessage('Aufgabe wurde nach oben verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
-
-      // Reload in background to sync with server
-      loadAssignments(false);
+      // SSE will handle the update automatically
     } catch (error: any) {
       console.error('Move up error:', error);
-      // Reload immediately on error to revert optimistic update
-      loadAssignments(false);
       alert(error.response?.data?.error || 'Fehler beim Verschieben der Aufgabe');
     }
   };
@@ -473,27 +452,12 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   const handleMoveDown = async (taskId: number) => {
     try {
       const { tasksApi } = await import('../../api/tasks');
-
-      // Optimistic update: update UI immediately
-      const currentIndex = assignments.findIndex((a: any) => a.id === taskId);
-      if (currentIndex < assignments.length - 1 && currentIndex !== -1) {
-        const newAssignments = [...assignments];
-        const temp = newAssignments[currentIndex];
-        newAssignments[currentIndex] = newAssignments[currentIndex + 1];
-        newAssignments[currentIndex + 1] = temp;
-        setAssignments(newAssignments);
-      }
-
       await tasksApi.moveDown(taskId);
       setSuccessMessage('Aufgabe wurde nach unten verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
-
-      // Reload in background to sync with server
-      loadAssignments(false);
+      // SSE will handle the update automatically
     } catch (error: any) {
       console.error('Move down error:', error);
-      // Reload immediately on error to revert optimistic update
-      loadAssignments(false);
       alert(error.response?.data?.error || 'Fehler beim Verschieben der Aufgabe');
     }
   };

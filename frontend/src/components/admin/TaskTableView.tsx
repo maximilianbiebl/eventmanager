@@ -164,26 +164,12 @@ export const TaskTableView: React.FC<Props> = ({
 
   const handleMoveUp = async (taskId: number) => {
     try {
-      // Optimistic update: update UI immediately
-      const currentIndex = assignments.findIndex(a => a.id === taskId);
-      if (currentIndex > 0) {
-        const newAssignments = [...assignments];
-        const temp = newAssignments[currentIndex];
-        newAssignments[currentIndex] = newAssignments[currentIndex - 1];
-        newAssignments[currentIndex - 1] = temp;
-        setAssignments(newAssignments);
-      }
-
       await tasksApi.moveUp(taskId);
       setSuccessMessage('Aufgabe wurde nach oben verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
-
-      // Reload in background to sync with server
-      loadAssignments(false);
+      // SSE will handle the update automatically
     } catch (error: any) {
       console.error('Move up error:', error);
-      // Reload immediately on error to revert optimistic update
-      loadAssignments(false);
       if (error.response?.status === 400) {
         alert('Aufgabe ist bereits an erster Position');
       } else {
@@ -194,26 +180,12 @@ export const TaskTableView: React.FC<Props> = ({
 
   const handleMoveDown = async (taskId: number) => {
     try {
-      // Optimistic update: update UI immediately
-      const currentIndex = assignments.findIndex(a => a.id === taskId);
-      if (currentIndex < assignments.length - 1 && currentIndex !== -1) {
-        const newAssignments = [...assignments];
-        const temp = newAssignments[currentIndex];
-        newAssignments[currentIndex] = newAssignments[currentIndex + 1];
-        newAssignments[currentIndex + 1] = temp;
-        setAssignments(newAssignments);
-      }
-
       await tasksApi.moveDown(taskId);
       setSuccessMessage('Aufgabe wurde nach unten verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
-
-      // Reload in background to sync with server
-      loadAssignments(false);
+      // SSE will handle the update automatically
     } catch (error: any) {
       console.error('Move down error:', error);
-      // Reload immediately on error to revert optimistic update
-      loadAssignments(false);
       if (error.response?.status === 400) {
         alert('Aufgabe ist bereits an letzter Position');
       } else {
@@ -314,22 +286,12 @@ export const TaskTableView: React.FC<Props> = ({
 
   const handleStatusChange = async (taskId: number, newStatus: string) => {
     try {
-      // Optimistic update: update UI immediately
-      const newAssignments = assignments.map(a =>
-        a.id === taskId ? { ...a, status: newStatus } : a
-      );
-      setAssignments(newAssignments);
-
       await client.put(`/tasks/${taskId}`, { status: newStatus });
       setSuccessMessage(`Status wurde auf "${STATUS_LABELS[newStatus]}" geändert`);
       setTimeout(() => setSuccessMessage(''), 3000);
-
-      // Reload in background to sync with server
-      loadAssignments(false);
+      // SSE will handle the update automatically
     } catch (error) {
       console.error('Change status error:', error);
-      // Reload on error to revert optimistic update (non-blocking)
-      loadAssignments(false);
       setError('Fehler beim Ändern des Status');
     }
   };
