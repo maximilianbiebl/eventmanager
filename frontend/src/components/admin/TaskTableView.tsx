@@ -30,6 +30,7 @@ interface Props {
   selectedDay?: number | 'all'; // Ausgewählter Tag von außen
   onSelectedDayChange?: (day: number | 'all') => void; // Callback für Tag-Änderung
   instanceStartDate?: string; // Startdatum der Event-Instanz
+  reloadTrigger?: number; // Trigger für SSE-Updates
 }
 
 const STATUS_COLORS: { [key: string]: string } = {
@@ -53,7 +54,8 @@ export const TaskTableView: React.FC<Props> = ({
   eventDays,
   selectedDay: externalSelectedDay,
   onSelectedDayChange,
-  instanceStartDate
+  instanceStartDate,
+  reloadTrigger
 }) => {
   const [assignments, setAssignments] = useState<TaskAssignment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,6 +82,13 @@ export const TaskTableView: React.FC<Props> = ({
 
     // SSE handles live updates, no polling needed
   }, [eventInstanceId]);
+
+  // React to SSE updates from parent component
+  useEffect(() => {
+    if (reloadTrigger !== undefined && reloadTrigger > 0) {
+      loadAssignments(false);
+    }
+  }, [reloadTrigger]);
 
   const checkAndUpdateOverdueTasks = async (tasks: TaskAssignment[]) => {
     const now = new Date();

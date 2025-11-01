@@ -225,17 +225,16 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
 
         {viewMode === 'list' ? (
           <TaskListView
-            key={tableRefreshKey}
             tasks={tasks.filter(task => selectedDay === 'all' || task.day_number === selectedDay)}
             selectedDay={typeof selectedDay === 'number' ? selectedDay : 1}
             selectedInstance={selectedInstance}
             onEditTask={handleEditTask}
             onAssignTask={handleAssignTask}
+            reloadTrigger={tableRefreshKey}
           />
         ) : (
           selectedInstance && (
             <TaskTableView
-              key={tableRefreshKey}
               eventInstanceId={selectedInstance}
               onEditTask={handleEditTask}
               onAssignTask={handleAssignTask}
@@ -243,6 +242,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
               selectedDay={selectedDay}
               onSelectedDayChange={setSelectedDay}
               instanceStartDate={(event as any)?.instances.find((i: any) => i.id === selectedInstance)?.start_date}
+              reloadTrigger={tableRefreshKey}
             />
           )
         )}
@@ -304,6 +304,7 @@ interface TaskListViewProps {
   selectedInstance: number | null;
   onEditTask: (task: Task) => void;
   onAssignTask: (taskId: number) => void;
+  reloadTrigger?: number; // Trigger für SSE-Updates
 }
 
 const TaskListView: React.FC<TaskListViewProps> = ({
@@ -312,6 +313,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   selectedInstance,
   onEditTask,
   onAssignTask,
+  reloadTrigger,
 }) => {
   const [assignments, setAssignments] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -327,6 +329,13 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       // SSE handles live updates, no polling needed
     }
   }, [selectedInstance]);
+
+  // React to SSE updates from parent component
+  React.useEffect(() => {
+    if (reloadTrigger !== undefined && reloadTrigger > 0 && selectedInstance) {
+      loadAssignments(false);
+    }
+  }, [reloadTrigger]);
 
   const checkAndUpdateOverdueTasks = async (tasks: any[], instance: any) => {
     if (!instance) return;
