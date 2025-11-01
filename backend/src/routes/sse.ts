@@ -39,8 +39,9 @@ router.get('/stream', (req: Request, res: Response) => {
   // Verify token
   let user: any;
   try {
-    user = jwt.verify(token, config.jwtSecret);
+    user = jwt.verify(token, config.jwt.secret);
   } catch (error) {
+    console.error('SSE Token verification failed:', error);
     res.status(403).json({ error: 'Ungültiges Token' });
     return;
   }
@@ -51,10 +52,12 @@ router.get('/stream', (req: Request, res: Response) => {
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
 
-  const clientId = `${user.userId}-${Date.now()}`;
+  // JWT contains 'id' not 'userId'
+  const userId = user.id || user.userId;
+  const clientId = `${userId}-${Date.now()}`;
   const client: SSEClient = {
     id: clientId,
-    userId: user.userId,
+    userId: userId,
     role: user.role,
     response: res
   };
