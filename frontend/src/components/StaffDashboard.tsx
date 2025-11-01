@@ -1372,7 +1372,7 @@ function groupTasksByEventDay(tasks: TaskAssignment[]): { [key: string]: TaskAss
 
   tasks.forEach((task) => {
     // Stelle sicher dass JEDE Task eine Gruppe bekommt
-    const eventName = task.event_name || task.event_title || 'Unbekanntes Event';
+    const eventName = task.event_name || 'Unbekanntes Event';
     const dayNumber = task.day_number ?? 1; // Use nullish coalescing to catch 0
     const instanceNumber = task.instance_number ?? 1;
     const key = `${eventName} ${instanceNumber > 1 ? `(#${instanceNumber})` : ''} - Tag ${dayNumber}`;
@@ -1413,7 +1413,7 @@ function groupTasksByEvent(tasks: TaskAssignment[]): { [key: string]: TaskAssign
 
   tasks.forEach((task) => {
     // Stelle sicher dass JEDE Task eine Gruppe bekommt
-    const eventName = task.event_name || task.event_title || 'Unbekanntes Event';
+    const eventName = task.event_name || 'Unbekanntes Event';
     const instanceNumber = task.instance_number ?? 1;
     const key = instanceNumber > 1 ? `${eventName} (#${instanceNumber})` : eventName;
 
@@ -1468,7 +1468,7 @@ function groupTasksByDate(tasks: TaskAssignment[]): { [key: string]: TaskAssignm
       grouped[dateStr].push(task);
     } catch (error) {
       // Fallback für Tasks ohne gültiges Datum
-      const eventName = task.event_name || task.event_title || 'Unbekanntes Event';
+      const eventName = task.event_name || 'Unbekanntes Event';
       const fallbackKey = `${eventName} - Unbekanntes Datum`;
       if (!grouped[fallbackKey]) {
         grouped[fallbackKey] = [];
