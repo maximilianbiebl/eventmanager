@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { eventsApi } from '../../api/events';
 import { tasksApi, Task } from '../../api/tasks';
 import { usersApi, User } from '../../api/users';
@@ -32,6 +32,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [selectedDay, setSelectedDay] = useState<number | 'all'>('all');
   const [manualRefreshTrigger, setManualRefreshTrigger] = useState(0);
+  const scrollPositionRef = useRef<number>(0);
 
   useEffect(() => {
     loadData();
@@ -100,6 +101,24 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
     // No reload needed - filter client-side
   };
 
+  const handleViewModeChange = (newMode: 'list' | 'table') => {
+    // Save current scroll position
+    scrollPositionRef.current = window.scrollY;
+
+    // Change view mode
+    setViewMode(newMode);
+
+    // Restore scroll position after React finishes rendering
+    requestAnimationFrame(() => {
+      window.scrollTo(0, scrollPositionRef.current);
+    });
+
+    // If switching to list view, ensure a valid day is selected
+    if (newMode === 'list' && selectedDay === 'all') {
+      setSelectedDay(1);
+    }
+  };
+
   if (loading) {
     return <div>Lade Details...</div>;
   }
@@ -144,17 +163,14 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
           <div className={styles.headerActions}>
             <div className={styles.viewToggle}>
               <button
-                onClick={() => {
-                  setViewMode('list');
-                  if (selectedDay === 'all') setSelectedDay(1);
-                }}
+                onClick={() => handleViewModeChange('list')}
                 className={viewMode === 'list' ? styles.viewButtonActive : styles.viewButton}
                 type="button"
               >
                 📋 Liste
               </button>
               <button
-                onClick={() => setViewMode('table')}
+                onClick={() => handleViewModeChange('table')}
                 className={viewMode === 'table' ? styles.viewButtonActive : styles.viewButton}
                 type="button"
               >
@@ -287,7 +303,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   manualRefreshTrigger,
 }) => {
   const [assignments, setAssignments] = React.useState<any[]>([]);
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = React.useState(false);
   const [successMessage, setSuccessMessage] = React.useState('');
   const [sortBy, setSortBy] = React.useState<'manual' | 'time' | 'title' | 'status'>('manual');
   const [sortDirection, setSortDirection] = React.useState<'asc' | 'desc'>('asc');
@@ -300,9 +316,9 @@ const TaskListView: React.FC<TaskListViewProps> = ({
     onTaskUpdate: (data) => {
       console.log('SSE: TaskListView update received', data);
 
-      // Ignore SSE updates for 1 second after own actions (to prevent double-updates)
+      // Ignore SSE updates for 200ms after own actions (to prevent double-updates)
       const timeSinceLastAction = Date.now() - lastActionTimeRef.current;
-      if (timeSinceLastAction < 1000) {
+      if (timeSinceLastAction < 200) {
         console.log('SSE: Ignoring update (too soon after own action)');
         return;
       }
@@ -321,7 +337,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
 
   React.useEffect(() => {
     if (selectedInstance) {
-      loadAssignments();
+      loadAssignments(false); // Load silently on mount - parent already shows loading
     }
   }, [selectedInstance]);
 
@@ -332,38 +348,18 @@ const TaskListView: React.FC<TaskListViewProps> = ({
     }
   }, [manualRefreshTrigger]);
 
-  const checkAndUpdateOverdueTasks = async (tasks: any[], instance: any) => {
-    if (!instance) return;
+  const isTaskOverdue = (task: any, instance: any): boolean => {
+    if (!task.end_time || !instance || task.status === 'completed') return false;
 
     const now = new Date();
-    const updates: Promise<void>[] = [];
+    const taskDate = new Date(instance.start_date);
+    taskDate.setDate(taskDate.getDate() + task.day_number - 1);
 
-    for (const task of tasks) {
-      if (task.status !== 'completed' && task.status !== 'overdue' && task.end_time) {
-        // Parse task date and time
-        const taskDate = new Date(instance.start_date);
-        taskDate.setDate(taskDate.getDate() + task.day_number - 1);
+    // Parse end time (format: "HH:MM")
+    const [hours, minutes] = task.end_time.split(':').map(Number);
+    taskDate.setHours(hours, minutes, 0, 0);
 
-        // Parse end time (format: "HH:MM")
-        const [hours, minutes] = task.end_time.split(':').map(Number);
-        taskDate.setHours(hours, minutes, 0, 0);
-
-        // Check if task is overdue
-        if (now > taskDate) {
-          const { tasksApi } = await import('../../api/tasks');
-          updates.push(
-            tasksApi.updateStatus(task.id, 'overdue').catch(err => {
-              console.error('Failed to mark task as overdue:', err);
-            })
-          );
-          task.status = 'overdue';
-        }
-      }
-    }
-
-    if (updates.length > 0) {
-      await Promise.all(updates);
-    }
+    return now > taskDate;
   };
 
   const loadAssignments = async (showLoading = true) => {
@@ -376,16 +372,6 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       const client = (await import('../../api/client')).default;
       const response = await client.get(`/tasks/instance/${selectedInstance}/assignments`);
       const data = response.data;
-
-      // Get current instance for date calculation
-      const currentInstance = event && (event as any).instances
-        ? (event as any).instances.find((i: any) => i.id === selectedInstance)
-        : null;
-
-      // Check for overdue tasks
-      if (currentInstance) {
-        await checkAndUpdateOverdueTasks(data, currentInstance);
-      }
 
       setAssignments(data);
     } catch (error) {
@@ -401,14 +387,25 @@ const TaskListView: React.FC<TaskListViewProps> = ({
     return assignments.filter(a => a.id === taskId && a.user_name);
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (task: any) => {
+    // Get current instance for overdue calculation
+    const currentInstance = event && (event as any).instances
+      ? (event as any).instances.find((i: any) => i.id === selectedInstance)
+      : null;
+
+    // Show red if task is actually overdue (by time), regardless of status
+    if (currentInstance && isTaskOverdue(task, currentInstance)) {
+      return '#ef4444'; // Red for overdue
+    }
+
+    // Otherwise use actual status color
     const colors: { [key: string]: string } = {
       not_started: '#6b7280',
       in_progress: '#3b82f6',
       completed: '#10b981',
       overdue: '#ef4444',
     };
-    return colors[status] || '#6b7280';
+    return colors[task.status] || '#6b7280';
   };
 
   const handleStatusChange = async (taskId: number, newStatus: string) => {
@@ -426,7 +423,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       await client.put(`/tasks/${taskId}`, { status: newStatus });
       setSuccessMessage(`Status wurde geändert`);
       setTimeout(() => setSuccessMessage(''), 3000);
-      // SSE will sync the final state from server (but will be ignored for 1s)
+      // SSE will sync the final state from server (but will be ignored for 200ms)
     } catch (error) {
       console.error('Change status error:', error);
       // Reload to revert optimistic update
@@ -452,7 +449,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       await tasksApi.moveUp(taskId);
       setSuccessMessage('Aufgabe wurde nach oben verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
-      // SSE will sync the final state from server (but will be ignored for 1s)
+      // SSE will sync the final state from server (but will be ignored for 200ms)
     } catch (error: any) {
       console.error('Move up error:', error);
       // Reload to revert optimistic update
@@ -478,7 +475,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       await tasksApi.moveDown(taskId);
       setSuccessMessage('Aufgabe wurde nach unten verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
-      // SSE will sync the final state from server (but will be ignored for 1s)
+      // SSE will sync the final state from server (but will be ignored for 200ms)
     } catch (error: any) {
       console.error('Move down error:', error);
       // Reload to revert optimistic update
@@ -679,7 +676,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
           <div
             key={task.id}
             className={styles.taskItemExtended}
-            style={{ borderLeft: `4px solid ${getStatusColor(task.status)}` }}
+            style={{ borderLeft: `4px solid ${getStatusColor(task)}` }}
           >
             <div className={styles.taskMainInfo}>
               <div className={styles.taskHeader}>
@@ -713,7 +710,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                   onChange={(e) => handleStatusChange(task.id, e.target.value)}
                   className={styles.statusSelect}
                   style={{
-                    backgroundColor: getStatusColor(task.status),
+                    backgroundColor: getStatusColor(task),
                     fontSize: '0.75rem',
                     padding: '0.25rem 0.5rem',
                     borderRadius: '4px',

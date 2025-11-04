@@ -59,7 +59,7 @@ export const TaskTableView: React.FC<Props> = ({
   manualRefreshTrigger
 }) => {
   const [assignments, setAssignments] = useState<TaskAssignment[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -85,9 +85,9 @@ export const TaskTableView: React.FC<Props> = ({
     onTaskUpdate: (data) => {
       console.log('SSE: TaskTableView update received', data);
 
-      // Ignore SSE updates for 1 second after own actions (to prevent double-updates)
+      // Ignore SSE updates for 200ms after own actions (to prevent double-updates)
       const timeSinceLastAction = Date.now() - lastActionTimeRef.current;
-      if (timeSinceLastAction < 1000) {
+      if (timeSinceLastAction < 200) {
         console.log('SSE: Ignoring update (too soon after own action)');
         return;
       }
@@ -103,7 +103,7 @@ export const TaskTableView: React.FC<Props> = ({
   });
 
   useEffect(() => {
-    loadAssignments();
+    loadAssignments(false); // Load silently on mount - parent already shows loading
   }, [eventInstanceId]);
 
   // React to manual refresh from parent
@@ -113,35 +113,18 @@ export const TaskTableView: React.FC<Props> = ({
     }
   }, [manualRefreshTrigger]);
 
-  const checkAndUpdateOverdueTasks = async (tasks: TaskAssignment[]) => {
+  const isTaskOverdue = (task: TaskAssignment): boolean => {
+    if (!task.end_time || !instanceStartDate || task.status === 'completed') return false;
+
     const now = new Date();
-    const updates: Promise<void>[] = [];
+    const taskDate = new Date(instanceStartDate);
+    taskDate.setDate(taskDate.getDate() + task.day_number - 1);
 
-    for (const task of tasks) {
-      if (task.status !== 'completed' && task.status !== 'overdue' && task.end_time && instanceStartDate) {
-        // Parse task date and time
-        const taskDate = new Date(instanceStartDate);
-        taskDate.setDate(taskDate.getDate() + task.day_number - 1);
+    // Parse end time (format: "HH:MM")
+    const [hours, minutes] = task.end_time.split(':').map(Number);
+    taskDate.setHours(hours, minutes, 0, 0);
 
-        // Parse end time (format: "HH:MM")
-        const [hours, minutes] = task.end_time.split(':').map(Number);
-        taskDate.setHours(hours, minutes, 0, 0);
-
-        // Check if task is overdue
-        if (now > taskDate) {
-          updates.push(
-            tasksApi.updateStatus(task.id, 'overdue').catch(err => {
-              console.error('Failed to mark task as overdue:', err);
-            })
-          );
-          task.status = 'overdue';
-        }
-      }
-    }
-
-    if (updates.length > 0) {
-      await Promise.all(updates);
-    }
+    return now > taskDate;
   };
 
   const loadAssignments = async (showLoading = true) => {
@@ -151,9 +134,6 @@ export const TaskTableView: React.FC<Props> = ({
       }
       const response = await client.get(`/tasks/instance/${eventInstanceId}/assignments`);
       const data = response.data;
-
-      // Check for overdue tasks
-      await checkAndUpdateOverdueTasks(data);
 
       setAssignments(data);
     } catch (error) {
@@ -189,22 +169,15 @@ export const TaskTableView: React.FC<Props> = ({
     try {
       lastActionTimeRef.current = Date.now(); // Track action time
 
-      // Optimistic update
-      const currentIndex = assignments.findIndex(a => a.id === taskId);
-      if (currentIndex > 0) {
-        const newAssignments = [...assignments];
-        [newAssignments[currentIndex], newAssignments[currentIndex - 1]] =
-        [newAssignments[currentIndex - 1], newAssignments[currentIndex]];
-        setAssignments(newAssignments);
-      }
+      // No optimistic update in table view - filtering/sorting makes it complex
+      // SSE will update almost instantly (200ms debounce)
 
       await tasksApi.moveUp(taskId);
       setSuccessMessage('Aufgabe wurde nach oben verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
-      // SSE will sync the final state from server (but will be ignored for 1s)
+      // SSE will sync the state from server (ignored for 200ms after this action)
     } catch (error: any) {
       console.error('Move up error:', error);
-      // Reload to revert optimistic update
       loadAssignments(false);
       if (error.response?.status === 400) {
         alert('Aufgabe ist bereits an erster Position');
@@ -218,22 +191,15 @@ export const TaskTableView: React.FC<Props> = ({
     try {
       lastActionTimeRef.current = Date.now(); // Track action time
 
-      // Optimistic update
-      const currentIndex = assignments.findIndex(a => a.id === taskId);
-      if (currentIndex < assignments.length - 1 && currentIndex !== -1) {
-        const newAssignments = [...assignments];
-        [newAssignments[currentIndex], newAssignments[currentIndex + 1]] =
-        [newAssignments[currentIndex + 1], newAssignments[currentIndex]];
-        setAssignments(newAssignments);
-      }
+      // No optimistic update in table view - filtering/sorting makes it complex
+      // SSE will update almost instantly (200ms debounce)
 
       await tasksApi.moveDown(taskId);
       setSuccessMessage('Aufgabe wurde nach unten verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
-      // SSE will sync the final state from server (but will be ignored for 1s)
+      // SSE will sync the state from server (ignored for 200ms after this action)
     } catch (error: any) {
       console.error('Move down error:', error);
-      // Reload to revert optimistic update
       loadAssignments(false);
       if (error.response?.status === 400) {
         alert('Aufgabe ist bereits an letzter Position');
@@ -347,7 +313,7 @@ export const TaskTableView: React.FC<Props> = ({
       await client.put(`/tasks/${taskId}`, { status: newStatus });
       setSuccessMessage(`Status wurde auf "${STATUS_LABELS[newStatus]}" geändert`);
       setTimeout(() => setSuccessMessage(''), 3000);
-      // SSE will sync the final state from server (but will be ignored for 1s)
+      // SSE will sync the final state from server (but will be ignored for 200ms)
     } catch (error) {
       console.error('Change status error:', error);
       // Reload to revert optimistic update
@@ -361,6 +327,16 @@ export const TaskTableView: React.FC<Props> = ({
     const startDate = new Date(instanceStartDate);
     startDate.setDate(startDate.getDate() + dayNumber - 1);
     return startDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+  };
+
+  const getTaskStatusColor = (task: TaskAssignment): string => {
+    // Show red if task is actually overdue (by time), regardless of status
+    if (isTaskOverdue(task)) {
+      return '#ef4444'; // Red for overdue
+    }
+
+    // Otherwise use actual status color
+    return STATUS_COLORS[task.status] || '#6b7280';
   };
 
   const getSortIcon = (column: string) => {
@@ -555,7 +531,7 @@ export const TaskTableView: React.FC<Props> = ({
                       onChange={(e) => handleStatusChange(task.id, e.target.value)}
                       style={{
                         ...styles.statusSelect,
-                        backgroundColor: STATUS_COLORS[task.status] || '#6b7280',
+                        backgroundColor: getTaskStatusColor(task),
                       }}
                       className={responsiveStyles.statusSelect}
                     >
