@@ -31,6 +31,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
   const [viewMode, setViewMode] = useState<'list' | 'table'>('table'); // Table ist jetzt Standard
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [selectedDay, setSelectedDay] = useState<number | 'all'>('all');
+  const [manualRefreshTrigger, setManualRefreshTrigger] = useState(0);
 
   useEffect(() => {
     loadData();
@@ -160,7 +161,10 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
                 📊 Tabelle
               </button>
               <button
-                onClick={() => loadData(false)}
+                onClick={() => {
+                  loadData(false);
+                  setManualRefreshTrigger(prev => prev + 1);
+                }}
                 className={styles.viewButton}
                 title="Daten aktualisieren"
                 type="button"
@@ -189,30 +193,29 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
           </div>
         )}
 
-        {viewMode === 'list' ? (
-          <div key="list-view">
-            <TaskListView
-              selectedDay={selectedDay}
-              selectedInstance={selectedInstance}
+        <div style={{ display: viewMode === 'list' ? 'block' : 'none' }}>
+          <TaskListView
+            selectedDay={selectedDay}
+            selectedInstance={selectedInstance}
+            onEditTask={handleEditTask}
+            onAssignTask={handleAssignTask}
+            event={event}
+            manualRefreshTrigger={manualRefreshTrigger}
+          />
+        </div>
+        {selectedInstance && (
+          <div style={{ display: viewMode === 'table' ? 'block' : 'none' }}>
+            <TaskTableView
+              eventInstanceId={selectedInstance}
               onEditTask={handleEditTask}
               onAssignTask={handleAssignTask}
-              event={event}
+              eventDays={event?.days}
+              selectedDay={selectedDay}
+              onSelectedDayChange={setSelectedDay}
+              instanceStartDate={(event as any)?.instances.find((i: any) => i.id === selectedInstance)?.start_date}
+              manualRefreshTrigger={manualRefreshTrigger}
             />
           </div>
-        ) : (
-          selectedInstance && (
-            <div key="table-view">
-              <TaskTableView
-                eventInstanceId={selectedInstance}
-                onEditTask={handleEditTask}
-                onAssignTask={handleAssignTask}
-                eventDays={event?.days}
-                selectedDay={selectedDay}
-                onSelectedDayChange={setSelectedDay}
-                instanceStartDate={(event as any)?.instances.find((i: any) => i.id === selectedInstance)?.start_date}
-              />
-            </div>
-          )
         )}
       </div>
 
@@ -272,6 +275,7 @@ interface TaskListViewProps {
   onEditTask: (task: Task) => void;
   onAssignTask: (taskId: number) => void;
   event?: any; // Für overdue check
+  manualRefreshTrigger?: number;
 }
 
 const TaskListView: React.FC<TaskListViewProps> = ({
@@ -280,6 +284,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   onEditTask,
   onAssignTask,
   event,
+  manualRefreshTrigger,
 }) => {
   const [assignments, setAssignments] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -310,6 +315,13 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       loadAssignments();
     }
   }, [selectedInstance]);
+
+  // React to manual refresh from parent
+  React.useEffect(() => {
+    if (manualRefreshTrigger !== undefined && manualRefreshTrigger > 0 && selectedInstance) {
+      loadAssignments(false);
+    }
+  }, [manualRefreshTrigger]);
 
   const checkAndUpdateOverdueTasks = async (tasks: any[], instance: any) => {
     if (!instance) return;
@@ -392,13 +404,22 @@ const TaskListView: React.FC<TaskListViewProps> = ({
 
   const handleStatusChange = async (taskId: number, newStatus: string) => {
     try {
+      // Optimistic update
+      setAssignments(prevAssignments =>
+        prevAssignments.map(a =>
+          a.id === taskId ? { ...a, status: newStatus } : a
+        )
+      );
+
       const client = (await import('../../api/client')).default;
       await client.put(`/tasks/${taskId}`, { status: newStatus });
       setSuccessMessage(`Status wurde geändert`);
       setTimeout(() => setSuccessMessage(''), 3000);
-      // SSE will handle the update automatically
+      // SSE will sync the final state from server
     } catch (error) {
       console.error('Change status error:', error);
+      // Reload to revert optimistic update
+      loadAssignments(false);
       alert('Fehler beim Ändern des Status');
     }
   };
@@ -406,12 +427,24 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   const handleMoveUp = async (taskId: number) => {
     try {
       const { tasksApi } = await import('../../api/tasks');
+
+      // Optimistic update
+      const currentIndex = assignments.findIndex((a: any) => a.id === taskId);
+      if (currentIndex > 0) {
+        const newAssignments = [...assignments];
+        [newAssignments[currentIndex], newAssignments[currentIndex - 1]] =
+        [newAssignments[currentIndex - 1], newAssignments[currentIndex]];
+        setAssignments(newAssignments);
+      }
+
       await tasksApi.moveUp(taskId);
       setSuccessMessage('Aufgabe wurde nach oben verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
-      // SSE will handle the update automatically
+      // SSE will sync the final state from server
     } catch (error: any) {
       console.error('Move up error:', error);
+      // Reload to revert optimistic update
+      loadAssignments(false);
       alert(error.response?.data?.error || 'Fehler beim Verschieben der Aufgabe');
     }
   };
@@ -419,12 +452,24 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   const handleMoveDown = async (taskId: number) => {
     try {
       const { tasksApi } = await import('../../api/tasks');
+
+      // Optimistic update
+      const currentIndex = assignments.findIndex((a: any) => a.id === taskId);
+      if (currentIndex < assignments.length - 1 && currentIndex !== -1) {
+        const newAssignments = [...assignments];
+        [newAssignments[currentIndex], newAssignments[currentIndex + 1]] =
+        [newAssignments[currentIndex + 1], newAssignments[currentIndex]];
+        setAssignments(newAssignments);
+      }
+
       await tasksApi.moveDown(taskId);
       setSuccessMessage('Aufgabe wurde nach unten verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
-      // SSE will handle the update automatically
+      // SSE will sync the final state from server
     } catch (error: any) {
       console.error('Move down error:', error);
+      // Reload to revert optimistic update
+      loadAssignments(false);
       alert(error.response?.data?.error || 'Fehler beim Verschieben der Aufgabe');
     }
   };
