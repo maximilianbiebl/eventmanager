@@ -292,12 +292,21 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   const [sortBy, setSortBy] = React.useState<'manual' | 'time' | 'title' | 'status'>('manual');
   const [sortDirection, setSortDirection] = React.useState<'asc' | 'desc'>('asc');
   const [expandedDescriptions, setExpandedDescriptions] = React.useState<Set<number>>(new Set());
+  const lastActionTimeRef = React.useRef<number>(0);
 
   // SSE for real-time updates
   useSSE({
     enabled: true,
     onTaskUpdate: (data) => {
       console.log('SSE: TaskListView update received', data);
+
+      // Ignore SSE updates for 1 second after own actions (to prevent double-updates)
+      const timeSinceLastAction = Date.now() - lastActionTimeRef.current;
+      if (timeSinceLastAction < 1000) {
+        console.log('SSE: Ignoring update (too soon after own action)');
+        return;
+      }
+
       if (selectedInstance) {
         loadAssignments(false);
       }
@@ -404,6 +413,8 @@ const TaskListView: React.FC<TaskListViewProps> = ({
 
   const handleStatusChange = async (taskId: number, newStatus: string) => {
     try {
+      lastActionTimeRef.current = Date.now(); // Track action time
+
       // Optimistic update
       setAssignments(prevAssignments =>
         prevAssignments.map(a =>
@@ -415,7 +426,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       await client.put(`/tasks/${taskId}`, { status: newStatus });
       setSuccessMessage(`Status wurde geändert`);
       setTimeout(() => setSuccessMessage(''), 3000);
-      // SSE will sync the final state from server
+      // SSE will sync the final state from server (but will be ignored for 1s)
     } catch (error) {
       console.error('Change status error:', error);
       // Reload to revert optimistic update
@@ -426,6 +437,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
 
   const handleMoveUp = async (taskId: number) => {
     try {
+      lastActionTimeRef.current = Date.now(); // Track action time
       const { tasksApi } = await import('../../api/tasks');
 
       // Optimistic update
@@ -440,7 +452,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       await tasksApi.moveUp(taskId);
       setSuccessMessage('Aufgabe wurde nach oben verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
-      // SSE will sync the final state from server
+      // SSE will sync the final state from server (but will be ignored for 1s)
     } catch (error: any) {
       console.error('Move up error:', error);
       // Reload to revert optimistic update
@@ -451,6 +463,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
 
   const handleMoveDown = async (taskId: number) => {
     try {
+      lastActionTimeRef.current = Date.now(); // Track action time
       const { tasksApi } = await import('../../api/tasks');
 
       // Optimistic update
@@ -465,7 +478,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       await tasksApi.moveDown(taskId);
       setSuccessMessage('Aufgabe wurde nach unten verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
-      // SSE will sync the final state from server
+      // SSE will sync the final state from server (but will be ignored for 1s)
     } catch (error: any) {
       console.error('Move down error:', error);
       // Reload to revert optimistic update
