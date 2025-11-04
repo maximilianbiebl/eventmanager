@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import client from '../../api/client';
 import { tasksApi } from '../../api/tasks';
+import { useSSE } from '../../hooks/useSSE';
 import responsiveStyles from './TaskTableView.module.css';
 import { Toast } from '../Toast';
 
@@ -30,7 +31,6 @@ interface Props {
   selectedDay?: number | 'all'; // Ausgewählter Tag von außen
   onSelectedDayChange?: (day: number | 'all') => void; // Callback für Tag-Änderung
   instanceStartDate?: string; // Startdatum der Event-Instanz
-  reloadTrigger?: number; // Trigger für SSE-Updates
 }
 
 const STATUS_COLORS: { [key: string]: string } = {
@@ -54,8 +54,7 @@ export const TaskTableView: React.FC<Props> = ({
   eventDays,
   selectedDay: externalSelectedDay,
   onSelectedDayChange,
-  instanceStartDate,
-  reloadTrigger
+  instanceStartDate
 }) => {
   const [assignments, setAssignments] = useState<TaskAssignment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,18 +76,24 @@ export const TaskTableView: React.FC<Props> = ({
     }
   };
 
+  // SSE for real-time updates
+  useSSE({
+    enabled: true,
+    onTaskUpdate: (data) => {
+      console.log('SSE: TaskTableView update received', data);
+      loadAssignments(false);
+    },
+    onConnected: () => {
+      console.log('SSE: TaskTableView connected');
+    },
+    onError: (error) => {
+      console.error('SSE: TaskTableView error', error);
+    }
+  });
+
   useEffect(() => {
     loadAssignments();
-
-    // SSE handles live updates, no polling needed
   }, [eventInstanceId]);
-
-  // React to SSE updates from parent component
-  useEffect(() => {
-    if (reloadTrigger !== undefined && reloadTrigger > 0) {
-      loadAssignments(false);
-    }
-  }, [reloadTrigger]);
 
   const checkAndUpdateOverdueTasks = async (tasks: TaskAssignment[]) => {
     const now = new Date();

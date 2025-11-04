@@ -31,25 +31,6 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
   const [viewMode, setViewMode] = useState<'list' | 'table'>('table'); // Table ist jetzt Standard
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [selectedDay, setSelectedDay] = useState<number | 'all'>('all');
-  const [tableRefreshKey, setTableRefreshKey] = useState(0);
-
-  // SSE for real-time updates
-  useSSE({
-    enabled: true,
-    onTaskUpdate: (data) => {
-      console.log('SSE: Admin task update received', data);
-      // Reload data in background when update is received
-      loadData(false);
-      // Force refresh of table view by incrementing key
-      setTableRefreshKey(prev => prev + 1);
-    },
-    onConnected: () => {
-      console.log('SSE: Admin connected to real-time updates');
-    },
-    onError: (error) => {
-      console.error('SSE: Admin connection error', error);
-    }
-  });
 
   useEffect(() => {
     loadData();
@@ -71,22 +52,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
       ]);
 
       setEvent(eventData);
-
-      // Only update tasks if data has actually changed (prevent flicker)
-      setTasks(prevTasks => {
-        const prevSignature = prevTasks.map(t => `${t.id}-${t.status}-${t.is_active}`).sort().join(',');
-        const newSignature = tasksData.map(t => `${t.id}-${t.status}-${t.is_active}`).sort().join(',');
-
-        if (prevSignature !== newSignature) {
-          console.log('Admin tasks changed, updating state');
-          // Trigger refresh of TaskTableView only when tasks actually changed
-          setTableRefreshKey(prev => prev + 1);
-          return tasksData;
-        }
-        console.log('Admin tasks unchanged, skipping update (prevent flicker)');
-        return prevTasks;
-      });
-
+      setTasks(tasksData);
       setProgram(programData);
       setUsers(usersData);
       if (eventData.instances.length > 0 && !selectedInstance) {
@@ -168,7 +134,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
       </div>
 
       <div className={styles.section}>
-        <EventStaffPool eventId={eventId} reloadTrigger={tableRefreshKey} />
+        <EventStaffPool eventId={eventId} />
       </div>
 
       <div className={styles.section}>
@@ -194,10 +160,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
                 📊 Tabelle
               </button>
               <button
-                onClick={() => {
-                  loadData(false);
-                  setTableRefreshKey(prev => prev + 1);
-                }}
+                onClick={() => loadData(false)}
                 className={styles.viewButton}
                 title="Daten aktualisieren"
                 type="button"
@@ -233,7 +196,6 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
               selectedInstance={selectedInstance}
               onEditTask={handleEditTask}
               onAssignTask={handleAssignTask}
-              reloadTrigger={tableRefreshKey}
               event={event}
             />
           </div>
@@ -248,7 +210,6 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
                 selectedDay={selectedDay}
                 onSelectedDayChange={setSelectedDay}
                 instanceStartDate={(event as any)?.instances.find((i: any) => i.id === selectedInstance)?.start_date}
-                reloadTrigger={tableRefreshKey}
               />
             </div>
           )
@@ -310,7 +271,6 @@ interface TaskListViewProps {
   selectedInstance: number | null;
   onEditTask: (task: Task) => void;
   onAssignTask: (taskId: number) => void;
-  reloadTrigger?: number; // Trigger für SSE-Updates
   event?: any; // Für overdue check
 }
 
@@ -319,7 +279,6 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   selectedInstance,
   onEditTask,
   onAssignTask,
-  reloadTrigger,
   event,
 }) => {
   const [assignments, setAssignments] = React.useState<any[]>([]);
@@ -329,20 +288,28 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   const [sortDirection, setSortDirection] = React.useState<'asc' | 'desc'>('asc');
   const [expandedDescriptions, setExpandedDescriptions] = React.useState<Set<number>>(new Set());
 
+  // SSE for real-time updates
+  useSSE({
+    enabled: true,
+    onTaskUpdate: (data) => {
+      console.log('SSE: TaskListView update received', data);
+      if (selectedInstance) {
+        loadAssignments(false);
+      }
+    },
+    onConnected: () => {
+      console.log('SSE: TaskListView connected');
+    },
+    onError: (error) => {
+      console.error('SSE: TaskListView error', error);
+    }
+  });
+
   React.useEffect(() => {
     if (selectedInstance) {
       loadAssignments();
-
-      // SSE handles live updates, no polling needed
     }
   }, [selectedInstance]);
-
-  // React to SSE updates from parent component
-  React.useEffect(() => {
-    if (reloadTrigger !== undefined && reloadTrigger > 0 && selectedInstance) {
-      loadAssignments(false);
-    }
-  }, [reloadTrigger]);
 
   const checkAndUpdateOverdueTasks = async (tasks: any[], instance: any) => {
     if (!instance) return;

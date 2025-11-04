@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { usersApi, User } from '../../api/users';
+import { useSSE } from '../../hooks/useSSE';
 import client from '../../api/client';
 
 interface Props {
   eventId: number;
-  reloadTrigger?: number; // Trigger für SSE-Updates
 }
 
 interface EventStaff extends User {
@@ -22,7 +22,7 @@ interface StaffTask {
   instance_number: number;
 }
 
-export const EventStaffPool: React.FC<Props> = ({ eventId, reloadTrigger }) => {
+export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
   const [allStaff, setAllStaff] = useState<EventStaff[]>([]);
   const [eventStaff, setEventStaff] = useState<EventStaff[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,16 +31,24 @@ export const EventStaffPool: React.FC<Props> = ({ eventId, reloadTrigger }) => {
   const [selectedStaffForTasks, setSelectedStaffForTasks] = useState<EventStaff | null>(null);
   const [staffTasks, setStaffTasks] = useState<StaffTask[]>([]);
 
+  // SSE for real-time updates
+  useSSE({
+    enabled: true,
+    onTaskUpdate: (data) => {
+      console.log('SSE: EventStaffPool update received', data);
+      loadData(false);
+    },
+    onConnected: () => {
+      console.log('SSE: EventStaffPool connected');
+    },
+    onError: (error) => {
+      console.error('SSE: EventStaffPool error', error);
+    }
+  });
+
   useEffect(() => {
     loadData();
   }, [eventId]);
-
-  // React to SSE updates from parent component
-  useEffect(() => {
-    if (reloadTrigger !== undefined && reloadTrigger > 0) {
-      loadData(false);
-    }
-  }, [reloadTrigger]);
 
   const loadData = async (showLoading = true) => {
     try {
