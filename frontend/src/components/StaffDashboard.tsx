@@ -69,39 +69,18 @@ export const StaffDashboard: React.FC = () => {
     }
   };
 
-  const checkAndUpdateOverdueTasks = async (tasks: any[]) => {
+  const isTaskOverdue = (task: TaskAssignment): boolean => {
+    if (!task.end_time || !task.instance_start_date || task.status === 'completed') return false;
+
     const now = new Date();
-    const updates: Promise<void>[] = [];
+    const taskDate = new Date(task.instance_start_date);
+    taskDate.setDate(taskDate.getDate() + task.day_number - 1);
 
-    for (const task of tasks) {
-      // Only check tasks that are not completed
-      if (task.status !== 'completed' && task.status !== 'overdue' && task.end_time) {
-        // Parse task date and time
-        const taskDate = new Date(task.instance_start_date);
-        taskDate.setDate(taskDate.getDate() + task.day_number - 1);
+    // Parse end time (format: "HH:MM")
+    const [hours, minutes] = task.end_time.split(':').map(Number);
+    taskDate.setHours(hours, minutes, 0, 0);
 
-        // Parse end time (format: "HH:MM")
-        const [hours, minutes] = task.end_time.split(':').map(Number);
-        taskDate.setHours(hours, minutes, 0, 0);
-
-        // Check if task is overdue
-        if (now > taskDate) {
-          // Update task status to overdue
-          updates.push(
-            tasksApi.updateStatus(task.id, 'overdue').catch(err => {
-              console.error('Failed to mark task as overdue:', err);
-            })
-          );
-          // Update local task object
-          task.status = 'overdue';
-        }
-      }
-    }
-
-    // Wait for all updates to complete
-    if (updates.length > 0) {
-      await Promise.all(updates);
-    }
+    return now > taskDate;
   };
 
   const loadTasks = async (showLoading = true) => {
@@ -110,9 +89,6 @@ export const StaffDashboard: React.FC = () => {
         setLoading(true);
       }
       const data = await tasksApi.getMyTasks();
-
-      // Check for overdue tasks and update their status
-      await checkAndUpdateOverdueTasks(data);
 
       // Only update state if data has actually changed (prevent flicker)
       setTasks(prevTasks => {
@@ -578,6 +554,7 @@ export const StaffDashboard: React.FC = () => {
           onCompletePublic={handleCompletePublic}
           onStatusUpdate={handleStatusUpdate}
           onReload={loadTasks}
+          isTaskOverdue={isTaskOverdue}
         />
       ) : sortBy === 'standard' ? (
         <div key="standard-view" className={styles.taskList}>
@@ -589,6 +566,7 @@ export const StaffDashboard: React.FC = () => {
               onCompletePublic={handleCompletePublic}
               onStatusUpdate={handleStatusUpdate}
               onReminderUpdate={() => loadTasks(false)}
+              isOverdue={isTaskOverdue(task)}
             />
           ))}
         </div>
@@ -606,6 +584,7 @@ export const StaffDashboard: React.FC = () => {
                     onCompletePublic={handleCompletePublic}
                     onStatusUpdate={handleStatusUpdate}
                     onReminderUpdate={() => loadTasks(false)}
+                    isOverdue={isTaskOverdue(task)}
                   />
                 ))}
               </div>
@@ -626,6 +605,7 @@ export const StaffDashboard: React.FC = () => {
                     onCompletePublic={handleCompletePublic}
                     onStatusUpdate={handleStatusUpdate}
                     onReminderUpdate={() => loadTasks(false)}
+                    isOverdue={isTaskOverdue(task)}
                   />
                 ))}
               </div>
@@ -646,6 +626,7 @@ export const StaffDashboard: React.FC = () => {
                     onCompletePublic={handleCompletePublic}
                     onStatusUpdate={handleStatusUpdate}
                     onReminderUpdate={() => loadTasks(false)}
+                    isOverdue={isTaskOverdue(task)}
                   />
                 ))}
               </div>
@@ -666,7 +647,8 @@ const TaskCard: React.FC<{
   onCompletePublic: (taskId: number) => void;
   onStatusUpdate: (taskId: number, newStatus: string) => void;
   onReminderUpdate: () => void;
-}> = ({ task, onComplete, onCompletePublic, onStatusUpdate, onReminderUpdate }) => {
+  isOverdue: boolean;
+}> = ({ task, onComplete, onCompletePublic, onStatusUpdate, onReminderUpdate, isOverdue }) => {
   const [showReminderEdit, setShowReminderEdit] = React.useState(false);
   const [reminderMinutes, setReminderMinutes] = React.useState(task.reminder_minutes || 15);
   const [saving, setSaving] = React.useState(false);
@@ -731,6 +713,9 @@ const TaskCard: React.FC<{
   };
 
   const getStatusColor = (status: string) => {
+    // Show red if task is actually overdue (by time), regardless of status
+    if (isOverdue) return '#ef4444';
+
     const colors: { [key: string]: string } = {
       not_started: '#6b7280',
       in_progress: '#3b82f6',
@@ -745,7 +730,8 @@ const TaskCard: React.FC<{
 
   // Get border color based on status
   const getBorderColor = () => {
-    if (task.status === 'overdue') return '#ef4444'; // red
+    // Show red if task is actually overdue (by time), regardless of status
+    if (isOverdue) return '#ef4444'; // red
     if (task.status === 'in_progress') return '#3b82f6'; // blue
     if (task.status === 'completed') return '#10b981'; // green
     return '#4f46e5'; // default purple
@@ -1008,7 +994,8 @@ const StaffTableView: React.FC<{
   onCompletePublic: (taskId: number) => void;
   onStatusUpdate: (taskId: number, newStatus: string) => void;
   onReload: () => void;
-}> = ({ tasks, allTasks, selectedDay, onComplete, onCompletePublic, onStatusUpdate, onReload: _onReload }) => {
+  isTaskOverdue: (task: TaskAssignment) => boolean;
+}> = ({ tasks, allTasks, selectedDay, onComplete, onCompletePublic, onStatusUpdate, onReload: _onReload, isTaskOverdue }) => {
   const [showStatusDropdown, setShowStatusDropdown] = React.useState<string | null>(null);
   const [sortColumn, setSortColumn] = React.useState<string>('manual');
   const [sortDirection, setSortDirection] = React.useState<'asc' | 'desc'>('asc');
@@ -1084,14 +1071,17 @@ const StaffTableView: React.FC<{
     return sortDirection === 'asc' ? compareResult : -compareResult;
   });
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (task: TaskAssignment) => {
+    // Show red if task is actually overdue (by time), regardless of status
+    if (isTaskOverdue(task)) return '#ef4444';
+
     const colors: { [key: string]: string } = {
       not_started: '#6b7280',
       in_progress: '#3b82f6',
       completed: '#10b981',
       overdue: '#ef4444',
     };
-    return colors[status] || '#6b7280';
+    return colors[task.status] || '#6b7280';
   };
 
   const getStatusLabel = (status: string) => {
@@ -1270,42 +1260,49 @@ const StaffTableView: React.FC<{
                 <td className={styles.hideOnMobile}>{task.end_time || '-'}</td>
                 <td>
                   <div className={styles.statusDropdownContainer}>
-                    {/* Nur Dropdown anzeigen wenn es Optionen gibt */}
-                    {task.status === 'not_started' || task.status === 'in_progress' ? (
+                    {task.status !== 'completed' ? (
                       <>
                         <span
                           className={styles.statusBadgeClickable}
-                          style={{ backgroundColor: getStatusColor(task.status) }}
+                          style={{ backgroundColor: getStatusColor(task) }}
                           onClick={() => setShowStatusDropdown(showStatusDropdown === taskKey ? null : taskKey)}
                         >
                           {getStatusLabel(task.status)} ▼
                         </span>
                         {showStatusDropdown === taskKey && (
                           <div className={styles.statusDropdown}>
-                            {task.status === 'not_started' && (
-                              <div
-                                className={styles.statusOption}
-                                onClick={() => handleStatusChange(task, 'in_progress')}
-                              >
-                                ▶ In Arbeit setzen
-                              </div>
-                            )}
-                            {task.status === 'in_progress' && (
+                            {task.status !== 'not_started' && (
                               <div
                                 className={styles.statusOption}
                                 onClick={() => handleStatusChange(task, 'not_started')}
                               >
-                                ↩ Nicht gestartet
+                                ⏸ Nicht gestartet
+                              </div>
+                            )}
+                            {task.status !== 'in_progress' && (
+                              <div
+                                className={styles.statusOption}
+                                onClick={() => handleStatusChange(task, 'in_progress')}
+                              >
+                                ▶ In Arbeit
+                              </div>
+                            )}
+                            {task.status !== 'completed' && (
+                              <div
+                                className={styles.statusOption}
+                                onClick={() => handleStatusChange(task, 'completed')}
+                              >
+                                ✓ Erledigt
                               </div>
                             )}
                           </div>
                         )}
                       </>
                     ) : (
-                      /* Kein Dropdown für completed/overdue - nur Badge */
+                      /* Kein Dropdown für completed - nur Badge */
                       <span
                         className={styles.statusBadge}
-                        style={{ backgroundColor: getStatusColor(task.status) }}
+                        style={{ backgroundColor: getStatusColor(task) }}
                       >
                         {getStatusLabel(task.status)}
                       </span>

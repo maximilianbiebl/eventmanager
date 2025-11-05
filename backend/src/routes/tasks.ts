@@ -916,16 +916,16 @@ router.put('/:id/move-up', authMiddleware, adminMiddleware, async (req, res) => 
     }
 
     const currentTask = taskResult.rows[0];
-    const { event_id, sort_order } = currentTask;
+    const { event_id, sort_order, day_number } = currentTask;
 
-    // Find the task directly above (highest sort_order that is less than current)
+    // Find the task directly above (same day, highest sort_order that is less than current)
     const aboveResult = await query(
-      'SELECT * FROM tasks WHERE event_id = $1 AND sort_order < $2 ORDER BY sort_order DESC LIMIT 1',
-      [event_id, sort_order]
+      'SELECT * FROM tasks WHERE event_id = $1 AND day_number = $2 AND sort_order < $3 ORDER BY sort_order DESC LIMIT 1',
+      [event_id, day_number, sort_order]
     );
 
     if (aboveResult.rows.length === 0) {
-      return res.json({ message: 'Aufgabe ist bereits an erster Position' });
+      return res.json({ message: 'Aufgabe ist bereits an erster Position für diesen Tag' });
     }
 
     const aboveTask = aboveResult.rows[0];
@@ -956,16 +956,16 @@ router.put('/:id/move-down', authMiddleware, adminMiddleware, async (req, res) =
     }
 
     const currentTask = taskResult.rows[0];
-    const { event_id, sort_order } = currentTask;
+    const { event_id, sort_order, day_number } = currentTask;
 
-    // Find the task directly below (lowest sort_order that is greater than current)
+    // Find the task directly below (same day, lowest sort_order that is greater than current)
     const belowResult = await query(
-      'SELECT * FROM tasks WHERE event_id = $1 AND sort_order > $2 ORDER BY sort_order ASC LIMIT 1',
-      [event_id, sort_order]
+      'SELECT * FROM tasks WHERE event_id = $1 AND day_number = $2 AND sort_order > $3 ORDER BY sort_order ASC LIMIT 1',
+      [event_id, day_number, sort_order]
     );
 
     if (belowResult.rows.length === 0) {
-      return res.json({ message: 'Aufgabe ist bereits an letzter Position' });
+      return res.json({ message: 'Aufgabe ist bereits an letzter Position für diesen Tag' });
     }
 
     const belowTask = belowResult.rows[0];

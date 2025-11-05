@@ -85,9 +85,9 @@ export const TaskTableView: React.FC<Props> = ({
     onTaskUpdate: (data) => {
       console.log('SSE: TaskTableView update received', data);
 
-      // Ignore SSE updates for 200ms after own actions (to prevent double-updates)
+      // Ignore SSE updates for 100ms after own actions (to prevent double-updates)
       const timeSinceLastAction = Date.now() - lastActionTimeRef.current;
-      if (timeSinceLastAction < 200) {
+      if (timeSinceLastAction < 100) {
         console.log('SSE: Ignoring update (too soon after own action)');
         return;
       }
@@ -170,12 +170,12 @@ export const TaskTableView: React.FC<Props> = ({
       lastActionTimeRef.current = Date.now(); // Track action time
 
       // No optimistic update in table view - filtering/sorting makes it complex
-      // SSE will update almost instantly (200ms debounce)
+      // SSE will update almost instantly (100ms debounce)
 
       await tasksApi.moveUp(taskId);
       setSuccessMessage('Aufgabe wurde nach oben verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
-      // SSE will sync the state from server (ignored for 200ms after this action)
+      // SSE will sync the state from server (ignored for 100ms after this action)
     } catch (error: any) {
       console.error('Move up error:', error);
       loadAssignments(false);
@@ -192,12 +192,12 @@ export const TaskTableView: React.FC<Props> = ({
       lastActionTimeRef.current = Date.now(); // Track action time
 
       // No optimistic update in table view - filtering/sorting makes it complex
-      // SSE will update almost instantly (200ms debounce)
+      // SSE will update almost instantly (100ms debounce)
 
       await tasksApi.moveDown(taskId);
       setSuccessMessage('Aufgabe wurde nach unten verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
-      // SSE will sync the state from server (ignored for 200ms after this action)
+      // SSE will sync the state from server (ignored for 100ms after this action)
     } catch (error: any) {
       console.error('Move down error:', error);
       loadAssignments(false);
@@ -313,7 +313,7 @@ export const TaskTableView: React.FC<Props> = ({
       await client.put(`/tasks/${taskId}`, { status: newStatus });
       setSuccessMessage(`Status wurde auf "${STATUS_LABELS[newStatus]}" geändert`);
       setTimeout(() => setSuccessMessage(''), 3000);
-      // SSE will sync the final state from server (but will be ignored for 200ms)
+      // SSE will sync the final state from server (but will be ignored for 100ms)
     } catch (error) {
       console.error('Change status error:', error);
       // Reload to revert optimistic update

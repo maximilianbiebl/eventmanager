@@ -316,9 +316,9 @@ const TaskListView: React.FC<TaskListViewProps> = ({
     onTaskUpdate: (data) => {
       console.log('SSE: TaskListView update received', data);
 
-      // Ignore SSE updates for 200ms after own actions (to prevent double-updates)
+      // Ignore SSE updates for 100ms after own actions (to prevent double-updates)
       const timeSinceLastAction = Date.now() - lastActionTimeRef.current;
-      if (timeSinceLastAction < 200) {
+      if (timeSinceLastAction < 100) {
         console.log('SSE: Ignoring update (too soon after own action)');
         return;
       }
@@ -423,7 +423,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       await client.put(`/tasks/${taskId}`, { status: newStatus });
       setSuccessMessage(`Status wurde geändert`);
       setTimeout(() => setSuccessMessage(''), 3000);
-      // SSE will sync the final state from server (but will be ignored for 200ms)
+      // SSE will sync the final state from server (but will be ignored for 100ms)
     } catch (error) {
       console.error('Change status error:', error);
       // Reload to revert optimistic update
@@ -449,7 +449,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       await tasksApi.moveUp(taskId);
       setSuccessMessage('Aufgabe wurde nach oben verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
-      // SSE will sync the final state from server (but will be ignored for 200ms)
+      // SSE will sync the final state from server (but will be ignored for 100ms)
     } catch (error: any) {
       console.error('Move up error:', error);
       // Reload to revert optimistic update
@@ -475,7 +475,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       await tasksApi.moveDown(taskId);
       setSuccessMessage('Aufgabe wurde nach unten verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
-      // SSE will sync the final state from server (but will be ignored for 200ms)
+      // SSE will sync the final state from server (but will be ignored for 100ms)
     } catch (error: any) {
       console.error('Move down error:', error);
       // Reload to revert optimistic update
