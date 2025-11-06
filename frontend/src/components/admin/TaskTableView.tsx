@@ -255,9 +255,15 @@ export const TaskTableView: React.FC<Props> = ({
 
     switch (sortColumn) {
       case 'manual':
-        const sortOrderA = a.task.sort_order ?? 999999;
-        const sortOrderB = b.task.sort_order ?? 999999;
-        compareResult = sortOrderA - sortOrderB;
+        // Sort by day first, then by sort_order within each day
+        const dayCompare = a.task.day_number - b.task.day_number;
+        if (dayCompare !== 0) {
+          compareResult = dayCompare;
+        } else {
+          const sortOrderA = a.task.sort_order ?? 999999;
+          const sortOrderB = b.task.sort_order ?? 999999;
+          compareResult = sortOrderA - sortOrderB;
+        }
         break;
       case 'day':
         compareResult = a.task.day_number - b.task.day_number;

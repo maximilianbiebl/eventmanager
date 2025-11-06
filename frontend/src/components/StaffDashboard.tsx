@@ -819,7 +819,7 @@ const TaskCard: React.FC<{
                 <div style={{
                   position: 'absolute',
                   top: '100%',
-                  left: 0,
+                  right: 0,
                   backgroundColor: 'white',
                   border: '1px solid #d1d5db',
                   borderRadius: '4px',
