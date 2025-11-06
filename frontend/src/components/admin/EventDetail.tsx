@@ -507,15 +507,10 @@ const TaskListView: React.FC<TaskListViewProps> = ({
 
       switch (sortBy) {
         case 'manual':
-          // Sort by day first, then by sort_order within each day
-          const dayCompare = a.day_number - b.day_number;
-          if (dayCompare !== 0) {
-            compareResult = dayCompare;
-          } else {
-            const orderA = a.sort_order ?? 999999;
-            const orderB = b.sort_order ?? 999999;
-            compareResult = orderA - orderB;
-          }
+          // Sort by sort_order only - allow mixing across days
+          const orderA = a.sort_order ?? 999999;
+          const orderB = b.sort_order ?? 999999;
+          compareResult = orderA - orderB;
           break;
         case 'time':
           const timeA = a.start_time || a.scheduled_time || '99:99';

@@ -58,7 +58,7 @@ router.get('/instance/:instanceId/assignments', authMiddleware, adminMiddleware,
        JOIN events e ON t.event_id = e.id
        JOIN event_instances ei ON ei.id = $1
        WHERE t.event_id = ei.event_id
-       ORDER BY t.day_number, t.start_time, t.scheduled_time, u.name`,
+       ORDER BY t.sort_order, u.name`,
       [instanceId]
     );
 
@@ -248,12 +248,19 @@ router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
       status
     } = req.body;
 
+    // Get max sort_order for this event and set new task to max + 1
+    const maxOrderResult = await query(
+      'SELECT COALESCE(MAX(sort_order), 0) as max_order FROM tasks WHERE event_id = $1',
+      [event_id]
+    );
+    const newSortOrder = (maxOrderResult.rows[0]?.max_order || 0) + 1;
+
     const result = await query(
       `INSERT INTO tasks (
         event_id, program_item_id, day_number, title, description,
-        scheduled_time, start_time, end_time, reminder_minutes, is_public, status
+        scheduled_time, start_time, end_time, reminder_minutes, is_public, status, sort_order
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
       [
         event_id,
         program_item_id,
@@ -265,7 +272,8 @@ router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
         end_time || null,
         reminder_minutes || 15,
         is_public || false,
-        status || 'not_started'
+        status || 'not_started',
+        newSortOrder
       ]
     );
 
@@ -916,16 +924,16 @@ router.put('/:id/move-up', authMiddleware, adminMiddleware, async (req, res) => 
     }
 
     const currentTask = taskResult.rows[0];
-    const { event_id, sort_order, day_number } = currentTask;
+    const { event_id, sort_order } = currentTask;
 
-    // Find the task directly above (same day, highest sort_order that is less than current)
+    // Find the task directly above (highest sort_order that is less than current)
     const aboveResult = await query(
-      'SELECT * FROM tasks WHERE event_id = $1 AND day_number = $2 AND sort_order < $3 ORDER BY sort_order DESC LIMIT 1',
-      [event_id, day_number, sort_order]
+      'SELECT * FROM tasks WHERE event_id = $1 AND sort_order < $2 ORDER BY sort_order DESC LIMIT 1',
+      [event_id, sort_order]
     );
 
     if (aboveResult.rows.length === 0) {
-      return res.json({ message: 'Aufgabe ist bereits an erster Position für diesen Tag' });
+      return res.json({ message: 'Aufgabe ist bereits an erster Position' });
     }
 
     const aboveTask = aboveResult.rows[0];
@@ -956,16 +964,16 @@ router.put('/:id/move-down', authMiddleware, adminMiddleware, async (req, res) =
     }
 
     const currentTask = taskResult.rows[0];
-    const { event_id, sort_order, day_number } = currentTask;
+    const { event_id, sort_order } = currentTask;
 
-    // Find the task directly below (same day, lowest sort_order that is greater than current)
+    // Find the task directly below (lowest sort_order that is greater than current)
     const belowResult = await query(
-      'SELECT * FROM tasks WHERE event_id = $1 AND day_number = $2 AND sort_order > $3 ORDER BY sort_order ASC LIMIT 1',
-      [event_id, day_number, sort_order]
+      'SELECT * FROM tasks WHERE event_id = $1 AND sort_order > $2 ORDER BY sort_order ASC LIMIT 1',
+      [event_id, sort_order]
     );
 
     if (belowResult.rows.length === 0) {
-      return res.json({ message: 'Aufgabe ist bereits an letzter Position für diesen Tag' });
+      return res.json({ message: 'Aufgabe ist bereits an letzter Position' });
     }
 
     const belowTask = belowResult.rows[0];
