@@ -309,7 +309,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   const [sortBy, setSortBy] = React.useState<'manual' | 'time' | 'title' | 'status'>('manual');
   const [sortDirection, setSortDirection] = React.useState<'asc' | 'desc'>('asc');
   const [expandedDescriptions, setExpandedDescriptions] = React.useState<Set<number>>(new Set());
-  const lastActionTimeRef = React.useRef<number>(0);
+  const pendingActionsRef = React.useRef<number>(0);
 
   // SSE for real-time updates
   useSSE({
@@ -317,10 +317,9 @@ const TaskListView: React.FC<TaskListViewProps> = ({
     onTaskUpdate: (data) => {
       console.log('SSE: TaskListView update received', data);
 
-      // Ignore SSE updates for 100ms after own actions (to prevent double-updates)
-      const timeSinceLastAction = Date.now() - lastActionTimeRef.current;
-      if (timeSinceLastAction < 100) {
-        console.log('SSE: Ignoring update (too soon after own action)');
+      // Ignore SSE updates while actions are pending (to prevent overwriting optimistic updates)
+      if (pendingActionsRef.current > 0) {
+        console.log(`SSE: Ignoring update (${pendingActionsRef.current} actions pending)`);
         return;
       }
 
@@ -410,9 +409,8 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   };
 
   const handleStatusChange = async (taskId: number, newStatus: string) => {
+    pendingActionsRef.current++; // Increment pending actions counter
     try {
-      lastActionTimeRef.current = Date.now(); // Track action time
-
       // Optimistic update
       setAssignments(prevAssignments =>
         prevAssignments.map(a =>
@@ -424,18 +422,22 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       await client.put(`/tasks/${taskId}`, { status: newStatus });
       setSuccessMessage(`Status wurde geändert`);
       setTimeout(() => setSuccessMessage(''), 3000);
-      // SSE will sync the final state from server (but will be ignored for 100ms)
     } catch (error) {
       console.error('Change status error:', error);
       // Reload to revert optimistic update
       loadAssignments(false);
       alert('Fehler beim Ändern des Status');
+    } finally {
+      pendingActionsRef.current--; // Decrement when done
+      if (pendingActionsRef.current === 0) {
+        setTimeout(() => loadAssignments(false), 50);
+      }
     }
   };
 
   const handleMoveUp = async (taskId: number) => {
+    pendingActionsRef.current++; // Increment pending actions counter
     try {
-      lastActionTimeRef.current = Date.now(); // Track action time
       const { tasksApi } = await import('../../api/tasks');
 
       // Optimistic update: Swap sort_order values (not array positions!)
@@ -456,17 +458,23 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       await tasksApi.moveUp(taskId);
       setSuccessMessage('Aufgabe wurde nach oben verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
-      // SSE will sync the state from server (ignored for 100ms after this action)
     } catch (error: any) {
       console.error('Move up error:', error);
       loadAssignments(false);
       alert(error.response?.data?.error || 'Fehler beim Verschieben der Aufgabe');
+    } finally {
+      pendingActionsRef.current--; // Decrement when done
+      // SSE updates will now be processed if no more actions are pending
+      if (pendingActionsRef.current === 0) {
+        // Small delay to ensure server has processed all updates
+        setTimeout(() => loadAssignments(false), 50);
+      }
     }
   };
 
   const handleMoveDown = async (taskId: number) => {
+    pendingActionsRef.current++; // Increment pending actions counter
     try {
-      lastActionTimeRef.current = Date.now(); // Track action time
       const { tasksApi } = await import('../../api/tasks');
 
       // Optimistic update: Swap sort_order values (not array positions!)
@@ -487,11 +495,17 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       await tasksApi.moveDown(taskId);
       setSuccessMessage('Aufgabe wurde nach unten verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
-      // SSE will sync the state from server (ignored for 100ms after this action)
     } catch (error: any) {
       console.error('Move down error:', error);
       loadAssignments(false);
       alert(error.response?.data?.error || 'Fehler beim Verschieben der Aufgabe');
+    } finally {
+      pendingActionsRef.current--; // Decrement when done
+      // SSE updates will now be processed if no more actions are pending
+      if (pendingActionsRef.current === 0) {
+        // Small delay to ensure server has processed all updates
+        setTimeout(() => loadAssignments(false), 50);
+      }
     }
   };
 

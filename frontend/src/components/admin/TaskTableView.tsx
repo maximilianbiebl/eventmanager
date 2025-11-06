@@ -67,7 +67,7 @@ export const TaskTableView: React.FC<Props> = ({
   const [sortColumn, setSortColumn] = useState<string>('manual');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [descriptionModal, setDescriptionModal] = useState<{ title: string; description: string } | null>(null);
-  const lastActionTimeRef = React.useRef<number>(0);
+  const pendingActionsRef = React.useRef<number>(0);
 
   // Use external selectedDay if provided, otherwise use internal state
   const selectedDay = externalSelectedDay !== undefined ? externalSelectedDay : internalSelectedDay;
@@ -85,10 +85,9 @@ export const TaskTableView: React.FC<Props> = ({
     onTaskUpdate: (data) => {
       console.log('SSE: TaskTableView update received', data);
 
-      // Ignore SSE updates for 100ms after own actions (to prevent double-updates)
-      const timeSinceLastAction = Date.now() - lastActionTimeRef.current;
-      if (timeSinceLastAction < 100) {
-        console.log('SSE: Ignoring update (too soon after own action)');
+      // Ignore SSE updates while actions are pending (to prevent overwriting optimistic updates)
+      if (pendingActionsRef.current > 0) {
+        console.log(`SSE: Ignoring update (${pendingActionsRef.current} actions pending)`);
         return;
       }
 
@@ -166,9 +165,8 @@ export const TaskTableView: React.FC<Props> = ({
   };
 
   const handleMoveUp = async (taskId: number) => {
+    pendingActionsRef.current++; // Increment pending actions counter
     try {
-      lastActionTimeRef.current = Date.now(); // Track action time
-
       // Optimistic update: Swap sort_order values (not array positions!)
       const currentAssignmentIndex = assignments.findIndex(a => a.id === taskId);
       if (currentAssignmentIndex > 0) {
@@ -187,7 +185,6 @@ export const TaskTableView: React.FC<Props> = ({
       await tasksApi.moveUp(taskId);
       setSuccessMessage('Aufgabe wurde nach oben verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
-      // SSE will sync the state from server (ignored for 100ms after this action)
     } catch (error: any) {
       console.error('Move up error:', error);
       loadAssignments(false);
@@ -196,13 +193,19 @@ export const TaskTableView: React.FC<Props> = ({
       } else {
         alert('Fehler beim Verschieben der Aufgabe');
       }
+    } finally {
+      pendingActionsRef.current--; // Decrement when done
+      // SSE updates will now be processed if no more actions are pending
+      if (pendingActionsRef.current === 0) {
+        // Small delay to ensure server has processed all updates
+        setTimeout(() => loadAssignments(false), 50);
+      }
     }
   };
 
   const handleMoveDown = async (taskId: number) => {
+    pendingActionsRef.current++; // Increment pending actions counter
     try {
-      lastActionTimeRef.current = Date.now(); // Track action time
-
       // Optimistic update: Swap sort_order values (not array positions!)
       const currentAssignmentIndex = assignments.findIndex(a => a.id === taskId);
       if (currentAssignmentIndex < assignments.length - 1 && currentAssignmentIndex !== -1) {
@@ -221,7 +224,6 @@ export const TaskTableView: React.FC<Props> = ({
       await tasksApi.moveDown(taskId);
       setSuccessMessage('Aufgabe wurde nach unten verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
-      // SSE will sync the state from server (ignored for 100ms after this action)
     } catch (error: any) {
       console.error('Move down error:', error);
       loadAssignments(false);
@@ -229,6 +231,13 @@ export const TaskTableView: React.FC<Props> = ({
         alert('Aufgabe ist bereits an letzter Position');
       } else {
         alert('Fehler beim Verschieben der Aufgabe');
+      }
+    } finally {
+      pendingActionsRef.current--; // Decrement when done
+      // SSE updates will now be processed if no more actions are pending
+      if (pendingActionsRef.current === 0) {
+        // Small delay to ensure server has processed all updates
+        setTimeout(() => loadAssignments(false), 50);
       }
     }
   };
@@ -330,9 +339,8 @@ export const TaskTableView: React.FC<Props> = ({
   });
 
   const handleStatusChange = async (taskId: number, newStatus: string) => {
+    pendingActionsRef.current++; // Increment pending actions counter
     try {
-      lastActionTimeRef.current = Date.now(); // Track action time
-
       // Optimistic update
       setAssignments(prevAssignments =>
         prevAssignments.map(a =>
@@ -343,12 +351,16 @@ export const TaskTableView: React.FC<Props> = ({
       await client.put(`/tasks/${taskId}`, { status: newStatus });
       setSuccessMessage(`Status wurde auf "${STATUS_LABELS[newStatus]}" geändert`);
       setTimeout(() => setSuccessMessage(''), 3000);
-      // SSE will sync the final state from server (but will be ignored for 100ms)
     } catch (error) {
       console.error('Change status error:', error);
       // Reload to revert optimistic update
       loadAssignments(false);
       setError('Fehler beim Ändern des Status');
+    } finally {
+      pendingActionsRef.current--; // Decrement when done
+      if (pendingActionsRef.current === 0) {
+        setTimeout(() => loadAssignments(false), 50);
+      }
     }
   };
 
