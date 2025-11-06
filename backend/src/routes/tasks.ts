@@ -22,7 +22,7 @@ router.get('/event/:eventId', authMiddleware, async (req, res) => {
        FROM tasks t
        LEFT JOIN program_items pi ON t.program_item_id = pi.id
        WHERE ${whereClause}
-       ORDER BY t.sort_order, t.day_number, t.start_time, t.scheduled_time`,
+       ORDER BY t.day_number, t.sort_order, t.start_time, t.scheduled_time`,
       [eventId]
     );
 
@@ -254,18 +254,18 @@ router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
        FROM tasks
        WHERE event_id = $1
        ORDER BY day_number,
-                COALESCE(scheduled_time, start_time, '23:59') ASC`,
+                COALESCE(scheduled_time, start_time, '00:00') ASC`,
       [event_id]
     );
 
-    // Determine the time for the new task
-    const newTaskTime = scheduled_time || start_time || '23:59';
+    // Determine the time for the new task (tasks without time get '00:00' = top of list)
+    const newTaskTime = scheduled_time || start_time || '00:00';
 
     // Find the position where the new task should be inserted
     let insertPosition = 0;
     for (let i = 0; i < existingTasks.rows.length; i++) {
       const task = existingTasks.rows[i];
-      const taskTime = task.scheduled_time || task.start_time || '23:59';
+      const taskTime = task.scheduled_time || task.start_time || '00:00';
 
       // If the existing task is on a later day, or same day but later time, insert before it
       if (task.day_number > day_number ||

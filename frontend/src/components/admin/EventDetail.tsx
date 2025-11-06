@@ -249,6 +249,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
             setShowTaskForm(false);
             setEditTask(null);
             loadData(false); // Update without loading indicator
+            setManualRefreshTrigger(prev => prev + 1); // Trigger refresh in TaskListView
           }}
         />
       )}
@@ -518,8 +519,8 @@ const TaskListView: React.FC<TaskListViewProps> = ({
           }
           break;
         case 'time':
-          const timeA = a.start_time || a.scheduled_time || '99:99';
-          const timeB = b.start_time || b.scheduled_time || '99:99';
+          const timeA = a.start_time || a.scheduled_time || '00:00';
+          const timeB = b.start_time || b.scheduled_time || '00:00';
           compareResult = timeA.localeCompare(timeB);
           break;
         case 'title':

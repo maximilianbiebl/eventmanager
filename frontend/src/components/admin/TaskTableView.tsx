@@ -281,18 +281,18 @@ export const TaskTableView: React.FC<Props> = ({
         compareResult = a.task.title.localeCompare(b.task.title);
         break;
       case 'scheduled':
-        const schedA = a.task.scheduled_time || '99:99';
-        const schedB = b.task.scheduled_time || '99:99';
+        const schedA = a.task.scheduled_time || '00:00';
+        const schedB = b.task.scheduled_time || '00:00';
         compareResult = schedA.localeCompare(schedB);
         break;
       case 'start':
-        const startA = a.task.start_time || '99:99';
-        const startB = b.task.start_time || '99:99';
+        const startA = a.task.start_time || '00:00';
+        const startB = b.task.start_time || '00:00';
         compareResult = startA.localeCompare(startB);
         break;
       case 'end':
-        const endA = a.task.end_time || '99:99';
-        const endB = b.task.end_time || '99:99';
+        const endA = a.task.end_time || '00:00';
+        const endB = b.task.end_time || '00:00';
         compareResult = endA.localeCompare(endB);
         break;
       case 'status':
