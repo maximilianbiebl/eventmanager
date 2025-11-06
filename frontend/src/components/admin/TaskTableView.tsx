@@ -169,8 +169,20 @@ export const TaskTableView: React.FC<Props> = ({
     try {
       lastActionTimeRef.current = Date.now(); // Track action time
 
-      // No optimistic update in table view - filtering/sorting makes it complex
-      // SSE will update almost instantly (100ms debounce)
+      // Optimistic update: Swap sort_order values (not array positions!)
+      const currentAssignmentIndex = assignments.findIndex((a: any) => a.task.id === taskId);
+      if (currentAssignmentIndex > 0) {
+        const newAssignments = [...assignments];
+        const currentAssignment = newAssignments[currentAssignmentIndex];
+        const aboveAssignment = newAssignments[currentAssignmentIndex - 1];
+
+        // Swap sort_order values
+        const tempOrder = currentAssignment.task.sort_order;
+        currentAssignment.task.sort_order = aboveAssignment.task.sort_order;
+        aboveAssignment.task.sort_order = tempOrder;
+
+        setAssignments(newAssignments);
+      }
 
       await tasksApi.moveUp(taskId);
       setSuccessMessage('Aufgabe wurde nach oben verschoben');
@@ -191,8 +203,20 @@ export const TaskTableView: React.FC<Props> = ({
     try {
       lastActionTimeRef.current = Date.now(); // Track action time
 
-      // No optimistic update in table view - filtering/sorting makes it complex
-      // SSE will update almost instantly (100ms debounce)
+      // Optimistic update: Swap sort_order values (not array positions!)
+      const currentAssignmentIndex = assignments.findIndex((a: any) => a.task.id === taskId);
+      if (currentAssignmentIndex < assignments.length - 1 && currentAssignmentIndex !== -1) {
+        const newAssignments = [...assignments];
+        const currentAssignment = newAssignments[currentAssignmentIndex];
+        const belowAssignment = newAssignments[currentAssignmentIndex + 1];
+
+        // Swap sort_order values
+        const tempOrder = currentAssignment.task.sort_order;
+        currentAssignment.task.sort_order = belowAssignment.task.sort_order;
+        belowAssignment.task.sort_order = tempOrder;
+
+        setAssignments(newAssignments);
+      }
 
       await tasksApi.moveDown(taskId);
       setSuccessMessage('Aufgabe wurde nach unten verschoben');
