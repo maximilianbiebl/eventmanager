@@ -170,16 +170,16 @@ export const TaskTableView: React.FC<Props> = ({
       lastActionTimeRef.current = Date.now(); // Track action time
 
       // Optimistic update: Swap sort_order values (not array positions!)
-      const currentAssignmentIndex = assignments.findIndex((a: any) => a.task.id === taskId);
+      const currentAssignmentIndex = assignments.findIndex(a => a.id === taskId);
       if (currentAssignmentIndex > 0) {
         const newAssignments = [...assignments];
         const currentAssignment = newAssignments[currentAssignmentIndex];
         const aboveAssignment = newAssignments[currentAssignmentIndex - 1];
 
         // Swap sort_order values
-        const tempOrder = currentAssignment.task.sort_order;
-        currentAssignment.task.sort_order = aboveAssignment.task.sort_order;
-        aboveAssignment.task.sort_order = tempOrder;
+        const tempOrder = currentAssignment.sort_order;
+        currentAssignment.sort_order = aboveAssignment.sort_order;
+        aboveAssignment.sort_order = tempOrder;
 
         setAssignments(newAssignments);
       }
@@ -204,16 +204,16 @@ export const TaskTableView: React.FC<Props> = ({
       lastActionTimeRef.current = Date.now(); // Track action time
 
       // Optimistic update: Swap sort_order values (not array positions!)
-      const currentAssignmentIndex = assignments.findIndex((a: any) => a.task.id === taskId);
+      const currentAssignmentIndex = assignments.findIndex(a => a.id === taskId);
       if (currentAssignmentIndex < assignments.length - 1 && currentAssignmentIndex !== -1) {
         const newAssignments = [...assignments];
         const currentAssignment = newAssignments[currentAssignmentIndex];
         const belowAssignment = newAssignments[currentAssignmentIndex + 1];
 
         // Swap sort_order values
-        const tempOrder = currentAssignment.task.sort_order;
-        currentAssignment.task.sort_order = belowAssignment.task.sort_order;
-        belowAssignment.task.sort_order = tempOrder;
+        const tempOrder = currentAssignment.sort_order;
+        currentAssignment.sort_order = belowAssignment.sort_order;
+        belowAssignment.sort_order = tempOrder;
 
         setAssignments(newAssignments);
       }
