@@ -438,22 +438,15 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       lastActionTimeRef.current = Date.now(); // Track action time
       const { tasksApi } = await import('../../api/tasks');
 
-      // Optimistic update
-      const currentIndex = assignments.findIndex((a: any) => a.id === taskId);
-      if (currentIndex > 0) {
-        const newAssignments = [...assignments];
-        [newAssignments[currentIndex], newAssignments[currentIndex - 1]] =
-        [newAssignments[currentIndex - 1], newAssignments[currentIndex]];
-        setAssignments(newAssignments);
-      }
+      // No optimistic update - SSE will update almost instantly (100ms debounce)
+      // Optimistic updates are complex with sorting/filtering
 
       await tasksApi.moveUp(taskId);
       setSuccessMessage('Aufgabe wurde nach oben verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
-      // SSE will sync the final state from server (but will be ignored for 100ms)
+      // SSE will sync the state from server (ignored for 100ms after this action)
     } catch (error: any) {
       console.error('Move up error:', error);
-      // Reload to revert optimistic update
       loadAssignments(false);
       alert(error.response?.data?.error || 'Fehler beim Verschieben der Aufgabe');
     }
@@ -464,22 +457,15 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       lastActionTimeRef.current = Date.now(); // Track action time
       const { tasksApi } = await import('../../api/tasks');
 
-      // Optimistic update
-      const currentIndex = assignments.findIndex((a: any) => a.id === taskId);
-      if (currentIndex < assignments.length - 1 && currentIndex !== -1) {
-        const newAssignments = [...assignments];
-        [newAssignments[currentIndex], newAssignments[currentIndex + 1]] =
-        [newAssignments[currentIndex + 1], newAssignments[currentIndex]];
-        setAssignments(newAssignments);
-      }
+      // No optimistic update - SSE will update almost instantly (100ms debounce)
+      // Optimistic updates are complex with sorting/filtering
 
       await tasksApi.moveDown(taskId);
       setSuccessMessage('Aufgabe wurde nach unten verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
-      // SSE will sync the final state from server (but will be ignored for 100ms)
+      // SSE will sync the state from server (ignored for 100ms after this action)
     } catch (error: any) {
       console.error('Move down error:', error);
-      // Reload to revert optimistic update
       loadAssignments(false);
       alert(error.response?.data?.error || 'Fehler beim Verschieben der Aufgabe');
     }

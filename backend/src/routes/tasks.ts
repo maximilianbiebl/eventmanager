@@ -250,7 +250,7 @@ router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
 
     // Get all existing tasks for this event, sorted by day and time
     const existingTasks = await query(
-      `SELECT id, day_number, scheduled_time, start_time
+      `SELECT id, day_number, scheduled_time, start_time, sort_order
        FROM tasks
        WHERE event_id = $1
        ORDER BY day_number,
@@ -262,7 +262,7 @@ router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
     const newTaskTime = scheduled_time || start_time || '00:00';
 
     // Find the position where the new task should be inserted
-    let insertPosition = 0;
+    let insertPosition = -1;
     for (let i = 0; i < existingTasks.rows.length; i++) {
       const task = existingTasks.rows[i];
       const taskTime = task.scheduled_time || task.start_time || '00:00';
@@ -270,13 +270,37 @@ router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
       // If the existing task is on a later day, or same day but later time, insert before it
       if (task.day_number > day_number ||
           (task.day_number === day_number && taskTime > newTaskTime)) {
+        insertPosition = i;
         break;
       }
-      insertPosition = i + 1;
     }
 
-    // Calculate new sort_order (use position * 10 to leave gaps for manual reordering)
-    const newSortOrder = (insertPosition + 1) * 10;
+    // Calculate new sort_order based on surrounding tasks
+    let newSortOrder;
+    if (insertPosition === -1) {
+      // Insert at the end
+      const lastTask = existingTasks.rows[existingTasks.rows.length - 1];
+      newSortOrder = lastTask ? (lastTask.sort_order || 0) + 10 : 10;
+    } else if (insertPosition === 0) {
+      // Insert at the beginning
+      const firstTask = existingTasks.rows[0];
+      newSortOrder = firstTask ? Math.max(1, (firstTask.sort_order || 10) - 10) : 10;
+    } else {
+      // Insert in the middle - use average of surrounding tasks
+      const taskBefore = existingTasks.rows[insertPosition - 1];
+      const taskAfter = existingTasks.rows[insertPosition];
+      const orderBefore = taskBefore.sort_order || 10;
+      const orderAfter = taskAfter.sort_order || 20;
+
+      // If there's a gap, use the middle
+      if (orderAfter - orderBefore > 1) {
+        newSortOrder = Math.floor((orderBefore + orderAfter) / 2);
+      } else {
+        // No gap - need to shift everything after
+        newSortOrder = orderAfter;
+        // Will shift later tasks in separate query
+      }
+    }
 
     // Insert the new task with calculated sort_order
     const result = await query(
@@ -302,13 +326,23 @@ router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
     );
 
     // Update sort_order of all tasks that come after the inserted position
-    // Shift them by 10 to maintain gaps
-    await query(
-      `UPDATE tasks
-       SET sort_order = sort_order + 10
-       WHERE event_id = $1 AND sort_order >= $2 AND id != $3`,
-      [event_id, newSortOrder, result.rows[0].id]
-    );
+    // Only shift if there was no gap
+    if (insertPosition !== -1 && insertPosition > 0) {
+      const taskAfter = existingTasks.rows[insertPosition];
+      const taskBefore = existingTasks.rows[insertPosition - 1];
+      const orderBefore = taskBefore.sort_order || 10;
+      const orderAfter = taskAfter.sort_order || 20;
+
+      if (orderAfter - orderBefore <= 1) {
+        // No gap - shift everything after
+        await query(
+          `UPDATE tasks
+           SET sort_order = sort_order + 10
+           WHERE event_id = $1 AND sort_order >= $2 AND id != $3`,
+          [event_id, newSortOrder, result.rows[0].id]
+        );
+      }
+    }
 
     // Broadcast update for live sync
     broadcastUpdate('task', { action: 'create', task: result.rows[0] });
