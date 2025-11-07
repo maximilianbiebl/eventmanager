@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { usersApi, User } from '../../api/users';
 import { authApi } from '../../api/auth';
-import { useAuth } from '../../context/AuthContext';
 import { CreateUserModal } from './CreateUserModal';
 import responsiveStyles from './UsersList.module.css';
 
@@ -11,7 +10,6 @@ interface Props {
 }
 
 export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvent }) => {
-  const { isAdmin } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
