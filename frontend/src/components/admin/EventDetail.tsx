@@ -243,8 +243,8 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
                 🔄 Aktualisieren
               </button>
             </div>
-            {/* Teamleiter können keine Aufgaben bei Vorlagen hinzufügen */}
-            {(isAdmin || !event.is_template) && (
+            {/* Nur Admins und Teamleiter können Aufgaben erstellen, Teamleiter aber nicht bei Vorlagen */}
+            {(isAdmin || (isTeamleiter && !event.is_template)) && (
               <button onClick={handleCreateTask} className={styles.addButton}>
                 + Neue Aufgabe
               </button>
