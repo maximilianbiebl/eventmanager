@@ -8,6 +8,7 @@ export interface Event {
   days: number;
   created_by: number;
   is_template: boolean;
+  is_template_suggestion: boolean;
   created_at: string;
   creator_name?: string;
 }
@@ -66,6 +67,21 @@ export const eventsApi = {
 
   createFromTemplate: async (id: number, data: { name: string; start_date: string; instance_count: number }) => {
     const response = await client.post(`/events/${id}/create-from-template`, data);
+    return response.data;
+  },
+
+  copyToTemplate: async (id: number) => {
+    const response = await client.post(`/events/${id}/copy-to-template`);
+    return response.data;
+  },
+
+  suggestAsTemplate: async (id: number) => {
+    const response = await client.put(`/events/${id}/suggest-as-template`);
+    return response.data;
+  },
+
+  approveSuggestion: async (id: number) => {
+    const response = await client.post(`/events/${id}/approve-suggestion`);
     return response.data;
   },
 };

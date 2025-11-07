@@ -20,6 +20,17 @@
   white-space: nowrap;
 }
 
+.editButton {
+  padding: 0.5rem 1rem;
+  background-color: #f59e0b;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
 .duplicateButton {
   padding: 0.5rem 1rem;
   background-color: #10b981;
@@ -372,7 +383,7 @@
     align-items: stretch;
   }
 
-  .backButton, .duplicateButton {
+  .backButton, .editButton, .duplicateButton {
     width: 100%;
   }
 

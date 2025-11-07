@@ -267,6 +267,176 @@ router.post('/:id/create-from-template', authMiddleware, teamleiterOrAdminMiddle
   }
 });
 
+// Event als Vorlage kopieren (Admin only) - erstellt Kopie ohne Zuweisungen/Datum
+router.post('/:id/copy-to-template', authMiddleware, adminMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+
+    // Original Event abrufen
+    const originalEvent = await query('SELECT * FROM events WHERE id = $1', [id]);
+
+    if (originalEvent.rows.length === 0) {
+      return res.status(404).json({ error: 'Event nicht gefunden' });
+    }
+
+    const original = originalEvent.rows[0];
+
+    // Vorlage erstellen (ohne Datum, ohne Zuweisungen)
+    const templateResult = await query(
+      'INSERT INTO events (name, description, days, created_by, is_template, is_template_suggestion) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [`${original.name} (Vorlage)`, original.description, original.days, req.user!.id, true, false]
+    );
+
+    const template = templateResult.rows[0];
+
+    // Keine Instanzen erstellen für Vorlagen
+
+    // Alle Tasks kopieren (ohne Zuweisungen)
+    const originalTasks = await query('SELECT * FROM tasks WHERE event_id = $1', [id]);
+    for (const task of originalTasks.rows) {
+      await query(
+        `INSERT INTO tasks (
+          event_id, program_item_id, day_number, title, description,
+          scheduled_time, start_time, end_time, reminder_minutes, is_public, status, is_active, sort_order
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+        [
+          template.id,
+          task.program_item_id,
+          task.day_number,
+          task.title,
+          task.description,
+          task.scheduled_time,
+          task.start_time,
+          task.end_time,
+          task.reminder_minutes,
+          task.is_public,
+          'not_started',
+          task.is_active !== undefined ? task.is_active : true,
+          task.sort_order || 0,
+        ]
+      );
+    }
+
+    // Programmpunkte kopieren
+    const originalProgram = await query('SELECT * FROM program_items WHERE event_id = $1', [id]);
+    for (const program of originalProgram.rows) {
+      await query(
+        'INSERT INTO program_items (event_id, day_number, time, title, description) VALUES ($1, $2, $3, $4, $5)',
+        [template.id, program.day_number, program.time, program.title, program.description]
+      );
+    }
+
+    res.status(201).json({
+      ...template,
+      message: 'Event erfolgreich als Vorlage kopiert',
+    });
+  } catch (error) {
+    console.error('Copy to template error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// Event als Vorlagenvorschlag markieren (Teamleiter)
+router.put('/:id/suggest-as-template', authMiddleware, teamleiterOrAdminMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+
+    // Event prüfen
+    const eventCheck = await query('SELECT * FROM events WHERE id = $1', [id]);
+
+    if (eventCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Event nicht gefunden' });
+    }
+
+    const event = eventCheck.rows[0];
+
+    // Teamleiter können nur eigene Events vorschlagen
+    if (req.user!.role === 'teamleiter' && event.created_by !== req.user!.id) {
+      return res.status(403).json({ error: 'Keine Berechtigung für dieses Event' });
+    }
+
+    const result = await query(
+      'UPDATE events SET is_template_suggestion = $1 WHERE id = $2 RETURNING *',
+      [true, id]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Suggest as template error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// Vorlagenvorschlag genehmigen (Admin) - kopiert zu Vorlage
+router.post('/:id/approve-suggestion', authMiddleware, adminMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+
+    // Event prüfen
+    const originalEvent = await query('SELECT * FROM events WHERE id = $1 AND is_template_suggestion = true', [id]);
+
+    if (originalEvent.rows.length === 0) {
+      return res.status(404).json({ error: 'Vorlagenvorschlag nicht gefunden' });
+    }
+
+    const original = originalEvent.rows[0];
+
+    // Vorlage erstellen
+    const templateResult = await query(
+      'INSERT INTO events (name, description, days, created_by, is_template, is_template_suggestion) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [`${original.name} (Vorlage)`, original.description, original.days, req.user!.id, true, false]
+    );
+
+    const template = templateResult.rows[0];
+
+    // Tasks kopieren
+    const originalTasks = await query('SELECT * FROM tasks WHERE event_id = $1', [id]);
+    for (const task of originalTasks.rows) {
+      await query(
+        `INSERT INTO tasks (
+          event_id, program_item_id, day_number, title, description,
+          scheduled_time, start_time, end_time, reminder_minutes, is_public, status, is_active, sort_order
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+        [
+          template.id,
+          task.program_item_id,
+          task.day_number,
+          task.title,
+          task.description,
+          task.scheduled_time,
+          task.start_time,
+          task.end_time,
+          task.reminder_minutes,
+          task.is_public,
+          'not_started',
+          task.is_active !== undefined ? task.is_active : true,
+          task.sort_order || 0,
+        ]
+      );
+    }
+
+    // Programmpunkte kopieren
+    const originalProgram = await query('SELECT * FROM program_items WHERE event_id = $1', [id]);
+    for (const program of originalProgram.rows) {
+      await query(
+        'INSERT INTO program_items (event_id, day_number, time, title, description) VALUES ($1, $2, $3, $4, $5)',
+        [template.id, program.day_number, program.time, program.title, program.description]
+      );
+    }
+
+    // Vorschlag-Flag beim Original entfernen
+    await query('UPDATE events SET is_template_suggestion = false WHERE id = $1', [id]);
+
+    res.status(201).json({
+      ...template,
+      message: 'Vorlagenvorschlag wurde genehmigt und Vorlage erstellt',
+    });
+  } catch (error) {
+    console.error('Approve suggestion error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
 // Event duplizieren
 router.post('/:id/duplicate', authMiddleware, teamleiterOrAdminMiddleware, async (req: AuthRequest, res) => {
   try {

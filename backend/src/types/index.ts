@@ -14,6 +14,7 @@ export interface Event {
   days: number;
   created_by: number;
   is_template: boolean;
+  is_template_suggestion: boolean;
   created_at: Date;
 }
 

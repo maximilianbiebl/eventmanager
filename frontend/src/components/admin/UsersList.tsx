@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { usersApi, User } from '../../api/users';
 import { authApi } from '../../api/auth';
 import { useAuth } from '../../context/AuthContext';
+import { CreateUserModal } from './CreateUserModal';
 import responsiveStyles from './UsersList.module.css';
 
 interface Props {
@@ -13,6 +14,7 @@ export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvent }) =
   const { isAdmin } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   useEffect(() => {
     loadUsers();
@@ -34,39 +36,9 @@ export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvent }) =
     }
   };
 
-  const handleCreate = async () => {
-    const name = prompt('Name:');
-    if (!name) return;
-
-    const password = prompt('Passwort:');
-    if (!password) return;
-
-    let role = 'staff';
-    if (isAdmin) {
-      // Admin kann Admin, Teamleiter oder Staff erstellen
-      const roleChoice = prompt('Rolle (1=Admin, 2=Teamleiter, 3=Staff):', '3');
-      if (!roleChoice) return;
-
-      if (roleChoice === '1') {
-        role = 'admin';
-      } else if (roleChoice === '2') {
-        role = 'teamleiter';
-      } else {
-        role = 'staff';
-      }
-    } else {
-      // Teamleiter kann Teamleiter oder Staff erstellen
-      const isTeamleiter = confirm('Als Teamleiter anlegen?');
-      role = isTeamleiter ? 'teamleiter' : 'staff';
-    }
-
-    try {
-      await authApi.register({ name, password, role });
-      await loadUsers(false); // Reload without showing loading indicator
-    } catch (error: any) {
-      console.error('Create user error:', error);
-      alert(error.response?.data?.error || 'Fehler beim Anlegen');
-    }
+  const handleCreateSuccess = async () => {
+    setShowCreateModal(false);
+    await loadUsers(false); // Reload without showing loading indicator
   };
 
   const handleDelete = async (id: number) => {
@@ -115,10 +87,17 @@ export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvent }) =
 
       <div style={styles.header} className={responsiveStyles.header}>
         <h2 style={styles.title}>Mitarbeiter</h2>
-        <button onClick={handleCreate} style={styles.createButton} className={responsiveStyles.createButton}>
+        <button onClick={() => setShowCreateModal(true)} style={styles.createButton} className={responsiveStyles.createButton}>
           + Neuer Mitarbeiter
         </button>
       </div>
+
+      {showCreateModal && (
+        <CreateUserModal
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={handleCreateSuccess}
+        />
+      )}
 
       <table style={styles.table} className={responsiveStyles.table}>
         <thead>
