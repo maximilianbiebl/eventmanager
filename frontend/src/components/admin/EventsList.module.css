@@ -1,3 +1,12 @@
+/* Desktop: Show tabs, hide dropdown */
+.tabsDesktop {
+  display: flex;
+}
+
+.tabsMobile {
+  display: none;
+}
+
 @media (max-width: 640px) {
   .header {
     flex-direction: column !important;
@@ -13,5 +22,14 @@
 
   .grid {
     grid-template-columns: 1fr !important;
+  }
+
+  /* Mobile: Hide tabs, show dropdown */
+  .tabsDesktop {
+    display: none !important;
+  }
+
+  .tabsMobile {
+    display: block !important;
   }
 }

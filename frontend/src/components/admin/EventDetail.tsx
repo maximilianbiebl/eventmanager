@@ -9,6 +9,7 @@ import { TaskFormModal } from './TaskFormModal';
 import { TaskAssignmentModal } from './TaskAssignmentModal';
 import { TaskTableView } from './TaskTableView';
 import { DuplicateEventModal } from './DuplicateEventModal';
+import { CreateFromTemplateModal } from './CreateFromTemplateModal';
 import { EventEditModal } from './EventEditModal';
 import { EventStaffPool } from './EventStaffPool';
 import { Toast } from '../Toast';
@@ -20,7 +21,7 @@ interface Props {
 }
 
 export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
-  const { isAdmin } = useAuth();
+  const { isAdmin, isTeamleiter, user } = useAuth();
   const [event, setEvent] = useState<any>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [_program, setProgram] = useState<ProgramItem[]>([]);
@@ -34,6 +35,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
   const [viewMode, setViewMode] = useState<'list' | 'table'>('table'); // Table ist jetzt Standard
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [selectedDay, setSelectedDay] = useState<number | 'all'>('all');
   const [manualRefreshTrigger, setManualRefreshTrigger] = useState(0);
   const scrollPositionRef = useRef<number>(0);
@@ -153,7 +155,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
         <button onClick={onBack} className={styles.backButton}>
           ← Zurück
         </button>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           {isAdmin && (
             <button
               onClick={handleToggleTemplate}
@@ -163,12 +165,24 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
               {event.is_template ? '📄 Vorlage → Event' : '📋 Als Vorlage'}
             </button>
           )}
-          <button onClick={() => setShowEditModal(true)} className={styles.editButton}>
-            ✏️ Bearbeiten
-          </button>
-          <button onClick={() => setShowDuplicateModal(true)} className={styles.duplicateButton}>
-            📋 Event duplizieren
-          </button>
+          {/* Bearbeiten - aber nicht für Teamleiter bei Vorlagen */}
+          {(isAdmin || (isTeamleiter && !event.is_template)) && (
+            <button onClick={() => setShowEditModal(true)} className={styles.editButton}>
+              ✏️ Bearbeiten
+            </button>
+          )}
+          {/* Vorlage verwenden - bei Vorlagen */}
+          {event.is_template && (
+            <button onClick={() => setShowTemplateModal(true)} className={styles.templateUseButton}>
+              📋 Vorlage verwenden
+            </button>
+          )}
+          {/* Event duplizieren - für Admin immer, für Teamleiter nur bei nicht-Vorlagen */}
+          {(isAdmin || (isTeamleiter && !event.is_template)) && (
+            <button onClick={() => setShowDuplicateModal(true)} className={styles.duplicateButton}>
+              📋 Duplizieren
+            </button>
+          )}
         </div>
       </div>
 
@@ -327,6 +341,17 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
           onSuccess={() => {
             setShowEditModal(false);
             loadData(false); // Reload event data after edit
+          }}
+        />
+      )}
+
+      {showTemplateModal && (
+        <CreateFromTemplateModal
+          templates={[event]}
+          onClose={() => setShowTemplateModal(false)}
+          onSuccess={() => {
+            setShowTemplateModal(false);
+            onBack(); // Zurück zur Event-Liste nach erfolgreichem Erstellen
           }}
         />
       )}

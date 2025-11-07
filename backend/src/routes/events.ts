@@ -283,8 +283,8 @@ router.post('/:id/copy-to-template', authMiddleware, adminMiddleware, async (req
 
     // Vorlage erstellen (ohne Datum, ohne Zuweisungen)
     const templateResult = await query(
-      'INSERT INTO events (name, description, days, created_by, is_template, is_template_suggestion) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [`${original.name} (Vorlage)`, original.description, original.days, req.user!.id, true, false]
+      'INSERT INTO events (name, description, start_date, days, created_by, is_template, is_template_suggestion) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+      [`${original.name} (Vorlage)`, original.description, null, original.days, req.user!.id, true, false]
     );
 
     const template = templateResult.rows[0];
@@ -383,8 +383,8 @@ router.post('/:id/approve-suggestion', authMiddleware, adminMiddleware, async (r
 
     // Vorlage erstellen
     const templateResult = await query(
-      'INSERT INTO events (name, description, days, created_by, is_template, is_template_suggestion) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [`${original.name} (Vorlage)`, original.description, original.days, req.user!.id, true, false]
+      'INSERT INTO events (name, description, start_date, days, created_by, is_template, is_template_suggestion) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+      [`${original.name} (Vorlage)`, original.description, null, original.days, req.user!.id, true, false]
     );
 
     const template = templateResult.rows[0];

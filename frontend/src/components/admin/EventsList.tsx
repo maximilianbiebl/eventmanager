@@ -220,7 +220,7 @@ export const EventsList: React.FC = () => {
           )}
           {isAdmin && !event.is_template && !event.is_template_suggestion && (
             <button onClick={() => handleCopyToTemplate(event.id)} style={styles.templateButton2}>
-              Als Vorlage
+              Vorlage
             </button>
           )}
           {isTeamleiter && isCreator && !event.is_template && !event.is_template_suggestion && (
@@ -273,8 +273,8 @@ export const EventsList: React.FC = () => {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div style={styles.tabsContainer}>
+      {/* Desktop Tabs */}
+      <div style={styles.tabsContainerDesktop} className={responsiveStyles.tabsDesktop}>
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -287,6 +287,21 @@ export const EventsList: React.FC = () => {
             {tab.label} <span style={styles.tabCount}>({tab.count})</span>
           </button>
         ))}
+      </div>
+
+      {/* Mobile Dropdown */}
+      <div style={styles.tabsContainerMobile} className={responsiveStyles.tabsMobile}>
+        <select
+          value={activeTab}
+          onChange={(e) => setActiveTab(e.target.value as TabType)}
+          style={styles.tabSelect}
+        >
+          {tabs.map((tab) => (
+            <option key={tab.id} value={tab.id}>
+              {tab.label} ({tab.count})
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Events Grid or Grouped List */}
@@ -402,13 +417,26 @@ const styles: { [key: string]: React.CSSProperties } = {
     cursor: 'pointer',
     fontWeight: '500',
   },
-  tabsContainer: {
+  tabsContainerDesktop: {
     display: 'flex',
     gap: '0.5rem',
     marginBottom: '1.5rem',
     borderBottom: '2px solid #e5e7eb',
     overflowX: 'auto',
     paddingBottom: '0.5rem',
+  },
+  tabsContainerMobile: {
+    display: 'none',
+    marginBottom: '1.5rem',
+  },
+  tabSelect: {
+    width: '100%',
+    padding: '0.75rem',
+    fontSize: '1rem',
+    border: '2px solid #e5e7eb',
+    borderRadius: '4px',
+    backgroundColor: 'white',
+    cursor: 'pointer',
   },
   tab: {
     padding: '0.75rem 1.5rem',
@@ -500,6 +528,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   actions: {
     display: 'flex',
     gap: '0.5rem',
+    flexWrap: 'wrap',
   },
   viewButton: {
     flex: 1,

@@ -52,7 +52,7 @@ export const AdminDashboard: React.FC = () => {
     <div style={styles.container} className={responsiveStyles.container}>
       <div style={styles.header} className={responsiveStyles.header}>
         <div>
-          <h1 style={styles.title} className={responsiveStyles.title}>Event Manager - Admin</h1>
+          <h1 style={styles.title} className={responsiveStyles.title}>Event Manager</h1>
           <p style={styles.subtitle}>Willkommen, {user?.name}!</p>
         </div>
 
