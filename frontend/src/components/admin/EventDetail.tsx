@@ -205,9 +205,12 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
         </div>
       </div>
 
-      <div className={styles.section}>
-        <EventStaffPool eventId={eventId} />
-      </div>
+      {/* Teamleiter sehen Mitarbeiterpool bei Vorlagen nicht */}
+      {(isAdmin || !event.is_template) && (
+        <div className={styles.section}>
+          <EventStaffPool eventId={eventId} />
+        </div>
+      )}
 
       <div className={styles.section}>
         <div className={styles.sectionHeader}>
@@ -240,9 +243,12 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
                 🔄 Aktualisieren
               </button>
             </div>
-            <button onClick={handleCreateTask} className={styles.addButton}>
-              + Neue Aufgabe
-            </button>
+            {/* Teamleiter können keine Aufgaben bei Vorlagen hinzufügen */}
+            {(isAdmin || !event.is_template) && (
+              <button onClick={handleCreateTask} className={styles.addButton}>
+                + Neue Aufgabe
+              </button>
+            )}
           </div>
         </div>
 
@@ -269,6 +275,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
             onAssignTask={handleAssignTask}
             event={event}
             manualRefreshTrigger={manualRefreshTrigger}
+            readOnly={isTeamleiter && event.is_template}
           />
         </div>
         {selectedInstance && (
@@ -282,6 +289,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
               onSelectedDayChange={setSelectedDay}
               instanceStartDate={(event as any)?.instances.find((i: any) => i.id === selectedInstance)?.start_date}
               manualRefreshTrigger={manualRefreshTrigger}
+              readOnly={isTeamleiter && event.is_template}
             />
           </div>
         )}
@@ -367,6 +375,7 @@ interface TaskListViewProps {
   onAssignTask: (taskId: number) => void;
   event?: any; // Für overdue check
   manualRefreshTrigger?: number;
+  readOnly?: boolean;
 }
 
 const TaskListView: React.FC<TaskListViewProps> = ({
@@ -376,6 +385,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   onAssignTask,
   event,
   manualRefreshTrigger,
+  readOnly = false,
 }) => {
   const [assignments, setAssignments] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(false);
@@ -894,13 +904,17 @@ const TaskListView: React.FC<TaskListViewProps> = ({
             </div>
 
             <div className={styles.taskActions}>
-              <button onClick={() => onEditTask(task)} className={styles.editButton}>
-                Bearbeiten
-              </button>
-              <button onClick={() => onAssignTask(task.id)} className={styles.assignButton}>
-                Zuweisen
-              </button>
-              {sortBy === 'manual' && (
+              {!readOnly && (
+                <>
+                  <button onClick={() => onEditTask(task)} className={styles.editButton}>
+                    Bearbeiten
+                  </button>
+                  <button onClick={() => onAssignTask(task.id)} className={styles.assignButton}>
+                    Zuweisen
+                  </button>
+                </>
+              )}
+              {!readOnly && sortBy === 'manual' && (
                 <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.25rem' }}>
                   <button
                     onClick={() => handleMoveUp(task.id)}

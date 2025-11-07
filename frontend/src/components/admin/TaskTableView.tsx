@@ -32,6 +32,7 @@ interface Props {
   onSelectedDayChange?: (day: number | 'all') => void; // Callback für Tag-Änderung
   instanceStartDate?: string; // Startdatum der Event-Instanz
   manualRefreshTrigger?: number;
+  readOnly?: boolean;
 }
 
 const STATUS_COLORS: { [key: string]: string } = {
@@ -56,7 +57,8 @@ export const TaskTableView: React.FC<Props> = ({
   selectedDay: externalSelectedDay,
   onSelectedDayChange,
   instanceStartDate,
-  manualRefreshTrigger
+  manualRefreshTrigger,
+  readOnly = false,
 }) => {
   const [assignments, setAssignments] = useState<TaskAssignment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -610,42 +612,44 @@ export const TaskTableView: React.FC<Props> = ({
                     )}
                   </td>
                   <td style={styles.td}>
-                    <div style={styles.actions} className={responsiveStyles.actions}>
-                      <div className={responsiveStyles.buttonGroup}>
-                        <button
-                          onClick={() => onAssignTask(task.id)}
-                          style={styles.assignButton}
-                          title="Mitarbeiter zuweisen"
-                        >
-                          Zuweisen
-                        </button>
-                        <button
-                          onClick={() => onEditTask(task.id)}
-                          style={styles.editButton}
-                          title="Aufgabe bearbeiten"
-                        >
-                          Bearbeiten
-                        </button>
+                    {!readOnly && (
+                      <div style={styles.actions} className={responsiveStyles.actions}>
+                        <div className={responsiveStyles.buttonGroup}>
+                          <button
+                            onClick={() => onAssignTask(task.id)}
+                            style={styles.assignButton}
+                            title="Mitarbeiter zuweisen"
+                          >
+                            Zuweisen
+                          </button>
+                          <button
+                            onClick={() => onEditTask(task.id)}
+                            style={styles.editButton}
+                            title="Aufgabe bearbeiten"
+                          >
+                            Bearbeiten
+                          </button>
+                        </div>
+                        <div style={{display: 'flex', gap: '0.25rem', justifyContent: 'center'}} className={responsiveStyles.moveButtonGroup}>
+                          <button
+                            onClick={() => handleMoveUp(task.id)}
+                            style={styles.moveButton}
+                            className={responsiveStyles.moveButton}
+                            title="Aufgabe nach oben verschieben"
+                          >
+                            ▲
+                          </button>
+                          <button
+                            onClick={() => handleMoveDown(task.id)}
+                            style={styles.moveButton}
+                            className={responsiveStyles.moveButton}
+                            title="Aufgabe nach unten verschieben"
+                          >
+                            ▼
+                          </button>
+                        </div>
                       </div>
-                      <div style={{display: 'flex', gap: '0.25rem', justifyContent: 'center'}} className={responsiveStyles.moveButtonGroup}>
-                        <button
-                          onClick={() => handleMoveUp(task.id)}
-                          style={styles.moveButton}
-                          className={responsiveStyles.moveButton}
-                          title="Aufgabe nach oben verschieben"
-                        >
-                          ▲
-                        </button>
-                        <button
-                          onClick={() => handleMoveDown(task.id)}
-                          style={styles.moveButton}
-                          className={responsiveStyles.moveButton}
-                          title="Aufgabe nach unten verschieben"
-                        >
-                          ▼
-                        </button>
-                      </div>
-                    </div>
+                    )}
                   </td>
                 </tr>
               ))}
