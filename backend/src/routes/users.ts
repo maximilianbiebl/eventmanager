@@ -1,12 +1,12 @@
 import { Router } from 'express';
 import { query } from '../database/connection';
-import { authMiddleware, adminMiddleware } from '../middleware/auth';
+import { authMiddleware, adminMiddleware, teamleiterOrAdminMiddleware, AuthRequest } from '../middleware/auth';
 import bcrypt from 'bcrypt';
 
 const router = Router();
 
 // Alle Benutzer abrufen
-router.get('/', authMiddleware, adminMiddleware, async (req, res) => {
+router.get('/', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
   try {
     const result = await query('SELECT id, name, role, created_at FROM users ORDER BY name');
 
@@ -18,10 +18,21 @@ router.get('/', authMiddleware, adminMiddleware, async (req, res) => {
 });
 
 // Benutzer aktualisieren
-router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
+router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
     const { name, password, role } = req.body;
+
+    // Teamleiter dürfen keine Admins erstellen oder bearbeiten
+    if (req.user!.role === 'teamleiter' && role === 'admin') {
+      return res.status(403).json({ error: 'Teamleiter können keine Admins erstellen oder bearbeiten' });
+    }
+
+    // Prüfen ob der zu bearbeitende User ein Admin ist
+    const userCheck = await query('SELECT role FROM users WHERE id = $1', [id]);
+    if (userCheck.rows.length > 0 && userCheck.rows[0].role === 'admin' && req.user!.role === 'teamleiter') {
+      return res.status(403).json({ error: 'Teamleiter können keine Admins bearbeiten' });
+    }
 
     let updateQuery = 'UPDATE users SET name = $1, role = $2';
     let params: any[] = [name, role];
@@ -49,15 +60,25 @@ router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
 });
 
 // Benutzer löschen
-router.delete('/:id', authMiddleware, adminMiddleware, async (req, res) => {
+router.delete('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
 
-    const result = await query('DELETE FROM users WHERE id = $1 RETURNING id', [id]);
+    // Prüfen welche Rolle der zu löschende User hat
+    const userCheck = await query('SELECT role FROM users WHERE id = $1', [id]);
 
-    if (result.rows.length === 0) {
+    if (userCheck.rows.length === 0) {
       return res.status(404).json({ error: 'Benutzer nicht gefunden' });
     }
+
+    const targetRole = userCheck.rows[0].role;
+
+    // Teamleiter dürfen keine Admins oder andere Teamleiter löschen
+    if (req.user!.role === 'teamleiter' && (targetRole === 'admin' || targetRole === 'teamleiter')) {
+      return res.status(403).json({ error: 'Teamleiter können nur Staff-Mitarbeiter löschen' });
+    }
+
+    const result = await query('DELETE FROM users WHERE id = $1 RETURNING id', [id]);
 
     res.json({ message: 'Benutzer gelöscht' });
   } catch (error) {
@@ -67,7 +88,7 @@ router.delete('/:id', authMiddleware, adminMiddleware, async (req, res) => {
 });
 
 // Mitarbeiter zum Event-Pool hinzufügen (für alle Instanzen verfügbar)
-router.post('/event/:eventId/staff', authMiddleware, adminMiddleware, async (req, res) => {
+router.post('/event/:eventId/staff', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
   try {
     const { eventId } = req.params;
     const { user_ids } = req.body;
@@ -119,7 +140,7 @@ router.get('/event/:eventId/staff', authMiddleware, async (req, res) => {
 });
 
 // Mitarbeiter aus Event-Pool entfernen
-router.delete('/event/:eventId/staff/:userId', authMiddleware, adminMiddleware, async (req, res) => {
+router.delete('/event/:eventId/staff/:userId', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
   try {
     const { eventId, userId } = req.params;
 
@@ -186,7 +207,7 @@ router.put('/me/settings', authMiddleware, async (req: any, res) => {
 });
 
 // Mitarbeiter zu Event-Instanz hinzufügen
-router.post('/instance/:instanceId/staff', authMiddleware, adminMiddleware, async (req, res) => {
+router.post('/instance/:instanceId/staff', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
   try {
     const { instanceId } = req.params;
     const { user_ids } = req.body;
@@ -238,7 +259,7 @@ router.get('/instance/:instanceId/staff', authMiddleware, async (req, res) => {
 });
 
 // Mitarbeiter von Event-Instanz entfernen
-router.delete('/instance/:instanceId/staff/:userId', authMiddleware, adminMiddleware, async (req, res) => {
+router.delete('/instance/:instanceId/staff/:userId', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
   try {
     const { instanceId, userId } = req.params;
 

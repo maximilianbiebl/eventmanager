@@ -7,7 +7,9 @@ export interface Event {
   start_date: string;
   days: number;
   created_by: number;
+  is_template: boolean;
   created_at: string;
+  creator_name?: string;
 }
 
 export interface EventInstance {
@@ -23,6 +25,7 @@ export interface CreateEventData {
   start_date: string;
   days: number;
   instance_count: number;
+  is_template?: boolean;
 }
 
 export const eventsApi = {
@@ -53,6 +56,16 @@ export const eventsApi = {
 
   duplicate: async (id: number, data: { name?: string; start_date?: string; instance_count?: number }) => {
     const response = await client.post(`/events/${id}/duplicate`, data);
+    return response.data;
+  },
+
+  toggleTemplate: async (id: number, isTemplate: boolean) => {
+    const response = await client.put(`/events/${id}/toggle-template`, { is_template: isTemplate });
+    return response.data;
+  },
+
+  createFromTemplate: async (id: number, data: { name: string; start_date: string; instance_count: number }) => {
+    const response = await client.post(`/events/${id}/create-from-template`, data);
     return response.data;
   },
 };

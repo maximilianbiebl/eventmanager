@@ -32,3 +32,17 @@ export const adminMiddleware = (req: AuthRequest, res: Response, next: NextFunct
   }
   next();
 };
+
+export const teamleiterMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => {
+  if (req.user?.role !== 'teamleiter' && req.user?.role !== 'admin') {
+    return res.status(403).json({ error: 'Nur für Teamleiter und Administratoren' });
+  }
+  next();
+};
+
+export const teamleiterOrAdminMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => {
+  if (req.user?.role !== 'admin' && req.user?.role !== 'teamleiter') {
+    return res.status(403).json({ error: 'Nur für Administratoren und Teamleiter' });
+  }
+  next();
+};

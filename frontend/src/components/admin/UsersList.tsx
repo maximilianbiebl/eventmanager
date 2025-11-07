@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { usersApi, User } from '../../api/users';
 import { authApi } from '../../api/auth';
+import { useAuth } from '../../context/AuthContext';
 import responsiveStyles from './UsersList.module.css';
 
 interface Props {
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvent }) => {
+  const { isAdmin } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -39,7 +41,24 @@ export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvent }) =
     const password = prompt('Passwort:');
     if (!password) return;
 
-    const role = confirm('Als Admin anlegen?') ? 'admin' : 'staff';
+    let role = 'staff';
+    if (isAdmin) {
+      // Admin kann Admin, Teamleiter oder Staff erstellen
+      const roleChoice = prompt('Rolle (1=Admin, 2=Teamleiter, 3=Staff):', '3');
+      if (!roleChoice) return;
+
+      if (roleChoice === '1') {
+        role = 'admin';
+      } else if (roleChoice === '2') {
+        role = 'teamleiter';
+      } else {
+        role = 'staff';
+      }
+    } else {
+      // Teamleiter kann Teamleiter oder Staff erstellen
+      const isTeamleiter = confirm('Als Teamleiter anlegen?');
+      role = isTeamleiter ? 'teamleiter' : 'staff';
+    }
 
     try {
       await authApi.register({ name, password, role });
@@ -116,7 +135,13 @@ export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvent }) =
               <td style={styles.td}>{user.id}</td>
               <td style={styles.td}>{user.name}</td>
               <td style={styles.td}>
-                <span style={user.role === 'admin' ? styles.badgeAdmin : styles.badgeStaff}>
+                <span style={
+                  user.role === 'admin'
+                    ? styles.badgeAdmin
+                    : user.role === 'teamleiter'
+                    ? styles.badgeTeamleiter
+                    : styles.badgeStaff
+                }>
                   {user.role}
                 </span>
               </td>
@@ -190,6 +215,14 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: '0.25rem 0.75rem',
     backgroundColor: '#fef3c7',
     color: '#92400e',
+    borderRadius: '9999px',
+    fontSize: '0.875rem',
+    fontWeight: '500',
+  },
+  badgeTeamleiter: {
+    padding: '0.25rem 0.75rem',
+    backgroundColor: '#d1fae5',
+    color: '#065f46',
     borderRadius: '9999px',
     fontSize: '0.875rem',
     fontWeight: '500',

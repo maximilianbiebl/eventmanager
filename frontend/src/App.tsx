@@ -6,11 +6,12 @@ import { StaffDashboard } from './components/StaffDashboard';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { Footer } from './components/Footer';
 
-const PrivateRoute: React.FC<{ children: React.ReactNode; adminOnly?: boolean }> = ({
+const PrivateRoute: React.FC<{ children: React.ReactNode; adminOnly?: boolean; teamleiterOrAdmin?: boolean }> = ({
   children,
   adminOnly = false,
+  teamleiterOrAdmin = false,
 }) => {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isTeamleiterOrAdmin } = useAuth();
 
   if (!user) {
     return <Navigate to="/login" />;
@@ -20,11 +21,15 @@ const PrivateRoute: React.FC<{ children: React.ReactNode; adminOnly?: boolean }>
     return <Navigate to="/" />;
   }
 
+  if (teamleiterOrAdmin && !isTeamleiterOrAdmin) {
+    return <Navigate to="/" />;
+  }
+
   return <>{children}</>;
 };
 
 const AppRoutes: React.FC = () => {
-  const { user, isAdmin } = useAuth();
+  const { user, isTeamleiterOrAdmin } = useAuth();
 
   return (
     <Routes>
@@ -33,14 +38,14 @@ const AppRoutes: React.FC = () => {
         path="/"
         element={
           <PrivateRoute>
-            {isAdmin ? <AdminDashboard /> : <StaffDashboard />}
+            {isTeamleiterOrAdmin ? <AdminDashboard /> : <StaffDashboard />}
           </PrivateRoute>
         }
       />
       <Route
         path="/admin"
         element={
-          <PrivateRoute adminOnly>
+          <PrivateRoute teamleiterOrAdmin>
             <AdminDashboard />
           </PrivateRoute>
         }

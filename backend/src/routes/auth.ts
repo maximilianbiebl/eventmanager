@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import { query } from '../database/connection';
 import config from '../config';
 import { LoginRequest, LoginResponse } from '../types';
-import { authMiddleware, adminMiddleware, AuthRequest } from '../middleware/auth';
+import { authMiddleware, adminMiddleware, teamleiterOrAdminMiddleware, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
@@ -52,10 +52,15 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Benutzer registrieren (nur für Admin)
-router.post('/register', async (req, res) => {
+// Benutzer registrieren (für Admin und Teamleiter)
+router.post('/register', authMiddleware, teamleiterOrAdminMiddleware, async (req: AuthRequest, res) => {
   try {
     const { name, password, role = 'staff' } = req.body;
+
+    // Teamleiter dürfen keine Admins erstellen
+    if (req.user!.role === 'teamleiter' && role === 'admin') {
+      return res.status(403).json({ error: 'Teamleiter können keine Admins erstellen' });
+    }
 
     // Prüfen ob Benutzer schon existiert
     const existing = await query('SELECT * FROM users WHERE name = $1', [name]);
@@ -80,8 +85,8 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// Admin: Reset user password (ohne altes Passwort)
-router.put('/admin/reset-password/:userId', authMiddleware, adminMiddleware, async (req: AuthRequest, res) => {
+// Admin/Teamleiter: Reset user password (ohne altes Passwort)
+router.put('/admin/reset-password/:userId', authMiddleware, teamleiterOrAdminMiddleware, async (req: AuthRequest, res) => {
   try {
     const { userId } = req.params;
     const { newPassword } = req.body;
@@ -99,6 +104,13 @@ router.put('/admin/reset-password/:userId', authMiddleware, adminMiddleware, asy
 
     if (userResult.rows.length === 0) {
       return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    }
+
+    const targetUser = userResult.rows[0];
+
+    // Teamleiter dürfen keine Passwörter von Admins oder anderen Teamleitern zurücksetzen
+    if (req.user!.role === 'teamleiter' && (targetUser.role === 'admin' || targetUser.role === 'teamleiter')) {
+      return res.status(403).json({ error: 'Teamleiter können nur Passwörter von Staff-Mitarbeitern zurücksetzen' });
     }
 
     // Neues Passwort hashen

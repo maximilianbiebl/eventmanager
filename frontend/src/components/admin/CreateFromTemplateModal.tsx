@@ -1,34 +1,39 @@
 import React, { useState } from 'react';
-import { eventsApi } from '../../api/events';
-import { useAuth } from '../../context/AuthContext';
+import { eventsApi, Event } from '../../api/events';
 
 interface Props {
+  templates: Event[];
   onClose: () => void;
   onSuccess: () => void;
 }
 
-export const CreateEventModal: React.FC<Props> = ({ onClose, onSuccess }) => {
-  const { isAdmin } = useAuth();
+export const CreateFromTemplateModal: React.FC<Props> = ({ templates, onClose, onSuccess }) => {
+  const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    description: '',
     start_date: '',
-    days: 4,
     instance_count: 1,
-    is_template: false,
   });
   const [loading, setLoading] = useState(false);
 
+  const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!selectedTemplateId) {
+      alert('Bitte wähle eine Vorlage aus');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      await eventsApi.create(formData);
+      await eventsApi.createFromTemplate(selectedTemplateId, formData);
       onSuccess();
     } catch (error) {
-      console.error('Create event error:', error);
-      alert('Fehler beim Erstellen der Veranstaltung');
+      console.error('Create from template error:', error);
+      alert('Fehler beim Erstellen der Veranstaltung aus Vorlage');
     } finally {
       setLoading(false);
     }
@@ -37,27 +42,56 @@ export const CreateEventModal: React.FC<Props> = ({ onClose, onSuccess }) => {
   return (
     <div style={styles.overlay} onClick={onClose}>
       <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-        <h2 style={styles.title}>Neue Veranstaltung</h2>
+        <h2 style={styles.title}>Veranstaltung aus Vorlage erstellen</h2>
         <form onSubmit={handleSubmit}>
           <div style={styles.formGroup}>
-            <label style={styles.label}>Name *</label>
+            <label style={styles.label}>Vorlage auswählen *</label>
+            <select
+              value={selectedTemplateId || ''}
+              onChange={(e) => {
+                const id = parseInt(e.target.value);
+                setSelectedTemplateId(id);
+                const template = templates.find(t => t.id === id);
+                if (template && !formData.name) {
+                  setFormData({ ...formData, name: template.name });
+                }
+              }}
+              style={styles.select}
+              required
+            >
+              <option value="">-- Vorlage wählen --</option>
+              {templates.map((template) => (
+                <option key={template.id} value={template.id}>
+                  {template.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {selectedTemplate && (
+            <div style={styles.templateInfo}>
+              <h4 style={styles.templateInfoTitle}>Vorlage: {selectedTemplate.name}</h4>
+              {selectedTemplate.description && (
+                <p style={styles.templateDescription}>{selectedTemplate.description}</p>
+              )}
+              <div style={styles.templateMeta}>
+                <span>Dauer: {selectedTemplate.days} Tage</span>
+              </div>
+            </div>
+          )}
+
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Name der neuen Veranstaltung *</label>
             <input
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               style={styles.input}
+              placeholder="Name der Veranstaltung"
               required
             />
           </div>
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Beschreibung</label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              style={styles.textarea}
-              rows={3}
-            />
-          </div>
+
           <div style={styles.formGroup}>
             <label style={styles.label}>Startdatum *</label>
             <input
@@ -68,17 +102,7 @@ export const CreateEventModal: React.FC<Props> = ({ onClose, onSuccess }) => {
               required
             />
           </div>
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Anzahl Tage *</label>
-            <input
-              type="number"
-              min="1"
-              value={formData.days}
-              onChange={(e) => setFormData({ ...formData, days: parseInt(e.target.value) })}
-              style={styles.input}
-              required
-            />
-          </div>
+
           <div style={styles.formGroup}>
             <label style={styles.label}>Anzahl Durchführungen *</label>
             <input
@@ -92,25 +116,13 @@ export const CreateEventModal: React.FC<Props> = ({ onClose, onSuccess }) => {
               required
             />
           </div>
-          {isAdmin && (
-            <div style={styles.formGroup}>
-              <label style={styles.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={formData.is_template}
-                  onChange={(e) => setFormData({ ...formData, is_template: e.target.checked })}
-                  style={styles.checkbox}
-                />
-                Als Vorlage markieren
-              </label>
-            </div>
-          )}
+
           <div style={styles.actions}>
             <button type="button" onClick={onClose} style={styles.cancelButton}>
               Abbrechen
             </button>
             <button type="submit" style={styles.submitButton} disabled={loading}>
-              {loading ? 'Erstelle...' : 'Erstellen'}
+              {loading ? 'Erstelle...' : 'Veranstaltung erstellen'}
             </button>
           </div>
         </form>
@@ -154,16 +166,13 @@ const styles: { [key: string]: React.CSSProperties } = {
     marginBottom: '0.5rem',
     fontWeight: '500',
   },
-  checkboxLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    cursor: 'pointer',
-  },
-  checkbox: {
-    cursor: 'pointer',
-    width: '1.25rem',
-    height: '1.25rem',
+  select: {
+    width: '100%',
+    padding: '0.5rem',
+    border: '1px solid #d1d5db',
+    borderRadius: '4px',
+    fontSize: '1rem',
+    backgroundColor: 'white',
   },
   input: {
     width: '100%',
@@ -172,13 +181,25 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: '4px',
     fontSize: '1rem',
   },
-  textarea: {
-    width: '100%',
-    padding: '0.5rem',
-    border: '1px solid #d1d5db',
-    borderRadius: '4px',
+  templateInfo: {
+    backgroundColor: '#f3f4f6',
+    padding: '1rem',
+    borderRadius: '6px',
+    marginBottom: '1rem',
+  },
+  templateInfoTitle: {
     fontSize: '1rem',
-    fontFamily: 'inherit',
+    fontWeight: '600',
+    margin: '0 0 0.5rem 0',
+  },
+  templateDescription: {
+    fontSize: '0.875rem',
+    color: '#6b7280',
+    margin: '0 0 0.5rem 0',
+  },
+  templateMeta: {
+    fontSize: '0.875rem',
+    color: '#6b7280',
   },
   actions: {
     display: 'flex',

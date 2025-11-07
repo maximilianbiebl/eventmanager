@@ -1,19 +1,39 @@
 import { Router } from 'express';
 import { query } from '../database/connection';
-import { authMiddleware, adminMiddleware, AuthRequest } from '../middleware/auth';
+import { authMiddleware, adminMiddleware, teamleiterOrAdminMiddleware, AuthRequest } from '../middleware/auth';
 import { CreateEventRequest } from '../types';
 
 const router = Router();
 
-// Alle Events abrufen
-router.get('/', authMiddleware, async (req, res) => {
+// Alle Events abrufen (rollenbasiert)
+router.get('/', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const result = await query(`
-      SELECT e.*, u.name as creator_name
-      FROM events e
-      LEFT JOIN users u ON e.created_by = u.id
-      ORDER BY e.start_date DESC
-    `);
+    const userRole = req.user!.role;
+    const userId = req.user!.id;
+
+    let result;
+
+    if (userRole === 'admin') {
+      // Admin sieht alle Events
+      result = await query(`
+        SELECT e.*, u.name as creator_name
+        FROM events e
+        LEFT JOIN users u ON e.created_by = u.id
+        ORDER BY e.is_template DESC, e.start_date DESC
+      `);
+    } else if (userRole === 'teamleiter') {
+      // Teamleiter sieht nur Vorlagen und eigene Events
+      result = await query(`
+        SELECT e.*, u.name as creator_name
+        FROM events e
+        LEFT JOIN users u ON e.created_by = u.id
+        WHERE e.is_template = true OR e.created_by = $1
+        ORDER BY e.is_template DESC, e.start_date DESC
+      `, [userId]);
+    } else {
+      // Staff sieht keine Events in der Verwaltung
+      result = { rows: [] };
+    }
 
     res.json(result.rows);
   } catch (error) {
@@ -67,14 +87,17 @@ router.get('/:id', authMiddleware, async (req, res) => {
 });
 
 // Event erstellen
-router.post('/', authMiddleware, adminMiddleware, async (req: AuthRequest, res) => {
+router.post('/', authMiddleware, teamleiterOrAdminMiddleware, async (req: AuthRequest, res) => {
   try {
-    const { name, description, start_date, days, instance_count } = req.body as CreateEventRequest;
+    const { name, description, start_date, days, instance_count, is_template } = req.body as CreateEventRequest;
+
+    // Nur Admin kann Vorlagen erstellen
+    const templateValue = (req.user!.role === 'admin' && is_template) ? true : false;
 
     // Event erstellen
     const eventResult = await query(
-      'INSERT INTO events (name, description, start_date, days, created_by) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [name, description, start_date, days, req.user!.id]
+      'INSERT INTO events (name, description, start_date, days, created_by, is_template) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [name, description, start_date, days, req.user!.id, templateValue]
     );
 
     const event = eventResult.rows[0];
@@ -104,19 +127,32 @@ router.post('/', authMiddleware, adminMiddleware, async (req: AuthRequest, res) 
 });
 
 // Event aktualisieren
-router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
+router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
-    const { name, description, start_date, days } = req.body;
+    const { name, description, start_date, days, is_template } = req.body;
 
-    const result = await query(
-      'UPDATE events SET name = $1, description = $2, start_date = $3, days = $4 WHERE id = $5 RETURNING *',
-      [name, description, start_date, days, id]
-    );
+    // Event prüfen
+    const eventCheck = await query('SELECT * FROM events WHERE id = $1', [id]);
 
-    if (result.rows.length === 0) {
+    if (eventCheck.rows.length === 0) {
       return res.status(404).json({ error: 'Event nicht gefunden' });
     }
+
+    const event = eventCheck.rows[0];
+
+    // Teamleiter dürfen nur ihre eigenen Events bearbeiten
+    if (req.user!.role === 'teamleiter' && event.created_by !== req.user!.id) {
+      return res.status(403).json({ error: 'Keine Berechtigung für dieses Event' });
+    }
+
+    // Nur Admin kann Template-Status ändern
+    const templateValue = req.user!.role === 'admin' && is_template !== undefined ? is_template : event.is_template;
+
+    const result = await query(
+      'UPDATE events SET name = $1, description = $2, start_date = $3, days = $4, is_template = $5 WHERE id = $6 RETURNING *',
+      [name, description, start_date, days, templateValue, id]
+    );
 
     res.json(result.rows[0]);
   } catch (error) {
@@ -125,8 +161,114 @@ router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
   }
 });
 
+// Event zu Vorlage machen oder umgekehrt (nur Admin)
+router.put('/:id/toggle-template', authMiddleware, adminMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { is_template } = req.body;
+
+    const result = await query(
+      'UPDATE events SET is_template = $1 WHERE id = $2 RETURNING *',
+      [is_template, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Event nicht gefunden' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Toggle template error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// Vorlage verwenden und neue Veranstaltung erstellen
+router.post('/:id/create-from-template', authMiddleware, teamleiterOrAdminMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { name, start_date, instance_count } = req.body;
+
+    // Prüfen ob Template existiert
+    const templateResult = await query('SELECT * FROM events WHERE id = $1 AND is_template = true', [id]);
+
+    if (templateResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Vorlage nicht gefunden' });
+    }
+
+    const template = templateResult.rows[0];
+
+    // Neues Event erstellen (keine Vorlage)
+    const newEventResult = await query(
+      'INSERT INTO events (name, description, start_date, days, created_by, is_template) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [name, template.description, start_date, template.days, req.user!.id, false]
+    );
+
+    const newEvent = newEventResult.rows[0];
+
+    // Event Instanzen erstellen
+    const instanceCountToCreate = instance_count || 1;
+    const instances = [];
+    for (let i = 0; i < instanceCountToCreate; i++) {
+      const instanceStartDate = new Date(start_date);
+      instanceStartDate.setDate(instanceStartDate.getDate() + i * template.days);
+
+      const instanceResult = await query(
+        'INSERT INTO event_instances (event_id, instance_number, start_date) VALUES ($1, $2, $3) RETURNING *',
+        [newEvent.id, i + 1, instanceStartDate.toISOString().split('T')[0]]
+      );
+
+      instances.push(instanceResult.rows[0]);
+    }
+
+    // Alle Tasks von der Vorlage kopieren
+    const templateTasks = await query('SELECT * FROM tasks WHERE event_id = $1', [id]);
+    for (const task of templateTasks.rows) {
+      await query(
+        `INSERT INTO tasks (
+          event_id, program_item_id, day_number, title, description,
+          scheduled_time, start_time, end_time, reminder_minutes, is_public, status, is_active, sort_order
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+        [
+          newEvent.id,
+          task.program_item_id,
+          task.day_number,
+          task.title,
+          task.description,
+          task.scheduled_time,
+          task.start_time,
+          task.end_time,
+          task.reminder_minutes,
+          task.is_public,
+          'not_started',
+          task.is_active !== undefined ? task.is_active : true,
+          task.sort_order || 0,
+        ]
+      );
+    }
+
+    // Programmpunkte von der Vorlage kopieren
+    const templateProgram = await query('SELECT * FROM program_items WHERE event_id = $1', [id]);
+    for (const program of templateProgram.rows) {
+      await query(
+        'INSERT INTO program_items (event_id, day_number, time, title, description) VALUES ($1, $2, $3, $4, $5)',
+        [newEvent.id, program.day_number, program.time, program.title, program.description]
+      );
+    }
+
+    res.status(201).json({
+      ...newEvent,
+      instances,
+      message: 'Event erfolgreich aus Vorlage erstellt',
+    });
+  } catch (error) {
+    console.error('Create from template error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
 // Event duplizieren
-router.post('/:id/duplicate', authMiddleware, adminMiddleware, async (req: AuthRequest, res) => {
+router.post('/:id/duplicate', authMiddleware, teamleiterOrAdminMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
     const { name, start_date, instance_count } = req.body;
@@ -140,10 +282,17 @@ router.post('/:id/duplicate', authMiddleware, adminMiddleware, async (req: AuthR
 
     const original = originalEvent.rows[0];
 
-    // Neues Event erstellen
+    // Prüfen ob Teamleiter nur eigene Events duplizieren darf
+    if (req.user!.role === 'teamleiter' && original.created_by !== req.user!.id) {
+      return res.status(403).json({ error: 'Keine Berechtigung für dieses Event' });
+    }
+
+    // Neues Event erstellen (behält Template-Status bei wenn Admin, sonst normales Event)
+    const isTemplate = req.user!.role === 'admin' ? original.is_template : false;
+
     const newEventResult = await query(
-      'INSERT INTO events (name, description, start_date, days, created_by) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [name || `${original.name} (Kopie)`, original.description, start_date || original.start_date, original.days, req.user!.id]
+      'INSERT INTO events (name, description, start_date, days, created_by, is_template) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [name || `${original.name} (Kopie)`, original.description, start_date || original.start_date, original.days, req.user!.id, isTemplate]
     );
 
     const newEvent = newEventResult.rows[0];
@@ -169,8 +318,8 @@ router.post('/:id/duplicate', authMiddleware, adminMiddleware, async (req: AuthR
       await query(
         `INSERT INTO tasks (
           event_id, program_item_id, day_number, title, description,
-          scheduled_time, start_time, end_time, reminder_minutes, is_public, status
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+          scheduled_time, start_time, end_time, reminder_minutes, is_public, status, is_active, sort_order
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
         [
           newEvent.id,
           task.program_item_id,
@@ -183,6 +332,8 @@ router.post('/:id/duplicate', authMiddleware, adminMiddleware, async (req: AuthR
           task.reminder_minutes,
           task.is_public,
           'not_started', // Reset status for new event
+          task.is_active !== undefined ? task.is_active : true,
+          task.sort_order || 0,
         ]
       );
     }
@@ -208,15 +359,25 @@ router.post('/:id/duplicate', authMiddleware, adminMiddleware, async (req: AuthR
 });
 
 // Event löschen
-router.delete('/:id', authMiddleware, adminMiddleware, async (req, res) => {
+router.delete('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
 
-    const result = await query('DELETE FROM events WHERE id = $1 RETURNING *', [id]);
+    // Event prüfen
+    const eventCheck = await query('SELECT * FROM events WHERE id = $1', [id]);
 
-    if (result.rows.length === 0) {
+    if (eventCheck.rows.length === 0) {
       return res.status(404).json({ error: 'Event nicht gefunden' });
     }
+
+    const event = eventCheck.rows[0];
+
+    // Teamleiter dürfen nur ihre eigenen Events löschen
+    if (req.user!.role === 'teamleiter' && event.created_by !== req.user!.id) {
+      return res.status(403).json({ error: 'Keine Berechtigung für dieses Event' });
+    }
+
+    const result = await query('DELETE FROM events WHERE id = $1 RETURNING *', [id]);
 
     res.json({ message: 'Event gelöscht' });
   } catch (error) {

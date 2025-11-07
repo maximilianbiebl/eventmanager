@@ -4,6 +4,7 @@ import { tasksApi, Task } from '../../api/tasks';
 import { usersApi, User } from '../../api/users';
 import { programApi, ProgramItem } from '../../api/program';
 import { useSSE } from '../../hooks/useSSE';
+import { useAuth } from '../../context/AuthContext';
 import { TaskFormModal } from './TaskFormModal';
 import { TaskAssignmentModal } from './TaskAssignmentModal';
 import { TaskTableView } from './TaskTableView';
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
+  const { isAdmin } = useAuth();
   const [event, setEvent] = useState<any>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [_program, setProgram] = useState<ProgramItem[]>([]);
@@ -96,6 +98,26 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
     setShowAssignModal(true);
   };
 
+  const handleToggleTemplate = async () => {
+    if (!isAdmin) return;
+
+    const newTemplateStatus = !event.is_template;
+    const confirmMessage = newTemplateStatus
+      ? 'Dieses Event als Vorlage markieren?'
+      : 'Vorlage-Status entfernen und zu normalem Event machen?';
+
+    if (!confirm(confirmMessage)) return;
+
+    try {
+      await eventsApi.toggleTemplate(eventId, newTemplateStatus);
+      setEvent({ ...event, is_template: newTemplateStatus });
+      alert(newTemplateStatus ? 'Event wurde als Vorlage markiert' : 'Vorlage-Status wurde entfernt');
+    } catch (error) {
+      console.error('Toggle template error:', error);
+      alert('Fehler beim Ändern des Template-Status');
+    }
+  };
+
   const handleDayChange = (day: number) => {
     setSelectedDay(day);
     // No reload needed - filter client-side
@@ -129,9 +151,20 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
         <button onClick={onBack} className={styles.backButton}>
           ← Zurück
         </button>
-        <button onClick={() => setShowDuplicateModal(true)} className={styles.duplicateButton}>
-          📋 Event duplizieren
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          {isAdmin && (
+            <button
+              onClick={handleToggleTemplate}
+              className={styles.toggleTemplateButton}
+              title={event.is_template ? 'Als normales Event markieren' : 'Als Vorlage markieren'}
+            >
+              {event.is_template ? '📄 Vorlage → Event' : '📋 Als Vorlage'}
+            </button>
+          )}
+          <button onClick={() => setShowDuplicateModal(true)} className={styles.duplicateButton}>
+            📋 Event duplizieren
+          </button>
+        </div>
       </div>
 
       <h2 className={styles.title}>{event.name}</h2>

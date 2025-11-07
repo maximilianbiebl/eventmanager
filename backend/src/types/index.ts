@@ -2,7 +2,7 @@ export interface User {
   id: number;
   name: string;
   password_hash: string;
-  role: 'admin' | 'staff';
+  role: 'admin' | 'teamleiter' | 'staff';
   created_at: Date;
 }
 
@@ -13,6 +13,7 @@ export interface Event {
   start_date: Date;
   days: number;
   created_by: number;
+  is_template: boolean;
   created_at: Date;
 }
 
@@ -86,6 +87,7 @@ export interface CreateEventRequest {
   start_date: string;
   days: number;
   instance_count: number;
+  is_template?: boolean;
 }
 
 export interface CreateTaskRequest {
