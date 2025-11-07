@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { query } from '../database/connection';
-import { authMiddleware, adminMiddleware, AuthRequest } from '../middleware/auth';
+import { authMiddleware, teamleiterOrAdminMiddleware, AuthRequest } from '../middleware/auth';
 import { CreateTaskRequest, AssignTaskRequest } from '../types';
 import { broadcastUpdate } from './sse';
 
@@ -34,7 +34,7 @@ router.get('/event/:eventId', authMiddleware, async (req, res) => {
 });
 
 // Aufgaben mit Zuordnungen für Event-Instanz (für Admin-Tabelle)
-router.get('/instance/:instanceId/assignments', authMiddleware, adminMiddleware, async (req, res) => {
+router.get('/instance/:instanceId/assignments', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
   try {
     const { instanceId } = req.params;
 
@@ -70,7 +70,7 @@ router.get('/instance/:instanceId/assignments', authMiddleware, adminMiddleware,
 });
 
 // Alle Assignments für ein Event abrufen (für Admin)
-router.get('/event/:eventId/all-assignments', authMiddleware, adminMiddleware, async (req, res) => {
+router.get('/event/:eventId/all-assignments', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
   try {
     const { eventId } = req.params;
 
@@ -202,7 +202,7 @@ router.get('/my-tasks', authMiddleware, async (req: AuthRequest, res) => {
 });
 
 // Alle Aufgaben-Zuweisungen für einen User in einem Event (für Admin)
-router.get('/event/:eventId/user/:userId/assignments', authMiddleware, adminMiddleware, async (req, res) => {
+router.get('/event/:eventId/user/:userId/assignments', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
   try {
     const { eventId, userId } = req.params;
 
@@ -232,7 +232,7 @@ router.get('/event/:eventId/user/:userId/assignments', authMiddleware, adminMidd
 });
 
 // Aufgabe erstellen
-router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
+router.post('/', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
   try {
     const {
       event_id,
@@ -355,7 +355,7 @@ router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
 });
 
 // Aufgabe zuweisen
-router.post('/assign', authMiddleware, adminMiddleware, async (req, res) => {
+router.post('/assign', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
   try {
     const { task_id, event_instance_id, user_ids, reminder_minutes } = req.body;
 
@@ -407,7 +407,7 @@ router.post('/assign', authMiddleware, adminMiddleware, async (req, res) => {
 });
 
 // Einzelne Zuweisung entfernen
-router.delete('/assignment/:assignmentId', authMiddleware, adminMiddleware, async (req, res) => {
+router.delete('/assignment/:assignmentId', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
   try {
     const { assignmentId } = req.params;
 
@@ -738,7 +738,7 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
 });
 
 // Aufgabe aktualisieren
-router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
+router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -882,7 +882,7 @@ router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
 });
 
 // Aufgabe löschen
-router.delete('/:id', authMiddleware, adminMiddleware, async (req, res) => {
+router.delete('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -904,7 +904,7 @@ router.delete('/:id', authMiddleware, adminMiddleware, async (req, res) => {
 });
 
 // Aufgabenstatus für Event-Instanz abrufen (für Admin)
-router.get('/status/:instanceId', authMiddleware, adminMiddleware, async (req, res) => {
+router.get('/status/:instanceId', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
   try {
     const { instanceId } = req.params;
 
@@ -932,7 +932,7 @@ router.get('/status/:instanceId', authMiddleware, adminMiddleware, async (req, r
 });
 
 // Aufgabe deaktivieren (Admin only)
-router.put('/:id/deactivate', authMiddleware, adminMiddleware, async (req, res) => {
+router.put('/:id/deactivate', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -956,7 +956,7 @@ router.put('/:id/deactivate', authMiddleware, adminMiddleware, async (req, res) 
 });
 
 // Aufgabe aktivieren (Admin only)
-router.put('/:id/activate', authMiddleware, adminMiddleware, async (req, res) => {
+router.put('/:id/activate', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -980,7 +980,7 @@ router.put('/:id/activate', authMiddleware, adminMiddleware, async (req, res) =>
 });
 
 // Aufgabe nach oben verschieben (Admin only)
-router.put('/:id/move-up', authMiddleware, adminMiddleware, async (req, res) => {
+router.put('/:id/move-up', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -1020,7 +1020,7 @@ router.put('/:id/move-up', authMiddleware, adminMiddleware, async (req, res) => 
 });
 
 // Aufgabe nach unten verschieben (Admin only)
-router.put('/:id/move-down', authMiddleware, adminMiddleware, async (req, res) => {
+router.put('/:id/move-down', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
 

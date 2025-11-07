@@ -7,10 +7,7 @@ import { EventDetail } from './EventDetail';
 import { useAuth } from '../../context/AuthContext';
 import responsiveStyles from './EventsList.module.css';
 
-interface EventCategory {
-  title: string;
-  events: Event[];
-}
+type TabType = 'templates' | 'own' | string; // string for teamleiter-{id}
 
 export const EventsList: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);
@@ -22,6 +19,7 @@ export const EventsList: React.FC = () => {
     const saved = localStorage.getItem('adminSelectedEventId');
     return saved ? parseInt(saved, 10) : null;
   });
+  const [activeTab, setActiveTab] = useState<TabType>('templates');
   const { user, isAdmin, isTeamleiter } = useAuth();
 
   useEffect(() => {
@@ -44,11 +42,23 @@ export const EventsList: React.FC = () => {
       const eventsData = await eventsApi.getAll();
       setEvents(eventsData);
 
-      // Admin lädt auch alle Teamleiter für die Kategorien
+      // Admin lädt auch alle Teamleiter für die Tabs
       if (isAdmin) {
         const usersData = await usersApi.getAll();
         const teamleiterUsers = usersData.filter(u => u.role === 'teamleiter');
         setTeamleiters(teamleiterUsers);
+
+        // Setze Initial Tab
+        const hasTemplates = eventsData.some(e => e.is_template);
+        if (hasTemplates) {
+          setActiveTab('templates');
+        } else {
+          setActiveTab('own');
+        }
+      } else if (isTeamleiter) {
+        // Teamleiter startet bei Vorlagen wenn vorhanden
+        const hasTemplates = eventsData.some(e => e.is_template);
+        setActiveTab(hasTemplates ? 'templates' : 'own');
       }
     } catch (error) {
       console.error('Load data error:', error);
@@ -71,52 +81,70 @@ export const EventsList: React.FC = () => {
     }
   };
 
-  const getCategories = (): EventCategory[] => {
-    const categories: EventCategory[] = [];
+  const getTabs = () => {
+    const tabs: { id: TabType; label: string; count: number }[] = [];
 
-    // Vorlagen (für alle)
+    // Vorlagen Tab
     const templates = events.filter(e => e.is_template);
-    if (templates.length > 0) {
-      categories.push({
-        title: 'Vorlagen',
-        events: templates,
+    if (templates.length > 0 || isAdmin) {
+      tabs.push({
+        id: 'templates',
+        label: 'Vorlagen',
+        count: templates.length,
       });
     }
 
     if (isAdmin) {
-      // Admin: Eigene Veranstaltungen (keine Vorlagen)
+      // Admin: Eigene Events
       const ownEvents = events.filter(e => !e.is_template && e.created_by === user?.id);
-      if (ownEvents.length > 0) {
-        categories.push({
-          title: 'Eigene Veranstaltungen',
-          events: ownEvents,
-        });
-      }
+      tabs.push({
+        id: 'own',
+        label: 'Eigene Veranstaltungen',
+        count: ownEvents.length,
+      });
 
-      // Admin: Veranstaltungen pro Teamleiter
+      // Admin: Tabs pro Teamleiter
       teamleiters.forEach(teamleiter => {
         const teamleiterEvents = events.filter(
           e => !e.is_template && e.created_by === teamleiter.id
         );
         if (teamleiterEvents.length > 0) {
-          categories.push({
-            title: `Veranstaltungen von ${teamleiter.name}`,
-            events: teamleiterEvents,
+          tabs.push({
+            id: `teamleiter-${teamleiter.id}`,
+            label: teamleiter.name,
+            count: teamleiterEvents.length,
           });
         }
       });
     } else if (isTeamleiter) {
-      // Teamleiter: Nur eigene Veranstaltungen (keine Vorlagen)
+      // Teamleiter: Nur eigene Events
       const ownEvents = events.filter(e => !e.is_template && e.created_by === user?.id);
-      if (ownEvents.length > 0) {
-        categories.push({
-          title: 'Eigene Veranstaltungen',
-          events: ownEvents,
-        });
-      }
+      tabs.push({
+        id: 'own',
+        label: 'Eigene Veranstaltungen',
+        count: ownEvents.length,
+      });
     }
 
-    return categories;
+    return tabs;
+  };
+
+  const getEventsForTab = (tabId: TabType): Event[] => {
+    if (tabId === 'templates') {
+      return events.filter(e => e.is_template);
+    }
+
+    if (tabId === 'own') {
+      return events.filter(e => !e.is_template && e.created_by === user?.id);
+    }
+
+    // Teamleiter Tab
+    if (tabId.startsWith('teamleiter-')) {
+      const teamleiterId = parseInt(tabId.split('-')[1]);
+      return events.filter(e => !e.is_template && e.created_by === teamleiterId);
+    }
+
+    return [];
   };
 
   if (selectedEventId) {
@@ -127,14 +155,15 @@ export const EventsList: React.FC = () => {
     return <div>Lade Veranstaltungen...</div>;
   }
 
-  const categories = getCategories();
+  const tabs = getTabs();
+  const currentEvents = getEventsForTab(activeTab);
 
   return (
     <div>
       <div style={styles.header} className={responsiveStyles.header}>
         <h2 style={styles.title}>Veranstaltungen</h2>
         <div style={styles.headerButtons}>
-          {categories.some(c => c.title === 'Vorlagen') && (
+          {tabs.some(t => t.id === 'templates' && t.count > 0) && (
             <button
               onClick={() => setShowTemplateModal(true)}
               style={styles.templateButton}
@@ -153,42 +182,52 @@ export const EventsList: React.FC = () => {
         </div>
       </div>
 
-      {categories.length === 0 ? (
-        <div style={styles.empty}>Keine Veranstaltungen vorhanden</div>
+      {/* Tabs */}
+      <div style={styles.tabsContainer}>
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            style={{
+              ...styles.tab,
+              ...(activeTab === tab.id ? styles.activeTab : {}),
+            }}
+          >
+            {tab.label} <span style={styles.tabCount}>({tab.count})</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Events Grid */}
+      {currentEvents.length === 0 ? (
+        <div style={styles.empty}>Keine Veranstaltungen in dieser Kategorie</div>
       ) : (
-        <>
-          {categories.map((category, idx) => (
-            <div key={idx} style={styles.category}>
-              <h3 style={styles.categoryTitle}>{category.title}</h3>
-              <div style={styles.grid} className={responsiveStyles.grid}>
-                {category.events.map((event) => (
-                  <div key={event.id} style={styles.card}>
-                    <div style={styles.cardHeader}>
-                      <h3 style={styles.eventName}>{event.name}</h3>
-                      {event.is_template && <span style={styles.templateBadge}>Vorlage</span>}
-                    </div>
-                    {event.description && <p style={styles.eventDescription}>{event.description}</p>}
-                    <div style={styles.eventMeta}>
-                      <span>Start: {new Date(event.start_date).toLocaleDateString('de-DE')}</span>
-                      <span>{event.days} Tage</span>
-                    </div>
-                    {event.creator_name && (
-                      <div style={styles.creatorInfo}>Erstellt von: {event.creator_name}</div>
-                    )}
-                    <div style={styles.actions}>
-                      <button onClick={() => setSelectedEventId(event.id)} style={styles.viewButton}>
-                        Details
-                      </button>
-                      <button onClick={() => handleDelete(event.id)} style={styles.deleteButton}>
-                        Löschen
-                      </button>
-                    </div>
-                  </div>
-                ))}
+        <div style={styles.grid} className={responsiveStyles.grid}>
+          {currentEvents.map((event) => (
+            <div key={event.id} style={styles.card}>
+              <div style={styles.cardHeader}>
+                <h3 style={styles.eventName}>{event.name}</h3>
+                {event.is_template && <span style={styles.templateBadge}>Vorlage</span>}
+              </div>
+              {event.description && <p style={styles.eventDescription}>{event.description}</p>}
+              <div style={styles.eventMeta}>
+                <span>Start: {new Date(event.start_date).toLocaleDateString('de-DE')}</span>
+                <span>{event.days} Tage</span>
+              </div>
+              {event.creator_name && (
+                <div style={styles.creatorInfo}>Erstellt von: {event.creator_name}</div>
+              )}
+              <div style={styles.actions}>
+                <button onClick={() => setSelectedEventId(event.id)} style={styles.viewButton}>
+                  Details
+                </button>
+                <button onClick={() => handleDelete(event.id)} style={styles.deleteButton}>
+                  Löschen
+                </button>
               </div>
             </div>
           ))}
-        </>
+        </div>
       )}
 
       {showCreateModal && (
@@ -249,21 +288,40 @@ const styles: { [key: string]: React.CSSProperties } = {
     cursor: 'pointer',
     fontWeight: '500',
   },
+  tabsContainer: {
+    display: 'flex',
+    gap: '0.5rem',
+    marginBottom: '1.5rem',
+    borderBottom: '2px solid #e5e7eb',
+    overflowX: 'auto',
+    paddingBottom: '0.5rem',
+  },
+  tab: {
+    padding: '0.75rem 1.5rem',
+    backgroundColor: 'transparent',
+    color: '#6b7280',
+    border: 'none',
+    borderBottom: '3px solid transparent',
+    cursor: 'pointer',
+    fontSize: '0.9rem',
+    fontWeight: '500',
+    whiteSpace: 'nowrap',
+    transition: 'all 0.2s',
+  },
+  activeTab: {
+    color: '#4f46e5',
+    borderBottomColor: '#4f46e5',
+    fontWeight: '600',
+  },
+  tabCount: {
+    color: 'inherit',
+    fontSize: '0.85rem',
+    opacity: 0.7,
+  },
   empty: {
     textAlign: 'center',
     padding: '3rem',
     color: '#6b7280',
-  },
-  category: {
-    marginBottom: '2rem',
-  },
-  categoryTitle: {
-    fontSize: '1.25rem',
-    fontWeight: '600',
-    marginBottom: '1rem',
-    color: '#374151',
-    borderBottom: '2px solid #e5e7eb',
-    paddingBottom: '0.5rem',
   },
   grid: {
     display: 'grid',
