@@ -22,6 +22,7 @@ export const EventsList: React.FC = () => {
   });
   const [activeTab, setActiveTab] = useState<TabType>('own');
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
   const { user, isAdmin, isTeamleiter } = useAuth();
 
   useEffect(() => {
@@ -213,6 +214,12 @@ export const EventsList: React.FC = () => {
           <button onClick={() => setSelectedEventId(event.id)} style={styles.viewButton}>
             Details
           </button>
+          {/* Teamleiter: "Vorlage verwenden" Button bei Vorlagen */}
+          {isTeamleiter && event.is_template && (
+            <button onClick={() => setSelectedTemplateId(event.id)} style={styles.useTemplateButton}>
+              Vorlage verwenden
+            </button>
+          )}
           {canEdit && (
             <button onClick={() => setEditingEvent(event)} style={styles.editButton}>
               Bearbeiten
@@ -377,6 +384,17 @@ export const EventsList: React.FC = () => {
           event={editingEvent}
           onClose={() => setEditingEvent(null)}
           onSuccess={handleEditSuccess}
+        />
+      )}
+
+      {selectedTemplateId && (
+        <CreateFromTemplateModal
+          templates={events.filter(e => e.id === selectedTemplateId)}
+          onClose={() => setSelectedTemplateId(null)}
+          onSuccess={() => {
+            setSelectedTemplateId(null);
+            loadData(false);
+          }}
         />
       )}
     </div>
@@ -569,6 +587,16 @@ const styles: { [key: string]: React.CSSProperties } = {
   approveButton: {
     padding: '0.5rem 1rem',
     backgroundColor: '#10b981',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
+  },
+  useTemplateButton: {
+    flex: 1,
+    padding: '0.5rem',
+    backgroundColor: '#3b82f6',
     color: 'white',
     border: 'none',
     borderRadius: '4px',

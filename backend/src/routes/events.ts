@@ -332,7 +332,7 @@ router.post('/:id/copy-to-template', authMiddleware, adminMiddleware, async (req
     });
   } catch (error) {
     console.error('Copy to template error:', error);
-    res.status(500).json({ error: 'Server Fehler' });
+    res.status(500).json({ error: 'Server Fehler', details: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
 
@@ -433,7 +433,7 @@ router.post('/:id/approve-suggestion', authMiddleware, adminMiddleware, async (r
     });
   } catch (error) {
     console.error('Approve suggestion error:', error);
-    res.status(500).json({ error: 'Server Fehler' });
+    res.status(500).json({ error: 'Server Fehler', details: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
 

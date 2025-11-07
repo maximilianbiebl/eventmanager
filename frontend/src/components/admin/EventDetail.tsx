@@ -122,6 +122,21 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
     }
   };
 
+  const handleCopyToTemplate = async () => {
+    if (!confirm('Veranstaltung als Vorlage kopieren? (ohne Zuweisungen und Datum)')) return;
+
+    try {
+      await eventsApi.copyToTemplate(eventId);
+      alert('Vorlage erfolgreich erstellt');
+      // Reload data to show the new template
+      await loadData(false);
+    } catch (error: any) {
+      console.error('Copy to template error:', error);
+      const errorMsg = error.response?.data?.details || error.response?.data?.error || 'Fehler beim Erstellen der Vorlage';
+      alert(errorMsg);
+    }
+  };
+
   const handleDayChange = (day: number) => {
     setSelectedDay(day);
     // No reload needed - filter client-side
@@ -157,13 +172,24 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
         </button>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           {isAdmin && (
-            <button
-              onClick={handleToggleTemplate}
-              className={styles.toggleTemplateButton}
-              title={event.is_template ? 'Als normales Event markieren' : 'Als Vorlage markieren'}
-            >
-              {event.is_template ? '📄 Vorlage → Event' : '📋 Als Vorlage'}
-            </button>
+            <>
+              <button
+                onClick={handleToggleTemplate}
+                className={styles.toggleTemplateButton}
+                title={event.is_template ? 'Als normales Event markieren' : 'Als Vorlage markieren'}
+              >
+                {event.is_template ? '📄 Vorlage → Event' : '📋 Als Vorlage'}
+              </button>
+              {!event.is_template && (
+                <button
+                  onClick={handleCopyToTemplate}
+                  className={styles.copyTemplateButton}
+                  title="Kopie als Vorlage erstellen (ohne Zuweisungen/Datum)"
+                >
+                  📄 Kopie als Vorlage
+                </button>
+              )}
+            </>
           )}
           {/* Bearbeiten - aber nicht für Teamleiter bei Vorlagen */}
           {(isAdmin || (isTeamleiter && !event.is_template)) && (

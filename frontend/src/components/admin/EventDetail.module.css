@@ -53,6 +53,17 @@
   white-space: nowrap;
 }
 
+.copyTemplateButton {
+  padding: 0.5rem 1rem;
+  background-color: #6366f1;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
 .toggleTemplateButton {
   padding: 0.5rem 1rem;
   background-color: #3b82f6;
@@ -394,7 +405,7 @@
     align-items: stretch;
   }
 
-  .backButton, .editButton, .templateUseButton, .duplicateButton {
+  .backButton, .editButton, .copyTemplateButton, .templateUseButton, .duplicateButton {
     width: 100%;
   }
 
