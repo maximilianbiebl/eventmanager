@@ -200,12 +200,6 @@
   flex-wrap: wrap;
 }
 
-@media (min-width: 768px) {
-  .viewControls {
-    /* flex-wrap: nowrap; */
-  }
-}
-
 .filterSection {
   background-color: white;
   padding: 1rem;

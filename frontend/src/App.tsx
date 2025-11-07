@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { Login } from './components/Login';
 import { StaffDashboard } from './components/StaffDashboard';
 import { AdminDashboard } from './components/admin/AdminDashboard';
+import { Footer } from './components/Footer';
 
 const PrivateRoute: React.FC<{ children: React.ReactNode; adminOnly?: boolean }> = ({
   children,
@@ -53,7 +54,12 @@ function App() {
   return (
     <AuthProvider>
       <Router>
-        <AppRoutes />
+        <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+          <div style={{ flex: 1 }}>
+            <AppRoutes />
+          </div>
+          <Footer />
+        </div>
       </Router>
     </AuthProvider>
   );
