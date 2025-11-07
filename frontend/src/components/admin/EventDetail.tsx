@@ -21,7 +21,7 @@ interface Props {
 }
 
 export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
-  const { isAdmin, isTeamleiter, user } = useAuth();
+  const { isAdmin, isTeamleiter } = useAuth();
   const [event, setEvent] = useState<any>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [_program, setProgram] = useState<ProgramItem[]>([]);
