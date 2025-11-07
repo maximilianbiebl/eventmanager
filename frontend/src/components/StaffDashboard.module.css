@@ -202,7 +202,7 @@
 
 @media (min-width: 768px) {
   .viewControls {
-    flex-wrap: nowrap;
+    /* flex-wrap: nowrap; */
   }
 }
 
