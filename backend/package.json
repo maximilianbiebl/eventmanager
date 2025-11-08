@@ -10,7 +10,8 @@
     "migrate": "ts-node src/database/migrate.ts",
     "migrate:extend": "ts-node src/database/runMigration.ts",
     "migrate:010": "ts-node src/database/run-migration-010.ts",
-    "migrate:011": "ts-node src/database/run-migration-011.ts"
+    "migrate:011": "ts-node src/database/run-migration-011.ts",
+    "migrate:012": "ts-node src/database/run-migration-012.ts"
   },
   "dependencies": {
     "axios": "^1.6.0",

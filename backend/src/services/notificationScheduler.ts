@@ -257,23 +257,23 @@ async function sendTaskNotification(userId: number, task: any, instance: any, re
     // 2. Signal Notifications (wenn aktiviert)
     if (user.signal_enabled && user.signal_phone_number) {
       try {
-        // Finde den Teamleiter/Admin der das Event erstellt hat
-        const eventCreatorResult = await query(
-          `SELECT e.created_by FROM events e WHERE e.id = $1`,
+        // Finde alle Teamleiter des Events (primärer Teamleiter zuerst, dann Co-Teamleiter)
+        const teamleiterResult = await query(
+          `SELECT u.id, u.signal_account_number, u.signal_linked, et.is_primary
+           FROM event_teamleiter et
+           JOIN users u ON et.user_id = u.id
+           WHERE et.event_id = $1
+           ORDER BY et.is_primary DESC, et.id ASC`,
           [task.event_id]
         );
 
-        if (eventCreatorResult.rows.length > 0) {
-          const creatorId = eventCreatorResult.rows[0].created_by;
+        if (teamleiterResult.rows.length > 0) {
+          // Finde den ersten Teamleiter mit gekoppeltem Signal-Account
+          // (primärer Teamleiter wird bevorzugt durch ORDER BY)
+          const linkedTeamleiter = teamleiterResult.rows.find(tl => tl.signal_linked);
 
-          // Hole Signal-Account des Creators (Teamleiter/Admin)
-          const creatorResult = await query(
-            `SELECT signal_account_number, signal_linked FROM users WHERE id = $1`,
-            [creatorId]
-          );
-
-          if (creatorResult.rows.length > 0 && creatorResult.rows[0].signal_linked) {
-            const fromNumber = creatorResult.rows[0].signal_account_number;
+          if (linkedTeamleiter) {
+            const fromNumber = linkedTeamleiter.signal_account_number;
             const toNumber = user.signal_phone_number;
 
             const signalMessage = `${title}\n\n${body}\n\n📅 ${instance.event_name} #${instance.instance_number}`;
@@ -281,11 +281,13 @@ async function sendTaskNotification(userId: number, task: any, instance: any, re
             const signalSent = await signalService.sendMessage(fromNumber, toNumber, signalMessage);
 
             if (signalSent) {
-              console.log(`[sendTaskNotification] ✓ Signal message sent to ${toNumber}`);
+              console.log(`[sendTaskNotification] ✓ Signal message sent to ${toNumber} from teamleiter ${linkedTeamleiter.id}`);
             }
           } else {
-            console.log(`[sendTaskNotification] Creator ${creatorId} has no linked Signal account`);
+            console.log(`[sendTaskNotification] No linked Signal account found for event ${task.event_id} teamleiter`);
           }
+        } else {
+          console.log(`[sendTaskNotification] No teamleiter found for event ${task.event_id}`);
         }
       } catch (error) {
         console.error('Signal notification error:', error);

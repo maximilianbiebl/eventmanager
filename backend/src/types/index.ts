@@ -89,6 +89,7 @@ export interface CreateEventRequest {
   days: number;
   instance_count: number;
   is_template?: boolean;
+  co_teamleiter_ids?: number[];
 }
 
 export interface CreateTaskRequest {

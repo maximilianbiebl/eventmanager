@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { eventsApi, Event } from '../../api/events';
+import { usersApi, User } from '../../api/users';
+import { useAuth } from '../../context/AuthContext';
 
 interface Props {
   templates: Event[];
@@ -8,6 +10,7 @@ interface Props {
 }
 
 export const CreateFromTemplateModal: React.FC<Props> = ({ templates, onClose, onSuccess }) => {
+  const { user } = useAuth();
   // Wenn nur eine Vorlage, automatisch auswählen
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(
     templates.length === 1 ? templates[0].id : null
@@ -17,8 +20,27 @@ export const CreateFromTemplateModal: React.FC<Props> = ({ templates, onClose, o
     start_date: '',
     instance_count: 1,
     days: templates.length === 1 ? templates[0].days : 4,
+    co_teamleiter_ids: [] as number[],
   });
   const [loading, setLoading] = useState(false);
+  const [teamleiter, setTeamleiter] = useState<User[]>([]);
+
+  useEffect(() => {
+    const loadTeamleiter = async () => {
+      try {
+        const users = await usersApi.getAll();
+        // Filter nur Teamleiter und Admin, aber nicht den aktuellen Benutzer
+        const availableTeamleiter = users.filter(u =>
+          (u.role === 'teamleiter' || u.role === 'admin') && u.id !== user?.id
+        );
+        setTeamleiter(availableTeamleiter);
+      } catch (error) {
+        console.error('Error loading teamleiter:', error);
+      }
+    };
+
+    loadTeamleiter();
+  }, [user?.id]);
 
   const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
 
@@ -41,6 +63,15 @@ export const CreateFromTemplateModal: React.FC<Props> = ({ templates, onClose, o
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCoTeamleiterToggle = (teamleiterId: number) => {
+    setFormData(prev => ({
+      ...prev,
+      co_teamleiter_ids: prev.co_teamleiter_ids.includes(teamleiterId)
+        ? prev.co_teamleiter_ids.filter(id => id !== teamleiterId)
+        : [...prev.co_teamleiter_ids, teamleiterId]
+    }));
   };
 
   return (
@@ -137,6 +168,25 @@ export const CreateFromTemplateModal: React.FC<Props> = ({ templates, onClose, o
             />
           </div>
 
+          {teamleiter.length > 0 && (
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Co-Teamleiter (optional)</label>
+              <div style={styles.checkboxGroup}>
+                {teamleiter.map(tl => (
+                  <label key={tl.id} style={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={formData.co_teamleiter_ids.includes(tl.id)}
+                      onChange={() => handleCoTeamleiterToggle(tl.id)}
+                      style={styles.checkbox}
+                    />
+                    <span>{tl.name} ({tl.role === 'admin' ? 'Admin' : 'Teamleiter'})</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div style={styles.actions}>
             <button type="button" onClick={onClose} style={styles.cancelButton}>
               Abbrechen
@@ -185,6 +235,28 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'block',
     marginBottom: '0.5rem',
     fontWeight: '500',
+  },
+  checkboxLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    cursor: 'pointer',
+  },
+  checkboxGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.5rem',
+    padding: '0.75rem',
+    border: '1px solid #d1d5db',
+    borderRadius: '4px',
+    backgroundColor: '#f9fafb',
+    maxHeight: '150px',
+    overflowY: 'auto',
+  },
+  checkbox: {
+    cursor: 'pointer',
+    width: '1.25rem',
+    height: '1.25rem',
   },
   select: {
     width: '100%',

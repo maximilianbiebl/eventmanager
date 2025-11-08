@@ -90,7 +90,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
 // Event erstellen
 router.post('/', authMiddleware, teamleiterOrAdminMiddleware, async (req: AuthRequest, res) => {
   try {
-    const { name, description, start_date, days, instance_count, is_template } = req.body as CreateEventRequest;
+    const { name, description, start_date, days, instance_count, is_template, co_teamleiter_ids } = req.body as CreateEventRequest;
 
     // Nur Admin kann Vorlagen erstellen
     const templateValue = (req.user!.role === 'admin' && is_template) ? true : false;
@@ -102,6 +102,35 @@ router.post('/', authMiddleware, teamleiterOrAdminMiddleware, async (req: AuthRe
     );
 
     const event = eventResult.rows[0];
+
+    // Ersteller als primären Teamleiter hinzufügen
+    await query(
+      'INSERT INTO event_teamleiter (event_id, user_id, is_primary) VALUES ($1, $2, $3)',
+      [event.id, req.user!.id, true]
+    );
+
+    // Ersteller zu event_staff hinzufügen
+    await query(
+      'INSERT INTO event_staff (event_id, user_id) VALUES ($1, $2)',
+      [event.id, req.user!.id]
+    );
+
+    // Co-Teamleiter hinzufügen (falls vorhanden)
+    if (co_teamleiter_ids && Array.isArray(co_teamleiter_ids) && co_teamleiter_ids.length > 0) {
+      for (const coTeamleiterId of co_teamleiter_ids) {
+        // Als Co-Teamleiter hinzufügen
+        await query(
+          'INSERT INTO event_teamleiter (event_id, user_id, is_primary) VALUES ($1, $2, $3) ON CONFLICT (event_id, user_id) DO NOTHING',
+          [event.id, coTeamleiterId, false]
+        );
+
+        // Zu event_staff hinzufügen
+        await query(
+          'INSERT INTO event_staff (event_id, user_id) VALUES ($1, $2) ON CONFLICT (event_id, user_id) DO NOTHING',
+          [event.id, coTeamleiterId]
+        );
+      }
+    }
 
     // Event Instanzen erstellen
     const instances = [];
@@ -116,6 +145,12 @@ router.post('/', authMiddleware, teamleiterOrAdminMiddleware, async (req: AuthRe
 
       instances.push(instanceResult.rows[0]);
     }
+
+    // SSE Update senden
+    broadcastUpdate({
+      type: 'event-created',
+      data: { eventId: event.id }
+    });
 
     res.status(201).json({
       ...event,
@@ -191,7 +226,7 @@ router.put('/:id/toggle-template', authMiddleware, adminMiddleware, async (req: 
 router.post('/:id/create-from-template', authMiddleware, teamleiterOrAdminMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
-    const { name, start_date, instance_count, days } = req.body;
+    const { name, start_date, instance_count, days, co_teamleiter_ids } = req.body;
 
     // Prüfen ob Template existiert
     const templateResult = await query('SELECT * FROM events WHERE id = $1 AND is_template = true', [id]);
@@ -212,6 +247,35 @@ router.post('/:id/create-from-template', authMiddleware, teamleiterOrAdminMiddle
     );
 
     const newEvent = newEventResult.rows[0];
+
+    // Ersteller als primären Teamleiter hinzufügen
+    await query(
+      'INSERT INTO event_teamleiter (event_id, user_id, is_primary) VALUES ($1, $2, $3)',
+      [newEvent.id, req.user!.id, true]
+    );
+
+    // Ersteller zu event_staff hinzufügen
+    await query(
+      'INSERT INTO event_staff (event_id, user_id) VALUES ($1, $2)',
+      [newEvent.id, req.user!.id]
+    );
+
+    // Co-Teamleiter hinzufügen (falls vorhanden)
+    if (co_teamleiter_ids && Array.isArray(co_teamleiter_ids) && co_teamleiter_ids.length > 0) {
+      for (const coTeamleiterId of co_teamleiter_ids) {
+        // Als Co-Teamleiter hinzufügen
+        await query(
+          'INSERT INTO event_teamleiter (event_id, user_id, is_primary) VALUES ($1, $2, $3) ON CONFLICT (event_id, user_id) DO NOTHING',
+          [newEvent.id, coTeamleiterId, false]
+        );
+
+        // Zu event_staff hinzufügen
+        await query(
+          'INSERT INTO event_staff (event_id, user_id) VALUES ($1, $2) ON CONFLICT (event_id, user_id) DO NOTHING',
+          [newEvent.id, coTeamleiterId]
+        );
+      }
+    }
 
     // Event Instanzen erstellen
     const instanceCountToCreate = instance_count || 1;
