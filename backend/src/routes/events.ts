@@ -224,9 +224,21 @@ router.post('/:id/create-from-template', authMiddleware, teamleiterOrAdminMiddle
       instances.push(instanceResult.rows[0]);
     }
 
-    // Alle Tasks von der Vorlage kopieren
+    // Programmpunkte von der Vorlage kopieren ZUERST und ID-Mapping erstellen
+    const templateProgram = await query('SELECT * FROM program_items WHERE event_id = $1 ORDER BY id', [id]);
+    const programItemIdMap = new Map<number, number>();
+    for (const program of templateProgram.rows) {
+      const newProgramResult = await query(
+        'INSERT INTO program_items (event_id, day_number, time, title, description) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+        [newEvent.id, program.day_number, program.time, program.title, program.description]
+      );
+      programItemIdMap.set(program.id, newProgramResult.rows[0].id);
+    }
+
+    // Alle Tasks von der Vorlage kopieren mit korrekten program_item_id Referenzen
     const templateTasks = await query('SELECT * FROM tasks WHERE event_id = $1', [id]);
     for (const task of templateTasks.rows) {
+      const newProgramItemId = task.program_item_id ? programItemIdMap.get(task.program_item_id) : null;
       await query(
         `INSERT INTO tasks (
           event_id, program_item_id, day_number, title, description,
@@ -234,7 +246,7 @@ router.post('/:id/create-from-template', authMiddleware, teamleiterOrAdminMiddle
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
         [
           newEvent.id,
-          task.program_item_id,
+          newProgramItemId || null,
           task.day_number,
           task.title,
           task.description,
@@ -247,15 +259,6 @@ router.post('/:id/create-from-template', authMiddleware, teamleiterOrAdminMiddle
           task.is_active !== undefined ? task.is_active : true,
           task.sort_order || 0,
         ]
-      );
-    }
-
-    // Programmpunkte von der Vorlage kopieren
-    const templateProgram = await query('SELECT * FROM program_items WHERE event_id = $1', [id]);
-    for (const program of templateProgram.rows) {
-      await query(
-        'INSERT INTO program_items (event_id, day_number, time, title, description) VALUES ($1, $2, $3, $4, $5)',
-        [newEvent.id, program.day_number, program.time, program.title, program.description]
       );
     }
 
@@ -491,9 +494,21 @@ router.post('/:id/duplicate', authMiddleware, teamleiterOrAdminMiddleware, async
       instances.push(instanceResult.rows[0]);
     }
 
-    // Alle Tasks kopieren
+    // Programmpunkte kopieren ZUERST und ID-Mapping erstellen
+    const originalProgram = await query('SELECT * FROM program_items WHERE event_id = $1 ORDER BY id', [id]);
+    const programItemIdMap = new Map<number, number>();
+    for (const program of originalProgram.rows) {
+      const newProgramResult = await query(
+        'INSERT INTO program_items (event_id, day_number, time, title, description) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+        [newEvent.id, program.day_number, program.time, program.title, program.description]
+      );
+      programItemIdMap.set(program.id, newProgramResult.rows[0].id);
+    }
+
+    // Alle Tasks kopieren mit korrekten program_item_id Referenzen
     const originalTasks = await query('SELECT * FROM tasks WHERE event_id = $1', [id]);
     for (const task of originalTasks.rows) {
+      const newProgramItemId = task.program_item_id ? programItemIdMap.get(task.program_item_id) : null;
       await query(
         `INSERT INTO tasks (
           event_id, program_item_id, day_number, title, description,
@@ -501,7 +516,7 @@ router.post('/:id/duplicate', authMiddleware, teamleiterOrAdminMiddleware, async
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
         [
           newEvent.id,
-          task.program_item_id,
+          newProgramItemId || null,
           task.day_number,
           task.title,
           task.description,
@@ -514,15 +529,6 @@ router.post('/:id/duplicate', authMiddleware, teamleiterOrAdminMiddleware, async
           task.is_active !== undefined ? task.is_active : true,
           task.sort_order || 0,
         ]
-      );
-    }
-
-    // Programmpunkte kopieren
-    const originalProgram = await query('SELECT * FROM program_items WHERE event_id = $1', [id]);
-    for (const program of originalProgram.rows) {
-      await query(
-        'INSERT INTO program_items (event_id, day_number, time, title, description) VALUES ($1, $2, $3, $4, $5)',
-        [newEvent.id, program.day_number, program.time, program.title, program.description]
       );
     }
 
@@ -554,6 +560,11 @@ router.delete('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req: A
     // Teamleiter dürfen nur ihre eigenen Events löschen
     if (req.user!.role === 'teamleiter' && event.created_by !== req.user!.id) {
       return res.status(403).json({ error: 'Keine Berechtigung für dieses Event' });
+    }
+
+    // Teamleiter dürfen vorgeschlagene Events nicht löschen
+    if (req.user!.role === 'teamleiter' && event.is_template_suggestion) {
+      return res.status(403).json({ error: 'Vorgeschlagene Events können nicht gelöscht werden' });
     }
 
     const result = await query('DELETE FROM events WHERE id = $1 RETURNING *', [id]);

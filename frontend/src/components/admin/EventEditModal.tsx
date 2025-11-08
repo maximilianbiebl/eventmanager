@@ -9,7 +9,7 @@ interface Props {
 }
 
 export const EventEditModal: React.FC<Props> = ({ event, onClose, onSuccess }) => {
-  const { isAdmin } = useAuth();
+  const { isAdmin, isTeamleiter } = useAuth();
   const [formData, setFormData] = useState({
     name: event.name,
     description: event.description || '',
@@ -135,13 +135,16 @@ export const EventEditModal: React.FC<Props> = ({ event, onClose, onSuccess }) =
             </div>
           ) : (
             <div style={styles.actions}>
-              <button
-                type="button"
-                onClick={() => setShowDeleteConfirm(true)}
-                style={styles.deleteButton}
-              >
-                Löschen
-              </button>
+              {/* Teamleiter dürfen vorgeschlagene Events nicht löschen */}
+              {!(isTeamleiter && event.is_template_suggestion) && (
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  style={styles.deleteButton}
+                >
+                  Löschen
+                </button>
+              )}
               {isAdmin && !event.is_template && (
                 <button
                   type="button"
