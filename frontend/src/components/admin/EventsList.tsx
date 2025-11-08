@@ -108,16 +108,16 @@ export const EventsList: React.FC = () => {
     const tabs: { id: TabType; label: string; count: number }[] = [];
 
     if (isAdmin) {
-      // Admin: Eigene Veranstaltungen (FIRST)
-      const ownEvents = events.filter(e => !e.is_template && !e.is_template_suggestion && e.created_by === user?.id);
+      // Admin: Eigene Veranstaltungen (FIRST) - inkl. vorgeschlagene Events
+      const ownEvents = events.filter(e => !e.is_template && e.created_by === user?.id);
       tabs.push({
         id: 'own',
         label: 'Eigene Veranstaltungen',
         count: ownEvents.length,
       });
 
-      // Admin: Vorlagen (inkl. Vorschläge)
-      const templates = events.filter(e => e.is_template || e.is_template_suggestion);
+      // Admin: Vorlagen (inkl. Vorschläge von anderen)
+      const templates = events.filter(e => e.is_template || (e.is_template_suggestion && e.created_by !== user?.id));
       tabs.push({
         id: 'templates',
         label: 'Vorlagen',
@@ -136,8 +136,8 @@ export const EventsList: React.FC = () => {
         });
       }
     } else if (isTeamleiter) {
-      // Teamleiter: Eigene Veranstaltungen (FIRST)
-      const ownEvents = events.filter(e => !e.is_template && !e.is_template_suggestion && e.created_by === user?.id);
+      // Teamleiter: Eigene Veranstaltungen (FIRST) - inkl. vorgeschlagene Events
+      const ownEvents = events.filter(e => !e.is_template && e.created_by === user?.id);
       tabs.push({
         id: 'own',
         label: 'Eigene Veranstaltungen',
@@ -160,7 +160,8 @@ export const EventsList: React.FC = () => {
 
   const getEventsForTab = (tabId: TabType): Event[] => {
     if (tabId === 'own') {
-      return events.filter(e => !e.is_template && !e.is_template_suggestion && e.created_by === user?.id);
+      // Eigene Veranstaltungen inkl. vorgeschlagene Events
+      return events.filter(e => !e.is_template && e.created_by === user?.id);
     }
 
     if (tabId === 'templates') {
@@ -168,8 +169,8 @@ export const EventsList: React.FC = () => {
         // Teamleiter sehen nur echte Vorlagen
         return events.filter(e => e.is_template);
       } else {
-        // Admin sieht Vorlagen und Vorschläge
-        return events.filter(e => e.is_template || e.is_template_suggestion);
+        // Admin sieht Vorlagen und Vorschläge von anderen Teamleitern
+        return events.filter(e => e.is_template || (e.is_template_suggestion && e.created_by !== user?.id));
       }
     }
 
@@ -332,7 +333,7 @@ export const EventsList: React.FC = () => {
             })}
         </div>
       ) : activeTab === 'templates' && isAdmin ? (
-        // Templates: separate actual templates and suggestions
+        // Templates: separate actual templates and suggestions from other teamleiters
         <div>
           {events.filter(e => e.is_template).length > 0 && (
             <div style={styles.templateSection}>
@@ -342,11 +343,11 @@ export const EventsList: React.FC = () => {
               </div>
             </div>
           )}
-          {events.filter(e => e.is_template_suggestion).length > 0 && (
+          {events.filter(e => e.is_template_suggestion && e.created_by !== user?.id).length > 0 && (
             <div style={styles.templateSection}>
               <h3 style={styles.sectionHeader}>Vorschläge</h3>
               <div style={styles.grid} className={responsiveStyles.grid}>
-                {events.filter(e => e.is_template_suggestion).map(renderEventCard)}
+                {events.filter(e => e.is_template_suggestion && e.created_by !== user?.id).map(renderEventCard)}
               </div>
             </div>
           )}
