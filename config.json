@@ -21,5 +21,9 @@
     "publicKey": "YOUR_VAPID_PUBLIC_KEY",
     "privateKey": "YOUR_VAPID_PRIVATE_KEY",
     "subject": "mailto:your-email@example.com"
+  },
+  "signal": {
+    "apiUrl": "http://signal-cli:8080",
+    "enabled": true
   }
 }

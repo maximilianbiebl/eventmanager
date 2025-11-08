@@ -61,8 +61,23 @@ services:
     networks:
       - eventmanager-network
 
+  signal-cli:
+    image: bbernhard/signal-cli-rest-api:latest
+    container_name: eventmanager-signal
+    environment:
+      MODE: json-rpc
+      TZ: Europe/Berlin
+    volumes:
+      - signal_data:/home/.local/share/signal-cli
+    ports:
+      - "${SIGNAL_PORT:-8080}:8080"
+    restart: unless-stopped
+    networks:
+      - eventmanager-network
+
 volumes:
   postgres_data:
+  signal_data:
 
 networks:
   eventmanager-network:

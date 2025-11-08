@@ -12,6 +12,7 @@ import programRoutes from './routes/program';
 import usersRoutes from './routes/users';
 import notificationsRoutes from './routes/notifications';
 import sseRoutes from './routes/sse';
+import signalRoutes from './routes/signal';
 
 const app = express();
 const PORT = process.env.PORT || config.ports.backend;
@@ -38,6 +39,7 @@ app.use('/api/program', programRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/sse', sseRoutes);
+app.use('/api/signal', signalRoutes);
 
 // Error Handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

@@ -9,9 +9,11 @@
     "start": "node dist/index.js",
     "migrate": "ts-node src/database/migrate.ts",
     "migrate:extend": "ts-node src/database/runMigration.ts",
-    "migrate:010": "ts-node src/database/run-migration-010.ts"
+    "migrate:010": "ts-node src/database/run-migration-010.ts",
+    "migrate:011": "ts-node src/database/run-migration-011.ts"
   },
   "dependencies": {
+    "axios": "^1.6.0",
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
@@ -19,6 +21,7 @@
     "jsonwebtoken": "^9.0.2",
     "node-cron": "^3.0.3",
     "pg": "^8.11.3",
+    "qrcode": "^1.5.3",
     "web-push": "^3.6.6"
   },
   "devDependencies": {
@@ -29,6 +32,7 @@
     "@types/node": "^20.19.24",
     "@types/node-cron": "^3.0.11",
     "@types/pg": "^8.10.9",
+    "@types/qrcode": "^1.5.5",
     "@types/web-push": "^3.6.3",
     "nodemon": "^3.0.2",
     "ts-node": "^10.9.2",

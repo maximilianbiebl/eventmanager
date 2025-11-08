@@ -2,6 +2,7 @@ import cron from 'node-cron';
 import { query } from '../database/connection';
 import webpush from 'web-push';
 import config from '../config';
+import { signalService } from './signal';
 
 // Jeden Minute prüfen ob Benachrichtigungen gesendet werden müssen
 export function startNotificationScheduler() {
@@ -179,15 +180,20 @@ async function sendTaskReminders() {
 
 async function sendTaskNotification(userId: number, task: any, instance: any, reminderMinutes: number, timeType: string = 'scheduled_time') {
   try {
-    // Hole alle Push Subscriptions des Benutzers (nur wenn push_enabled = true)
-    const subscriptions = await query(
-      `SELECT ps.* FROM push_subscriptions ps
-       JOIN users u ON ps.user_id = u.id
-       WHERE ps.user_id = $1 AND u.push_enabled = true`,
+    // Hole User-Settings für Web Push und Signal
+    const userResult = await query(
+      `SELECT u.web_push_enabled, u.signal_enabled, u.signal_phone_number, u.created_by
+       FROM users u
+       WHERE u.id = $1`,
       [userId]
     );
 
-    console.log(`[sendTaskNotification] Found ${subscriptions.rows.length} subscriptions for user ${userId}`);
+    if (userResult.rows.length === 0) {
+      console.log(`[sendTaskNotification] User ${userId} not found`);
+      return;
+    }
+
+    const user = userResult.rows[0];
 
     const title = timeType === 'start_time'
       ? 'Erinnerung: Aufgabe startet bald'
@@ -197,43 +203,92 @@ async function sendTaskNotification(userId: number, task: any, instance: any, re
       ? `Aufgabe startet in ${reminderMinutes} Minuten: ${task.title}`
       : `In ${reminderMinutes} Minuten: ${task.title}`;
 
-    const payload = JSON.stringify({
-      title,
-      body,
-      icon: '/icon.png',
-      badge: '/badge.png',
-      tag: `task-${timeType}-${task.id}-${instance.id}`,
-      vibrate: [200, 100, 200],
-      requireInteraction: false,
-      data: {
-        taskId: task.id,
-        instanceId: instance.id,
-        assignmentId: task.assignment_id,
-        type: timeType,
-      },
-    });
+    // 1. Web Push Notifications (wenn aktiviert)
+    if (user.web_push_enabled !== false) {
+      const subscriptions = await query(
+        `SELECT ps.* FROM push_subscriptions ps
+         WHERE ps.user_id = $1`,
+        [userId]
+      );
 
-    for (const sub of subscriptions.rows) {
-      try {
-        await webpush.sendNotification(
-          {
-            endpoint: sub.endpoint,
-            keys: {
-              p256dh: sub.keys_p256dh,
-              auth: sub.keys_auth,
+      console.log(`[sendTaskNotification] Found ${subscriptions.rows.length} web push subscriptions for user ${userId}`);
+
+      const payload = JSON.stringify({
+        title,
+        body,
+        icon: '/icon.png',
+        badge: '/badge.png',
+        tag: `task-${timeType}-${task.id}-${instance.id}`,
+        vibrate: [200, 100, 200],
+        requireInteraction: false,
+        data: {
+          taskId: task.id,
+          instanceId: instance.id,
+          assignmentId: task.assignment_id,
+          type: timeType,
+        },
+      });
+
+      for (const sub of subscriptions.rows) {
+        try {
+          await webpush.sendNotification(
+            {
+              endpoint: sub.endpoint,
+              keys: {
+                p256dh: sub.keys_p256dh,
+                auth: sub.keys_auth,
+              },
             },
-          },
-          payload
+            payload
+          );
+
+          console.log(`[sendTaskNotification] ✓ Web Push sent to user ${userId}`);
+        } catch (error: any) {
+          console.error('Push notification error:', error);
+
+          // Subscription entfernen wenn ungültig
+          if (error.statusCode === 410) {
+            await query('DELETE FROM push_subscriptions WHERE id = $1', [sub.id]);
+          }
+        }
+      }
+    }
+
+    // 2. Signal Notifications (wenn aktiviert)
+    if (user.signal_enabled && user.signal_phone_number) {
+      try {
+        // Finde den Teamleiter/Admin der das Event erstellt hat
+        const eventCreatorResult = await query(
+          `SELECT e.created_by FROM events e WHERE e.id = $1`,
+          [task.event_id]
         );
 
-        console.log(`[sendTaskNotification] ✓ Notification sent to user ${userId} for task "${task.title}"`);
-      } catch (error: any) {
-        console.error('Push notification error:', error);
+        if (eventCreatorResult.rows.length > 0) {
+          const creatorId = eventCreatorResult.rows[0].created_by;
 
-        // Subscription entfernen wenn ungültig
-        if (error.statusCode === 410) {
-          await query('DELETE FROM push_subscriptions WHERE id = $1', [sub.id]);
+          // Hole Signal-Account des Creators (Teamleiter/Admin)
+          const creatorResult = await query(
+            `SELECT signal_account_number, signal_linked FROM users WHERE id = $1`,
+            [creatorId]
+          );
+
+          if (creatorResult.rows.length > 0 && creatorResult.rows[0].signal_linked) {
+            const fromNumber = creatorResult.rows[0].signal_account_number;
+            const toNumber = user.signal_phone_number;
+
+            const signalMessage = `${title}\n\n${body}\n\n📅 ${instance.event_name} #${instance.instance_number}`;
+
+            const signalSent = await signalService.sendMessage(fromNumber, toNumber, signalMessage);
+
+            if (signalSent) {
+              console.log(`[sendTaskNotification] ✓ Signal message sent to ${toNumber}`);
+            }
+          } else {
+            console.log(`[sendTaskNotification] Creator ${creatorId} has no linked Signal account`);
+          }
         }
+      } catch (error) {
+        console.error('Signal notification error:', error);
       }
     }
   } catch (error) {
