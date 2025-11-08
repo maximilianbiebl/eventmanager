@@ -58,8 +58,9 @@ export const EventEditModal: React.FC<Props> = ({ event, onClose, onSuccess, onD
 
     setLoading(true);
     try {
-      await eventsApi.copyToTemplate(event.id);
-      alert('Vorlage erfolgreich erstellt');
+      const response = await eventsApi.copyToTemplate(event.id);
+      const debugInfo = response.debug ? `\n\nKopiert: ${response.debug.copiedTasks} Aufgaben, ${response.debug.copiedProgram} Programmpunkte` : '';
+      alert('Vorlage erfolgreich erstellt' + debugInfo);
       onSuccess();
     } catch (error: any) {
       console.error('Copy to template error:', error);

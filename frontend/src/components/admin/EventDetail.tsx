@@ -141,8 +141,9 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
     if (!confirm('Vorschlag als Vorlage annehmen? Eine neue Vorlage wird erstellt.')) return;
 
     try {
-      await eventsApi.approveSuggestion(eventId);
-      alert('Vorschlag wurde angenommen und als Vorlage erstellt');
+      const response = await eventsApi.approveSuggestion(eventId);
+      const debugInfo = response.debug ? `\n\nKopiert: ${response.debug.copiedTasks} Aufgaben, ${response.debug.copiedProgram} Programmpunkte` : '';
+      alert('Vorschlag wurde angenommen und als Vorlage erstellt' + debugInfo);
       // Reload data to update the suggestion flag
       await loadData(false);
     } catch (error: any) {
