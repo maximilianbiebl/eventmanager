@@ -228,28 +228,43 @@ router.post('/:id/create-from-template', authMiddleware, teamleiterOrAdminMiddle
       instances.push(instanceResult.rows[0]);
     }
 
-    // Programmpunkte von der Vorlage kopieren ZUERST und ID-Mapping erstellen
+    // Programmpunkte von der Vorlage kopieren mit Bulk INSERT
     const templateProgram = await query('SELECT * FROM program_items WHERE event_id = $1 ORDER BY id', [id]);
     const programItemIdMap = new Map<number, number>();
-    for (const program of templateProgram.rows) {
-      const newProgramResult = await query(
-        'INSERT INTO program_items (event_id, day_number, time, title, description) VALUES ($1, $2, $3, $4, $5) RETURNING id',
-        [newEvent.id, program.day_number, program.time, program.title, program.description]
+
+    if (templateProgram.rows.length > 0) {
+      const programValues = templateProgram.rows.map((p, idx) =>
+        `($1, $${idx * 4 + 2}, $${idx * 4 + 3}, $${idx * 4 + 4}, $${idx * 4 + 5})`
+      ).join(', ');
+      const programParams = [newEvent.id];
+      templateProgram.rows.forEach(p => {
+        programParams.push(p.day_number, p.time, p.title, p.description);
+      });
+
+      const newProgramItems = await query(
+        `INSERT INTO program_items (event_id, day_number, time, title, description)
+         VALUES ${programValues} RETURNING id`,
+        programParams
       );
-      programItemIdMap.set(program.id, newProgramResult.rows[0].id);
+
+      templateProgram.rows.forEach((program, idx) => {
+        programItemIdMap.set(program.id, newProgramItems.rows[idx].id);
+      });
     }
 
-    // Alle Tasks von der Vorlage kopieren mit korrekten program_item_id Referenzen
+    // Alle Tasks von der Vorlage kopieren mit Bulk INSERT
     const templateTasks = await query('SELECT * FROM tasks WHERE event_id = $1', [id]);
-    for (const task of templateTasks.rows) {
-      const newProgramItemId = task.program_item_id ? programItemIdMap.get(task.program_item_id) : null;
-      await query(
-        `INSERT INTO tasks (
-          event_id, program_item_id, day_number, title, description,
-          scheduled_time, start_time, end_time, reminder_minutes, is_public, status, is_active, sort_order
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
-        [
-          newEvent.id,
+
+    if (templateTasks.rows.length > 0) {
+      const taskValues = templateTasks.rows.map((t, idx) => {
+        const baseIdx = idx * 12 + 2;
+        return `($1, $${baseIdx}, $${baseIdx+1}, $${baseIdx+2}, $${baseIdx+3}, $${baseIdx+4}, $${baseIdx+5}, $${baseIdx+6}, $${baseIdx+7}, $${baseIdx+8}, $${baseIdx+9}, $${baseIdx+10}, $${baseIdx+11})`;
+      }).join(', ');
+
+      const taskParams = [newEvent.id];
+      templateTasks.rows.forEach(task => {
+        const newProgramItemId = task.program_item_id ? programItemIdMap.get(task.program_item_id) : null;
+        taskParams.push(
           newProgramItemId || null,
           task.day_number,
           task.title,
@@ -261,8 +276,16 @@ router.post('/:id/create-from-template', authMiddleware, teamleiterOrAdminMiddle
           task.is_public,
           'not_started',
           task.is_active !== undefined ? task.is_active : true,
-          task.sort_order || 0,
-        ]
+          task.sort_order || 0
+        );
+      });
+
+      await query(
+        `INSERT INTO tasks (
+          event_id, program_item_id, day_number, title, description,
+          scheduled_time, start_time, end_time, reminder_minutes, is_public, status, is_active, sort_order
+        ) VALUES ${taskValues}`,
+        taskParams
       );
     }
 
@@ -313,31 +336,48 @@ router.post('/:id/copy-to-template', authMiddleware, adminMiddleware, async (req
       instances.push(instanceResult.rows[0]);
     }
 
-    // Programmpunkte kopieren ZUERST und ID-Mapping erstellen
+    // Programmpunkte kopieren mit Bulk INSERT
     const originalProgram = await query('SELECT * FROM program_items WHERE event_id = $1 ORDER BY id', [id]);
     console.log(`Copy to template: Found ${originalProgram.rows.length} program items for event ${id}`);
     const programItemIdMap = new Map<number, number>();
-    for (const program of originalProgram.rows) {
-      const newProgramResult = await query(
-        'INSERT INTO program_items (event_id, day_number, time, title, description) VALUES ($1, $2, $3, $4, $5) RETURNING id',
-        [template.id, program.day_number, program.time, program.title, program.description]
+
+    if (originalProgram.rows.length > 0) {
+      // Bulk INSERT für Programmpunkte
+      const programValues = originalProgram.rows.map((p, idx) =>
+        `($1, $${idx * 4 + 2}, $${idx * 4 + 3}, $${idx * 4 + 4}, $${idx * 4 + 5})`
+      ).join(', ');
+      const programParams = [template.id];
+      originalProgram.rows.forEach(p => {
+        programParams.push(p.day_number, p.time, p.title, p.description);
+      });
+
+      const newProgramItems = await query(
+        `INSERT INTO program_items (event_id, day_number, time, title, description)
+         VALUES ${programValues} RETURNING id`,
+        programParams
       );
-      programItemIdMap.set(program.id, newProgramResult.rows[0].id);
-      console.log(`Copied program item ${program.id} -> ${newProgramResult.rows[0].id}`);
+
+      // ID-Mapping erstellen (Reihenfolge ist garantiert gleich)
+      originalProgram.rows.forEach((program, idx) => {
+        programItemIdMap.set(program.id, newProgramItems.rows[idx].id);
+      });
     }
 
-    // Alle Tasks kopieren (ohne Zuweisungen) mit korrekten program_item_id Referenzen
+    // Alle Tasks kopieren mit Bulk INSERT
     const originalTasks = await query('SELECT * FROM tasks WHERE event_id = $1', [id]);
     console.log(`Copy to template: Found ${originalTasks.rows.length} tasks for event ${id}`);
-    for (const task of originalTasks.rows) {
-      const newProgramItemId = task.program_item_id ? programItemIdMap.get(task.program_item_id) : null;
-      await query(
-        `INSERT INTO tasks (
-          event_id, program_item_id, day_number, title, description,
-          scheduled_time, start_time, end_time, reminder_minutes, is_public, status, is_active, sort_order
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
-        [
-          template.id,
+
+    if (originalTasks.rows.length > 0) {
+      // Bulk INSERT für Tasks
+      const taskValues = originalTasks.rows.map((t, idx) => {
+        const baseIdx = idx * 12 + 2;
+        return `($1, $${baseIdx}, $${baseIdx+1}, $${baseIdx+2}, $${baseIdx+3}, $${baseIdx+4}, $${baseIdx+5}, $${baseIdx+6}, $${baseIdx+7}, $${baseIdx+8}, $${baseIdx+9}, $${baseIdx+10}, $${baseIdx+11})`;
+      }).join(', ');
+
+      const taskParams = [template.id];
+      originalTasks.rows.forEach(task => {
+        const newProgramItemId = task.program_item_id ? programItemIdMap.get(task.program_item_id) : null;
+        taskParams.push(
           newProgramItemId || null,
           task.day_number,
           task.title,
@@ -349,10 +389,17 @@ router.post('/:id/copy-to-template', authMiddleware, adminMiddleware, async (req
           task.is_public,
           'not_started',
           task.is_active !== undefined ? task.is_active : true,
-          task.sort_order || 0,
-        ]
+          task.sort_order || 0
+        );
+      });
+
+      await query(
+        `INSERT INTO tasks (
+          event_id, program_item_id, day_number, title, description,
+          scheduled_time, start_time, end_time, reminder_minutes, is_public, status, is_active, sort_order
+        ) VALUES ${taskValues}`,
+        taskParams
       );
-      console.log(`Copied task ${task.id} to template ${template.id}`);
     }
 
     // Prüfe ob Daten tatsächlich kopiert wurden
@@ -444,30 +491,45 @@ router.post('/:id/approve-suggestion', authMiddleware, adminMiddleware, async (r
       instances.push(instanceResult.rows[0]);
     }
 
-    // Programmpunkte kopieren ZUERST und ID-Mapping erstellen
+    // Programmpunkte kopieren mit Bulk INSERT
     const originalProgram = await query('SELECT * FROM program_items WHERE event_id = $1 ORDER BY id', [id]);
     console.log(`Approve suggestion: Found ${originalProgram.rows.length} program items for event ${id}`);
     const programItemIdMap = new Map<number, number>();
-    for (const program of originalProgram.rows) {
-      const newProgramResult = await query(
-        'INSERT INTO program_items (event_id, day_number, time, title, description) VALUES ($1, $2, $3, $4, $5) RETURNING id',
-        [template.id, program.day_number, program.time, program.title, program.description]
+
+    if (originalProgram.rows.length > 0) {
+      const programValues = originalProgram.rows.map((p, idx) =>
+        `($1, $${idx * 4 + 2}, $${idx * 4 + 3}, $${idx * 4 + 4}, $${idx * 4 + 5})`
+      ).join(', ');
+      const programParams = [template.id];
+      originalProgram.rows.forEach(p => {
+        programParams.push(p.day_number, p.time, p.title, p.description);
+      });
+
+      const newProgramItems = await query(
+        `INSERT INTO program_items (event_id, day_number, time, title, description)
+         VALUES ${programValues} RETURNING id`,
+        programParams
       );
-      programItemIdMap.set(program.id, newProgramResult.rows[0].id);
+
+      originalProgram.rows.forEach((program, idx) => {
+        programItemIdMap.set(program.id, newProgramItems.rows[idx].id);
+      });
     }
 
-    // Tasks kopieren mit korrekten program_item_id Referenzen
+    // Tasks kopieren mit Bulk INSERT
     const originalTasks = await query('SELECT * FROM tasks WHERE event_id = $1', [id]);
     console.log(`Approve suggestion: Found ${originalTasks.rows.length} tasks for event ${id}`);
-    for (const task of originalTasks.rows) {
-      const newProgramItemId = task.program_item_id ? programItemIdMap.get(task.program_item_id) : null;
-      await query(
-        `INSERT INTO tasks (
-          event_id, program_item_id, day_number, title, description,
-          scheduled_time, start_time, end_time, reminder_minutes, is_public, status, is_active, sort_order
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
-        [
-          template.id,
+
+    if (originalTasks.rows.length > 0) {
+      const taskValues = originalTasks.rows.map((t, idx) => {
+        const baseIdx = idx * 12 + 2;
+        return `($1, $${baseIdx}, $${baseIdx+1}, $${baseIdx+2}, $${baseIdx+3}, $${baseIdx+4}, $${baseIdx+5}, $${baseIdx+6}, $${baseIdx+7}, $${baseIdx+8}, $${baseIdx+9}, $${baseIdx+10}, $${baseIdx+11})`;
+      }).join(', ');
+
+      const taskParams = [template.id];
+      originalTasks.rows.forEach(task => {
+        const newProgramItemId = task.program_item_id ? programItemIdMap.get(task.program_item_id) : null;
+        taskParams.push(
           newProgramItemId || null,
           task.day_number,
           task.title,
@@ -479,8 +541,16 @@ router.post('/:id/approve-suggestion', authMiddleware, adminMiddleware, async (r
           task.is_public,
           'not_started',
           task.is_active !== undefined ? task.is_active : true,
-          task.sort_order || 0,
-        ]
+          task.sort_order || 0
+        );
+      });
+
+      await query(
+        `INSERT INTO tasks (
+          event_id, program_item_id, day_number, title, description,
+          scheduled_time, start_time, end_time, reminder_minutes, is_public, status, is_active, sort_order
+        ) VALUES ${taskValues}`,
+        taskParams
       );
     }
 
@@ -554,28 +624,43 @@ router.post('/:id/duplicate', authMiddleware, teamleiterOrAdminMiddleware, async
       instances.push(instanceResult.rows[0]);
     }
 
-    // Programmpunkte kopieren ZUERST und ID-Mapping erstellen
+    // Programmpunkte kopieren mit Bulk INSERT
     const originalProgram = await query('SELECT * FROM program_items WHERE event_id = $1 ORDER BY id', [id]);
     const programItemIdMap = new Map<number, number>();
-    for (const program of originalProgram.rows) {
-      const newProgramResult = await query(
-        'INSERT INTO program_items (event_id, day_number, time, title, description) VALUES ($1, $2, $3, $4, $5) RETURNING id',
-        [newEvent.id, program.day_number, program.time, program.title, program.description]
+
+    if (originalProgram.rows.length > 0) {
+      const programValues = originalProgram.rows.map((p, idx) =>
+        `($1, $${idx * 4 + 2}, $${idx * 4 + 3}, $${idx * 4 + 4}, $${idx * 4 + 5})`
+      ).join(', ');
+      const programParams = [newEvent.id];
+      originalProgram.rows.forEach(p => {
+        programParams.push(p.day_number, p.time, p.title, p.description);
+      });
+
+      const newProgramItems = await query(
+        `INSERT INTO program_items (event_id, day_number, time, title, description)
+         VALUES ${programValues} RETURNING id`,
+        programParams
       );
-      programItemIdMap.set(program.id, newProgramResult.rows[0].id);
+
+      originalProgram.rows.forEach((program, idx) => {
+        programItemIdMap.set(program.id, newProgramItems.rows[idx].id);
+      });
     }
 
-    // Alle Tasks kopieren mit korrekten program_item_id Referenzen
+    // Alle Tasks kopieren mit Bulk INSERT
     const originalTasks = await query('SELECT * FROM tasks WHERE event_id = $1', [id]);
-    for (const task of originalTasks.rows) {
-      const newProgramItemId = task.program_item_id ? programItemIdMap.get(task.program_item_id) : null;
-      await query(
-        `INSERT INTO tasks (
-          event_id, program_item_id, day_number, title, description,
-          scheduled_time, start_time, end_time, reminder_minutes, is_public, status, is_active, sort_order
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
-        [
-          newEvent.id,
+
+    if (originalTasks.rows.length > 0) {
+      const taskValues = originalTasks.rows.map((t, idx) => {
+        const baseIdx = idx * 12 + 2;
+        return `($1, $${baseIdx}, $${baseIdx+1}, $${baseIdx+2}, $${baseIdx+3}, $${baseIdx+4}, $${baseIdx+5}, $${baseIdx+6}, $${baseIdx+7}, $${baseIdx+8}, $${baseIdx+9}, $${baseIdx+10}, $${baseIdx+11})`;
+      }).join(', ');
+
+      const taskParams = [newEvent.id];
+      originalTasks.rows.forEach(task => {
+        const newProgramItemId = task.program_item_id ? programItemIdMap.get(task.program_item_id) : null;
+        taskParams.push(
           newProgramItemId || null,
           task.day_number,
           task.title,
@@ -587,8 +672,16 @@ router.post('/:id/duplicate', authMiddleware, teamleiterOrAdminMiddleware, async
           task.is_public,
           'not_started', // Reset status for new event
           task.is_active !== undefined ? task.is_active : true,
-          task.sort_order || 0,
-        ]
+          task.sort_order || 0
+        );
+      });
+
+      await query(
+        `INSERT INTO tasks (
+          event_id, program_item_id, day_number, title, description,
+          scheduled_time, start_time, end_time, reminder_minutes, is_public, status, is_active, sort_order
+        ) VALUES ${taskValues}`,
+        taskParams
       );
     }
 

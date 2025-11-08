@@ -243,16 +243,20 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
       <div className={styles.section}>
         <h3>Durchführungen</h3>
         <div className={styles.instances}>
-          {(event as any).instances.map((instance: any) => (
-            <button
-              key={instance.id}
-              onClick={() => setSelectedInstance(instance.id)}
-              className={selectedInstance === instance.id ? styles.instanceActive : styles.instance}
-            >
-              #{instance.instance_number} -{' '}
-              {new Date(instance.start_date).toLocaleDateString('de-DE')}
-            </button>
-          ))}
+          {(event as any).instances.map((instance: any) => {
+            const date = instance.start_date ? new Date(instance.start_date) : null;
+            const isValidDate = date && !isNaN(date.getTime()) && date.getFullYear() >= 2000;
+            return (
+              <button
+                key={instance.id}
+                onClick={() => setSelectedInstance(instance.id)}
+                className={selectedInstance === instance.id ? styles.instanceActive : styles.instance}
+              >
+                #{instance.instance_number}
+                {isValidDate ? ` - ${date.toLocaleDateString('de-DE')}` : ' - Vorlage'}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -490,8 +494,12 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   const isTaskOverdue = (task: any, instance: any): boolean => {
     if (!task.end_time || !instance || task.status === 'completed') return false;
 
-    const now = new Date();
+    // Vorlagen oder Events ohne Startdatum sind nie überfällig
+    if (!instance.start_date) return false;
     const taskDate = new Date(instance.start_date);
+    if (isNaN(taskDate.getTime()) || taskDate.getFullYear() < 2000) return false;
+
+    const now = new Date();
     taskDate.setDate(taskDate.getDate() + task.day_number - 1);
 
     // Parse end time (format: "HH:MM")

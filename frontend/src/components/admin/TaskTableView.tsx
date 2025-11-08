@@ -115,10 +115,14 @@ export const TaskTableView: React.FC<Props> = ({
   }, [manualRefreshTrigger]);
 
   const isTaskOverdue = (task: TaskAssignment): boolean => {
-    if (!task.end_time || !instanceStartDate || task.status === 'completed') return false;
+    if (!task.end_time || task.status === 'completed') return false;
+
+    // Vorlagen oder Events ohne Startdatum sind nie überfällig
+    if (!instanceStartDate) return false;
+    const taskDate = new Date(instanceStartDate);
+    if (isNaN(taskDate.getTime()) || taskDate.getFullYear() < 2000) return false;
 
     const now = new Date();
-    const taskDate = new Date(instanceStartDate);
     taskDate.setDate(taskDate.getDate() + task.day_number - 1);
 
     // Parse end time (format: "HH:MM")
