@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { query } from '../database/connection';
 import { authMiddleware, adminMiddleware, teamleiterOrAdminMiddleware, AuthRequest } from '../middleware/auth';
 import { CreateEventRequest } from '../types';
+import { broadcastUpdate } from './sse';
 
 const router = Router();
 
@@ -176,6 +177,9 @@ router.put('/:id/toggle-template', authMiddleware, adminMiddleware, async (req: 
       return res.status(404).json({ error: 'Event nicht gefunden' });
     }
 
+    // SSE Broadcast für instant updates
+    broadcastUpdate('event', { action: 'template_toggled', eventId: id, isTemplate: is_template });
+
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Toggle template error:', error);
@@ -262,6 +266,9 @@ router.post('/:id/create-from-template', authMiddleware, teamleiterOrAdminMiddle
       );
     }
 
+    // SSE Broadcast für instant updates
+    broadcastUpdate('event', { action: 'event_created', eventId: newEvent.id, fromTemplate: id });
+
     res.status(201).json({
       ...newEvent,
       instances,
@@ -335,6 +342,9 @@ router.post('/:id/copy-to-template', authMiddleware, adminMiddleware, async (req
       );
     }
 
+    // SSE Broadcast für instant updates
+    broadcastUpdate('event', { action: 'template_created', eventId: template.id });
+
     res.status(201).json({
       ...template,
       message: 'Event erfolgreich als Vorlage kopiert',
@@ -368,6 +378,9 @@ router.put('/:id/suggest-as-template', authMiddleware, teamleiterOrAdminMiddlewa
       'UPDATE events SET is_template_suggestion = $1 WHERE id = $2 RETURNING *',
       [true, id]
     );
+
+    // SSE Broadcast für instant updates
+    broadcastUpdate('event', { action: 'template_suggested', eventId: id });
 
     res.json(result.rows[0]);
   } catch (error) {
@@ -438,6 +451,9 @@ router.post('/:id/approve-suggestion', authMiddleware, adminMiddleware, async (r
 
     // Vorschlag-Flag beim Original entfernen
     await query('UPDATE events SET is_template_suggestion = false WHERE id = $1', [id]);
+
+    // SSE Broadcast für instant updates
+    broadcastUpdate('event', { action: 'suggestion_approved', originalEventId: id, templateId: template.id });
 
     res.status(201).json({
       ...template,

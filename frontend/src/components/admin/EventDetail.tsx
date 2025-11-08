@@ -400,6 +400,10 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
             setShowEditModal(false);
             loadData(false); // Reload event data after edit
           }}
+          onDelete={() => {
+            setShowEditModal(false);
+            onBack(); // Zurück zur Liste nach Löschen
+          }}
         />
       )}
 

@@ -6,6 +6,7 @@ import { CreateFromTemplateModal } from './CreateFromTemplateModal';
 import { EventEditModal } from './EventEditModal';
 import { EventDetail } from './EventDetail';
 import { useAuth } from '../../context/AuthContext';
+import { useSSE } from '../../hooks/useSSE';
 import responsiveStyles from './EventsList.module.css';
 
 type TabType = 'own' | 'templates' | 'other-teamleiters';
@@ -25,6 +26,21 @@ export const EventsList: React.FC = () => {
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
   const { user, isAdmin, isTeamleiter } = useAuth();
 
+  // SSE für Event-Updates
+  useSSE({
+    enabled: true,
+    onEventUpdate: () => {
+      console.log('SSE: Event update received');
+      loadData(false);
+    },
+    onConnected: () => {
+      console.log('SSE: EventsList connected');
+    },
+    onError: (error) => {
+      console.error('SSE: EventsList error', error);
+    }
+  });
+
   useEffect(() => {
     loadData();
   }, []);
@@ -34,6 +50,8 @@ export const EventsList: React.FC = () => {
       localStorage.setItem('adminSelectedEventId', selectedEventId.toString());
     } else {
       localStorage.removeItem('adminSelectedEventId');
+      // Liste neu laden wenn von EventDetail zurückgekehrt wird
+      loadData(false);
     }
   }, [selectedEventId]);
 
@@ -385,6 +403,10 @@ export const EventsList: React.FC = () => {
           event={editingEvent}
           onClose={() => setEditingEvent(null)}
           onSuccess={handleEditSuccess}
+          onDelete={() => {
+            setEditingEvent(null);
+            loadData(false); // Liste neu laden nach Löschen
+          }}
         />
       )}
 

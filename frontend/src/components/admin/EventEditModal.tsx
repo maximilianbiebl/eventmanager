@@ -6,9 +6,10 @@ interface Props {
   event: Event;
   onClose: () => void;
   onSuccess: () => void;
+  onDelete?: () => void; // Neuer optionaler Callback für Löschen
 }
 
-export const EventEditModal: React.FC<Props> = ({ event, onClose, onSuccess }) => {
+export const EventEditModal: React.FC<Props> = ({ event, onClose, onSuccess, onDelete }) => {
   const { isAdmin, isTeamleiter } = useAuth();
   const [formData, setFormData] = useState({
     name: event.name,
@@ -39,7 +40,12 @@ export const EventEditModal: React.FC<Props> = ({ event, onClose, onSuccess }) =
 
     try {
       await eventsApi.delete(event.id);
-      onSuccess();
+      // Verwende onDelete falls vorhanden, sonst onSuccess
+      if (onDelete) {
+        onDelete();
+      } else {
+        onSuccess();
+      }
     } catch (error) {
       console.error('Delete event error:', error);
       alert('Fehler beim Löschen der Veranstaltung');
