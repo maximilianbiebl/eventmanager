@@ -302,7 +302,16 @@ router.post('/:id/copy-to-template', authMiddleware, adminMiddleware, async (req
 
     const template = templateResult.rows[0];
 
-    // Keine Instanzen erstellen für Vorlagen
+    // Event Instanzen erstellen (wie bei duplicate, damit Frontend Tasks anzeigen kann)
+    const instanceCountToCreate = 1; // Vorlagen bekommen 1 Instanz mit null start_date
+    const instances = [];
+    for (let i = 0; i < instanceCountToCreate; i++) {
+      const instanceResult = await query(
+        'INSERT INTO event_instances (event_id, instance_number, start_date) VALUES ($1, $2, $3) RETURNING *',
+        [template.id, i + 1, null] // null als start_date für Vorlagen
+      );
+      instances.push(instanceResult.rows[0]);
+    }
 
     // Programmpunkte kopieren ZUERST und ID-Mapping erstellen
     const originalProgram = await query('SELECT * FROM program_items WHERE event_id = $1 ORDER BY id', [id]);
@@ -423,6 +432,17 @@ router.post('/:id/approve-suggestion', authMiddleware, adminMiddleware, async (r
     );
 
     const template = templateResult.rows[0];
+
+    // Event Instanzen erstellen (wie bei duplicate, damit Frontend Tasks anzeigen kann)
+    const instanceCountToCreate = 1; // Vorlagen bekommen 1 Instanz mit null start_date
+    const instances = [];
+    for (let i = 0; i < instanceCountToCreate; i++) {
+      const instanceResult = await query(
+        'INSERT INTO event_instances (event_id, instance_number, start_date) VALUES ($1, $2, $3) RETURNING *',
+        [template.id, i + 1, null] // null als start_date für Vorlagen
+      );
+      instances.push(instanceResult.rows[0]);
+    }
 
     // Programmpunkte kopieren ZUERST und ID-Mapping erstellen
     const originalProgram = await query('SELECT * FROM program_items WHERE event_id = $1 ORDER BY id', [id]);
