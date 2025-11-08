@@ -2,12 +2,17 @@ import React, { useState, useEffect } from 'react';
 import client from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../hooks/useNotifications';
+import { signalApi } from '../api/signal';
+import { SignalSetup } from './settings/SignalSetup';
 
 interface Settings {
   default_reminder_minutes: number;
   push_enabled: boolean;
   default_view: 'cards' | 'table';
   start_notification_enabled: boolean;
+  signal_enabled?: boolean;
+  signal_phone_number?: string;
+  web_push_enabled?: boolean;
 }
 
 interface Props {
@@ -26,8 +31,11 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [testSuccess, setTestSuccess] = useState(false);
+  const [activeTab, setActiveTab] = useState<'general' | 'signal'>('general');
   const { user } = useAuth();
   const notifications = useNotifications();
+
+  const isTeamleiterOrAdmin = user?.role === 'teamleiter' || user?.role === 'admin';
 
   useEffect(() => {
     loadSettings();
@@ -35,8 +43,16 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
 
   const loadSettings = async () => {
     try {
-      const response = await client.get('/users/me/settings');
-      setSettings(response.data);
+      const [userSettings, signalSettings] = await Promise.all([
+        client.get('/users/me/settings'),
+        signalApi.getSettings(),
+      ]);
+      setSettings({
+        ...userSettings.data,
+        signal_enabled: signalSettings.signal_enabled,
+        signal_phone_number: signalSettings.signal_phone_number,
+        web_push_enabled: signalSettings.web_push_enabled,
+      });
     } catch (error) {
       console.error('Load settings error:', error);
       setError('Fehler beim Laden der Einstellungen');
@@ -48,10 +64,29 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // Validierung
+    if (settings.signal_enabled && !settings.signal_phone_number) {
+      setError('Telefonnummer ist erforderlich für Signal-Benachrichtigungen');
+      return;
+    }
+
+    if (settings.signal_enabled && !settings.signal_phone_number?.startsWith('+')) {
+      setError('Telefonnummer muss im internationalen Format sein (z.B. +4917...)');
+      return;
+    }
+
     setSaving(true);
 
     try {
-      await client.put('/users/me/settings', settings);
+      await Promise.all([
+        client.put('/users/me/settings', settings),
+        signalApi.updateSettings({
+          signal_enabled: settings.signal_enabled || false,
+          signal_phone_number: settings.signal_phone_number || '',
+          web_push_enabled: settings.web_push_enabled !== false,
+        }),
+      ]);
       setSuccess(true);
       setTimeout(() => {
         onClose();
@@ -96,13 +131,36 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
       <div style={styles.modal}>
         <h2 style={styles.title}>Einstellungen</h2>
         <p style={styles.subtitle}>
-          Hallo {user?.name}, hier kannst du deine Benachrichtigungs-Einstellungen anpassen.
+          Hallo {user?.name}, hier kannst du deine Einstellungen anpassen.
         </p>
 
-        {error && <div style={styles.error}>{error}</div>}
-        {success && <div style={styles.success}>Einstellungen gespeichert!</div>}
+        {isTeamleiterOrAdmin && (
+          <div style={styles.tabs}>
+            <button
+              type="button"
+              onClick={() => setActiveTab('general')}
+              style={activeTab === 'general' ? styles.tabActive : styles.tab}
+            >
+              ⚙️ Allgemein
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('signal')}
+              style={activeTab === 'signal' ? styles.tabActive : styles.tab}
+            >
+              💬 Signal Setup
+            </button>
+          </div>
+        )}
 
-        <form onSubmit={handleSave}>
+        {activeTab === 'signal' && isTeamleiterOrAdmin ? (
+          <SignalSetup />
+        ) : (
+          <>
+            {error && <div style={styles.error}>{error}</div>}
+            {success && <div style={styles.success}>Einstellungen gespeichert!</div>}
+
+            <form onSubmit={handleSave}>
           <div style={styles.section}>
             <h3 style={styles.sectionTitle}>Benachrichtigungen</h3>
 
@@ -172,6 +230,36 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
                 Du erhältst eine zusätzliche Benachrichtigung zur genauen Startzeit, wenn die Aufgabe noch nicht begonnen wurde
               </p>
             </div>
+
+            <div style={{ ...styles.formGroup, borderTop: '1px solid #e5e7eb', paddingTop: '1rem', marginTop: '1.5rem' }}>
+              <label style={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  checked={settings.signal_enabled || false}
+                  onChange={(e) => setSettings({ ...settings, signal_enabled: e.target.checked })}
+                  style={styles.checkbox}
+                />
+                <span>💬 Signal Benachrichtigungen</span>
+              </label>
+              <p style={styles.hint}>
+                Erhalte Benachrichtigungen via Signal Messenger
+              </p>
+              {settings.signal_enabled && (
+                <div style={{ marginTop: '0.75rem' }}>
+                  <label style={styles.label}>Telefonnummer (international):</label>
+                  <input
+                    type="tel"
+                    placeholder="+491234567890"
+                    value={settings.signal_phone_number || ''}
+                    onChange={(e) => setSettings({ ...settings, signal_phone_number: e.target.value })}
+                    style={styles.input}
+                  />
+                  <p style={styles.hint}>
+                    Format: +49 für Deutschland, +43 für Österreich, +41 für Schweiz
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
 
           <div style={styles.section}>
@@ -217,6 +305,8 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
             </button>
           </div>
         </form>
+          </>
+        )}
       </div>
     </div>
   );
@@ -358,5 +448,31 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '0.875rem',
     cursor: 'pointer',
     fontWeight: '500',
+  },
+  tabs: {
+    display: 'flex',
+    gap: '0.5rem',
+    marginBottom: '1.5rem',
+    borderBottom: '2px solid #e5e7eb',
+  },
+  tab: {
+    padding: '0.75rem 1.5rem',
+    background: 'none',
+    border: 'none',
+    borderBottom: '2px solid transparent',
+    cursor: 'pointer',
+    fontSize: '1rem',
+    color: '#6b7280',
+    fontWeight: '500',
+  },
+  tabActive: {
+    padding: '0.75rem 1.5rem',
+    background: 'none',
+    border: 'none',
+    borderBottom: '2px solid #4f46e5',
+    cursor: 'pointer',
+    fontSize: '1rem',
+    color: '#4f46e5',
+    fontWeight: '600',
   },
 };
