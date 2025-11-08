@@ -147,10 +147,7 @@ router.post('/', authMiddleware, teamleiterOrAdminMiddleware, async (req: AuthRe
     }
 
     // SSE Update senden
-    broadcastUpdate({
-      type: 'event-created',
-      data: { eventId: event.id }
-    });
+    broadcastUpdate('event', { action: 'event_created', eventId: event.id });
 
     res.status(201).json({
       ...event,
