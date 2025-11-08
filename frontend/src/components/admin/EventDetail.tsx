@@ -137,6 +137,21 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
     }
   };
 
+  const handleApproveSuggestion = async () => {
+    if (!confirm('Vorschlag als Vorlage annehmen? Eine neue Vorlage wird erstellt.')) return;
+
+    try {
+      await eventsApi.approveSuggestion(eventId);
+      alert('Vorschlag wurde angenommen und als Vorlage erstellt');
+      // Reload data to update the suggestion flag
+      await loadData(false);
+    } catch (error: any) {
+      console.error('Approve suggestion error:', error);
+      const errorMsg = error.response?.data?.details || error.response?.data?.error || 'Fehler beim Annehmen des Vorschlags';
+      alert(errorMsg);
+    }
+  };
+
   const handleDayChange = (day: number) => {
     setSelectedDay(day);
     // No reload needed - filter client-side
@@ -173,6 +188,15 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           {isAdmin && (
             <>
+              {event.is_template_suggestion && (
+                <button
+                  onClick={handleApproveSuggestion}
+                  className={styles.approveButton}
+                  title="Vorschlag als Vorlage annehmen"
+                >
+                  ✅ Annehmen
+                </button>
+              )}
               <button
                 onClick={handleToggleTemplate}
                 className={styles.toggleTemplateButton}

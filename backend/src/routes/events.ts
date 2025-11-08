@@ -187,7 +187,7 @@ router.put('/:id/toggle-template', authMiddleware, adminMiddleware, async (req: 
 router.post('/:id/create-from-template', authMiddleware, teamleiterOrAdminMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
-    const { name, start_date, instance_count } = req.body;
+    const { name, start_date, instance_count, days } = req.body;
 
     // Prüfen ob Template existiert
     const templateResult = await query('SELECT * FROM events WHERE id = $1 AND is_template = true', [id]);
@@ -198,10 +198,13 @@ router.post('/:id/create-from-template', authMiddleware, teamleiterOrAdminMiddle
 
     const template = templateResult.rows[0];
 
+    // Tage aus request oder von Vorlage
+    const eventDays = days || template.days;
+
     // Neues Event erstellen (keine Vorlage)
     const newEventResult = await query(
       'INSERT INTO events (name, description, start_date, days, created_by, is_template) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [name, template.description, start_date, template.days, req.user!.id, false]
+      [name, template.description, start_date, eventDays, req.user!.id, false]
     );
 
     const newEvent = newEventResult.rows[0];
@@ -211,7 +214,7 @@ router.post('/:id/create-from-template', authMiddleware, teamleiterOrAdminMiddle
     const instances = [];
     for (let i = 0; i < instanceCountToCreate; i++) {
       const instanceStartDate = new Date(start_date);
-      instanceStartDate.setDate(instanceStartDate.getDate() + i * template.days);
+      instanceStartDate.setDate(instanceStartDate.getDate() + i * eventDays);
 
       const instanceResult = await query(
         'INSERT INTO event_instances (event_id, instance_number, start_date) VALUES ($1, $2, $3) RETURNING *',
@@ -284,16 +287,28 @@ router.post('/:id/copy-to-template', authMiddleware, adminMiddleware, async (req
     // Vorlage erstellen (ohne Datum, ohne Zuweisungen)
     const templateResult = await query(
       'INSERT INTO events (name, description, start_date, days, created_by, is_template, is_template_suggestion) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-      [`${original.name} (Vorlage)`, original.description, null, original.days, req.user!.id, true, false]
+      [original.name, original.description, null, original.days, req.user!.id, true, false]
     );
 
     const template = templateResult.rows[0];
 
     // Keine Instanzen erstellen für Vorlagen
 
-    // Alle Tasks kopieren (ohne Zuweisungen)
+    // Programmpunkte kopieren ZUERST und ID-Mapping erstellen
+    const originalProgram = await query('SELECT * FROM program_items WHERE event_id = $1 ORDER BY id', [id]);
+    const programItemIdMap = new Map<number, number>();
+    for (const program of originalProgram.rows) {
+      const newProgramResult = await query(
+        'INSERT INTO program_items (event_id, day_number, time, title, description) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+        [template.id, program.day_number, program.time, program.title, program.description]
+      );
+      programItemIdMap.set(program.id, newProgramResult.rows[0].id);
+    }
+
+    // Alle Tasks kopieren (ohne Zuweisungen) mit korrekten program_item_id Referenzen
     const originalTasks = await query('SELECT * FROM tasks WHERE event_id = $1', [id]);
     for (const task of originalTasks.rows) {
+      const newProgramItemId = task.program_item_id ? programItemIdMap.get(task.program_item_id) : null;
       await query(
         `INSERT INTO tasks (
           event_id, program_item_id, day_number, title, description,
@@ -301,7 +316,7 @@ router.post('/:id/copy-to-template', authMiddleware, adminMiddleware, async (req
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
         [
           template.id,
-          task.program_item_id,
+          newProgramItemId || null,
           task.day_number,
           task.title,
           task.description,
@@ -314,15 +329,6 @@ router.post('/:id/copy-to-template', authMiddleware, adminMiddleware, async (req
           task.is_active !== undefined ? task.is_active : true,
           task.sort_order || 0,
         ]
-      );
-    }
-
-    // Programmpunkte kopieren
-    const originalProgram = await query('SELECT * FROM program_items WHERE event_id = $1', [id]);
-    for (const program of originalProgram.rows) {
-      await query(
-        'INSERT INTO program_items (event_id, day_number, time, title, description) VALUES ($1, $2, $3, $4, $5)',
-        [template.id, program.day_number, program.time, program.title, program.description]
       );
     }
 
@@ -384,14 +390,26 @@ router.post('/:id/approve-suggestion', authMiddleware, adminMiddleware, async (r
     // Vorlage erstellen
     const templateResult = await query(
       'INSERT INTO events (name, description, start_date, days, created_by, is_template, is_template_suggestion) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-      [`${original.name} (Vorlage)`, original.description, null, original.days, req.user!.id, true, false]
+      [original.name, original.description, null, original.days, req.user!.id, true, false]
     );
 
     const template = templateResult.rows[0];
 
-    // Tasks kopieren
+    // Programmpunkte kopieren ZUERST und ID-Mapping erstellen
+    const originalProgram = await query('SELECT * FROM program_items WHERE event_id = $1 ORDER BY id', [id]);
+    const programItemIdMap = new Map<number, number>();
+    for (const program of originalProgram.rows) {
+      const newProgramResult = await query(
+        'INSERT INTO program_items (event_id, day_number, time, title, description) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+        [template.id, program.day_number, program.time, program.title, program.description]
+      );
+      programItemIdMap.set(program.id, newProgramResult.rows[0].id);
+    }
+
+    // Tasks kopieren mit korrekten program_item_id Referenzen
     const originalTasks = await query('SELECT * FROM tasks WHERE event_id = $1', [id]);
     for (const task of originalTasks.rows) {
+      const newProgramItemId = task.program_item_id ? programItemIdMap.get(task.program_item_id) : null;
       await query(
         `INSERT INTO tasks (
           event_id, program_item_id, day_number, title, description,
@@ -399,7 +417,7 @@ router.post('/:id/approve-suggestion', authMiddleware, adminMiddleware, async (r
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
         [
           template.id,
-          task.program_item_id,
+          newProgramItemId || null,
           task.day_number,
           task.title,
           task.description,
@@ -412,15 +430,6 @@ router.post('/:id/approve-suggestion', authMiddleware, adminMiddleware, async (r
           task.is_active !== undefined ? task.is_active : true,
           task.sort_order || 0,
         ]
-      );
-    }
-
-    // Programmpunkte kopieren
-    const originalProgram = await query('SELECT * FROM program_items WHERE event_id = $1', [id]);
-    for (const program of originalProgram.rows) {
-      await query(
-        'INSERT INTO program_items (event_id, day_number, time, title, description) VALUES ($1, $2, $3, $4, $5)',
-        [template.id, program.day_number, program.time, program.title, program.description]
       );
     }
 

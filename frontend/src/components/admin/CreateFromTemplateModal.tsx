@@ -8,11 +8,15 @@ interface Props {
 }
 
 export const CreateFromTemplateModal: React.FC<Props> = ({ templates, onClose, onSuccess }) => {
-  const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
+  // Wenn nur eine Vorlage, automatisch auswählen
+  const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(
+    templates.length === 1 ? templates[0].id : null
+  );
   const [formData, setFormData] = useState({
-    name: '',
+    name: templates.length === 1 ? templates[0].name : '',
     start_date: '',
     instance_count: 1,
+    days: templates.length === 1 ? templates[0].days : 4,
   });
   const [loading, setLoading] = useState(false);
 
@@ -44,39 +48,43 @@ export const CreateFromTemplateModal: React.FC<Props> = ({ templates, onClose, o
       <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
         <h2 style={styles.title}>Veranstaltung aus Vorlage erstellen</h2>
         <form onSubmit={handleSubmit}>
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Vorlage auswählen *</label>
-            <select
-              value={selectedTemplateId || ''}
-              onChange={(e) => {
-                const id = parseInt(e.target.value);
-                setSelectedTemplateId(id);
-                const template = templates.find(t => t.id === id);
-                if (template && !formData.name) {
-                  setFormData({ ...formData, name: template.name });
-                }
-              }}
-              style={styles.select}
-              required
-            >
-              <option value="">-- Vorlage wählen --</option>
-              {templates.map((template) => (
-                <option key={template.id} value={template.id}>
-                  {template.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Nur Dropdown zeigen wenn mehr als eine Vorlage */}
+          {templates.length > 1 && (
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Vorlage auswählen *</label>
+              <select
+                value={selectedTemplateId || ''}
+                onChange={(e) => {
+                  const id = parseInt(e.target.value);
+                  setSelectedTemplateId(id);
+                  const template = templates.find(t => t.id === id);
+                  if (template) {
+                    setFormData({
+                      ...formData,
+                      name: template.name,
+                      days: template.days
+                    });
+                  }
+                }}
+                style={styles.select}
+                required
+              >
+                <option value="">-- Vorlage wählen --</option>
+                {templates.map((template) => (
+                  <option key={template.id} value={template.id}>
+                    {template.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
-          {selectedTemplate && (
+          {selectedTemplate && templates.length === 1 && (
             <div style={styles.templateInfo}>
               <h4 style={styles.templateInfoTitle}>Vorlage: {selectedTemplate.name}</h4>
               {selectedTemplate.description && (
                 <p style={styles.templateDescription}>{selectedTemplate.description}</p>
               )}
-              <div style={styles.templateMeta}>
-                <span>Dauer: {selectedTemplate.days} Tage</span>
-              </div>
             </div>
           )}
 
@@ -88,6 +96,18 @@ export const CreateFromTemplateModal: React.FC<Props> = ({ templates, onClose, o
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               style={styles.input}
               placeholder="Name der Veranstaltung"
+              required
+            />
+          </div>
+
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Anzahl Tage *</label>
+            <input
+              type="number"
+              min="1"
+              value={formData.days}
+              onChange={(e) => setFormData({ ...formData, days: parseInt(e.target.value) })}
+              style={styles.input}
               required
             />
           </div>

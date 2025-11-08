@@ -214,15 +214,15 @@ export const EventsList: React.FC = () => {
           <button onClick={() => setSelectedEventId(event.id)} style={styles.viewButton}>
             Details
           </button>
-          {/* Teamleiter: "Vorlage verwenden" Button bei Vorlagen */}
-          {isTeamleiter && event.is_template && (
-            <button onClick={() => setSelectedTemplateId(event.id)} style={styles.useTemplateButton}>
-              Vorlage verwenden
-            </button>
-          )}
           {canEdit && (
             <button onClick={() => setEditingEvent(event)} style={styles.editButton}>
               Bearbeiten
+            </button>
+          )}
+          {/* "Verwenden" Button bei Vorlagen für Admin und Teamleiter */}
+          {event.is_template && (
+            <button onClick={() => setSelectedTemplateId(event.id)} style={styles.useTemplateButton}>
+              Verwenden
             </button>
           )}
           {isAdmin && !event.is_template && !event.is_template_suggestion && (

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { eventsApi, Event } from '../../api/events';
+import { useAuth } from '../../context/AuthContext';
 
 interface Props {
   event: Event;
@@ -8,6 +9,7 @@ interface Props {
 }
 
 export const EventEditModal: React.FC<Props> = ({ event, onClose, onSuccess }) => {
+  const { isAdmin } = useAuth();
   const [formData, setFormData] = useState({
     name: event.name,
     description: event.description || '',
@@ -41,6 +43,22 @@ export const EventEditModal: React.FC<Props> = ({ event, onClose, onSuccess }) =
     } catch (error) {
       console.error('Delete event error:', error);
       alert('Fehler beim Löschen der Veranstaltung');
+      setLoading(false);
+    }
+  };
+
+  const handleCopyToTemplate = async () => {
+    if (!confirm('Veranstaltung als Vorlage kopieren? (ohne Zuweisungen und Datum)')) return;
+
+    setLoading(true);
+    try {
+      await eventsApi.copyToTemplate(event.id);
+      alert('Vorlage erfolgreich erstellt');
+      onSuccess();
+    } catch (error: any) {
+      console.error('Copy to template error:', error);
+      const errorMsg = error.response?.data?.details || error.response?.data?.error || 'Fehler beim Erstellen der Vorlage';
+      alert(errorMsg);
       setLoading(false);
     }
   };
@@ -124,6 +142,16 @@ export const EventEditModal: React.FC<Props> = ({ event, onClose, onSuccess }) =
               >
                 Löschen
               </button>
+              {isAdmin && !event.is_template && (
+                <button
+                  type="button"
+                  onClick={handleCopyToTemplate}
+                  style={styles.copyTemplateButton}
+                  disabled={loading}
+                >
+                  📄 Als Vorlage kopieren
+                </button>
+              )}
               <button type="button" onClick={onClose} style={styles.cancelButton}>
                 Abbrechen
               </button>
@@ -212,6 +240,15 @@ const styles: { [key: string]: React.CSSProperties } = {
   deleteButton: {
     padding: '0.75rem',
     backgroundColor: '#ef4444',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+  },
+  copyTemplateButton: {
+    flex: 1,
+    padding: '0.75rem',
+    backgroundColor: '#3b82f6',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
