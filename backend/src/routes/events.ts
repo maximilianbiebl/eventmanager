@@ -306,6 +306,7 @@ router.post('/:id/copy-to-template', authMiddleware, adminMiddleware, async (req
 
     // Programmpunkte kopieren ZUERST und ID-Mapping erstellen
     const originalProgram = await query('SELECT * FROM program_items WHERE event_id = $1 ORDER BY id', [id]);
+    console.log(`Copy to template: Found ${originalProgram.rows.length} program items for event ${id}`);
     const programItemIdMap = new Map<number, number>();
     for (const program of originalProgram.rows) {
       const newProgramResult = await query(
@@ -313,10 +314,12 @@ router.post('/:id/copy-to-template', authMiddleware, adminMiddleware, async (req
         [template.id, program.day_number, program.time, program.title, program.description]
       );
       programItemIdMap.set(program.id, newProgramResult.rows[0].id);
+      console.log(`Copied program item ${program.id} -> ${newProgramResult.rows[0].id}`);
     }
 
     // Alle Tasks kopieren (ohne Zuweisungen) mit korrekten program_item_id Referenzen
     const originalTasks = await query('SELECT * FROM tasks WHERE event_id = $1', [id]);
+    console.log(`Copy to template: Found ${originalTasks.rows.length} tasks for event ${id}`);
     for (const task of originalTasks.rows) {
       const newProgramItemId = task.program_item_id ? programItemIdMap.get(task.program_item_id) : null;
       await query(
@@ -340,7 +343,13 @@ router.post('/:id/copy-to-template', authMiddleware, adminMiddleware, async (req
           task.sort_order || 0,
         ]
       );
+      console.log(`Copied task ${task.id} to template ${template.id}`);
     }
+
+    // Prüfe ob Daten tatsächlich kopiert wurden
+    const verifyTasks = await query('SELECT * FROM tasks WHERE event_id = $1', [template.id]);
+    const verifyProgram = await query('SELECT * FROM program_items WHERE event_id = $1', [template.id]);
+    console.log(`Verification: Template ${template.id} has ${verifyTasks.rows.length} tasks and ${verifyProgram.rows.length} program items`);
 
     // SSE Broadcast für instant updates
     broadcastUpdate('event', { action: 'template_created', eventId: template.id });
@@ -348,6 +357,10 @@ router.post('/:id/copy-to-template', authMiddleware, adminMiddleware, async (req
     res.status(201).json({
       ...template,
       message: 'Event erfolgreich als Vorlage kopiert',
+      debug: {
+        copiedTasks: verifyTasks.rows.length,
+        copiedProgram: verifyProgram.rows.length
+      }
     });
   } catch (error) {
     console.error('Copy to template error:', error);
@@ -413,6 +426,7 @@ router.post('/:id/approve-suggestion', authMiddleware, adminMiddleware, async (r
 
     // Programmpunkte kopieren ZUERST und ID-Mapping erstellen
     const originalProgram = await query('SELECT * FROM program_items WHERE event_id = $1 ORDER BY id', [id]);
+    console.log(`Approve suggestion: Found ${originalProgram.rows.length} program items for event ${id}`);
     const programItemIdMap = new Map<number, number>();
     for (const program of originalProgram.rows) {
       const newProgramResult = await query(
@@ -424,6 +438,7 @@ router.post('/:id/approve-suggestion', authMiddleware, adminMiddleware, async (r
 
     // Tasks kopieren mit korrekten program_item_id Referenzen
     const originalTasks = await query('SELECT * FROM tasks WHERE event_id = $1', [id]);
+    console.log(`Approve suggestion: Found ${originalTasks.rows.length} tasks for event ${id}`);
     for (const task of originalTasks.rows) {
       const newProgramItemId = task.program_item_id ? programItemIdMap.get(task.program_item_id) : null;
       await query(
@@ -449,6 +464,11 @@ router.post('/:id/approve-suggestion', authMiddleware, adminMiddleware, async (r
       );
     }
 
+    // Prüfe ob Daten tatsächlich kopiert wurden
+    const verifyTasks = await query('SELECT * FROM tasks WHERE event_id = $1', [template.id]);
+    const verifyProgram = await query('SELECT * FROM program_items WHERE event_id = $1', [template.id]);
+    console.log(`Verification: Template ${template.id} has ${verifyTasks.rows.length} tasks and ${verifyProgram.rows.length} program items`);
+
     // Vorschlag-Flag beim Original entfernen
     await query('UPDATE events SET is_template_suggestion = false WHERE id = $1', [id]);
 
@@ -458,6 +478,10 @@ router.post('/:id/approve-suggestion', authMiddleware, adminMiddleware, async (r
     res.status(201).json({
       ...template,
       message: 'Vorlagenvorschlag wurde genehmigt und Vorlage erstellt',
+      debug: {
+        copiedTasks: verifyTasks.rows.length,
+        copiedProgram: verifyProgram.rows.length
+      }
     });
   } catch (error) {
     console.error('Approve suggestion error:', error);
