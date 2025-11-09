@@ -444,7 +444,7 @@ async function updateOverdueTasks() {
 
   // Finde alle Event-Instanzen die heute oder in der Vergangenheit laufen
   const instancesResult = await query(
-    `SELECT ei.*, e.days
+    `SELECT ei.*, e.days, e.name as event_name
      FROM event_instances ei
      JOIN events e ON ei.event_id = e.id
      WHERE ei.start_date <= CURRENT_DATE
