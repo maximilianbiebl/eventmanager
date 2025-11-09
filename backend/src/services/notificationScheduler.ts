@@ -300,53 +300,110 @@ async function sendTaskNotification(userId: number, task: any, instance: any, re
 
 async function sendStartTimeNotification(userId: number, task: any, instance: any) {
   try {
-    // Hole alle Push Subscriptions des Benutzers (nur wenn push_enabled = true)
-    const subscriptions = await query(
-      `SELECT ps.* FROM push_subscriptions ps
-       JOIN users u ON ps.user_id = u.id
-       WHERE ps.user_id = $1 AND u.push_enabled = true`,
+    // Hole User-Settings für Web Push und Signal
+    const userResult = await query(
+      `SELECT u.web_push_enabled, u.signal_enabled, u.signal_phone_number, u.start_notification_enabled
+       FROM users u
+       WHERE u.id = $1`,
       [userId]
     );
 
-    console.log(`[sendStartTimeNotification] Found ${subscriptions.rows.length} subscriptions for user ${userId}`);
+    if (userResult.rows.length === 0) {
+      console.log(`[sendStartTimeNotification] User ${userId} not found`);
+      return;
+    }
 
-    const payload = JSON.stringify({
-      title: 'Aufgabe startet jetzt!',
-      body: `Es ist Zeit zu starten: ${task.title}`,
-      icon: '/icon.png',
-      badge: '/badge.png',
-      tag: `task-start-${task.id}-${instance.id}`,
-      vibrate: [300, 100, 300, 100, 300],
-      requireInteraction: true,
-      data: {
-        taskId: task.id,
-        instanceId: instance.id,
-        assignmentId: task.assignment_id,
-        type: 'start_time',
-      },
-    });
+    const user = userResult.rows[0];
 
-    for (const sub of subscriptions.rows) {
-      try {
-        await webpush.sendNotification(
-          {
-            endpoint: sub.endpoint,
-            keys: {
-              p256dh: sub.keys_p256dh,
-              auth: sub.keys_auth,
+    const title = 'Aufgabe startet jetzt!';
+    const body = `Es ist Zeit zu starten: ${task.title}`;
+
+    // 1. Web Push Notifications (wenn aktiviert)
+    if (user.web_push_enabled !== false) {
+      const subscriptions = await query(
+        `SELECT ps.* FROM push_subscriptions ps
+         WHERE ps.user_id = $1`,
+        [userId]
+      );
+
+      console.log(`[sendStartTimeNotification] Found ${subscriptions.rows.length} web push subscriptions for user ${userId}`);
+
+      const payload = JSON.stringify({
+        title,
+        body,
+        icon: '/icon.png',
+        badge: '/badge.png',
+        tag: `task-start-${task.id}-${instance.id}`,
+        vibrate: [300, 100, 300, 100, 300],
+        requireInteraction: true,
+        data: {
+          taskId: task.id,
+          instanceId: instance.id,
+          assignmentId: task.assignment_id,
+          type: 'start_time',
+        },
+      });
+
+      for (const sub of subscriptions.rows) {
+        try {
+          await webpush.sendNotification(
+            {
+              endpoint: sub.endpoint,
+              keys: {
+                p256dh: sub.keys_p256dh,
+                auth: sub.keys_auth,
+              },
             },
-          },
-          payload
+            payload
+          );
+
+          console.log(`[sendStartTimeNotification] ✓ Web Push sent to user ${userId} for task "${task.title}"`);
+        } catch (error: any) {
+          console.error('Push notification error:', error);
+
+          // Subscription entfernen wenn ungültig
+          if (error.statusCode === 410) {
+            await query('DELETE FROM push_subscriptions WHERE id = $1', [sub.id]);
+          }
+        }
+      }
+    }
+
+    // 2. Signal Notifications (wenn aktiviert)
+    if (user.signal_enabled && user.signal_phone_number) {
+      try {
+        // Finde alle Teamleiter des Events
+        const teamleiterResult = await query(
+          `SELECT u.id, u.signal_account_number, u.signal_linked, et.is_primary
+           FROM event_teamleiter et
+           JOIN users u ON et.user_id = u.id
+           WHERE et.event_id = $1
+           ORDER BY et.is_primary DESC, et.id ASC`,
+          [task.event_id]
         );
 
-        console.log(`[sendStartTimeNotification] ✓ Start notification sent to user ${userId} for task "${task.title}"`);
-      } catch (error: any) {
-        console.error('Push notification error:', error);
+        if (teamleiterResult.rows.length > 0) {
+          const linkedTeamleiter = teamleiterResult.rows.find(tl => tl.signal_linked);
 
-        // Subscription entfernen wenn ungültig
-        if (error.statusCode === 410) {
-          await query('DELETE FROM push_subscriptions WHERE id = $1', [sub.id]);
+          if (linkedTeamleiter) {
+            const fromNumber = linkedTeamleiter.signal_account_number;
+            const toNumber = user.signal_phone_number;
+
+            const signalMessage = `${title}\n\n${body}\n\n📅 ${instance.event_name} #${instance.instance_number}`;
+
+            const signalSent = await signalService.sendMessage(fromNumber, toNumber, signalMessage);
+
+            if (signalSent) {
+              console.log(`[sendStartTimeNotification] ✓ Signal message sent to ${toNumber} from teamleiter ${linkedTeamleiter.id}`);
+            }
+          } else {
+            console.log(`[sendStartTimeNotification] No linked Signal account found for event ${task.event_id} teamleiter`);
+          }
+        } else {
+          console.log(`[sendStartTimeNotification] No teamleiter found for event ${task.event_id}`);
         }
+      } catch (error) {
+        console.error('Signal notification error:', error);
       }
     }
   } catch (error) {
@@ -397,46 +454,97 @@ async function updateOverdueTasks() {
 
         console.log(`Task ${task.id} marked as overdue`);
 
-        // Sende Push-Benachrichtigung an zugewiesene Mitarbeiter
+        // Sende Benachrichtigungen (Web Push + Signal) an zugewiesene Mitarbeiter
         if (task.user_id) {
-          const subscriptions = await query(
-            `SELECT ps.* FROM push_subscriptions ps
-             JOIN users u ON ps.user_id = u.id
-             WHERE ps.user_id = $1 AND u.push_enabled = true`,
+          // Hole User-Settings
+          const userResult = await query(
+            `SELECT u.web_push_enabled, u.signal_enabled, u.signal_phone_number
+             FROM users u
+             WHERE u.id = $1`,
             [task.user_id]
           );
 
-          const payload = JSON.stringify({
-            title: 'Aufgabe überfällig',
-            body: `"${task.title}" ist jetzt überfällig`,
-            icon: '/icon.png',
-            badge: '/badge.png',
-            tag: `task-overdue-${task.id}`,
-            vibrate: [500, 200, 500],
-            requireInteraction: true,
-            data: {
-              taskId: task.id,
-              instanceId: instance.id,
-              assignmentId: task.assignment_id,
-            },
-          });
+          if (userResult.rows.length > 0) {
+            const user = userResult.rows[0];
 
-          for (const sub of subscriptions.rows) {
-            try {
-              await webpush.sendNotification(
-                {
-                  endpoint: sub.endpoint,
-                  keys: {
-                    p256dh: sub.keys_p256dh,
-                    auth: sub.keys_auth,
-                  },
-                },
-                payload
+            const title = 'Aufgabe überfällig';
+            const body = `"${task.title}" ist jetzt überfällig`;
+
+            // 1. Web Push
+            if (user.web_push_enabled !== false) {
+              const subscriptions = await query(
+                `SELECT ps.* FROM push_subscriptions ps
+                 WHERE ps.user_id = $1`,
+                [task.user_id]
               );
-            } catch (error: any) {
-              console.error('Push notification error:', error);
-              if (error.statusCode === 410) {
-                await query('DELETE FROM push_subscriptions WHERE id = $1', [sub.id]);
+
+              const payload = JSON.stringify({
+                title,
+                body,
+                icon: '/icon.png',
+                badge: '/badge.png',
+                tag: `task-overdue-${task.id}`,
+                vibrate: [500, 200, 500],
+                requireInteraction: true,
+                data: {
+                  taskId: task.id,
+                  instanceId: instance.id,
+                  assignmentId: task.assignment_id,
+                },
+              });
+
+              for (const sub of subscriptions.rows) {
+                try {
+                  await webpush.sendNotification(
+                    {
+                      endpoint: sub.endpoint,
+                      keys: {
+                        p256dh: sub.keys_p256dh,
+                        auth: sub.keys_auth,
+                      },
+                    },
+                    payload
+                  );
+                  console.log(`[updateOverdueTasks] ✓ Web Push sent to user ${task.user_id}`);
+                } catch (error: any) {
+                  console.error('Push notification error:', error);
+                  if (error.statusCode === 410) {
+                    await query('DELETE FROM push_subscriptions WHERE id = $1', [sub.id]);
+                  }
+                }
+              }
+            }
+
+            // 2. Signal
+            if (user.signal_enabled && user.signal_phone_number) {
+              try {
+                const teamleiterResult = await query(
+                  `SELECT u.id, u.signal_account_number, u.signal_linked, et.is_primary
+                   FROM event_teamleiter et
+                   JOIN users u ON et.user_id = u.id
+                   WHERE et.event_id = $1
+                   ORDER BY et.is_primary DESC, et.id ASC`,
+                  [task.event_id]
+                );
+
+                if (teamleiterResult.rows.length > 0) {
+                  const linkedTeamleiter = teamleiterResult.rows.find(tl => tl.signal_linked);
+
+                  if (linkedTeamleiter) {
+                    const signalMessage = `${title}\n\n${body}\n\n📅 ${instance.event_name} #${instance.instance_number}`;
+                    const signalSent = await signalService.sendMessage(
+                      linkedTeamleiter.signal_account_number,
+                      user.signal_phone_number,
+                      signalMessage
+                    );
+
+                    if (signalSent) {
+                      console.log(`[updateOverdueTasks] ✓ Signal sent to ${user.signal_phone_number}`);
+                    }
+                  }
+                }
+              } catch (error) {
+                console.error('Signal notification error:', error);
               }
             }
           }

@@ -163,6 +163,9 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
             <form onSubmit={handleSave}>
           <div style={styles.section}>
             <h3 style={styles.sectionTitle}>Benachrichtigungen</h3>
+            <p style={{...styles.hint, marginBottom: '1rem', fontSize: '0.875rem'}}>
+              Diese Einstellungen gelten für <strong>Web-Push</strong> und <strong>Signal</strong> Benachrichtigungen.
+            </p>
 
             <div style={styles.formGroup}>
               <label style={styles.checkboxLabel}>
@@ -172,10 +175,10 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
                   onChange={(e) => setSettings({ ...settings, push_enabled: e.target.checked })}
                   style={styles.checkbox}
                 />
-                <span>Push-Benachrichtigungen aktivieren</span>
+                <span>📬 Browser-Benachrichtigungen aktivieren</span>
               </label>
               <p style={styles.hint}>
-                Du erhältst Benachrichtigungen vor deinen Aufgaben
+                Du erhältst Benachrichtigungen im Browser vor deinen Aufgaben
               </p>
               {notifications.isSubscribed && settings.push_enabled && (
                 <div style={{ marginTop: '0.75rem' }}>
@@ -197,7 +200,7 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
 
             <div style={styles.formGroup}>
               <label style={styles.label}>
-                Standard-Erinnerungszeit (Minuten vor Aufgabe)
+                ⏰ Standard-Erinnerungszeit (Minuten vor Aufgabe)
               </label>
               <input
                 type="number"
@@ -208,10 +211,10 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
                   setSettings({ ...settings, default_reminder_minutes: parseInt(e.target.value) })
                 }
                 style={styles.input}
-                disabled={!settings.push_enabled}
               />
               <p style={styles.hint}>
                 Wie viele Minuten vorher möchtest du erinnert werden? (0 = keine Erinnerung)
+                Gilt für Browser- und Signal-Benachrichtigungen.
               </p>
             </div>
 
@@ -222,12 +225,12 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
                   checked={settings.start_notification_enabled}
                   onChange={(e) => setSettings({ ...settings, start_notification_enabled: e.target.checked })}
                   style={styles.checkbox}
-                  disabled={!settings.push_enabled}
                 />
-                <span>"Aufgabe startet jetzt"-Benachrichtigung aktivieren</span>
+                <span>🔔 "Aufgabe startet jetzt"-Benachrichtigung</span>
               </label>
               <p style={styles.hint}>
                 Du erhältst eine zusätzliche Benachrichtigung zur genauen Startzeit, wenn die Aufgabe noch nicht begonnen wurde
+                (Browser und Signal)
               </p>
             </div>
 
@@ -239,14 +242,15 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
                   onChange={(e) => setSettings({ ...settings, signal_enabled: e.target.checked })}
                   style={styles.checkbox}
                 />
-                <span>💬 Signal Benachrichtigungen</span>
+                <span>💬 Signal Benachrichtigungen aktivieren</span>
               </label>
               <p style={styles.hint}>
-                Erhalte Benachrichtigungen via Signal Messenger
+                Erhalte Benachrichtigungen via Signal Messenger.
+                {isTeamleiterOrAdmin && ' Der Teamleiter muss Signal gekoppelt haben (siehe "Signal Setup" Tab).'}
               </p>
               {settings.signal_enabled && (
                 <div style={{ marginTop: '0.75rem' }}>
-                  <label style={styles.label}>Telefonnummer (international):</label>
+                  <label style={styles.label}>Deine Telefonnummer (international):</label>
                   <input
                     type="tel"
                     placeholder="+491234567890"
@@ -255,7 +259,8 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
                     style={styles.input}
                   />
                   <p style={styles.hint}>
-                    Format: +49 für Deutschland, +43 für Österreich, +41 für Schweiz
+                    Format: +49 für Deutschland, +43 für Österreich, +41 für Schweiz<br/>
+                    <strong>Wichtig:</strong> An diese Nummer werden deine Aufgaben-Benachrichtigungen gesendet.
                   </p>
                 </div>
               )}
