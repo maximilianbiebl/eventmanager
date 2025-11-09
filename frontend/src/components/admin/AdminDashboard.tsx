@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { EventsList } from './EventsList';
 import { UsersList } from './UsersList';
 import { ChangePasswordDialog } from './ChangePasswordDialog';
+import { StaffSettings } from '../StaffSettings';
 import responsiveStyles from './AdminDashboard.module.css';
 
 type Tab = 'events' | 'users';
@@ -14,6 +15,7 @@ export const AdminDashboard: React.FC = () => {
     return (saved === 'events' || saved === 'users') ? saved : 'events';
   });
   const [showChangePassword, setShowChangePassword] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0); // Zum Zurücksetzen der Listen
   const [previousEventId, setPreviousEventId] = useState<number | null>(null);
@@ -66,12 +68,21 @@ export const AdminDashboard: React.FC = () => {
               <div style={styles.dropdown}>
                 <button
                   onClick={() => {
+                    setShowSettings(true);
+                    setShowMenu(false);
+                  }}
+                  style={styles.dropdownItem}
+                >
+                  ⚙️ Einstellungen
+                </button>
+                <button
+                  onClick={() => {
                     setShowChangePassword(true);
                     setShowMenu(false);
                   }}
                   style={styles.dropdownItem}
                 >
-                  Passwort ändern
+                  🔒 Passwort ändern
                 </button>
                 <button onClick={logout} style={styles.dropdownItemDanger}>
                   Abmelden
@@ -104,12 +115,21 @@ export const AdminDashboard: React.FC = () => {
               <div className={responsiveStyles.mobileMenu}>
                 <button
                   onClick={() => {
+                    setShowSettings(true);
+                    setShowMenu(false);
+                  }}
+                  className={responsiveStyles.mobileMenuItem}
+                >
+                  ⚙️ Einstellungen
+                </button>
+                <button
+                  onClick={() => {
                     setShowChangePassword(true);
                     setShowMenu(false);
                   }}
                   className={responsiveStyles.mobileMenuItem}
                 >
-                  Passwort ändern
+                  🔒 Passwort ändern
                 </button>
                 <button
                   onClick={logout}
@@ -150,6 +170,7 @@ export const AdminDashboard: React.FC = () => {
       </div>
 
       {showChangePassword && <ChangePasswordDialog onClose={() => setShowChangePassword(false)} />}
+      {showSettings && <StaffSettings onClose={() => setShowSettings(false)} />}
     </div>
   );
 };
