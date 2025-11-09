@@ -6,6 +6,13 @@ import { broadcastUpdate } from './sse';
 
 const router = Router();
 
+// Helper function to format time without seconds (hh:mm)
+function formatTime(time: string | null): string {
+  if (!time) return '';
+  // Remove seconds from time string (e.g., "14:30:00" -> "14:30")
+  return time.substring(0, 5);
+}
+
 // Alle Aufgaben für ein Event abrufen
 router.get('/event/:eventId', authMiddleware, async (req, res) => {
   try {
@@ -463,7 +470,10 @@ router.put('/complete/:assignmentId', authMiddleware, async (req: AuthRequest, r
     if (req.user!.role === 'staff') {
       try {
         const taskId = assignment.rows[0].task_id;
-        const taskInfo = await query('SELECT * FROM tasks WHERE id = $1', [taskId]);
+        const taskInfo = await query(
+          'SELECT t.*, e.name as event_name FROM tasks t JOIN events e ON t.event_id = e.id WHERE t.id = $1',
+          [taskId]
+        );
 
         if (taskInfo.rows.length > 0) {
           const task = taskInfo.rows[0];
@@ -540,18 +550,18 @@ router.put('/complete/:assignmentId', authMiddleware, async (req: AuthRequest, r
               description = `\n📋 ${task.description}`;
             }
 
-            // Zeit-Informationen
+            // Zeit-Informationen formatieren (ohne Sekunden)
             let timeInfo = '';
             if (task.scheduled_time || task.start_time) {
               timeInfo += '\n\n';
-              if (task.scheduled_time) timeInfo += `⏰ Geplant: ${task.scheduled_time} Uhr\n`;
-              if (task.start_time) timeInfo += `🚀 Start: ${task.start_time} Uhr\n`;
-              if (task.end_time) timeInfo += `🏁 Ende: ${task.end_time} Uhr`;
+              if (task.scheduled_time) timeInfo += `⏰ ${formatTime(task.scheduled_time)} Uhr\n`;
+              if (task.start_time) timeInfo += `🚀 ${formatTime(task.start_time)} Uhr\n`;
+              if (task.end_time) timeInfo += `🏁 ${formatTime(task.end_time)} Uhr`;
             } else if (task.end_time) {
-              timeInfo += `\n\n🏁 Ende: ${task.end_time} Uhr`;
+              timeInfo += `\n\n🏁 ${formatTime(task.end_time)} Uhr`;
             }
 
-            const signalMessage = `${notificationTitle}\n\n${task.title}${description}\nStatus: Erledigt${timeInfo}\n\n👤 ${req.user!.name}`;
+            const signalMessage = `${notificationTitle}\n\n${task.title}${description}${timeInfo}\n\n🎪 ${task.event_name}\n👤 ${req.user!.name}`;
 
             for (const recipient of signalRecipients.rows) {
               try {
@@ -592,8 +602,11 @@ router.put('/:taskId/complete-public', authMiddleware, async (req: AuthRequest, 
     const { taskId } = req.params;
     const userId = req.user!.id;
 
-    // Task-Informationen laden
-    const taskInfo = await query('SELECT * FROM tasks WHERE id = $1', [taskId]);
+    // Task-Informationen laden mit Event-Name
+    const taskInfo = await query(
+      'SELECT t.*, e.name as event_name FROM tasks t JOIN events e ON t.event_id = e.id WHERE t.id = $1',
+      [taskId]
+    );
     if (taskInfo.rows.length === 0) {
       return res.status(404).json({ error: 'Aufgabe nicht gefunden' });
     }
@@ -691,18 +704,18 @@ router.put('/:taskId/complete-public', authMiddleware, async (req: AuthRequest, 
             description = `\n📋 ${task.description}`;
           }
 
-          // Zeit-Informationen
+          // Zeit-Informationen formatieren (ohne Sekunden)
           let timeInfo = '';
           if (task.scheduled_time || task.start_time) {
             timeInfo += '\n\n';
-            if (task.scheduled_time) timeInfo += `⏰ Geplant: ${task.scheduled_time} Uhr\n`;
-            if (task.start_time) timeInfo += `🚀 Start: ${task.start_time} Uhr\n`;
-            if (task.end_time) timeInfo += `🏁 Ende: ${task.end_time} Uhr`;
+            if (task.scheduled_time) timeInfo += `⏰ ${formatTime(task.scheduled_time)} Uhr\n`;
+            if (task.start_time) timeInfo += `🚀 ${formatTime(task.start_time)} Uhr\n`;
+            if (task.end_time) timeInfo += `🏁 ${formatTime(task.end_time)} Uhr`;
           } else if (task.end_time) {
-            timeInfo += `\n\n🏁 Ende: ${task.end_time} Uhr`;
+            timeInfo += `\n\n🏁 ${formatTime(task.end_time)} Uhr`;
           }
 
-          const signalMessage = `${notificationTitle}\n\n${task.title}${description}\nStatus: Erledigt${timeInfo}\n\n👤 ${req.user!.name}`;
+          const signalMessage = `${notificationTitle}\n\n${task.title}${description}${timeInfo}\n\n🎪 ${task.event_name}\n👤 ${req.user!.name}`;
 
           for (const recipient of signalRecipients.rows) {
             try {
@@ -894,8 +907,11 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
     // Prüfen ob der Benutzer Admin ist oder der Task zugewiesen ist
     const isAdmin = req.user!.role === 'admin';
 
-    // Hole Task-Informationen
-    const taskInfo = await query('SELECT * FROM tasks WHERE id = $1', [id]);
+    // Hole Task-Informationen mit Event-Name
+    const taskInfo = await query(
+      'SELECT t.*, e.name as event_name FROM tasks t JOIN events e ON t.event_id = e.id WHERE t.id = $1',
+      [id]
+    );
     if (taskInfo.rows.length === 0) {
       return res.status(404).json({ error: 'Aufgabe nicht gefunden' });
     }
@@ -929,8 +945,11 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
       }
     }
 
-    // Hole aktuelle Aufgabe für Benachrichtigungen
-    const current = await query('SELECT * FROM tasks WHERE id = $1', [id]);
+    // Hole aktuelle Aufgabe für Benachrichtigungen mit Event-Name
+    const current = await query(
+      'SELECT t.*, e.name as event_name FROM tasks t JOIN events e ON t.event_id = e.id WHERE t.id = $1',
+      [id]
+    );
 
     if (current.rows.length === 0) {
       return res.status(404).json({ error: 'Aufgabe nicht gefunden' });
@@ -1182,18 +1201,18 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
               description = `\n📋 ${currentTask.description}`;
             }
 
-            // Zeit-Informationen formatieren
+            // Zeit-Informationen formatieren (ohne Sekunden)
             let timeInfo = '';
             if (currentTask.scheduled_time || currentTask.start_time) {
               timeInfo += '\n\n';
-              if (currentTask.scheduled_time) timeInfo += `⏰ Geplant: ${currentTask.scheduled_time} Uhr\n`;
-              if (currentTask.start_time) timeInfo += `🚀 Start: ${currentTask.start_time} Uhr\n`;
-              if (currentTask.end_time) timeInfo += `🏁 Ende: ${currentTask.end_time} Uhr`;
+              if (currentTask.scheduled_time) timeInfo += `⏰ ${formatTime(currentTask.scheduled_time)} Uhr\n`;
+              if (currentTask.start_time) timeInfo += `🚀 ${formatTime(currentTask.start_time)} Uhr\n`;
+              if (currentTask.end_time) timeInfo += `🏁 ${formatTime(currentTask.end_time)} Uhr`;
             } else if (currentTask.end_time) {
-              timeInfo += `\n\n🏁 Ende: ${currentTask.end_time} Uhr`;
+              timeInfo += `\n\n🏁 ${formatTime(currentTask.end_time)} Uhr`;
             }
 
-            const signalMessage = `${notificationTitle}\n\n${currentTask.title}${description}\nStatus: ${statusLabels[status]}${timeInfo}\n\n👤 ${req.user!.name}`;
+            const signalMessage = `${notificationTitle}\n\n${currentTask.title}${description}${timeInfo}\n\n🎪 ${currentTask.event_name}\n👤 ${req.user!.name}`;
 
             for (const recipient of signalRecipients.rows) {
               try {
@@ -1234,8 +1253,11 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req: Auth
   try {
     const { id } = req.params;
 
-    // Hole aktuelle Aufgabe
-    const current = await query('SELECT * FROM tasks WHERE id = $1', [id]);
+    // Hole aktuelle Aufgabe mit Event-Name
+    const current = await query(
+      'SELECT t.*, e.name as event_name FROM tasks t JOIN events e ON t.event_id = e.id WHERE t.id = $1',
+      [id]
+    );
 
     if (current.rows.length === 0) {
       return res.status(404).json({ error: 'Aufgabe nicht gefunden' });
@@ -1402,18 +1424,18 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req: Auth
               descriptionText = `\n📋 ${description}`;
             }
 
-            // Zeit-Informationen formatieren (neue Werte)
+            // Zeit-Informationen formatieren (ohne Sekunden)
             let timeInfo = '';
             if (scheduled_time || start_time) {
               timeInfo += '\n\n';
-              if (scheduled_time) timeInfo += `⏰ Geplant: ${scheduled_time} Uhr\n`;
-              if (start_time) timeInfo += `🚀 Start: ${start_time} Uhr\n`;
-              if (end_time) timeInfo += `🏁 Ende: ${end_time} Uhr`;
+              if (scheduled_time) timeInfo += `⏰ ${formatTime(scheduled_time)} Uhr\n`;
+              if (start_time) timeInfo += `🚀 ${formatTime(start_time)} Uhr\n`;
+              if (end_time) timeInfo += `🏁 ${formatTime(end_time)} Uhr`;
             } else if (end_time) {
-              timeInfo += `\n\n🏁 Ende: ${end_time} Uhr`;
+              timeInfo += `\n\n🏁 ${formatTime(end_time)} Uhr`;
             }
 
-            const signalMessage = `${notificationTitle}\n\n${title}${descriptionText}${timeInfo}\n\n👤 Geändert von: ${req.user!.name}`;
+            const signalMessage = `${notificationTitle}\n\n${title}${descriptionText}${timeInfo}\n\n🎪 ${currentTask.event_name}\n👤 ${req.user!.name}`;
 
             for (const recipient of signalRecipients.rows) {
               try {

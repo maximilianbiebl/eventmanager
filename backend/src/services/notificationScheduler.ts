@@ -4,6 +4,13 @@ import webpush from 'web-push';
 import config from '../config';
 import { signalService } from './signal';
 
+// Helper function to format time without seconds (hh:mm)
+function formatTime(time: string | null): string {
+  if (!time) return '';
+  // Remove seconds from time string (e.g., "14:30:00" -> "14:30")
+  return time.substring(0, 5);
+}
+
 // Jeden Minute prüfen ob Benachrichtigungen gesendet werden müssen
 export function startNotificationScheduler() {
   console.log('Starting notification scheduler...');
@@ -292,18 +299,24 @@ async function sendTaskNotification(userId: number, task: any, instance: any, re
             const fromNumber = linkedTeamleiter.signal_account_number;
             const toNumber = user.signal_phone_number;
 
-            // Zeit-Informationen formatieren
+            // Beschreibung hinzufügen
+            let description = '';
+            if (task.description) {
+              description = `\n📋 ${task.description}`;
+            }
+
+            // Zeit-Informationen formatieren (ohne Sekunden)
             let timeInfo = '';
             if (task.scheduled_time || task.start_time) {
               timeInfo += '\n\n';
-              if (task.scheduled_time) timeInfo += `⏰ Geplant: ${task.scheduled_time} Uhr\n`;
-              if (task.start_time) timeInfo += `🚀 Start: ${task.start_time} Uhr\n`;
-              if (task.end_time) timeInfo += `🏁 Ende: ${task.end_time} Uhr`;
+              if (task.scheduled_time) timeInfo += `⏰ ${formatTime(task.scheduled_time)} Uhr\n`;
+              if (task.start_time) timeInfo += `🚀 ${formatTime(task.start_time)} Uhr\n`;
+              if (task.end_time) timeInfo += `🏁 ${formatTime(task.end_time)} Uhr`;
             } else if (task.end_time) {
-              timeInfo += `\n\n🏁 Ende: ${task.end_time} Uhr`;
+              timeInfo += `\n\n🏁 ${formatTime(task.end_time)} Uhr`;
             }
 
-            const signalMessage = `${title}\n\n${task.title}${timeInfo}\n\n🎪 ${instance.event_name}`;
+            const signalMessage = `${title}\n\n${task.title}${description}${timeInfo}\n\n🎪 ${instance.event_name}`;
 
             const signalSent = await signalService.sendMessage(fromNumber, toNumber, signalMessage);
 
@@ -422,18 +435,24 @@ async function sendStartTimeNotification(userId: number, task: any, instance: an
             const fromNumber = linkedTeamleiter.signal_account_number;
             const toNumber = user.signal_phone_number;
 
-            // Zeit-Informationen formatieren
+            // Beschreibung hinzufügen
+            let description = '';
+            if (task.description) {
+              description = `\n📋 ${task.description}`;
+            }
+
+            // Zeit-Informationen formatieren (ohne Sekunden)
             let timeInfo = '';
             if (task.scheduled_time || task.start_time) {
               timeInfo += '\n\n';
-              if (task.scheduled_time) timeInfo += `⏰ Geplant: ${task.scheduled_time} Uhr\n`;
-              if (task.start_time) timeInfo += `🚀 Start: ${task.start_time} Uhr\n`;
-              if (task.end_time) timeInfo += `🏁 Ende: ${task.end_time} Uhr`;
+              if (task.scheduled_time) timeInfo += `⏰ ${formatTime(task.scheduled_time)} Uhr\n`;
+              if (task.start_time) timeInfo += `🚀 ${formatTime(task.start_time)} Uhr\n`;
+              if (task.end_time) timeInfo += `🏁 ${formatTime(task.end_time)} Uhr`;
             } else if (task.end_time) {
-              timeInfo += `\n\n🏁 Ende: ${task.end_time} Uhr`;
+              timeInfo += `\n\n🏁 ${formatTime(task.end_time)} Uhr`;
             }
 
-            const signalMessage = `${title}\n\n${task.title}${timeInfo}\n\n🎪 ${instance.event_name}`;
+            const signalMessage = `${title}\n\n${task.title}${description}${timeInfo}\n\n🎪 ${instance.event_name}`;
 
             const signalSent = await signalService.sendMessage(fromNumber, toNumber, signalMessage);
 
