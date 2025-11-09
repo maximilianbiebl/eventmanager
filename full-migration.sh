@@ -86,18 +86,27 @@ if ! docker-compose ps backend | grep -q "Up"; then
 fi
 
 # Erstelle Admin im Container
-docker-compose exec -T backend node /app/dist/database/create-admin.js "$username" "$password" 2>/dev/null || {
-  echo "   ℹ️  Script nicht im Container, erstelle direkt in DB..."
+docker-compose exec -T backend node /app/src/database/create-admin.js "$username" "$password" 2>/dev/null || {
+  echo "   ⚠️  create-admin.js nicht verfügbar, verwende Backend-Container zum Hashen..."
 
-  # Fallback: Direkt in Datenbank mit vorgeneriertem Hash
-  # Hash für "admin" mit bcrypt rounds=10
-  HASH='$2b$10$XQHb7A1HLd.FvJPKh9Z7JOqKp0qYvGn6mGG4Vh4qhC4VhC4Vh4qhm'
+  # Generiere bcrypt-Hash im Backend-Container
+  echo "   Generiere bcrypt-Hash..."
+  HASH=$(docker-compose exec -T backend node -e "const bcrypt = require('bcrypt'); bcrypt.hash('$password', 10).then(hash => console.log(hash));" | tr -d '[:space:]')
+
+  if [ -z "$HASH" ] || [ ${#HASH} -ne 60 ]; then
+    echo "   ❌ Fehler beim Generieren des Hashes!"
+    exit 1
+  fi
+
+  echo "   ✅ Hash generiert"
 
   docker-compose exec -T postgres psql -U eventmanager -d eventmanager -c "
     INSERT INTO users (name, password_hash, role)
     VALUES ('$username', '$HASH', 'admin')
     ON CONFLICT DO NOTHING;
-  "
+  " > /dev/null
+
+  echo "   ✅ Admin-Benutzer erstellt"
 }
 
 echo ""
