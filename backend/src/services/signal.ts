@@ -33,7 +33,8 @@ class SignalService {
     if (!this.enabled) return false;
 
     try {
-      const response = await axios.get(`${this.apiUrl}/v1/health`, { timeout: 5000 });
+      // /v1/health existiert nicht, verwende /v1/about stattdessen
+      const response = await axios.get(`${this.apiUrl}/v1/about`, { timeout: 5000 });
       return response.status === 200;
     } catch (error) {
       console.error('Signal-CLI health check failed:', error instanceof Error ? error.message : 'Unknown error');
