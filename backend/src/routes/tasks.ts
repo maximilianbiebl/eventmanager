@@ -550,15 +550,15 @@ router.put('/complete/:assignmentId', authMiddleware, async (req: AuthRequest, r
               description = `\n📋 ${task.description}`;
             }
 
-            // Zeit-Informationen formatieren (ohne Sekunden)
+            // Zeit-Informationen formatieren (ohne Sekunden und Icons)
             let timeInfo = '';
             if (task.scheduled_time || task.start_time) {
               timeInfo += '\n\n';
-              if (task.scheduled_time) timeInfo += `⏰ ${formatTime(task.scheduled_time)} Uhr\n`;
-              if (task.start_time) timeInfo += `🚀 ${formatTime(task.start_time)} Uhr\n`;
-              if (task.end_time) timeInfo += `🏁 ${formatTime(task.end_time)} Uhr`;
+              if (task.scheduled_time) timeInfo += `Geplant: ${formatTime(task.scheduled_time)} Uhr\n`;
+              if (task.start_time) timeInfo += `Start: ${formatTime(task.start_time)} Uhr\n`;
+              if (task.end_time) timeInfo += `Ende: ${formatTime(task.end_time)} Uhr`;
             } else if (task.end_time) {
-              timeInfo += `\n\n🏁 ${formatTime(task.end_time)} Uhr`;
+              timeInfo += `\n\nEnde: ${formatTime(task.end_time)} Uhr`;
             }
 
             const signalMessage = `${notificationTitle}\n\n${task.title}${description}${timeInfo}\n\n🎪 ${task.event_name}\n👤 ${req.user!.name}`;
@@ -1201,15 +1201,15 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
               description = `\n📋 ${currentTask.description}`;
             }
 
-            // Zeit-Informationen formatieren (ohne Sekunden)
+            // Zeit-Informationen formatieren (ohne Sekunden und Icons)
             let timeInfo = '';
             if (currentTask.scheduled_time || currentTask.start_time) {
               timeInfo += '\n\n';
-              if (currentTask.scheduled_time) timeInfo += `⏰ ${formatTime(currentTask.scheduled_time)} Uhr\n`;
-              if (currentTask.start_time) timeInfo += `🚀 ${formatTime(currentTask.start_time)} Uhr\n`;
-              if (currentTask.end_time) timeInfo += `🏁 ${formatTime(currentTask.end_time)} Uhr`;
+              if (currentTask.scheduled_time) timeInfo += `Geplant: ${formatTime(currentTask.scheduled_time)} Uhr\n`;
+              if (currentTask.start_time) timeInfo += `Start: ${formatTime(currentTask.start_time)} Uhr\n`;
+              if (currentTask.end_time) timeInfo += `Ende: ${formatTime(currentTask.end_time)} Uhr`;
             } else if (currentTask.end_time) {
-              timeInfo += `\n\n🏁 ${formatTime(currentTask.end_time)} Uhr`;
+              timeInfo += `\n\nEnde: ${formatTime(currentTask.end_time)} Uhr`;
             }
 
             const signalMessage = `${notificationTitle}\n\n${currentTask.title}${description}${timeInfo}\n\n🎪 ${currentTask.event_name}\n👤 ${req.user!.name}`;
@@ -1424,15 +1424,15 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req: Auth
               descriptionText = `\n📋 ${description}`;
             }
 
-            // Zeit-Informationen formatieren (ohne Sekunden)
+            // Zeit-Informationen formatieren (ohne Sekunden und Icons)
             let timeInfo = '';
             if (scheduled_time || start_time) {
               timeInfo += '\n\n';
-              if (scheduled_time) timeInfo += `⏰ ${formatTime(scheduled_time)} Uhr\n`;
-              if (start_time) timeInfo += `🚀 ${formatTime(start_time)} Uhr\n`;
-              if (end_time) timeInfo += `🏁 ${formatTime(end_time)} Uhr`;
+              if (scheduled_time) timeInfo += `Geplant: ${formatTime(scheduled_time)} Uhr\n`;
+              if (start_time) timeInfo += `Start: ${formatTime(start_time)} Uhr\n`;
+              if (end_time) timeInfo += `Ende: ${formatTime(end_time)} Uhr`;
             } else if (end_time) {
-              timeInfo += `\n\n🏁 ${formatTime(end_time)} Uhr`;
+              timeInfo += `\n\nEnde: ${formatTime(end_time)} Uhr`;
             }
 
             const signalMessage = `${notificationTitle}\n\n${title}${descriptionText}${timeInfo}\n\n🎪 ${currentTask.event_name}\n👤 ${req.user!.name}`;

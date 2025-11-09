@@ -305,15 +305,15 @@ async function sendTaskNotification(userId: number, task: any, instance: any, re
               description = `\n📋 ${task.description}`;
             }
 
-            // Zeit-Informationen formatieren (ohne Sekunden)
+            // Zeit-Informationen formatieren (ohne Sekunden und Icons)
             let timeInfo = '';
             if (task.scheduled_time || task.start_time) {
               timeInfo += '\n\n';
-              if (task.scheduled_time) timeInfo += `⏰ ${formatTime(task.scheduled_time)} Uhr\n`;
-              if (task.start_time) timeInfo += `🚀 ${formatTime(task.start_time)} Uhr\n`;
-              if (task.end_time) timeInfo += `🏁 ${formatTime(task.end_time)} Uhr`;
+              if (task.scheduled_time) timeInfo += `Geplant: ${formatTime(task.scheduled_time)} Uhr\n`;
+              if (task.start_time) timeInfo += `Start: ${formatTime(task.start_time)} Uhr\n`;
+              if (task.end_time) timeInfo += `Ende: ${formatTime(task.end_time)} Uhr`;
             } else if (task.end_time) {
-              timeInfo += `\n\n🏁 ${formatTime(task.end_time)} Uhr`;
+              timeInfo += `\n\nEnde: ${formatTime(task.end_time)} Uhr`;
             }
 
             const signalMessage = `${title}\n\n${task.title}${description}${timeInfo}\n\n🎪 ${instance.event_name}`;
@@ -441,15 +441,15 @@ async function sendStartTimeNotification(userId: number, task: any, instance: an
               description = `\n📋 ${task.description}`;
             }
 
-            // Zeit-Informationen formatieren (ohne Sekunden)
+            // Zeit-Informationen formatieren (ohne Sekunden und Icons)
             let timeInfo = '';
             if (task.scheduled_time || task.start_time) {
               timeInfo += '\n\n';
-              if (task.scheduled_time) timeInfo += `⏰ ${formatTime(task.scheduled_time)} Uhr\n`;
-              if (task.start_time) timeInfo += `🚀 ${formatTime(task.start_time)} Uhr\n`;
-              if (task.end_time) timeInfo += `🏁 ${formatTime(task.end_time)} Uhr`;
+              if (task.scheduled_time) timeInfo += `Geplant: ${formatTime(task.scheduled_time)} Uhr\n`;
+              if (task.start_time) timeInfo += `Start: ${formatTime(task.start_time)} Uhr\n`;
+              if (task.end_time) timeInfo += `Ende: ${formatTime(task.end_time)} Uhr`;
             } else if (task.end_time) {
-              timeInfo += `\n\n🏁 ${formatTime(task.end_time)} Uhr`;
+              timeInfo += `\n\nEnde: ${formatTime(task.end_time)} Uhr`;
             }
 
             const signalMessage = `${title}\n\n${task.title}${description}${timeInfo}\n\n🎪 ${instance.event_name}`;
