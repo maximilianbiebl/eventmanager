@@ -467,8 +467,8 @@ router.put('/complete/:assignmentId', authMiddleware, async (req: AuthRequest, r
 
         if (taskInfo.rows.length > 0) {
           const task = taskInfo.rows[0];
-          const notificationTitle = 'Aufgabe erledigt';
-          const notificationBody = `${req.user!.name} hat "${task.title}" als erledigt markiert`;
+          const notificationTitle = 'Status wurde zu "Erledigt" geändert';
+          const notificationBody = `${req.user!.name}: "${task.title}"`;
 
           // Finde alle Teamleiter des Events die Benachrichtigungen aktiviert haben
           const teamleiterResult = await query(
@@ -534,6 +534,12 @@ router.put('/complete/:assignmentId', authMiddleware, async (req: AuthRequest, r
               [teamleiterIds]
             );
 
+            // Beschreibung hinzufügen wenn vorhanden
+            let description = '';
+            if (task.description) {
+              description = `\n📋 ${task.description}`;
+            }
+
             // Zeit-Informationen
             let timeInfo = '';
             if (task.scheduled_time || task.start_time) {
@@ -545,7 +551,7 @@ router.put('/complete/:assignmentId', authMiddleware, async (req: AuthRequest, r
               timeInfo += `\n\n🏁 Ende: ${task.end_time} Uhr`;
             }
 
-            const signalMessage = `${notificationTitle}\n\n${task.title}\nStatus: Erledigt${timeInfo}\n\n👤 ${req.user!.name}`;
+            const signalMessage = `${notificationTitle}\n\n${task.title}${description}\nStatus: Erledigt${timeInfo}\n\n👤 ${req.user!.name}`;
 
             for (const recipient of signalRecipients.rows) {
               try {
@@ -612,8 +618,8 @@ router.put('/:taskId/complete-public', authMiddleware, async (req: AuthRequest, 
     // Benachrichtige Teamleiter über Fertigstellung (nur wenn staff)
     if (req.user!.role === 'staff') {
       try {
-        const notificationTitle = 'Öffentliche Aufgabe erledigt';
-        const notificationBody = `${req.user!.name} hat "${task.title}" als erledigt markiert`;
+        const notificationTitle = 'Status wurde zu "Erledigt" geändert';
+        const notificationBody = `${req.user!.name}: "${task.title}"`;
 
         // Finde alle Teamleiter des Events die Benachrichtigungen aktiviert haben
         const teamleiterResult = await query(
@@ -679,6 +685,12 @@ router.put('/:taskId/complete-public', authMiddleware, async (req: AuthRequest, 
             [teamleiterIds]
           );
 
+          // Beschreibung hinzufügen wenn vorhanden
+          let description = '';
+          if (task.description) {
+            description = `\n📋 ${task.description}`;
+          }
+
           // Zeit-Informationen
           let timeInfo = '';
           if (task.scheduled_time || task.start_time) {
@@ -690,7 +702,7 @@ router.put('/:taskId/complete-public', authMiddleware, async (req: AuthRequest, 
             timeInfo += `\n\n🏁 Ende: ${task.end_time} Uhr`;
           }
 
-          const signalMessage = `${notificationTitle}\n\n${task.title}\nStatus: Erledigt${timeInfo}\n\n👤 ${req.user!.name}`;
+          const signalMessage = `${notificationTitle}\n\n${task.title}${description}\nStatus: Erledigt${timeInfo}\n\n👤 ${req.user!.name}`;
 
           for (const recipient of signalRecipients.rows) {
             try {
@@ -1093,8 +1105,8 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
           overdue: 'Überfällig',
         };
 
-        const notificationTitle = 'Aufgaben-Status geändert';
-        const notificationBody = `${req.user!.name} hat "${currentTask.title}" auf "${statusLabels[status]}" gesetzt`;
+        const notificationTitle = `Status wurde zu "${statusLabels[status]}" geändert`;
+        const notificationBody = `${req.user!.name}: "${currentTask.title}"`;
 
         // Finde alle Teamleiter des Events die Benachrichtigungen aktiviert haben
         const teamleiterResult = await query(
@@ -1105,6 +1117,8 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
            ORDER BY et.is_primary DESC, et.id ASC`,
           [currentTask.event_id]
         );
+
+        console.log(`[Teamleiter notification] Found ${teamleiterResult.rows.length} teamleiter for event ${currentTask.event_id}`);
 
         if (teamleiterResult.rows.length > 0) {
           const teamleiterIds = teamleiterResult.rows.map(tl => tl.id);
@@ -1162,6 +1176,12 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
               [teamleiterIds]
             );
 
+            // Beschreibung hinzufügen wenn vorhanden
+            let description = '';
+            if (currentTask.description) {
+              description = `\n📋 ${currentTask.description}`;
+            }
+
             // Zeit-Informationen formatieren
             let timeInfo = '';
             if (currentTask.scheduled_time || currentTask.start_time) {
@@ -1173,7 +1193,7 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
               timeInfo += `\n\n🏁 Ende: ${currentTask.end_time} Uhr`;
             }
 
-            const signalMessage = `${notificationTitle}\n\n${currentTask.title}\nStatus: ${statusLabels[status]}${timeInfo}\n\n👤 ${req.user!.name}`;
+            const signalMessage = `${notificationTitle}\n\n${currentTask.title}${description}\nStatus: ${statusLabels[status]}${timeInfo}\n\n👤 ${req.user!.name}`;
 
             for (const recipient of signalRecipients.rows) {
               try {

@@ -68,6 +68,7 @@ async function sendTaskReminders() {
 
     for (const task of tasksResult.rows) {
       const reminderMinutes = task.reminder_minutes || 15;
+      console.log(`[Notification Scheduler] Task "${task.title}" - reminder_minutes: ${reminderMinutes}, scheduled_time: ${task.scheduled_time}, start_time: ${task.start_time}`);
 
       // Erinnerung für scheduled_time
       if (task.scheduled_time) {
@@ -77,6 +78,7 @@ async function sendTaskReminders() {
 
         const reminderTime = new Date(taskTime.getTime() - reminderMinutes * 60 * 1000);
         const timeDiff = reminderTime.getTime() - now.getTime();
+        console.log(`[Notification Scheduler] scheduled_time check - taskTime: ${taskTime.toLocaleTimeString()}, reminderTime: ${reminderTime.toLocaleTimeString()}, timeDiff: ${Math.floor(timeDiff/1000)}s`);
 
         if (timeDiff > 0 && timeDiff < 60000) {
           console.log(`[Notification Scheduler] Sending scheduled_time reminder for task "${task.title}" to user ${task.user_id}`);
@@ -180,6 +182,8 @@ async function sendTaskReminders() {
 
 async function sendTaskNotification(userId: number, task: any, instance: any, reminderMinutes: number, timeType: string = 'scheduled_time') {
   try {
+    console.log(`[sendTaskNotification] Called for user ${userId}, task ${task.id}, reminder ${reminderMinutes} minutes, type ${timeType}`);
+
     // Hole User-Settings für Web Push und Signal
     const userResult = await query(
       `SELECT u.web_push_enabled, u.signal_enabled, u.signal_phone_number, u.created_by
@@ -194,6 +198,7 @@ async function sendTaskNotification(userId: number, task: any, instance: any, re
     }
 
     const user = userResult.rows[0];
+    console.log(`[sendTaskNotification] User settings - web_push: ${user.web_push_enabled}, signal: ${user.signal_enabled}`);
 
     const title = timeType === 'start_time'
       ? 'Erinnerung: Aufgabe startet bald'
