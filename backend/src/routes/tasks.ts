@@ -657,34 +657,10 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
       console.log(`Reset completed status for all assignments of task ${id}`);
     }
 
-    // Wenn Status geändert wurde, sende Push-Benachrichtigungen (nur für Admin-Änderungen)
+    // Wenn Status geändert wurde, sende Benachrichtigungen (nur für Admin-Änderungen)
     if (isAdmin && status !== currentTask.status) {
       try {
-        let recipients;
-
-        // Bei öffentlichen Aufgaben: Alle Mitarbeiter im Event-Pool benachrichtigen
-        if (currentTask.is_public) {
-          recipients = await query(
-            `SELECT DISTINCT u.id, ps.endpoint, ps.keys_p256dh, ps.keys_auth
-             FROM users u
-             JOIN push_subscriptions ps ON ps.user_id = u.id
-             JOIN event_staff es ON es.user_id = u.id
-             WHERE es.event_id = $1 AND u.push_enabled = true AND u.role = 'staff'`,
-            [currentTask.event_id]
-          );
-        } else {
-          // Bei privaten Aufgaben: Nur zugewiesene Mitarbeiter benachrichtigen
-          recipients = await query(
-            `SELECT DISTINCT u.id, ps.endpoint, ps.keys_p256dh, ps.keys_auth
-             FROM task_assignments ta
-             JOIN users u ON ta.user_id = u.id
-             JOIN push_subscriptions ps ON ps.user_id = u.id
-             WHERE ta.task_id = $1 AND u.push_enabled = true`,
-            [id]
-          );
-        }
-
-        const webpush = require('web-push');
+        // Status-Labels für Benachrichtigungen
         const statusLabels: { [key: string]: string } = {
           not_started: 'Nicht gestartet',
           in_progress: 'In Arbeit',
@@ -692,16 +668,54 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
           overdue: 'Überfällig',
         };
 
-        const payload = JSON.stringify({
-          title: currentTask.is_public ? 'Öffentliche Aufgabe aktualisiert' : 'Aufgaben-Status geändert',
-          body: `"${currentTask.title}" ist jetzt: ${statusLabels[status] || status}`,
+        const notificationTitle = currentTask.is_public ? 'Öffentliche Aufgabe aktualisiert' : 'Aufgaben-Status geändert';
+        const notificationBody = `"${currentTask.title}" ist jetzt: ${statusLabels[status] || status}`;
+
+        let userIds: number[] = [];
+
+        // Bestimme welche User benachrichtigt werden sollen
+        if (currentTask.is_public) {
+          // Bei öffentlichen Aufgaben: Alle Mitarbeiter im Event-Pool
+          const poolUsers = await query(
+            `SELECT DISTINCT u.id
+             FROM users u
+             JOIN event_staff es ON es.user_id = u.id
+             WHERE es.event_id = $1 AND u.role = 'staff'`,
+            [currentTask.event_id]
+          );
+          userIds = poolUsers.rows.map(u => u.id);
+        } else {
+          // Bei privaten Aufgaben: Nur zugewiesene Mitarbeiter
+          const assignedUsers = await query(
+            `SELECT DISTINCT u.id
+             FROM task_assignments ta
+             JOIN users u ON ta.user_id = u.id
+             WHERE ta.task_id = $1`,
+            [id]
+          );
+          userIds = assignedUsers.rows.map(u => u.id);
+        }
+
+        // 1. Web Push Benachrichtigungen
+        const webpush = require('web-push');
+        const webPushRecipients = await query(
+          `SELECT DISTINCT u.id, ps.endpoint, ps.keys_p256dh, ps.keys_auth
+           FROM users u
+           JOIN push_subscriptions ps ON ps.user_id = u.id
+           WHERE u.id = ANY($1) AND u.web_push_enabled != false`,
+          [userIds]
+        );
+
+        const webPushPayload = JSON.stringify({
+          title: notificationTitle,
+          body: notificationBody,
           icon: '/icon.png',
           badge: '/badge.png',
           vibrate: [200, 100, 200],
           requireInteraction: status === 'overdue',
         });
 
-        for (const sub of recipients.rows) {
+        for (const sub of webPushRecipients.rows) {
           try {
             await webpush.sendNotification(
               {
@@ -711,19 +725,65 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
                   auth: sub.keys_auth,
                 },
               },
-              payload
+              webPushPayload
             );
-            console.log(`Status change notification sent to user ${sub.id} for task ${id}`);
+            console.log(`Status change Web Push sent to user ${sub.id} for task ${id}`);
           } catch (pushError: any) {
             console.error('Send push notification error:', pushError);
-            // Subscription entfernen wenn ungültig
             if (pushError.statusCode === 410) {
               await query('DELETE FROM push_subscriptions WHERE endpoint = $1', [sub.endpoint]);
             }
           }
         }
+
+        // 2. Signal Benachrichtigungen
+        const { signalService } = require('../services/signal');
+
+        // Finde Teamleiter mit Signal-Account
+        const teamleiterResult = await query(
+          `SELECT u.id, u.signal_account_number, u.signal_linked, et.is_primary
+           FROM event_teamleiter et
+           JOIN users u ON et.user_id = u.id
+           WHERE et.event_id = $1
+           ORDER BY et.is_primary DESC, et.id ASC`,
+          [currentTask.event_id]
+        );
+
+        if (teamleiterResult.rows.length > 0) {
+          const linkedTeamleiter = teamleiterResult.rows.find(tl => tl.signal_linked);
+
+          if (linkedTeamleiter) {
+            // Hole Signal-aktivierte User
+            const signalRecipients = await query(
+              `SELECT u.id, u.signal_phone_number
+               FROM users u
+               WHERE u.id = ANY($1) AND u.signal_enabled = true AND u.signal_phone_number IS NOT NULL`,
+              [userIds]
+            );
+
+            const signalMessage = `${notificationTitle}\n\n${notificationBody}\n\n👤 Geändert von: ${req.user!.name}`;
+
+            for (const recipient of signalRecipients.rows) {
+              try {
+                const signalSent = await signalService.sendMessage(
+                  linkedTeamleiter.signal_account_number,
+                  recipient.signal_phone_number,
+                  signalMessage
+                );
+
+                if (signalSent) {
+                  console.log(`Status change Signal sent to user ${recipient.id} for task ${id}`);
+                }
+              } catch (signalError) {
+                console.error('Signal notification error:', signalError);
+              }
+            }
+          } else {
+            console.log(`No linked Signal account found for event ${currentTask.event_id}`);
+          }
+        }
       } catch (notifError) {
-        console.error('Push notification error:', notifError);
+        console.error('Notification error:', notifError);
       }
     }
 
