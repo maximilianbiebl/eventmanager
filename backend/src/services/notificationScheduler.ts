@@ -110,9 +110,10 @@ async function sendTaskReminders() {
 
         const reminderTime = new Date(taskTime.getTime() - reminderMinutes * 60 * 1000);
         const timeDiff = reminderTime.getTime() - now.getTime();
+        console.log(`[Notification Scheduler] start_time check - taskTime: ${taskTime.toLocaleTimeString()}, reminderTime: ${reminderTime.toLocaleTimeString()}, timeDiff: ${Math.floor(timeDiff/1000)}s`);
 
         if (timeDiff > 0 && timeDiff < 60000) {
-          console.log(`[Notification Scheduler] Sending start_time reminder (${reminderMinutes} min before) for task "${task.title}" to user ${task.user_id}`);
+          console.log(`[Notification Scheduler] ✓ Sending start_time reminder (${reminderMinutes} min before) for task "${task.title}" to user ${task.user_id}`);
 
           const alreadySent = await query(
             `SELECT * FROM notifications_log
@@ -129,7 +130,11 @@ async function sendTaskReminders() {
                VALUES ($1, $2, $3, 'start_reminder')`,
               [task.user_id, task.id, instance.id]
             );
+          } else {
+            console.log(`[Notification Scheduler] Already sent start_time reminder for task ${task.id}`);
           }
+        } else {
+          console.log(`[Notification Scheduler] ✗ Skipping start_time reminder - timeDiff ${Math.floor(timeDiff/1000)}s is ${timeDiff <= 0 ? 'in the past' : 'too far in future'}`);
         }
       }
 
