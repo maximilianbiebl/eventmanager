@@ -167,7 +167,7 @@ router.get('/status', authMiddleware, teamleiterOrAdminMiddleware, async (req: A
 router.put('/settings', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id;
-    const { signal_enabled, signal_phone_number, web_push_enabled } = req.body;
+    const { signal_enabled, signal_phone_number, web_push_enabled, teamleiter_status_notifications } = req.body;
 
     // Validiere Telefonnummer wenn Signal aktiviert
     if (signal_enabled && !signal_phone_number) {
@@ -178,9 +178,10 @@ router.put('/settings', authMiddleware, async (req: AuthRequest, res) => {
       `UPDATE users
        SET signal_enabled = $1,
            signal_phone_number = $2,
-           web_push_enabled = $3
-       WHERE id = $4`,
-      [signal_enabled || false, signal_phone_number || null, web_push_enabled !== false, userId]
+           web_push_enabled = $3,
+           teamleiter_status_notifications = $4
+       WHERE id = $5`,
+      [signal_enabled || false, signal_phone_number || null, web_push_enabled !== false, teamleiter_status_notifications !== false, userId]
     );
 
     res.json({ message: 'Benachrichtigungs-Einstellungen aktualisiert' });
@@ -198,7 +199,7 @@ router.get('/settings', authMiddleware, async (req: AuthRequest, res) => {
     const userId = req.user!.id;
 
     const userResult = await query(
-      'SELECT signal_enabled, signal_phone_number, web_push_enabled FROM users WHERE id = $1',
+      'SELECT signal_enabled, signal_phone_number, web_push_enabled, teamleiter_status_notifications FROM users WHERE id = $1',
       [userId]
     );
 
@@ -209,7 +210,8 @@ router.get('/settings', authMiddleware, async (req: AuthRequest, res) => {
     res.json({
       signal_enabled: userResult.rows[0].signal_enabled || false,
       signal_phone_number: userResult.rows[0].signal_phone_number || '',
-      web_push_enabled: userResult.rows[0].web_push_enabled !== false
+      web_push_enabled: userResult.rows[0].web_push_enabled !== false,
+      teamleiter_status_notifications: userResult.rows[0].teamleiter_status_notifications !== false
     });
   } catch (error: any) {
     console.error('Signal settings get error:', error);

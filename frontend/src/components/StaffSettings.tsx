@@ -13,6 +13,7 @@ interface Settings {
   signal_enabled?: boolean;
   signal_phone_number?: string;
   web_push_enabled?: boolean;
+  teamleiter_status_notifications?: boolean;
 }
 
 interface Props {
@@ -52,6 +53,7 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
         signal_enabled: signalSettings.signal_enabled,
         signal_phone_number: signalSettings.signal_phone_number,
         web_push_enabled: signalSettings.web_push_enabled,
+        teamleiter_status_notifications: signalSettings.teamleiter_status_notifications !== false,
       });
     } catch (error) {
       console.error('Load settings error:', error);
@@ -85,6 +87,7 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
           signal_enabled: settings.signal_enabled || false,
           signal_phone_number: settings.signal_phone_number || '',
           web_push_enabled: settings.web_push_enabled !== false,
+          teamleiter_status_notifications: settings.teamleiter_status_notifications !== false,
         }),
       ]);
       setSuccess(true);
@@ -256,6 +259,24 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
                 (Browser und Signal)
               </p>
             </div>
+
+            {isTeamleiterOrAdmin && (
+              <div style={styles.formGroup}>
+                <label style={styles.checkboxLabel}>
+                  <input
+                    type="checkbox"
+                    checked={settings.teamleiter_status_notifications !== false}
+                    onChange={(e) => setSettings({ ...settings, teamleiter_status_notifications: e.target.checked })}
+                    style={styles.checkbox}
+                  />
+                  <span>📊 Status-Änderungen von Mitarbeitern</span>
+                </label>
+                <p style={styles.hint}>
+                  Du erhältst Benachrichtigungen wenn Mitarbeiter Aufgaben-Status ändern (In Arbeit, Erledigt, Überfällig)
+                  (Browser und Signal)
+                </p>
+              </div>
+            )}
 
             <div style={{ ...styles.formGroup, borderTop: '1px solid #e5e7eb', paddingTop: '1rem', marginTop: '1.5rem' }}>
               <label style={styles.checkboxLabel}>

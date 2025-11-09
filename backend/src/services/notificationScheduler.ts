@@ -199,9 +199,15 @@ async function sendTaskNotification(userId: number, task: any, instance: any, re
       ? 'Erinnerung: Aufgabe startet bald'
       : 'Aufgaben-Erinnerung';
 
+    // Zeit-Informationen für body formatieren
+    let timeInfo = '';
+    if (task.scheduled_time) timeInfo += `⏰ ${task.scheduled_time} Uhr `;
+    if (task.start_time) timeInfo += `🚀 ${task.start_time} Uhr `;
+    if (task.end_time) timeInfo += `🏁 ${task.end_time} Uhr`;
+
     const body = timeType === 'start_time'
-      ? `Aufgabe startet in ${reminderMinutes} Minuten: ${task.title}`
-      : `In ${reminderMinutes} Minuten: ${task.title}`;
+      ? `Aufgabe startet in ${reminderMinutes} Minuten: ${task.title}${timeInfo ? '\n' + timeInfo : ''}`
+      : `In ${reminderMinutes} Minuten: ${task.title}${timeInfo ? '\n' + timeInfo : ''}`;
 
     // 1. Web Push Notifications (wenn aktiviert)
     if (user.web_push_enabled !== false) {

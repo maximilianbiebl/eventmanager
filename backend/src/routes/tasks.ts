@@ -459,6 +459,115 @@ router.put('/complete/:assignmentId', authMiddleware, async (req: AuthRequest, r
       ['completed', assignment.rows[0].task_id]
     );
 
+    // Benachrichtige Teamleiter über Fertigstellung
+    try {
+      const taskId = assignment.rows[0].task_id;
+      const taskInfo = await query('SELECT * FROM tasks WHERE id = $1', [taskId]);
+
+      if (taskInfo.rows.length > 0) {
+        const task = taskInfo.rows[0];
+        const notificationTitle = 'Aufgabe erledigt';
+        const notificationBody = `${req.user!.name} hat "${task.title}" als erledigt markiert`;
+
+        // Finde alle Teamleiter des Events die Benachrichtigungen aktiviert haben
+        const teamleiterResult = await query(
+          `SELECT DISTINCT u.id, u.name, u.signal_account_number, u.signal_linked, u.teamleiter_status_notifications
+           FROM event_teamleiter et
+           JOIN users u ON et.user_id = u.id
+           WHERE et.event_id = $1 AND (u.teamleiter_status_notifications = true OR u.teamleiter_status_notifications IS NULL)
+           ORDER BY et.is_primary DESC, et.id ASC`,
+          [task.event_id]
+        );
+
+        if (teamleiterResult.rows.length > 0) {
+          const teamleiterIds = teamleiterResult.rows.map(tl => tl.id);
+
+          // 1. Web Push Benachrichtigungen an Teamleiter
+          const webpush = require('web-push');
+          const webPushRecipients = await query(
+            `SELECT DISTINCT u.id, ps.endpoint, ps.keys_p256dh, ps.keys_auth
+             FROM users u
+             JOIN push_subscriptions ps ON ps.user_id = u.id
+             WHERE u.id = ANY($1) AND u.web_push_enabled != false`,
+            [teamleiterIds]
+          );
+
+          const webPushPayload = JSON.stringify({
+            title: notificationTitle,
+            body: notificationBody,
+            icon: '/icon.png',
+            badge: '/badge.png',
+            vibrate: [200, 100, 200],
+          });
+
+          for (const sub of webPushRecipients.rows) {
+            try {
+              await webpush.sendNotification(
+                {
+                  endpoint: sub.endpoint,
+                  keys: {
+                    p256dh: sub.keys_p256dh,
+                    auth: sub.keys_auth,
+                  },
+                },
+                webPushPayload
+              );
+              console.log(`Task complete Web Push sent to teamleiter ${sub.id}`);
+            } catch (pushError: any) {
+              console.error('Send push notification error:', pushError);
+              if (pushError.statusCode === 410) {
+                await query('DELETE FROM push_subscriptions WHERE endpoint = $1', [sub.endpoint]);
+              }
+            }
+          }
+
+          // 2. Signal Benachrichtigungen an Teamleiter
+          const { signalService } = require('../services/signal');
+          const linkedTeamleiter = teamleiterResult.rows.find(tl => tl.signal_linked);
+
+          if (linkedTeamleiter) {
+            const signalRecipients = await query(
+              `SELECT u.id, u.signal_phone_number
+               FROM users u
+               WHERE u.id = ANY($1) AND u.signal_enabled = true AND u.signal_phone_number IS NOT NULL`,
+              [teamleiterIds]
+            );
+
+            // Zeit-Informationen
+            let timeInfo = '';
+            if (task.scheduled_time || task.start_time) {
+              timeInfo += '\n\n';
+              if (task.scheduled_time) timeInfo += `⏰ Geplant: ${task.scheduled_time} Uhr\n`;
+              if (task.start_time) timeInfo += `🚀 Start: ${task.start_time} Uhr\n`;
+              if (task.end_time) timeInfo += `🏁 Ende: ${task.end_time} Uhr`;
+            } else if (task.end_time) {
+              timeInfo += `\n\n🏁 Ende: ${task.end_time} Uhr`;
+            }
+
+            const signalMessage = `${notificationTitle}\n\n${task.title}\nStatus: Erledigt${timeInfo}\n\n👤 ${req.user!.name}`;
+
+            for (const recipient of signalRecipients.rows) {
+              try {
+                const signalSent = await signalService.sendMessage(
+                  linkedTeamleiter.signal_account_number,
+                  recipient.signal_phone_number,
+                  signalMessage
+                );
+
+                if (signalSent) {
+                  console.log(`Task complete Signal sent to teamleiter ${recipient.id}`);
+                }
+              } catch (signalError) {
+                console.error('Signal notification error:', signalError);
+              }
+            }
+          }
+        }
+      }
+    } catch (notifError) {
+      console.error('Teamleiter notification error:', notifError);
+    }
+
     // Broadcast update to all connected clients
     broadcastUpdate('task', { action: 'complete', taskId: assignment.rows[0].task_id, assignmentId: parseInt(assignmentId) });
 
@@ -497,6 +606,109 @@ router.put('/:taskId/complete-public', authMiddleware, async (req: AuthRequest, 
 
     // Task als completed markieren
     await query('UPDATE tasks SET status = $1 WHERE id = $2', ['completed', taskId]);
+
+    // Benachrichtige Teamleiter über Fertigstellung
+    try {
+      const notificationTitle = 'Öffentliche Aufgabe erledigt';
+      const notificationBody = `${req.user!.name} hat "${task.title}" als erledigt markiert`;
+
+      // Finde alle Teamleiter des Events die Benachrichtigungen aktiviert haben
+      const teamleiterResult = await query(
+        `SELECT DISTINCT u.id, u.name, u.signal_account_number, u.signal_linked, u.teamleiter_status_notifications
+         FROM event_teamleiter et
+         JOIN users u ON et.user_id = u.id
+         WHERE et.event_id = $1 AND (u.teamleiter_status_notifications = true OR u.teamleiter_status_notifications IS NULL)
+         ORDER BY et.is_primary DESC, et.id ASC`,
+        [task.event_id]
+      );
+
+      if (teamleiterResult.rows.length > 0) {
+        const teamleiterIds = teamleiterResult.rows.map(tl => tl.id);
+
+        // 1. Web Push Benachrichtigungen an Teamleiter
+        const webpush = require('web-push');
+        const webPushRecipients = await query(
+          `SELECT DISTINCT u.id, ps.endpoint, ps.keys_p256dh, ps.keys_auth
+           FROM users u
+           JOIN push_subscriptions ps ON ps.user_id = u.id
+           WHERE u.id = ANY($1) AND u.web_push_enabled != false`,
+          [teamleiterIds]
+        );
+
+        const webPushPayload = JSON.stringify({
+          title: notificationTitle,
+          body: notificationBody,
+          icon: '/icon.png',
+          badge: '/badge.png',
+          vibrate: [200, 100, 200],
+        });
+
+        for (const sub of webPushRecipients.rows) {
+          try {
+            await webpush.sendNotification(
+              {
+                endpoint: sub.endpoint,
+                keys: {
+                  p256dh: sub.keys_p256dh,
+                  auth: sub.keys_auth,
+                },
+              },
+              webPushPayload
+            );
+            console.log(`Public task complete Web Push sent to teamleiter ${sub.id}`);
+          } catch (pushError: any) {
+            console.error('Send push notification error:', pushError);
+            if (pushError.statusCode === 410) {
+              await query('DELETE FROM push_subscriptions WHERE endpoint = $1', [sub.endpoint]);
+            }
+          }
+        }
+
+        // 2. Signal Benachrichtigungen an Teamleiter
+        const { signalService } = require('../services/signal');
+        const linkedTeamleiter = teamleiterResult.rows.find(tl => tl.signal_linked);
+
+        if (linkedTeamleiter) {
+          const signalRecipients = await query(
+            `SELECT u.id, u.signal_phone_number
+             FROM users u
+             WHERE u.id = ANY($1) AND u.signal_enabled = true AND u.signal_phone_number IS NOT NULL`,
+            [teamleiterIds]
+          );
+
+          // Zeit-Informationen
+          let timeInfo = '';
+          if (task.scheduled_time || task.start_time) {
+            timeInfo += '\n\n';
+            if (task.scheduled_time) timeInfo += `⏰ Geplant: ${task.scheduled_time} Uhr\n`;
+            if (task.start_time) timeInfo += `🚀 Start: ${task.start_time} Uhr\n`;
+            if (task.end_time) timeInfo += `🏁 Ende: ${task.end_time} Uhr`;
+          } else if (task.end_time) {
+            timeInfo += `\n\n🏁 Ende: ${task.end_time} Uhr`;
+          }
+
+          const signalMessage = `${notificationTitle}\n\n${task.title}\nStatus: Erledigt${timeInfo}\n\n👤 ${req.user!.name}`;
+
+          for (const recipient of signalRecipients.rows) {
+            try {
+              const signalSent = await signalService.sendMessage(
+                linkedTeamleiter.signal_account_number,
+                recipient.signal_phone_number,
+                signalMessage
+              );
+
+              if (signalSent) {
+                console.log(`Public task complete Signal sent to teamleiter ${recipient.id}`);
+              }
+            } catch (signalError) {
+              console.error('Signal notification error:', signalError);
+            }
+          }
+        }
+      }
+    } catch (notifError) {
+      console.error('Teamleiter notification error:', notifError);
+    }
 
     // Broadcast update to all connected clients
     broadcastUpdate('task', { action: 'complete_public', taskId: parseInt(taskId) });
@@ -764,14 +976,14 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
           userIds = assignedUsers.rows.map(u => u.id);
         }
 
-        // 1. Web Push Benachrichtigungen
+        // 1. Web Push Benachrichtigungen (ohne den User der die Änderung macht)
         const webpush = require('web-push');
         const webPushRecipients = await query(
           `SELECT DISTINCT u.id, ps.endpoint, ps.keys_p256dh, ps.keys_auth
            FROM users u
            JOIN push_subscriptions ps ON ps.user_id = u.id
-           WHERE u.id = ANY($1) AND u.web_push_enabled != false`,
-          [userIds]
+           WHERE u.id = ANY($1) AND u.web_push_enabled != false AND u.id != $2`,
+          [userIds, req.user!.id]
         );
 
         const webPushPayload = JSON.stringify({
@@ -821,12 +1033,12 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
           const linkedTeamleiter = teamleiterResult.rows.find(tl => tl.signal_linked);
 
           if (linkedTeamleiter) {
-            // Hole Signal-aktivierte User
+            // Hole Signal-aktivierte User (ohne den User der die Änderung macht)
             const signalRecipients = await query(
               `SELECT u.id, u.signal_phone_number
                FROM users u
-               WHERE u.id = ANY($1) AND u.signal_enabled = true AND u.signal_phone_number IS NOT NULL`,
-              [userIds]
+               WHERE u.id = ANY($1) AND u.signal_enabled = true AND u.signal_phone_number IS NOT NULL AND u.id != $2`,
+              [userIds, req.user!.id]
             );
 
             // Zeit-Informationen formatieren
@@ -863,6 +1075,123 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
         }
       } catch (notifError) {
         console.error('Notification error:', notifError);
+      }
+    }
+
+    // Benachrichtige Teamleiter wenn ein MITARBEITER den Status ändert
+    if (!isAdmin && status !== currentTask.status) {
+      try {
+        // Status-Labels für Benachrichtigungen
+        const statusLabels: { [key: string]: string } = {
+          not_started: 'Nicht gestartet',
+          in_progress: 'In Arbeit',
+          completed: 'Erledigt',
+          overdue: 'Überfällig',
+        };
+
+        const notificationTitle = 'Aufgaben-Status geändert';
+        const notificationBody = `${req.user!.name} hat "${currentTask.title}" auf "${statusLabels[status]}" gesetzt`;
+
+        // Finde alle Teamleiter des Events die Benachrichtigungen aktiviert haben
+        const teamleiterResult = await query(
+          `SELECT DISTINCT u.id, u.name, u.signal_account_number, u.signal_linked, u.teamleiter_status_notifications
+           FROM event_teamleiter et
+           JOIN users u ON et.user_id = u.id
+           WHERE et.event_id = $1 AND (u.teamleiter_status_notifications = true OR u.teamleiter_status_notifications IS NULL)
+           ORDER BY et.is_primary DESC, et.id ASC`,
+          [currentTask.event_id]
+        );
+
+        if (teamleiterResult.rows.length > 0) {
+          const teamleiterIds = teamleiterResult.rows.map(tl => tl.id);
+
+          // 1. Web Push Benachrichtigungen an Teamleiter
+          const webpush = require('web-push');
+          const webPushRecipients = await query(
+            `SELECT DISTINCT u.id, ps.endpoint, ps.keys_p256dh, ps.keys_auth
+             FROM users u
+             JOIN push_subscriptions ps ON ps.user_id = u.id
+             WHERE u.id = ANY($1) AND u.web_push_enabled != false`,
+            [teamleiterIds]
+          );
+
+          const webPushPayload = JSON.stringify({
+            title: notificationTitle,
+            body: notificationBody,
+            icon: '/icon.png',
+            badge: '/badge.png',
+            vibrate: [200, 100, 200],
+            requireInteraction: status === 'overdue',
+          });
+
+          for (const sub of webPushRecipients.rows) {
+            try {
+              await webpush.sendNotification(
+                {
+                  endpoint: sub.endpoint,
+                  keys: {
+                    p256dh: sub.keys_p256dh,
+                    auth: sub.keys_auth,
+                  },
+                },
+                webPushPayload
+              );
+              console.log(`Staff status change Web Push sent to teamleiter ${sub.id} for task ${id}`);
+            } catch (pushError: any) {
+              console.error('Send push notification error:', pushError);
+              if (pushError.statusCode === 410) {
+                await query('DELETE FROM push_subscriptions WHERE endpoint = $1', [sub.endpoint]);
+              }
+            }
+          }
+
+          // 2. Signal Benachrichtigungen an Teamleiter
+          const { signalService } = require('../services/signal');
+          const linkedTeamleiter = teamleiterResult.rows.find(tl => tl.signal_linked);
+
+          if (linkedTeamleiter) {
+            // Hole Teamleiter mit Signal-Einstellungen
+            const signalRecipients = await query(
+              `SELECT u.id, u.signal_phone_number, u.name
+               FROM users u
+               WHERE u.id = ANY($1) AND u.signal_enabled = true AND u.signal_phone_number IS NOT NULL`,
+              [teamleiterIds]
+            );
+
+            // Zeit-Informationen formatieren
+            let timeInfo = '';
+            if (currentTask.scheduled_time || currentTask.start_time) {
+              timeInfo += '\n\n';
+              if (currentTask.scheduled_time) timeInfo += `⏰ Geplant: ${currentTask.scheduled_time} Uhr\n`;
+              if (currentTask.start_time) timeInfo += `🚀 Start: ${currentTask.start_time} Uhr\n`;
+              if (currentTask.end_time) timeInfo += `🏁 Ende: ${currentTask.end_time} Uhr`;
+            } else if (currentTask.end_time) {
+              timeInfo += `\n\n🏁 Ende: ${currentTask.end_time} Uhr`;
+            }
+
+            const signalMessage = `${notificationTitle}\n\n${currentTask.title}\nStatus: ${statusLabels[status]}${timeInfo}\n\n👤 ${req.user!.name}`;
+
+            for (const recipient of signalRecipients.rows) {
+              try {
+                const signalSent = await signalService.sendMessage(
+                  linkedTeamleiter.signal_account_number,
+                  recipient.signal_phone_number,
+                  signalMessage
+                );
+
+                if (signalSent) {
+                  console.log(`Staff status change Signal sent to teamleiter ${recipient.id} for task ${id}`);
+                }
+              } catch (signalError) {
+                console.error('Signal notification error:', signalError);
+              }
+            }
+          } else {
+            console.log(`No linked Signal account found for event ${currentTask.event_id} teamleiter`);
+          }
+        }
+      } catch (notifError) {
+        console.error('Teamleiter notification error:', notifError);
       }
     }
 
@@ -976,14 +1305,14 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req: Auth
           userIds = assignedUsers.rows.map(u => u.id);
         }
 
-        // 1. Web Push Benachrichtigungen
+        // 1. Web Push Benachrichtigungen (ohne den User der die Änderung macht)
         const webpush = require('web-push');
         const webPushRecipients = await query(
           `SELECT DISTINCT u.id, ps.endpoint, ps.keys_p256dh, ps.keys_auth
            FROM users u
            JOIN push_subscriptions ps ON ps.user_id = u.id
-           WHERE u.id = ANY($1) AND u.web_push_enabled != false`,
-          [userIds]
+           WHERE u.id = ANY($1) AND u.web_push_enabled != false AND u.id != $2`,
+          [userIds, req.user!.id]
         );
 
         const webPushPayload = JSON.stringify({
@@ -1033,12 +1362,12 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req: Auth
           const linkedTeamleiter = teamleiterResult.rows.find(tl => tl.signal_linked);
 
           if (linkedTeamleiter) {
-            // Hole Signal-aktivierte User
+            // Hole Signal-aktivierte User (ohne den User der die Änderung macht)
             const signalRecipients = await query(
               `SELECT u.id, u.signal_phone_number
                FROM users u
-               WHERE u.id = ANY($1) AND u.signal_enabled = true AND u.signal_phone_number IS NOT NULL`,
-              [userIds]
+               WHERE u.id = ANY($1) AND u.signal_enabled = true AND u.signal_phone_number IS NOT NULL AND u.id != $2`,
+              [userIds, req.user!.id]
             );
 
             // Zeit-Informationen formatieren (neue Werte)
