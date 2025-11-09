@@ -108,7 +108,10 @@ class SignalService {
 
     try {
       // Liste alle registrierten Accounts
-      const response = await axios.get(`${this.apiUrl}/v1/accounts`);
+      // Längerer Timeout weil Signal-CLI manchmal langsam ist
+      const response = await axios.get(`${this.apiUrl}/v1/accounts`, {
+        timeout: 30000  // 30 Sekunden
+      });
 
       if (response.status === 200 && Array.isArray(response.data) && response.data.length > 0) {
         // Gib die erste registrierte Telefonnummer zurück
