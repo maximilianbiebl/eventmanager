@@ -519,9 +519,9 @@ router.put('/assignment/:assignmentId/reminder', authMiddleware, async (req: Aut
     // Prüfen ob die Zuweisung dem Benutzer gehört oder Admin
     let assignment;
     if (isAdmin) {
-      assignment = await query('SELECT ta.*, t.title FROM task_assignments ta JOIN tasks t ON ta.task_id = t.id WHERE ta.id = $1', [assignmentId]);
+      assignment = await query('SELECT ta.*, t.title, t.event_id FROM task_assignments ta JOIN tasks t ON ta.task_id = t.id WHERE ta.id = $1', [assignmentId]);
     } else {
-      assignment = await query('SELECT ta.*, t.title FROM task_assignments ta JOIN tasks t ON ta.task_id = t.id WHERE ta.id = $1 AND ta.user_id = $2', [
+      assignment = await query('SELECT ta.*, t.title, t.event_id FROM task_assignments ta JOIN tasks t ON ta.task_id = t.id WHERE ta.id = $1 AND ta.user_id = $2', [
         assignmentId,
         userId,
       ]);
@@ -534,6 +534,7 @@ router.put('/assignment/:assignmentId/reminder', authMiddleware, async (req: Aut
     const oldReminder = assignment.rows[0].reminder_minutes;
     const taskTitle = assignment.rows[0].title;
     const affectedUserId = assignment.rows[0].user_id;
+    const eventId = assignment.rows[0].event_id;
 
     // Erinnerungszeit aktualisieren
     const result = await query(
@@ -544,36 +545,88 @@ router.put('/assignment/:assignmentId/reminder', authMiddleware, async (req: Aut
     // Benachrichtigung senden wenn Admin die Zeit ändert
     if (isAdmin && affectedUserId !== userId && oldReminder !== reminder_minutes) {
       try {
+        const title = 'Erinnerungszeit geändert';
+        const body = `"${taskTitle}": Neue Erinnerung ${reminder_minutes} Minuten vorher`;
+
+        // 1. Web Push
         const webpush = require('web-push');
-        const subscriptions = await query(
-          `SELECT ps.* FROM push_subscriptions ps
-           JOIN users u ON ps.user_id = u.id
-           WHERE ps.user_id = $1 AND u.push_enabled = true`,
+        const userSettings = await query(
+          `SELECT u.web_push_enabled, u.signal_enabled, u.signal_phone_number
+           FROM users u
+           WHERE u.id = $1`,
           [affectedUserId]
         );
 
-        const payload = JSON.stringify({
-          title: 'Erinnerungszeit geändert',
-          body: `"${taskTitle}": Neue Erinnerung ${reminder_minutes} Minuten vorher`,
-          icon: '/icon.png',
-          badge: '/badge.png',
-          vibrate: [200, 100, 200],
-        });
+        if (userSettings.rows.length > 0) {
+          const user = userSettings.rows[0];
 
-        for (const sub of subscriptions.rows) {
-          try {
-            await webpush.sendNotification(
-              {
-                endpoint: sub.endpoint,
-                keys: {
-                  p256dh: sub.keys_p256dh,
-                  auth: sub.keys_auth,
-                },
-              },
-              payload
+          // Web Push
+          if (user.web_push_enabled !== false) {
+            const subscriptions = await query(
+              `SELECT ps.* FROM push_subscriptions ps WHERE ps.user_id = $1`,
+              [affectedUserId]
             );
-          } catch (pushError) {
-            console.error('Send reminder change notification error:', pushError);
+
+            const payload = JSON.stringify({
+              title,
+              body,
+              icon: '/icon.png',
+              badge: '/badge.png',
+              vibrate: [200, 100, 200],
+            });
+
+            for (const sub of subscriptions.rows) {
+              try {
+                await webpush.sendNotification(
+                  {
+                    endpoint: sub.endpoint,
+                    keys: {
+                      p256dh: sub.keys_p256dh,
+                      auth: sub.keys_auth,
+                    },
+                  },
+                  payload
+                );
+                console.log(`Reminder change Web Push sent to user ${affectedUserId}`);
+              } catch (pushError: any) {
+                console.error('Send reminder change notification error:', pushError);
+                if (pushError.statusCode === 410) {
+                  await query('DELETE FROM push_subscriptions WHERE id = $1', [sub.id]);
+                }
+              }
+            }
+          }
+
+          // 2. Signal
+          if (user.signal_enabled && user.signal_phone_number) {
+            const { signalService } = require('../services/signal');
+
+            // Finde Teamleiter mit Signal-Account
+            const teamleiterResult = await query(
+              `SELECT u.id, u.signal_account_number, u.signal_linked, et.is_primary
+               FROM event_teamleiter et
+               JOIN users u ON et.user_id = u.id
+               WHERE et.event_id = $1
+               ORDER BY et.is_primary DESC, et.id ASC`,
+              [eventId]
+            );
+
+            if (teamleiterResult.rows.length > 0) {
+              const linkedTeamleiter = teamleiterResult.rows.find(tl => tl.signal_linked);
+
+              if (linkedTeamleiter) {
+                const signalMessage = `${title}\n\n${body}\n\n👤 Geändert von: ${req.user!.name}`;
+                const signalSent = await signalService.sendMessage(
+                  linkedTeamleiter.signal_account_number,
+                  user.signal_phone_number,
+                  signalMessage
+                );
+
+                if (signalSent) {
+                  console.log(`Reminder change Signal sent to user ${affectedUserId}`);
+                }
+              }
+            }
           }
         }
       } catch (notifError) {
@@ -859,35 +912,9 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req, res)
       console.log(`Reset completed status for all assignments of task ${id}`);
     }
 
-    // Wenn Status geändert wurde, sende Push-Benachrichtigungen
+    // Wenn Status geändert wurde, sende Benachrichtigungen (Web Push + Signal)
     if (status !== currentTask.status) {
       try {
-        let recipients;
-
-        // Bei öffentlichen Aufgaben: Alle Mitarbeiter im Event-Pool benachrichtigen
-        if (is_public) {
-          recipients = await query(
-            `SELECT DISTINCT u.id, ps.endpoint, ps.keys_p256dh, ps.keys_auth
-             FROM users u
-             JOIN push_subscriptions ps ON ps.user_id = u.id
-             JOIN event_staff es ON es.user_id = u.id
-             WHERE es.event_id = $1 AND u.push_enabled = true AND u.role = 'staff'`,
-            [currentTask.event_id]
-          );
-        } else {
-          // Bei privaten Aufgaben: Nur zugewiesene Mitarbeiter benachrichtigen
-          recipients = await query(
-            `SELECT DISTINCT u.id, ps.endpoint, ps.keys_p256dh, ps.keys_auth
-             FROM task_assignments ta
-             JOIN users u ON ta.user_id = u.id
-             JOIN push_subscriptions ps ON ps.user_id = u.id
-             WHERE ta.task_id = $1 AND u.push_enabled = true`,
-            [id]
-          );
-        }
-
-        // Sende Benachrichtigungen
-        const webpush = require('web-push');
         const statusLabels: { [key: string]: string } = {
           not_started: 'Nicht gestartet',
           in_progress: 'In Arbeit',
@@ -895,16 +922,54 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req, res)
           overdue: 'Überfällig',
         };
 
-        const payload = JSON.stringify({
-          title: is_public ? 'Öffentliche Aufgabe aktualisiert' : 'Aufgaben-Status geändert',
-          body: `"${title}" ist jetzt: ${statusLabels[status] || status}`,
+        const notificationTitle = is_public ? 'Öffentliche Aufgabe aktualisiert' : 'Aufgaben-Status geändert';
+        const notificationBody = `"${title}" ist jetzt: ${statusLabels[status] || status}`;
+
+        let userIds: number[] = [];
+
+        // Bestimme welche User benachrichtigt werden sollen
+        if (is_public) {
+          // Bei öffentlichen Aufgaben: Alle Mitarbeiter im Event-Pool
+          const poolUsers = await query(
+            `SELECT DISTINCT u.id
+             FROM users u
+             JOIN event_staff es ON es.user_id = u.id
+             WHERE es.event_id = $1 AND u.role = 'staff'`,
+            [currentTask.event_id]
+          );
+          userIds = poolUsers.rows.map(u => u.id);
+        } else {
+          // Bei privaten Aufgaben: Nur zugewiesene Mitarbeiter
+          const assignedUsers = await query(
+            `SELECT DISTINCT u.id
+             FROM task_assignments ta
+             JOIN users u ON ta.user_id = u.id
+             WHERE ta.task_id = $1`,
+            [id]
+          );
+          userIds = assignedUsers.rows.map(u => u.id);
+        }
+
+        // 1. Web Push Benachrichtigungen
+        const webpush = require('web-push');
+        const webPushRecipients = await query(
+          `SELECT DISTINCT u.id, ps.endpoint, ps.keys_p256dh, ps.keys_auth
+           FROM users u
+           JOIN push_subscriptions ps ON ps.user_id = u.id
+           WHERE u.id = ANY($1) AND u.web_push_enabled != false`,
+          [userIds]
+        );
+
+        const webPushPayload = JSON.stringify({
+          title: notificationTitle,
+          body: notificationBody,
           icon: '/icon.png',
           badge: '/badge.png',
           vibrate: [200, 100, 200],
           requireInteraction: status === 'overdue',
         });
 
-        for (const sub of recipients.rows) {
+        for (const sub of webPushRecipients.rows) {
           try {
             await webpush.sendNotification(
               {
@@ -914,19 +979,65 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req, res)
                   auth: sub.keys_auth,
                 },
               },
-              payload
+              webPushPayload
             );
-            console.log(`Status change notification sent to user ${sub.id} for task ${id}`);
+            console.log(`Task update status Web Push sent to user ${sub.id} for task ${id}`);
           } catch (pushError: any) {
             console.error('Send push notification error:', pushError);
-            // Subscription entfernen wenn ungültig
             if (pushError.statusCode === 410) {
               await query('DELETE FROM push_subscriptions WHERE endpoint = $1', [sub.endpoint]);
             }
           }
         }
+
+        // 2. Signal Benachrichtigungen
+        const { signalService } = require('../services/signal');
+
+        // Finde Teamleiter mit Signal-Account
+        const teamleiterResult = await query(
+          `SELECT u.id, u.signal_account_number, u.signal_linked, et.is_primary
+           FROM event_teamleiter et
+           JOIN users u ON et.user_id = u.id
+           WHERE et.event_id = $1
+           ORDER BY et.is_primary DESC, et.id ASC`,
+          [currentTask.event_id]
+        );
+
+        if (teamleiterResult.rows.length > 0) {
+          const linkedTeamleiter = teamleiterResult.rows.find(tl => tl.signal_linked);
+
+          if (linkedTeamleiter) {
+            // Hole Signal-aktivierte User
+            const signalRecipients = await query(
+              `SELECT u.id, u.signal_phone_number
+               FROM users u
+               WHERE u.id = ANY($1) AND u.signal_enabled = true AND u.signal_phone_number IS NOT NULL`,
+              [userIds]
+            );
+
+            const signalMessage = `${notificationTitle}\n\n${notificationBody}\n\n👤 Geändert von: ${req.user!.name}`;
+
+            for (const recipient of signalRecipients.rows) {
+              try {
+                const signalSent = await signalService.sendMessage(
+                  linkedTeamleiter.signal_account_number,
+                  recipient.signal_phone_number,
+                  signalMessage
+                );
+
+                if (signalSent) {
+                  console.log(`Task update status Signal sent to user ${recipient.id} for task ${id}`);
+                }
+              } catch (signalError) {
+                console.error('Signal notification error:', signalError);
+              }
+            }
+          } else {
+            console.log(`No linked Signal account found for event ${currentTask.event_id}`);
+          }
+        }
       } catch (notifError) {
-        console.error('Push notification error:', notifError);
+        console.error('Notification error:', notifError);
         // Fehler beim Senden von Benachrichtigungen sollte die Task-Aktualisierung nicht blockieren
       }
     }
