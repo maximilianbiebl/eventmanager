@@ -276,7 +276,24 @@ async function sendTaskNotification(userId: number, task: any, instance: any, re
             const fromNumber = linkedTeamleiter.signal_account_number;
             const toNumber = user.signal_phone_number;
 
-            const signalMessage = `${title}\n\n${body}\n\n📅 ${instance.event_name} #${instance.instance_number}`;
+            // Status-Emoji ermitteln
+            let statusEmoji = '⏸'; // not_started
+            if (task.status === 'in_progress') statusEmoji = '▶';
+            else if (task.status === 'completed') statusEmoji = '✓';
+            else if (task.status === 'overdue') statusEmoji = '🔴';
+
+            // Zeit-Informationen formatieren
+            let timeInfo = '';
+            if (task.scheduled_time || task.start_time) {
+              timeInfo += '\n\n';
+              if (task.scheduled_time) timeInfo += `⏰ Geplant: ${task.scheduled_time} Uhr\n`;
+              if (task.start_time) timeInfo += `🚀 Start: ${task.start_time} Uhr\n`;
+              if (task.end_time) timeInfo += `🏁 Ende: ${task.end_time} Uhr`;
+            } else if (task.end_time) {
+              timeInfo += `\n\n🏁 Ende: ${task.end_time} Uhr`;
+            }
+
+            const signalMessage = `${title}\n\n${statusEmoji} ${task.title}${timeInfo}\n\n🎪 ${instance.event_name}`;
 
             const signalSent = await signalService.sendMessage(fromNumber, toNumber, signalMessage);
 
@@ -389,7 +406,24 @@ async function sendStartTimeNotification(userId: number, task: any, instance: an
             const fromNumber = linkedTeamleiter.signal_account_number;
             const toNumber = user.signal_phone_number;
 
-            const signalMessage = `${title}\n\n${body}\n\n📅 ${instance.event_name} #${instance.instance_number}`;
+            // Status-Emoji ermitteln
+            let statusEmoji = '⏸'; // not_started
+            if (task.status === 'in_progress') statusEmoji = '▶';
+            else if (task.status === 'completed') statusEmoji = '✓';
+            else if (task.status === 'overdue') statusEmoji = '🔴';
+
+            // Zeit-Informationen formatieren
+            let timeInfo = '';
+            if (task.scheduled_time || task.start_time) {
+              timeInfo += '\n\n';
+              if (task.scheduled_time) timeInfo += `⏰ Geplant: ${task.scheduled_time} Uhr\n`;
+              if (task.start_time) timeInfo += `🚀 Start: ${task.start_time} Uhr\n`;
+              if (task.end_time) timeInfo += `🏁 Ende: ${task.end_time} Uhr`;
+            } else if (task.end_time) {
+              timeInfo += `\n\n🏁 Ende: ${task.end_time} Uhr`;
+            }
+
+            const signalMessage = `${title}\n\n${statusEmoji} ${task.title}${timeInfo}\n\n🎪 ${instance.event_name}`;
 
             const signalSent = await signalService.sendMessage(fromNumber, toNumber, signalMessage);
 
@@ -531,7 +565,21 @@ async function updateOverdueTasks() {
                   const linkedTeamleiter = teamleiterResult.rows.find(tl => tl.signal_linked);
 
                   if (linkedTeamleiter) {
-                    const signalMessage = `${title}\n\n${body}\n\n📅 ${instance.event_name} #${instance.instance_number}`;
+                    // Status-Emoji für overdue
+                    const statusEmoji = '🔴';
+
+                    // Zeit-Informationen formatieren
+                    let timeInfo = '';
+                    if (task.scheduled_time || task.start_time) {
+                      timeInfo += '\n\n';
+                      if (task.scheduled_time) timeInfo += `⏰ Geplant: ${task.scheduled_time} Uhr\n`;
+                      if (task.start_time) timeInfo += `🚀 Start: ${task.start_time} Uhr\n`;
+                      if (task.end_time) timeInfo += `🏁 Ende: ${task.end_time} Uhr`;
+                    } else if (task.end_time) {
+                      timeInfo += `\n\n🏁 Ende: ${task.end_time} Uhr`;
+                    }
+
+                    const signalMessage = `${title}\n\n${statusEmoji} ${task.title}${timeInfo}\n\n🎪 ${instance.event_name}`;
                     const signalSent = await signalService.sendMessage(
                       linkedTeamleiter.signal_account_number,
                       user.signal_phone_number,

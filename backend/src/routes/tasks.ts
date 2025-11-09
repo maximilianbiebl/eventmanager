@@ -519,9 +519,9 @@ router.put('/assignment/:assignmentId/reminder', authMiddleware, async (req: Aut
     // Prüfen ob die Zuweisung dem Benutzer gehört oder Admin
     let assignment;
     if (isAdmin) {
-      assignment = await query('SELECT ta.*, t.title, t.event_id FROM task_assignments ta JOIN tasks t ON ta.task_id = t.id WHERE ta.id = $1', [assignmentId]);
+      assignment = await query('SELECT ta.*, t.title, t.event_id, t.status, t.scheduled_time, t.start_time, t.end_time FROM task_assignments ta JOIN tasks t ON ta.task_id = t.id WHERE ta.id = $1', [assignmentId]);
     } else {
-      assignment = await query('SELECT ta.*, t.title, t.event_id FROM task_assignments ta JOIN tasks t ON ta.task_id = t.id WHERE ta.id = $1 AND ta.user_id = $2', [
+      assignment = await query('SELECT ta.*, t.title, t.event_id, t.status, t.scheduled_time, t.start_time, t.end_time FROM task_assignments ta JOIN tasks t ON ta.task_id = t.id WHERE ta.id = $1 AND ta.user_id = $2', [
         assignmentId,
         userId,
       ]);
@@ -615,7 +615,29 @@ router.put('/assignment/:assignmentId/reminder', authMiddleware, async (req: Aut
               const linkedTeamleiter = teamleiterResult.rows.find(tl => tl.signal_linked);
 
               if (linkedTeamleiter) {
-                const signalMessage = `${title}\n\n${body}\n\n👤 Geändert von: ${req.user!.name}`;
+                // Status-Emoji ermitteln
+                const taskStatus = assignment.rows[0].status;
+                let statusEmoji = '⏸'; // not_started
+                if (taskStatus === 'in_progress') statusEmoji = '▶';
+                else if (taskStatus === 'completed') statusEmoji = '✓';
+                else if (taskStatus === 'overdue') statusEmoji = '🔴';
+
+                // Zeit-Informationen formatieren
+                let timeInfo = '';
+                const taskScheduledTime = assignment.rows[0].scheduled_time;
+                const taskStartTime = assignment.rows[0].start_time;
+                const taskEndTime = assignment.rows[0].end_time;
+
+                if (taskScheduledTime || taskStartTime) {
+                  timeInfo += '\n\n';
+                  if (taskScheduledTime) timeInfo += `⏰ Geplant: ${taskScheduledTime} Uhr\n`;
+                  if (taskStartTime) timeInfo += `🚀 Start: ${taskStartTime} Uhr\n`;
+                  if (taskEndTime) timeInfo += `🏁 Ende: ${taskEndTime} Uhr`;
+                } else if (taskEndTime) {
+                  timeInfo += `\n\n🏁 Ende: ${taskEndTime} Uhr`;
+                }
+
+                const signalMessage = `${title}\n\n${statusEmoji} ${taskTitle}${timeInfo}\n\n👤 Geändert von: ${req.user!.name}`;
                 const signalSent = await signalService.sendMessage(
                   linkedTeamleiter.signal_account_number,
                   user.signal_phone_number,
@@ -814,7 +836,24 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
               [userIds]
             );
 
-            const signalMessage = `${notificationTitle}\n\n${notificationBody}\n\n👤 Geändert von: ${req.user!.name}`;
+            // Status-Emoji ermitteln (basierend auf NEUEM Status)
+            let statusEmoji = '⏸'; // not_started
+            if (status === 'in_progress') statusEmoji = '▶';
+            else if (status === 'completed') statusEmoji = '✓';
+            else if (status === 'overdue') statusEmoji = '🔴';
+
+            // Zeit-Informationen formatieren
+            let timeInfo = '';
+            if (currentTask.scheduled_time || currentTask.start_time) {
+              timeInfo += '\n\n';
+              if (currentTask.scheduled_time) timeInfo += `⏰ Geplant: ${currentTask.scheduled_time} Uhr\n`;
+              if (currentTask.start_time) timeInfo += `🚀 Start: ${currentTask.start_time} Uhr\n`;
+              if (currentTask.end_time) timeInfo += `🏁 Ende: ${currentTask.end_time} Uhr`;
+            } else if (currentTask.end_time) {
+              timeInfo += `\n\n🏁 Ende: ${currentTask.end_time} Uhr`;
+            }
+
+            const signalMessage = `${notificationTitle}\n\n${statusEmoji} ${currentTask.title}${timeInfo}\n\n👤 Geändert von: ${req.user!.name}`;
 
             for (const recipient of signalRecipients.rows) {
               try {
@@ -1015,7 +1054,24 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req: Auth
               [userIds]
             );
 
-            const signalMessage = `${notificationTitle}\n\n${notificationBody}\n\n👤 Geändert von: ${req.user!.name}`;
+            // Status-Emoji ermitteln (basierend auf NEUEM Status)
+            let statusEmoji = '⏸'; // not_started
+            if (status === 'in_progress') statusEmoji = '▶';
+            else if (status === 'completed') statusEmoji = '✓';
+            else if (status === 'overdue') statusEmoji = '🔴';
+
+            // Zeit-Informationen formatieren (neue Werte)
+            let timeInfo = '';
+            if (scheduled_time || start_time) {
+              timeInfo += '\n\n';
+              if (scheduled_time) timeInfo += `⏰ Geplant: ${scheduled_time} Uhr\n`;
+              if (start_time) timeInfo += `🚀 Start: ${start_time} Uhr\n`;
+              if (end_time) timeInfo += `🏁 Ende: ${end_time} Uhr`;
+            } else if (end_time) {
+              timeInfo += `\n\n🏁 Ende: ${end_time} Uhr`;
+            }
+
+            const signalMessage = `${notificationTitle}\n\n${statusEmoji} ${title}${timeInfo}\n\n👤 Geändert von: ${req.user!.name}`;
 
             for (const recipient of signalRecipients.rows) {
               try {
