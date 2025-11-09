@@ -851,7 +851,7 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
 });
 
 // Aufgabe aktualisieren
-router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
 
