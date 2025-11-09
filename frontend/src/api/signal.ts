@@ -4,6 +4,7 @@ export interface SignalSettings {
   signal_enabled: boolean;
   signal_phone_number: string;
   web_push_enabled: boolean;
+  teamleiter_status_notifications?: boolean;
 }
 
 export interface SignalStatus {
