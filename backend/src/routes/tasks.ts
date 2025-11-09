@@ -1301,8 +1301,10 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req: Auth
           overdue: 'Überfällig',
         };
 
-        const notificationTitle = is_public ? 'Öffentliche Aufgabe aktualisiert' : 'Aufgaben-Status geändert';
-        const notificationBody = `"${title}" ist jetzt: ${statusLabels[status] || status}`;
+        const notificationTitle = is_public
+          ? 'Öffentliche Aufgabe aktualisiert'
+          : `Status wurde zu "${statusLabels[status]}" geändert`;
+        const notificationBody = `${req.user!.name}: "${title}"`;
 
         let userIds: number[] = [];
 
@@ -1394,6 +1396,12 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req: Auth
               [userIds, req.user!.id]
             );
 
+            // Beschreibung formatieren
+            let descriptionText = '';
+            if (description) {
+              descriptionText = `\n📋 ${description}`;
+            }
+
             // Zeit-Informationen formatieren (neue Werte)
             let timeInfo = '';
             if (scheduled_time || start_time) {
@@ -1405,7 +1413,7 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req: Auth
               timeInfo += `\n\n🏁 Ende: ${end_time} Uhr`;
             }
 
-            const signalMessage = `${notificationTitle}\n\n${title}${timeInfo}\n\n👤 Geändert von: ${req.user!.name}`;
+            const signalMessage = `${notificationTitle}\n\n${title}${descriptionText}${timeInfo}\n\n👤 Geändert von: ${req.user!.name}`;
 
             for (const recipient of signalRecipients.rows) {
               try {
