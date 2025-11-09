@@ -61,25 +61,22 @@ class SignalService {
       console.log(`Attempting to register Signal account: ${accountNumber}`);
 
       // Registriere Account für Linking (als Secondary Device)
-      // API verwendet GET, nicht POST!
+      // API verwendet GET und gibt PNG-Bild zurück!
       const response = await axios.get(
         `${this.apiUrl}/v1/qrcodelink`,
         {
           params: { device_name: `EventManager-${accountNumber}` },
-          timeout: 10000,
-          responseType: 'text'
+          timeout: 15000,
+          responseType: 'arraybuffer'  // Bild als Binary empfangen
         }
       );
 
-      // Die API gibt direkt den Link-URI als Text zurück
-      const linkUri = typeof response.data === 'string' ? response.data : response.data.toString();
-
-      if (!linkUri || !linkUri.startsWith('sgnl://')) {
-        throw new Error('Signal-CLI did not return a valid QR code link');
-      }
+      // Konvertiere PNG zu Base64 Data URL
+      const base64Image = Buffer.from(response.data, 'binary').toString('base64');
+      const dataUrl = `data:image/png;base64,${base64Image}`;
 
       console.log(`Signal account registration successful for ${accountNumber}`);
-      return linkUri;
+      return dataUrl;  // Gib Data URL zurück statt sgnl:// Link
     } catch (error: any) {
       if (error.code === 'ECONNREFUSED') {
         console.error('Signal register error: Connection refused to Signal-CLI');

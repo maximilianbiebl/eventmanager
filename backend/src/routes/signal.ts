@@ -35,11 +35,8 @@ router.post('/setup', authMiddleware, teamleiterOrAdminMiddleware, async (req: A
     // Generiere temporäre Account-Nummer (wird später durch echte ersetzt)
     const accountNumber = `+temp${userId}${Date.now()}`;
 
-    // Registriere Account und hole Link-URI
-    const linkUri = await signalService.registerAccount(accountNumber);
-
-    // Generiere QR-Code
-    const qrCodeDataUrl = await QRCode.toDataURL(linkUri);
+    // Registriere Account und hole QR-Code-Bild direkt von Signal-CLI
+    const qrCodeDataUrl = await signalService.registerAccount(accountNumber);
 
     // Speichere temporär in Datenbank
     await query(
@@ -49,7 +46,7 @@ router.post('/setup', authMiddleware, teamleiterOrAdminMiddleware, async (req: A
 
     res.json({
       qrCode: qrCodeDataUrl,
-      linkUri: linkUri,
+      linkUri: qrCodeDataUrl,  // Gleiche Data URL für Kompatibilität
       accountNumber: accountNumber,
       message: 'Scannen Sie den QR-Code mit Signal auf Ihrem Handy'
     });
