@@ -472,7 +472,7 @@ router.put('/complete/:assignmentId', authMiddleware, async (req: AuthRequest, r
 
           // Finde alle Teamleiter des Events die Benachrichtigungen aktiviert haben
           const teamleiterResult = await query(
-          `SELECT DISTINCT u.id, u.name, u.signal_account_number, u.signal_linked, u.teamleiter_status_notifications
+          `SELECT u.id, u.name, u.signal_account_number, u.signal_linked, u.teamleiter_status_notifications, et.is_primary
            FROM event_teamleiter et
            JOIN users u ON et.user_id = u.id
            WHERE et.event_id = $1 AND (u.teamleiter_status_notifications = true OR u.teamleiter_status_notifications IS NULL)
@@ -623,7 +623,7 @@ router.put('/:taskId/complete-public', authMiddleware, async (req: AuthRequest, 
 
         // Finde alle Teamleiter des Events die Benachrichtigungen aktiviert haben
         const teamleiterResult = await query(
-        `SELECT DISTINCT u.id, u.name, u.signal_account_number, u.signal_linked, u.teamleiter_status_notifications
+        `SELECT u.id, u.name, u.signal_account_number, u.signal_linked, u.teamleiter_status_notifications, et.is_primary
          FROM event_teamleiter et
          JOIN users u ON et.user_id = u.id
          WHERE et.event_id = $1 AND (u.teamleiter_status_notifications = true OR u.teamleiter_status_notifications IS NULL)
@@ -1110,7 +1110,7 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
 
         // Finde alle Teamleiter des Events die Benachrichtigungen aktiviert haben
         const teamleiterResult = await query(
-          `SELECT DISTINCT u.id, u.name, u.signal_account_number, u.signal_linked, u.teamleiter_status_notifications
+          `SELECT u.id, u.name, u.signal_account_number, u.signal_linked, u.teamleiter_status_notifications, et.is_primary
            FROM event_teamleiter et
            JOIN users u ON et.user_id = u.id
            WHERE et.event_id = $1 AND (u.teamleiter_status_notifications = true OR u.teamleiter_status_notifications IS NULL)
