@@ -180,6 +180,29 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
               <p style={styles.hint}>
                 Du erhältst Benachrichtigungen im Browser vor deinen Aufgaben
               </p>
+
+              {!notifications.isSubscribed && settings.push_enabled && (
+                <div style={{ marginTop: '0.75rem' }}>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const success = await notifications.subscribe();
+                      if (success) {
+                        alert('Benachrichtigungen aktiviert!');
+                      } else {
+                        alert('Benachrichtigungen konnten nicht aktiviert werden. Bitte prüfen Sie die Browser-Einstellungen.');
+                      }
+                    }}
+                    style={styles.subscribeButton}
+                  >
+                    🔔 Browser-Berechtigung erteilen
+                  </button>
+                  <p style={{ ...styles.hint, marginTop: '0.5rem' }}>
+                    Klicken Sie hier, um dem Browser die Berechtigung zum Senden von Benachrichtigungen zu erteilen.
+                  </p>
+                </div>
+              )}
+
               {notifications.isSubscribed && settings.push_enabled && (
                 <div style={{ marginTop: '0.75rem' }}>
                   <button
@@ -447,6 +470,16 @@ const styles: { [key: string]: React.CSSProperties } = {
   testButton: {
     padding: '0.5rem 1rem',
     backgroundColor: '#10b981',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    fontSize: '0.875rem',
+    cursor: 'pointer',
+    fontWeight: '500',
+  },
+  subscribeButton: {
+    padding: '0.5rem 1rem',
+    backgroundColor: '#f59e0b',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
