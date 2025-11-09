@@ -7,6 +7,25 @@ import * as QRCode from 'qrcode';
 const router = Router();
 
 /**
+ * Alle User: Prüfe ob Signal-CLI Service verfügbar ist
+ */
+router.get('/health', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const isHealthy = await signalService.checkHealth();
+    res.json({
+      available: isHealthy,
+      message: isHealthy ? 'Signal-CLI is available' : 'Signal-CLI is not reachable'
+    });
+  } catch (error: any) {
+    console.error('Signal health check error:', error);
+    res.json({
+      available: false,
+      message: 'Signal-CLI health check failed'
+    });
+  }
+});
+
+/**
  * Teamleiter/Admin: Signal-Account einrichten - Generiert QR-Code für Linking
  */
 router.post('/setup', authMiddleware, teamleiterOrAdminMiddleware, async (req: AuthRequest, res) => {
