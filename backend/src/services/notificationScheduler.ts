@@ -332,6 +332,12 @@ async function sendStartTimeNotification(userId: number, task: any, instance: an
 
     const user = userResult.rows[0];
 
+    // Prüfen ob Start-Benachrichtigungen aktiviert sind
+    if (!user.start_notification_enabled) {
+      console.log(`[sendStartTimeNotification] Start notifications disabled for user ${userId}`);
+      return;
+    }
+
     const title = 'Aufgabe startet jetzt!';
     const body = `Es ist Zeit zu starten: ${task.title}`;
 

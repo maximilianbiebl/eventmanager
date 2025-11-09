@@ -459,18 +459,19 @@ router.put('/complete/:assignmentId', authMiddleware, async (req: AuthRequest, r
       ['completed', assignment.rows[0].task_id]
     );
 
-    // Benachrichtige Teamleiter über Fertigstellung
-    try {
-      const taskId = assignment.rows[0].task_id;
-      const taskInfo = await query('SELECT * FROM tasks WHERE id = $1', [taskId]);
+    // Benachrichtige Teamleiter über Fertigstellung (nur wenn staff)
+    if (req.user!.role === 'staff') {
+      try {
+        const taskId = assignment.rows[0].task_id;
+        const taskInfo = await query('SELECT * FROM tasks WHERE id = $1', [taskId]);
 
-      if (taskInfo.rows.length > 0) {
-        const task = taskInfo.rows[0];
-        const notificationTitle = 'Aufgabe erledigt';
-        const notificationBody = `${req.user!.name} hat "${task.title}" als erledigt markiert`;
+        if (taskInfo.rows.length > 0) {
+          const task = taskInfo.rows[0];
+          const notificationTitle = 'Aufgabe erledigt';
+          const notificationBody = `${req.user!.name} hat "${task.title}" als erledigt markiert`;
 
-        // Finde alle Teamleiter des Events die Benachrichtigungen aktiviert haben
-        const teamleiterResult = await query(
+          // Finde alle Teamleiter des Events die Benachrichtigungen aktiviert haben
+          const teamleiterResult = await query(
           `SELECT DISTINCT u.id, u.name, u.signal_account_number, u.signal_linked, u.teamleiter_status_notifications
            FROM event_teamleiter et
            JOIN users u ON et.user_id = u.id
@@ -564,8 +565,9 @@ router.put('/complete/:assignmentId', authMiddleware, async (req: AuthRequest, r
           }
         }
       }
-    } catch (notifError) {
-      console.error('Teamleiter notification error:', notifError);
+      } catch (notifError) {
+        console.error('Teamleiter notification error:', notifError);
+      }
     }
 
     // Broadcast update to all connected clients
@@ -607,13 +609,14 @@ router.put('/:taskId/complete-public', authMiddleware, async (req: AuthRequest, 
     // Task als completed markieren
     await query('UPDATE tasks SET status = $1 WHERE id = $2', ['completed', taskId]);
 
-    // Benachrichtige Teamleiter über Fertigstellung
-    try {
-      const notificationTitle = 'Öffentliche Aufgabe erledigt';
-      const notificationBody = `${req.user!.name} hat "${task.title}" als erledigt markiert`;
+    // Benachrichtige Teamleiter über Fertigstellung (nur wenn staff)
+    if (req.user!.role === 'staff') {
+      try {
+        const notificationTitle = 'Öffentliche Aufgabe erledigt';
+        const notificationBody = `${req.user!.name} hat "${task.title}" als erledigt markiert`;
 
-      // Finde alle Teamleiter des Events die Benachrichtigungen aktiviert haben
-      const teamleiterResult = await query(
+        // Finde alle Teamleiter des Events die Benachrichtigungen aktiviert haben
+        const teamleiterResult = await query(
         `SELECT DISTINCT u.id, u.name, u.signal_account_number, u.signal_linked, u.teamleiter_status_notifications
          FROM event_teamleiter et
          JOIN users u ON et.user_id = u.id
@@ -706,8 +709,9 @@ router.put('/:taskId/complete-public', authMiddleware, async (req: AuthRequest, 
           }
         }
       }
-    } catch (notifError) {
-      console.error('Teamleiter notification error:', notifError);
+      } catch (notifError) {
+        console.error('Teamleiter notification error:', notifError);
+      }
     }
 
     // Broadcast update to all connected clients
@@ -1078,8 +1082,8 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
       }
     }
 
-    // Benachrichtige Teamleiter wenn ein MITARBEITER den Status ändert
-    if (!isAdmin && status !== currentTask.status) {
+    // Benachrichtige Teamleiter wenn ein MITARBEITER (staff) den Status ändert
+    if (req.user!.role === 'staff' && status !== currentTask.status) {
       try {
         // Status-Labels für Benachrichtigungen
         const statusLabels: { [key: string]: string } = {
