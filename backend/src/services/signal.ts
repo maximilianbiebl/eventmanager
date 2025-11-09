@@ -60,20 +60,23 @@ class SignalService {
       console.log(`Attempting to register Signal account: ${accountNumber}`);
 
       // Registriere Account für Linking (als Secondary Device)
-      const response = await axios.post(
+      // API verwendet GET, nicht POST!
+      const response = await axios.get(
         `${this.apiUrl}/v1/qrcodelink`,
-        { device_name: `EventManager-${accountNumber}` },
         {
-          params: { account: accountNumber },
-          timeout: 10000
+          params: { device_name: `EventManager-${accountNumber}` },
+          timeout: 10000,
+          responseType: 'text'
         }
       );
 
-      if (!response.data || (!response.data.url && typeof response.data !== 'string')) {
+      // Die API gibt direkt den Link-URI als Text zurück
+      const linkUri = typeof response.data === 'string' ? response.data : response.data.toString();
+
+      if (!linkUri || !linkUri.startsWith('sgnl://')) {
         throw new Error('Signal-CLI did not return a valid QR code link');
       }
 
-      const linkUri = response.data.url || response.data;
       console.log(`Signal account registration successful for ${accountNumber}`);
       return linkUri;
     } catch (error: any) {
