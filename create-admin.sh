@@ -36,9 +36,15 @@ echo ""
 echo "Erstelle Admin-Benutzer '$username'..."
 echo ""
 
-# Führe das Node-Script aus
-cd backend
-node src/database/create-admin.js "$username" "$password"
+# Prüfe ob Backend-Container läuft
+if ! docker-compose ps backend | grep -q "Up"; then
+  echo "❌ Backend-Container läuft nicht!"
+  echo "   Bitte starten Sie ihn zuerst mit: docker-compose up -d backend"
+  exit 1
+fi
+
+# Führe das Node-Script im Backend-Container aus
+docker-compose exec -T backend node /app/src/database/create-admin.js "$username" "$password"
 
 echo ""
 echo "========================================"
