@@ -191,7 +191,7 @@ async function sendTaskNotification(userId: number, task: any, instance: any, re
 
     // Hole User-Settings für Web Push und Signal
     const userResult = await query(
-      `SELECT u.web_push_enabled, u.signal_enabled, u.signal_phone_number, u.created_by
+      `SELECT u.web_push_enabled, u.signal_enabled, u.signal_phone_number
        FROM users u
        WHERE u.id = $1`,
       [userId]
