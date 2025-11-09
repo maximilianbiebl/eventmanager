@@ -15,7 +15,7 @@ echo "🔍 Überprüfe Login für Benutzer: $username"
 echo ""
 
 # Prüfe ob Docker läuft
-if ! docker-compose ps db | grep -q "Up"; then
+if ! docker-compose ps postgres | grep -q "Up"; then
     echo "❌ Datenbank-Container läuft nicht!"
     echo "   Starte Container mit: docker-compose up -d"
     exit 1
@@ -46,17 +46,17 @@ WHERE name = '$username';
 echo "📝 Suche nach Benutzer '$username'..."
 echo ""
 
-result=$(docker-compose exec -T db psql -U "$DB_USER" -d "$DB_NAME" -t -c "$SQL")
+result=$(docker-compose exec -T postgres psql -U "$DB_USER" -d "$DB_NAME" -t -c "$SQL")
 
 if [ -z "$(echo "$result" | tr -d '[:space:]')" ]; then
     echo "❌ Benutzer '$username' nicht gefunden!"
     echo ""
     echo "📋 Verfügbare Benutzer:"
-    docker-compose exec -T db psql -U "$DB_USER" -d "$DB_NAME" -c "SELECT id, name, role FROM users ORDER BY id;"
+    docker-compose exec -T postgres psql -U "$DB_USER" -d "$DB_NAME" -c "SELECT id, name, role FROM users ORDER BY id;"
 else
     echo "✅ Benutzer gefunden!"
     echo ""
-    docker-compose exec -T db psql -U "$DB_USER" -d "$DB_NAME" -c "$SQL"
+    docker-compose exec -T postgres psql -U "$DB_USER" -d "$DB_NAME" -c "$SQL"
     echo ""
     echo "💡 Hinweise:"
     echo "   - name_length sollte genau der Länge deines Benutzernamens entsprechen"
