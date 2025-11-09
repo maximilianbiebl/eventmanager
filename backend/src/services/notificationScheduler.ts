@@ -276,12 +276,6 @@ async function sendTaskNotification(userId: number, task: any, instance: any, re
             const fromNumber = linkedTeamleiter.signal_account_number;
             const toNumber = user.signal_phone_number;
 
-            // Status-Emoji ermitteln
-            let statusEmoji = '⏸'; // not_started
-            if (task.status === 'in_progress') statusEmoji = '▶';
-            else if (task.status === 'completed') statusEmoji = '✓';
-            else if (task.status === 'overdue') statusEmoji = '🔴';
-
             // Zeit-Informationen formatieren
             let timeInfo = '';
             if (task.scheduled_time || task.start_time) {
@@ -293,7 +287,7 @@ async function sendTaskNotification(userId: number, task: any, instance: any, re
               timeInfo += `\n\n🏁 Ende: ${task.end_time} Uhr`;
             }
 
-            const signalMessage = `${title}\n\n${statusEmoji} ${task.title}${timeInfo}\n\n🎪 ${instance.event_name}`;
+            const signalMessage = `${title}\n\n${task.title}${timeInfo}\n\n🎪 ${instance.event_name}`;
 
             const signalSent = await signalService.sendMessage(fromNumber, toNumber, signalMessage);
 
@@ -406,12 +400,6 @@ async function sendStartTimeNotification(userId: number, task: any, instance: an
             const fromNumber = linkedTeamleiter.signal_account_number;
             const toNumber = user.signal_phone_number;
 
-            // Status-Emoji ermitteln
-            let statusEmoji = '⏸'; // not_started
-            if (task.status === 'in_progress') statusEmoji = '▶';
-            else if (task.status === 'completed') statusEmoji = '✓';
-            else if (task.status === 'overdue') statusEmoji = '🔴';
-
             // Zeit-Informationen formatieren
             let timeInfo = '';
             if (task.scheduled_time || task.start_time) {
@@ -423,7 +411,7 @@ async function sendStartTimeNotification(userId: number, task: any, instance: an
               timeInfo += `\n\n🏁 Ende: ${task.end_time} Uhr`;
             }
 
-            const signalMessage = `${title}\n\n${statusEmoji} ${task.title}${timeInfo}\n\n🎪 ${instance.event_name}`;
+            const signalMessage = `${title}\n\n${task.title}${timeInfo}\n\n🎪 ${instance.event_name}`;
 
             const signalSent = await signalService.sendMessage(fromNumber, toNumber, signalMessage);
 
@@ -565,9 +553,6 @@ async function updateOverdueTasks() {
                   const linkedTeamleiter = teamleiterResult.rows.find(tl => tl.signal_linked);
 
                   if (linkedTeamleiter) {
-                    // Status-Emoji für overdue
-                    const statusEmoji = '🔴';
-
                     // Zeit-Informationen formatieren
                     let timeInfo = '';
                     if (task.scheduled_time || task.start_time) {
@@ -579,7 +564,7 @@ async function updateOverdueTasks() {
                       timeInfo += `\n\n🏁 Ende: ${task.end_time} Uhr`;
                     }
 
-                    const signalMessage = `${title}\n\n${statusEmoji} ${task.title}${timeInfo}\n\n🎪 ${instance.event_name}`;
+                    const signalMessage = `${title}\n\n${task.title}${timeInfo}\n\n🎪 ${instance.event_name}`;
                     const signalSent = await signalService.sendMessage(
                       linkedTeamleiter.signal_account_number,
                       user.signal_phone_number,

@@ -615,13 +615,6 @@ router.put('/assignment/:assignmentId/reminder', authMiddleware, async (req: Aut
               const linkedTeamleiter = teamleiterResult.rows.find(tl => tl.signal_linked);
 
               if (linkedTeamleiter) {
-                // Status-Emoji ermitteln
-                const taskStatus = assignment.rows[0].status;
-                let statusEmoji = '⏸'; // not_started
-                if (taskStatus === 'in_progress') statusEmoji = '▶';
-                else if (taskStatus === 'completed') statusEmoji = '✓';
-                else if (taskStatus === 'overdue') statusEmoji = '🔴';
-
                 // Zeit-Informationen formatieren
                 let timeInfo = '';
                 const taskScheduledTime = assignment.rows[0].scheduled_time;
@@ -637,7 +630,7 @@ router.put('/assignment/:assignmentId/reminder', authMiddleware, async (req: Aut
                   timeInfo += `\n\n🏁 Ende: ${taskEndTime} Uhr`;
                 }
 
-                const signalMessage = `${title}\n\n${statusEmoji} ${taskTitle}${timeInfo}\n\n👤 Geändert von: ${req.user!.name}`;
+                const signalMessage = `${title}\n\n${taskTitle}${timeInfo}\n\n👤 Geändert von: ${req.user!.name}`;
                 const signalSent = await signalService.sendMessage(
                   linkedTeamleiter.signal_account_number,
                   user.signal_phone_number,
@@ -836,12 +829,6 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
               [userIds]
             );
 
-            // Status-Emoji ermitteln (basierend auf NEUEM Status)
-            let statusEmoji = '⏸'; // not_started
-            if (status === 'in_progress') statusEmoji = '▶';
-            else if (status === 'completed') statusEmoji = '✓';
-            else if (status === 'overdue') statusEmoji = '🔴';
-
             // Zeit-Informationen formatieren
             let timeInfo = '';
             if (currentTask.scheduled_time || currentTask.start_time) {
@@ -853,7 +840,7 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
               timeInfo += `\n\n🏁 Ende: ${currentTask.end_time} Uhr`;
             }
 
-            const signalMessage = `${notificationTitle}\n\n${statusEmoji} ${currentTask.title}${timeInfo}\n\n👤 Geändert von: ${req.user!.name}`;
+            const signalMessage = `${notificationTitle}\n\n${currentTask.title}${timeInfo}\n\n👤 Geändert von: ${req.user!.name}`;
 
             for (const recipient of signalRecipients.rows) {
               try {
@@ -1054,12 +1041,6 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req: Auth
               [userIds]
             );
 
-            // Status-Emoji ermitteln (basierend auf NEUEM Status)
-            let statusEmoji = '⏸'; // not_started
-            if (status === 'in_progress') statusEmoji = '▶';
-            else if (status === 'completed') statusEmoji = '✓';
-            else if (status === 'overdue') statusEmoji = '🔴';
-
             // Zeit-Informationen formatieren (neue Werte)
             let timeInfo = '';
             if (scheduled_time || start_time) {
@@ -1071,7 +1052,7 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req: Auth
               timeInfo += `\n\n🏁 Ende: ${end_time} Uhr`;
             }
 
-            const signalMessage = `${notificationTitle}\n\n${statusEmoji} ${title}${timeInfo}\n\n👤 Geändert von: ${req.user!.name}`;
+            const signalMessage = `${notificationTitle}\n\n${title}${timeInfo}\n\n👤 Geändert von: ${req.user!.name}`;
 
             for (const recipient of signalRecipients.rows) {
               try {
