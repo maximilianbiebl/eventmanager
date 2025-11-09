@@ -10,9 +10,28 @@ Der Event Manager unterstützt Signal-Benachrichtigungen durch Integration mit [
 - Ein Signal-Account auf Ihrem Smartphone
 - Die Event Manager Anwendung läuft
 
-## 1. Signal-CLI Container starten
+## 1. Signal-CLI Container konfigurieren und starten
 
 Der Signal-CLI Container ist bereits in `docker-compose.yml` konfiguriert.
+
+### Wichtig: MODE muss "normal" sein
+
+Stellen Sie sicher, dass der Container im **REST API Mode** (`MODE: normal`) läuft:
+
+```yaml
+signal-cli:
+  environment:
+    MODE: normal  # <-- WICHTIG! Nicht "json-rpc"
+    TZ: Europe/Berlin
+```
+
+**Falls der MODE vorher `json-rpc` war:**
+
+```bash
+# Container stoppen und neu erstellen
+docker-compose down signal-cli
+docker-compose up -d signal-cli
+```
 
 ### Container starten:
 
@@ -154,7 +173,7 @@ docker network inspect eventmanager_eventmanager-network
 
 ### Problem: 500 Error bei /api/signal/setup
 
-**Ursache:** Migration 011 wurde nicht ausgeführt.
+**Ursache 1:** Migration 011 wurde nicht ausgeführt.
 
 **Lösung:**
 
@@ -164,6 +183,27 @@ npm run migrate:011
 
 # Backend neu starten
 docker-compose restart backend
+```
+
+**Ursache 2:** Signal-CLI Container läuft im falschen MODE (json-rpc statt normal).
+
+**Symptom:** Backend-Logs zeigen "404 page not found" oder "/v1/qrcodelink 404"
+
+**Lösung:**
+
+```bash
+# 1. Prüfen Sie docker-compose.yml:
+#    MODE: normal  # <-- Muss "normal" sein, NICHT "json-rpc"
+
+# 2. Container stoppen und neu erstellen
+docker-compose down signal-cli
+docker-compose up -d signal-cli
+
+# 3. Backend neu starten
+docker-compose restart backend
+
+# 4. Logs prüfen - sollte jetzt 200 OK zeigen
+docker-compose logs -f signal-cli
 ```
 
 ### Problem: QR-Code wird nicht angezeigt

@@ -65,7 +65,7 @@ services:
     image: bbernhard/signal-cli-rest-api:latest
     container_name: eventmanager-signal
     environment:
-      MODE: json-rpc
+      MODE: normal
       TZ: Europe/Berlin
     volumes:
       - signal_data:/home/.local/share/signal-cli
