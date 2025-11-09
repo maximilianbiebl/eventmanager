@@ -82,17 +82,17 @@ router.get('/check-link', authMiddleware, teamleiterOrAdminMiddleware, async (re
       return res.json({ linked: true, accountNumber: user.signal_account_number });
     }
 
-    // Prüfe bei Signal-CLI ob der Account jetzt gelinkt ist
-    const isLinked = await signalService.checkAccountLinked(user.signal_account_number);
+    // Prüfe bei Signal-CLI ob ein Account gelinkt ist und hole echte Telefonnummer
+    const realAccountNumber = await signalService.getLinkedAccountNumber();
 
-    if (isLinked) {
-      // Aktualisiere Datenbank
+    if (realAccountNumber) {
+      // Aktualisiere Datenbank mit echter Telefonnummer
       await query(
-        'UPDATE users SET signal_linked = true, signal_linked_at = NOW() WHERE id = $1',
-        [userId]
+        'UPDATE users SET signal_account_number = $1, signal_linked = true, signal_linked_at = NOW() WHERE id = $2',
+        [realAccountNumber, userId]
       );
 
-      return res.json({ linked: true, accountNumber: user.signal_account_number });
+      return res.json({ linked: true, accountNumber: realAccountNumber });
     }
 
     res.json({ linked: false });

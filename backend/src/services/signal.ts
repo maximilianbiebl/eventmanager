@@ -100,20 +100,36 @@ class SignalService {
   }
 
   /**
+   * Holt die echte Telefonnummer des gelinkten Accounts
+   * Gibt null zurück wenn kein Account gelinkt ist
+   */
+  async getLinkedAccountNumber(): Promise<string | null> {
+    if (!this.enabled) return null;
+
+    try {
+      // Liste alle registrierten Accounts
+      const response = await axios.get(`${this.apiUrl}/v1/accounts`);
+
+      if (response.status === 200 && Array.isArray(response.data) && response.data.length > 0) {
+        // Gib die erste registrierte Telefonnummer zurück
+        const firstAccount = response.data[0];
+        console.log('Linked Signal account found:', firstAccount);
+        return firstAccount;
+      }
+
+      return null;
+    } catch (error: any) {
+      console.error('Get linked account error:', error.response?.data || error.message);
+      return null;
+    }
+  }
+
+  /**
    * Prüft ob ein Account erfolgreich gelinkt wurde
    */
   async checkAccountLinked(accountNumber: string): Promise<boolean> {
-    if (!this.enabled) return false;
-
-    try {
-      const response = await axios.get(
-        `${this.apiUrl}/v1/accounts/${accountNumber}`
-      );
-
-      return response.status === 200 && response.data !== null;
-    } catch (error) {
-      return false;
-    }
+    const linkedNumber = await this.getLinkedAccountNumber();
+    return linkedNumber !== null;
   }
 
   /**
