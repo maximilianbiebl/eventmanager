@@ -4,6 +4,8 @@ import { tasksApi } from '../../api/tasks';
 import { useSSE } from '../../hooks/useSSE';
 import responsiveStyles from './TaskTableView.module.css';
 import { Toast } from '../Toast';
+import { CSVExportModal } from './CSVExportModal';
+import { CSVImportModal } from './CSVImportModal';
 
 interface TaskAssignment {
   id: number;
@@ -33,6 +35,7 @@ interface Props {
   instanceStartDate?: string; // Startdatum der Event-Instanz
   manualRefreshTrigger?: number;
   readOnly?: boolean;
+  eventId?: number; // Needed for CSV export/import
 }
 
 const STATUS_COLORS: { [key: string]: string } = {
@@ -59,6 +62,7 @@ export const TaskTableView: React.FC<Props> = ({
   instanceStartDate,
   manualRefreshTrigger,
   readOnly = false,
+  eventId,
 }) => {
   const [assignments, setAssignments] = useState<TaskAssignment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -70,6 +74,9 @@ export const TaskTableView: React.FC<Props> = ({
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [descriptionModal, setDescriptionModal] = useState<{ title: string; description: string } | null>(null);
   const pendingActionsRef = React.useRef<number>(0);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<number[]>([]);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   // Use external selectedDay if provided, otherwise use internal state
   const selectedDay = externalSelectedDay !== undefined ? externalSelectedDay : internalSelectedDay;
@@ -392,6 +399,65 @@ export const TaskTableView: React.FC<Props> = ({
     return sortDirection === 'asc' ? ' ▲' : ' ▼';
   };
 
+  const handleToggleSelectTask = (taskId: number) => {
+    setSelectedTaskIds(prev =>
+      prev.includes(taskId) ? prev.filter(id => id !== taskId) : [...prev, taskId]
+    );
+  };
+
+  const handleSelectAllTasks = () => {
+    if (selectedTaskIds.length === sortedTasks.length) {
+      setSelectedTaskIds([]);
+    } else {
+      setSelectedTaskIds(sortedTasks.map(t => t.task.id));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedTaskIds.length === 0 || !eventId) {
+      alert('Bitte mindestens eine Aufgabe auswählen');
+      return;
+    }
+
+    if (!confirm(`${selectedTaskIds.length} Aufgaben wirklich löschen?`)) return;
+
+    pendingActionsRef.current++;
+    try {
+      await tasksApi.bulkDelete(eventId, selectedTaskIds);
+      setSelectedTaskIds([]);
+      setSuccessMessage(`${selectedTaskIds.length} Aufgaben gelöscht`);
+      setTimeout(() => setSuccessMessage(''), 3000);
+      await loadAssignments(false);
+    } catch (error) {
+      console.error('Bulk delete error:', error);
+      alert('Fehler beim Löschen');
+      await loadAssignments(false);
+    } finally {
+      pendingActionsRef.current--;
+    }
+  };
+
+  const handleBulkAssign = async () => {
+    if (selectedTaskIds.length === 0) {
+      alert('Bitte mindestens eine Aufgabe auswählen');
+      return;
+    }
+
+    // Open the first task's assign modal, but we'll need to modify the assign logic
+    // For now, just show a message
+    setSuccessMessage('Bitte einzelne Aufgaben über den "Zuweisen" Button zuweisen');
+    setTimeout(() => setSuccessMessage(''), 3000);
+  };
+
+  const handleExportSuccess = () => {
+    setShowExportModal(false);
+  };
+
+  const handleImportSuccess = async () => {
+    setShowImportModal(false);
+    await loadAssignments(false);
+  };
+
   if (loading) {
     return <div style={styles.loading}>Lade Aufgaben...</div>;
   }
@@ -407,32 +473,77 @@ export const TaskTableView: React.FC<Props> = ({
       )}
       <div style={styles.header} className={responsiveStyles.header}>
         <h3 style={styles.title} className={responsiveStyles.title}>Aufgaben-Übersicht</h3>
-        <div style={styles.filterGroup} className={responsiveStyles.filterGroup}>
-          <label style={styles.filterLabel} className={responsiveStyles.filterLabel}>Status:</label>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            style={styles.filterSelect}
-            className={responsiveStyles.filterSelect}
-          >
-            <option value="all">Alle</option>
-            <option value="not_started">Nicht gestartet</option>
-            <option value="in_progress">In Arbeit</option>
-            <option value="completed">Erledigt</option>
-            <option value="overdue">Überfällig</option>
-          </select>
-          <span style={{ fontSize: '0.875rem', color: '#6b7280', marginLeft: '1rem' }} className={responsiveStyles.sortIndicator}>
-            {sortColumn === 'manual' ? '📌 Manuelle Sortierung aktiv' : '⚠️ Spalten-Sortierung aktiv'}
-            {sortColumn !== 'manual' && (
-              <button
-                onClick={() => setSortColumn('manual')}
-                style={{ marginLeft: '0.5rem', padding: '0.25rem 0.5rem', fontSize: '0.75rem', cursor: 'pointer' }}
-              >
-                Zurück zu manueller Sortierung
+        <div style={styles.headerButtons}>
+          {eventId && (
+            <>
+              <button onClick={() => setShowImportModal(true)} style={styles.importButton}>
+                📥 CSV Import
               </button>
-            )}
-          </span>
+              <button onClick={() => setShowExportModal(true)} style={styles.exportButton}>
+                📤 CSV Export
+              </button>
+            </>
+          )}
         </div>
+      </div>
+
+      {selectedTaskIds.length > 0 && !readOnly && (
+        <div style={styles.bulkActions}>
+          <span style={styles.bulkActionsText}>{selectedTaskIds.length} ausgewählt</span>
+          <button onClick={handleBulkDelete} style={styles.bulkDeleteButton}>
+            Ausgewählte löschen
+          </button>
+          <button onClick={() => setSelectedTaskIds([])} style={styles.bulkCancelButton}>
+            Auswahl aufheben
+          </button>
+        </div>
+      )}
+
+      {showExportModal && eventId && (
+        <CSVExportModal
+          type="tasks"
+          items={sortedTasks.map(t => t.task)}
+          selectedIds={selectedTaskIds}
+          onClose={() => setShowExportModal(false)}
+          onSuccess={handleExportSuccess}
+          eventId={eventId}
+        />
+      )}
+
+      {showImportModal && eventId && (
+        <CSVImportModal
+          type="tasks"
+          onClose={() => setShowImportModal(false)}
+          onSuccess={handleImportSuccess}
+          eventId={eventId}
+        />
+      )}
+
+      <div style={styles.filterGroup} className={responsiveStyles.filterGroup}>
+        <label style={styles.filterLabel} className={responsiveStyles.filterLabel}>Status:</label>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          style={styles.filterSelect}
+          className={responsiveStyles.filterSelect}
+        >
+          <option value="all">Alle</option>
+          <option value="not_started">Nicht gestartet</option>
+          <option value="in_progress">In Arbeit</option>
+          <option value="completed">Erledigt</option>
+          <option value="overdue">Überfällig</option>
+        </select>
+        <span style={{ fontSize: '0.875rem', color: '#6b7280', marginLeft: '1rem' }} className={responsiveStyles.sortIndicator}>
+          {sortColumn === 'manual' ? '📌 Manuelle Sortierung aktiv' : '⚠️ Spalten-Sortierung aktiv'}
+          {sortColumn !== 'manual' && (
+            <button
+              onClick={() => setSortColumn('manual')}
+              style={{ marginLeft: '0.5rem', padding: '0.25rem 0.5rem', fontSize: '0.75rem', cursor: 'pointer' }}
+            >
+              Zurück zu manueller Sortierung
+            </button>
+          )}
+        </span>
       </div>
 
       {/* Tag-Tabs */}
@@ -469,6 +580,16 @@ export const TaskTableView: React.FC<Props> = ({
           <table style={styles.table}>
             <thead>
               <tr style={styles.headerRow}>
+                {!readOnly && (
+                  <th style={styles.th}>
+                    <input
+                      type="checkbox"
+                      checked={selectedTaskIds.length === sortedTasks.length && sortedTasks.length > 0}
+                      onChange={handleSelectAllTasks}
+                      style={styles.checkbox}
+                    />
+                  </th>
+                )}
                 <th
                   style={{ ...styles.th, cursor: 'pointer', userSelect: 'none' }}
                   onClick={() => handleSort('day')}
@@ -519,7 +640,17 @@ export const TaskTableView: React.FC<Props> = ({
             </thead>
             <tbody>
               {sortedTasks.map(({ task, assignedUsers }) => (
-                <tr key={task.id} style={styles.row}>
+                <tr key={task.id} style={{...styles.row, ...(selectedTaskIds.includes(task.id) ? styles.selectedRow : {})}}>
+                  {!readOnly && (
+                    <td style={styles.td}>
+                      <input
+                        type="checkbox"
+                        checked={selectedTaskIds.includes(task.id)}
+                        onChange={() => handleToggleSelectTask(task.id)}
+                        style={styles.checkbox}
+                      />
+                    </td>
+                  )}
                   <td style={styles.td} className={responsiveStyles.hideOnMobile}>Tag {task.day_number}</td>
                   <td style={styles.td} className={responsiveStyles.hideOnMobile}>{getTaskDate(task.day_number)}</td>
                   <td style={styles.td}>
@@ -730,12 +861,77 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '1.5rem',
+    marginBottom: '1rem',
   },
   title: {
     fontSize: '1.25rem',
     fontWeight: 'bold',
     color: '#1f2937',
+  },
+  headerButtons: {
+    display: 'flex',
+    gap: '0.75rem',
+  },
+  exportButton: {
+    padding: '0.5rem 1rem',
+    backgroundColor: '#3b82f6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
+    fontWeight: '500',
+  },
+  importButton: {
+    padding: '0.5rem 1rem',
+    backgroundColor: '#8b5cf6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
+    fontWeight: '500',
+  },
+  bulkActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '1rem',
+    padding: '0.75rem 1rem',
+    backgroundColor: '#f3f4f6',
+    borderRadius: '4px',
+    marginBottom: '1rem',
+  },
+  bulkActionsText: {
+    fontSize: '0.875rem',
+    fontWeight: '500',
+    color: '#374151',
+  },
+  bulkDeleteButton: {
+    padding: '0.5rem 1rem',
+    backgroundColor: '#ef4444',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
+    fontWeight: '500',
+  },
+  bulkCancelButton: {
+    padding: '0.5rem 1rem',
+    backgroundColor: '#6b7280',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
+  },
+  checkbox: {
+    width: '18px',
+    height: '18px',
+    cursor: 'pointer',
+  },
+  selectedRow: {
+    backgroundColor: '#eff6ff',
   },
   filterGroup: {
     display: 'flex',
