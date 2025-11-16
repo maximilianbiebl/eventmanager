@@ -3,8 +3,10 @@ import { query } from '../database/connection';
 import { authMiddleware, teamleiterOrAdminMiddleware, AuthRequest } from '../middleware/auth';
 import { CreateTaskRequest, AssignTaskRequest } from '../types';
 import { broadcastUpdate } from './sse';
+import multer from 'multer';
 
 const router = Router();
+const upload = multer({ storage: multer.memoryStorage() });
 
 // Helper function to format time without seconds (hh:mm)
 function formatTime(time: string | null): string {
@@ -1646,6 +1648,187 @@ router.put('/:id/move-down', authMiddleware, teamleiterOrAdminMiddleware, async 
     res.json({ message: 'Reihenfolge aktualisiert' });
   } catch (error) {
     console.error('Move down error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// Bulk Delete Tasks
+router.post('/event/:eventId/bulk-delete', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const { task_ids } = req.body;
+
+    if (!Array.isArray(task_ids) || task_ids.length === 0) {
+      return res.status(400).json({ error: 'Keine Task-IDs angegeben' });
+    }
+
+    // Delete all tasks
+    await query('DELETE FROM tasks WHERE id = ANY($1) AND event_id = $2', [task_ids, eventId]);
+
+    broadcastUpdate('task', { action: 'bulk_delete', taskIds: task_ids, eventId: parseInt(eventId) });
+
+    res.json({ message: `${task_ids.length} Aufgaben gelöscht`, deleted: task_ids.length });
+  } catch (error) {
+    console.error('Bulk delete tasks error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// Bulk Assign Tasks
+router.post('/instance/:instanceId/bulk-assign', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+  try {
+    const { instanceId } = req.params;
+    const { task_ids, user_ids } = req.body;
+
+    if (!Array.isArray(task_ids) || task_ids.length === 0) {
+      return res.status(400).json({ error: 'Keine Task-IDs angegeben' });
+    }
+
+    if (!Array.isArray(user_ids) || user_ids.length === 0) {
+      return res.status(400).json({ error: 'Keine User-IDs angegeben' });
+    }
+
+    let assigned = 0;
+
+    for (const taskId of task_ids) {
+      for (const userId of user_ids) {
+        // Check if already assigned
+        const existing = await query(
+          'SELECT * FROM task_assignments WHERE task_id = $1 AND event_instance_id = $2 AND user_id = $3',
+          [taskId, instanceId, userId]
+        );
+
+        if (existing.rows.length === 0) {
+          await query(
+            'INSERT INTO task_assignments (task_id, event_instance_id, user_id, reminder_minutes) VALUES ($1, $2, $3, $4)',
+            [taskId, instanceId, userId, 15]
+          );
+          assigned++;
+        }
+      }
+    }
+
+    broadcastUpdate('task', { action: 'bulk_assign', taskIds: task_ids, userIds: user_ids, instanceId: parseInt(instanceId) });
+
+    res.json({ message: `${assigned} Zuweisungen erstellt`, assigned });
+  } catch (error) {
+    console.error('Bulk assign error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// CSV Export Tasks
+router.post('/event/:eventId/export-csv', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const { task_ids } = req.body;
+
+    let result;
+    if (task_ids && Array.isArray(task_ids) && task_ids.length > 0) {
+      result = await query(
+        'SELECT id, title, description, day_number, scheduled_time, start_time, end_time, is_public, status FROM tasks WHERE id = ANY($1) AND event_id = $2 ORDER BY day_number, scheduled_time',
+        [task_ids, eventId]
+      );
+    } else {
+      result = await query(
+        'SELECT id, title, description, day_number, scheduled_time, start_time, end_time, is_public, status FROM tasks WHERE event_id = $1 ORDER BY day_number, scheduled_time',
+        [eventId]
+      );
+    }
+
+    // Create CSV
+    const headers = ['id', 'title', 'description', 'day_number', 'scheduled_time', 'start_time', 'end_time', 'is_public', 'status'];
+    const rows = result.rows.map(row =>
+      `${row.id},"${row.title}","${row.description || ''}",${row.day_number},${row.scheduled_time || ''},${row.start_time || ''},${row.end_time || ''},${row.is_public},${row.status}`
+    );
+    const csv = [headers.join(','), ...rows].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename=tasks_event${eventId}_${new Date().toISOString().split('T')[0]}.csv`);
+    res.send(csv);
+  } catch (error) {
+    console.error('Export CSV error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// CSV Import Tasks
+router.post('/event/:eventId/import-csv', authMiddleware, teamleiterOrAdminMiddleware, upload.single('file'), async (req, res) => {
+  try {
+    const { eventId } = req.params;
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'Keine Datei hochgeladen' });
+    }
+
+    const csvText = req.file.buffer.toString('utf-8');
+    const lines = csvText.split('\n').filter(line => line.trim());
+
+    if (lines.length < 2) {
+      return res.status(400).json({ error: 'CSV ist leer oder ungültig' });
+    }
+
+    const headers = lines[0].split(',').map(h => h.trim());
+    let imported = 0;
+
+    // Get max sort_order for this event
+    const maxSortResult = await query('SELECT MAX(sort_order) as max_sort FROM tasks WHERE event_id = $1', [eventId]);
+    let nextSortOrder = (maxSortResult.rows[0]?.max_sort || 0) + 10;
+
+    for (let i = 1; i < lines.length; i++) {
+      // Parse CSV line with quoted strings
+      const values: string[] = [];
+      let currentValue = '';
+      let inQuotes = false;
+
+      for (let j = 0; j < lines[i].length; j++) {
+        const char = lines[i][j];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          values.push(currentValue.trim());
+          currentValue = '';
+        } else {
+          currentValue += char;
+        }
+      }
+      values.push(currentValue.trim());
+
+      const task: any = {};
+      headers.forEach((header, idx) => {
+        task[header] = values[idx];
+      });
+
+      // Create new task
+      await query(
+        `INSERT INTO tasks (
+          event_id, day_number, title, description, scheduled_time, start_time, end_time,
+          reminder_minutes, is_public, status, sort_order
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+        [
+          eventId,
+          parseInt(task.day_number) || 1,
+          task.title,
+          task.description || null,
+          task.scheduled_time || null,
+          task.start_time || null,
+          task.end_time || null,
+          15,
+          task.is_public === 'true',
+          task.status || 'not_started',
+          nextSortOrder
+        ]
+      );
+
+      nextSortOrder += 10;
+      imported++;
+    }
+
+    broadcastUpdate('task', { action: 'tasks_imported', count: imported, eventId: parseInt(eventId) });
+
+    res.json({ message: `${imported} Aufgaben importiert`, imported });
+  } catch (error) {
+    console.error('Import CSV error:', error);
     res.status(500).json({ error: 'Server Fehler' });
   }
 });

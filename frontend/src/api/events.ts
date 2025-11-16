@@ -84,4 +84,28 @@ export const eventsApi = {
     const response = await client.post(`/events/${id}/approve-suggestion`);
     return response.data;
   },
+
+  bulkDelete: async (ids: number[]) => {
+    const response = await client.post('/events/bulk-delete', { ids });
+    return response.data;
+  },
+
+  bulkApproveSuggestions: async (ids: number[]) => {
+    const response = await client.post('/events/bulk-approve-suggestions', { ids });
+    return response.data;
+  },
+
+  exportCSV: async (ids?: number[]) => {
+    const response = await client.post('/events/export-csv', { ids }, { responseType: 'blob' });
+    return response.data;
+  },
+
+  importCSV: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await client.post('/events/import-csv', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return response.data;
+  },
 };

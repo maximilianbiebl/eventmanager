@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { usersApi, User } from '../../api/users';
 import { authApi } from '../../api/auth';
 import { CreateUserModal } from './CreateUserModal';
+import { CSVExportModal } from './CSVExportModal';
+import { CSVImportModal } from './CSVImportModal';
 import responsiveStyles from './UsersList.module.css';
 
 interface Props {
@@ -13,6 +15,11 @@ export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvent }) =
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [sortColumn, setSortColumn] = useState<'name' | 'role' | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   useEffect(() => {
     loadUsers();
@@ -69,6 +76,75 @@ export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvent }) =
     }
   };
 
+  const handleToggleSelect = (userId: number) => {
+    setSelectedIds(prev =>
+      prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedIds.length === sortedUsers.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(sortedUsers.map(u => u.id));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) {
+      alert('Bitte mindestens einen Mitarbeiter auswählen');
+      return;
+    }
+
+    if (!confirm(`${selectedIds.length} Mitarbeiter wirklich löschen?`)) return;
+
+    try {
+      await usersApi.bulkDelete(selectedIds);
+      setSelectedIds([]);
+      await loadUsers(false);
+    } catch (error) {
+      console.error('Bulk delete error:', error);
+      alert('Fehler beim Löschen');
+    }
+  };
+
+  const handleSort = (column: 'name' | 'role') => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortIcon = (column: 'name' | 'role') => {
+    if (sortColumn !== column) return ' ↕';
+    return sortDirection === 'asc' ? ' ▲' : ' ▼';
+  };
+
+  const handleExportSuccess = () => {
+    setShowExportModal(false);
+  };
+
+  const handleImportSuccess = async () => {
+    setShowImportModal(false);
+    await loadUsers(false);
+  };
+
+  // Sort users
+  const sortedUsers = [...users].sort((a, b) => {
+    if (!sortColumn) return 0;
+
+    let compareResult = 0;
+    if (sortColumn === 'name') {
+      compareResult = a.name.localeCompare(b.name);
+    } else if (sortColumn === 'role') {
+      compareResult = a.role.localeCompare(b.role);
+    }
+
+    return sortDirection === 'asc' ? compareResult : -compareResult;
+  });
+
   if (loading) {
     return <div>Lade Mitarbeiter...</div>;
   }
@@ -85,10 +161,30 @@ export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvent }) =
 
       <div style={styles.header} className={responsiveStyles.header}>
         <h2 style={styles.title}>Mitarbeiter</h2>
-        <button onClick={() => setShowCreateModal(true)} style={styles.createButton} className={responsiveStyles.createButton}>
-          + Neuer Mitarbeiter
-        </button>
+        <div style={styles.headerButtons}>
+          <button onClick={() => setShowImportModal(true)} style={styles.importButton} className={responsiveStyles.importButton}>
+            📥 CSV Import
+          </button>
+          <button onClick={() => setShowExportModal(true)} style={styles.exportButton} className={responsiveStyles.exportButton}>
+            📤 CSV Export
+          </button>
+          <button onClick={() => setShowCreateModal(true)} style={styles.createButton} className={responsiveStyles.createButton}>
+            + Neuer Mitarbeiter
+          </button>
+        </div>
       </div>
+
+      {selectedIds.length > 0 && (
+        <div style={styles.bulkActions}>
+          <span style={styles.bulkActionsText}>{selectedIds.length} ausgewählt</span>
+          <button onClick={handleBulkDelete} style={styles.bulkDeleteButton}>
+            Ausgewählte löschen
+          </button>
+          <button onClick={() => setSelectedIds([])} style={styles.bulkCancelButton}>
+            Auswahl aufheben
+          </button>
+        </div>
+      )}
 
       {showCreateModal && (
         <CreateUserModal
@@ -97,18 +193,56 @@ export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvent }) =
         />
       )}
 
+      {showExportModal && (
+        <CSVExportModal
+          type="users"
+          items={users}
+          selectedIds={selectedIds}
+          onClose={() => setShowExportModal(false)}
+          onSuccess={handleExportSuccess}
+        />
+      )}
+
+      {showImportModal && (
+        <CSVImportModal
+          type="users"
+          onClose={() => setShowImportModal(false)}
+          onSuccess={handleImportSuccess}
+        />
+      )}
+
       <table style={styles.table} className={responsiveStyles.table}>
         <thead>
           <tr>
+            <th style={styles.th}>
+              <input
+                type="checkbox"
+                checked={selectedIds.length === sortedUsers.length && sortedUsers.length > 0}
+                onChange={handleSelectAll}
+                style={styles.checkbox}
+              />
+            </th>
             <th style={styles.th}>ID</th>
-            <th style={styles.th}>Name</th>
-            <th style={styles.th}>Rolle</th>
+            <th style={{...styles.th, cursor: 'pointer', userSelect: 'none'}} onClick={() => handleSort('name')}>
+              Name{getSortIcon('name')}
+            </th>
+            <th style={{...styles.th, cursor: 'pointer', userSelect: 'none'}} onClick={() => handleSort('role')}>
+              Rolle{getSortIcon('role')}
+            </th>
             <th style={styles.th}>Aktionen</th>
           </tr>
         </thead>
         <tbody>
-          {users.map((user) => (
-            <tr key={user.id}>
+          {sortedUsers.map((user) => (
+            <tr key={user.id} style={selectedIds.includes(user.id) ? styles.selectedRow : undefined}>
+              <td style={styles.td}>
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(user.id)}
+                  onChange={() => handleToggleSelect(user.id)}
+                  style={styles.checkbox}
+                />
+              </td>
               <td style={styles.td}>{user.id}</td>
               <td style={styles.td}>{user.name}</td>
               <td style={styles.td}>
@@ -164,6 +298,10 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: 'bold',
     margin: 0,
   },
+  headerButtons: {
+    display: 'flex',
+    gap: '0.75rem',
+  },
   createButton: {
     padding: '0.75rem 1.5rem',
     backgroundColor: '#10b981',
@@ -172,6 +310,65 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: '4px',
     cursor: 'pointer',
     fontWeight: '500',
+  },
+  exportButton: {
+    padding: '0.75rem 1.5rem',
+    backgroundColor: '#3b82f6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontWeight: '500',
+  },
+  importButton: {
+    padding: '0.75rem 1.5rem',
+    backgroundColor: '#8b5cf6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontWeight: '500',
+  },
+  bulkActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '1rem',
+    padding: '0.75rem 1rem',
+    backgroundColor: '#f3f4f6',
+    borderRadius: '4px',
+    marginBottom: '1rem',
+  },
+  bulkActionsText: {
+    fontSize: '0.875rem',
+    fontWeight: '500',
+    color: '#374151',
+  },
+  bulkDeleteButton: {
+    padding: '0.5rem 1rem',
+    backgroundColor: '#ef4444',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
+    fontWeight: '500',
+  },
+  bulkCancelButton: {
+    padding: '0.5rem 1rem',
+    backgroundColor: '#6b7280',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
+  },
+  checkbox: {
+    width: '18px',
+    height: '18px',
+    cursor: 'pointer',
+  },
+  selectedRow: {
+    backgroundColor: '#eff6ff',
   },
   table: {
     width: '100%',

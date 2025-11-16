@@ -2,8 +2,10 @@ import { Router } from 'express';
 import { query } from '../database/connection';
 import { authMiddleware, adminMiddleware, teamleiterOrAdminMiddleware, AuthRequest } from '../middleware/auth';
 import bcrypt from 'bcrypt';
+import multer from 'multer';
 
 const router = Router();
+const upload = multer({ storage: multer.memoryStorage() });
 
 // Alle Benutzer abrufen
 router.get('/', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
@@ -275,6 +277,114 @@ router.delete('/instance/:instanceId/staff/:userId', authMiddleware, teamleiterO
     res.json({ message: 'Mitarbeiter entfernt' });
   } catch (error) {
     console.error('Remove staff error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// Bulk Delete
+router.post('/bulk-delete', authMiddleware, teamleiterOrAdminMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { ids } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'Keine IDs angegeben' });
+    }
+
+    // Check permissions for each user
+    for (const id of ids) {
+      const userCheck = await query('SELECT role FROM users WHERE id = $1', [id]);
+      if (userCheck.rows.length === 0) continue;
+
+      const targetRole = userCheck.rows[0].role;
+
+      // Teamleiter dürfen keine Admins oder andere Teamleiter löschen
+      if (req.user!.role === 'teamleiter' && (targetRole === 'admin' || targetRole === 'teamleiter')) {
+        return res.status(403).json({ error: 'Teamleiter können nur Staff-Mitarbeiter löschen' });
+      }
+    }
+
+    // Delete all users
+    await query('DELETE FROM users WHERE id = ANY($1)', [ids]);
+
+    res.json({ message: `${ids.length} Benutzer gelöscht`, deleted: ids.length });
+  } catch (error) {
+    console.error('Bulk delete users error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// CSV Export
+router.post('/export-csv', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+  try {
+    const { ids } = req.body;
+
+    let result;
+    if (ids && Array.isArray(ids) && ids.length > 0) {
+      result = await query('SELECT id, name, role FROM users WHERE id = ANY($1) ORDER BY name', [ids]);
+    } else {
+      result = await query('SELECT id, name, role FROM users ORDER BY name');
+    }
+
+    // Create CSV
+    const headers = ['id', 'name', 'role'];
+    const rows = result.rows.map(row => `${row.id},${row.name},${row.role}`);
+    const csv = [headers.join(','), ...rows].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename=users_${new Date().toISOString().split('T')[0]}.csv`);
+    res.send(csv);
+  } catch (error) {
+    console.error('Export CSV error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// CSV Import
+router.post('/import-csv', authMiddleware, teamleiterOrAdminMiddleware, upload.single('file'), async (req: AuthRequest, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Keine Datei hochgeladen' });
+    }
+
+    const csvText = req.file.buffer.toString('utf-8');
+    const lines = csvText.split('\n').filter(line => line.trim());
+
+    if (lines.length < 2) {
+      return res.status(400).json({ error: 'CSV ist leer oder ungültig' });
+    }
+
+    const headers = lines[0].split(',').map(h => h.trim());
+    let imported = 0;
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(',').map(v => v.trim());
+      const user: any = {};
+      headers.forEach((header, idx) => {
+        user[header] = values[idx];
+      });
+
+      // Teamleiter dürfen keine Admins erstellen
+      if (req.user!.role === 'teamleiter' && user.role === 'admin') {
+        continue; // Skip admin users
+      }
+
+      // Check if user already exists by name
+      const existing = await query('SELECT id FROM users WHERE name = $1', [user.name]);
+
+      if (existing.rows.length === 0) {
+        // Create new user with default password
+        const defaultPassword = await bcrypt.hash('1234', 10);
+        await query(
+          'INSERT INTO users (name, role, password_hash) VALUES ($1, $2, $3)',
+          [user.name, user.role || 'staff', defaultPassword]
+        );
+        imported++;
+      }
+    }
+
+    res.json({ message: `${imported} Benutzer importiert`, imported });
+  } catch (error) {
+    console.error('Import CSV error:', error);
     res.status(500).json({ error: 'Server Fehler' });
   }
 });

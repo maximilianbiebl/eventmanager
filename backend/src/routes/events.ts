@@ -3,8 +3,10 @@ import { query } from '../database/connection';
 import { authMiddleware, adminMiddleware, teamleiterOrAdminMiddleware, AuthRequest } from '../middleware/auth';
 import { CreateEventRequest } from '../types';
 import { broadcastUpdate } from './sse';
+import multer from 'multer';
 
 const router = Router();
+const upload = multer({ storage: multer.memoryStorage() });
 
 // Alle Events abrufen (rollenbasiert)
 router.get('/', authMiddleware, async (req: AuthRequest, res) => {
@@ -786,6 +788,264 @@ router.delete('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req: A
     res.json({ message: 'Event gelöscht' });
   } catch (error) {
     console.error('Delete event error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// Bulk Delete Events
+router.post('/bulk-delete', authMiddleware, teamleiterOrAdminMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { ids } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'Keine IDs angegeben' });
+    }
+
+    // Check permissions for each event
+    for (const id of ids) {
+      const eventCheck = await query('SELECT * FROM events WHERE id = $1', [id]);
+      if (eventCheck.rows.length === 0) continue;
+
+      const event = eventCheck.rows[0];
+
+      // Teamleiter dürfen nur ihre eigenen Events löschen
+      if (req.user!.role === 'teamleiter' && event.created_by !== req.user!.id) {
+        return res.status(403).json({ error: 'Keine Berechtigung für alle ausgewählten Events' });
+      }
+
+      // Teamleiter dürfen vorgeschlagene Events nicht löschen
+      if (req.user!.role === 'teamleiter' && event.is_template_suggestion) {
+        return res.status(403).json({ error: 'Vorgeschlagene Events können nicht gelöscht werden' });
+      }
+    }
+
+    // Delete all events
+    await query('DELETE FROM events WHERE id = ANY($1)', [ids]);
+
+    res.json({ message: `${ids.length} Events gelöscht`, deleted: ids.length });
+  } catch (error) {
+    console.error('Bulk delete events error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// Bulk Approve Suggestions
+router.post('/bulk-approve-suggestions', authMiddleware, adminMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { ids } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'Keine IDs angegeben' });
+    }
+
+    const createdTemplates = [];
+
+    for (const id of ids) {
+      // Event prüfen
+      const originalEvent = await query('SELECT * FROM events WHERE id = $1 AND is_template_suggestion = true', [id]);
+
+      if (originalEvent.rows.length === 0) continue;
+
+      const original = originalEvent.rows[0];
+
+      // Vorlage erstellen
+      const templateResult = await query(
+        'INSERT INTO events (name, description, start_date, days, created_by, is_template, is_template_suggestion) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+        [original.name, original.description, null, original.days, req.user!.id, true, false]
+      );
+
+      const template = templateResult.rows[0];
+
+      // Event Instanzen erstellen
+      const instanceResult = await query(
+        'INSERT INTO event_instances (event_id, instance_number, start_date) VALUES ($1, $2, $3) RETURNING *',
+        [template.id, 1, null]
+      );
+
+      // Programmpunkte kopieren
+      const originalProgram = await query('SELECT * FROM program_items WHERE event_id = $1 ORDER BY id', [id]);
+      const programItemIdMap = new Map<number, number>();
+
+      if (originalProgram.rows.length > 0) {
+        const programValues = originalProgram.rows.map((p, idx) =>
+          `($1, $${idx * 4 + 2}, $${idx * 4 + 3}, $${idx * 4 + 4}, $${idx * 4 + 5})`
+        ).join(', ');
+        const programParams = [template.id];
+        originalProgram.rows.forEach(p => {
+          programParams.push(p.day_number, p.time, p.title, p.description);
+        });
+
+        const newProgramItems = await query(
+          `INSERT INTO program_items (event_id, day_number, time, title, description)
+           VALUES ${programValues} RETURNING id`,
+          programParams
+        );
+
+        originalProgram.rows.forEach((program, idx) => {
+          programItemIdMap.set(program.id, newProgramItems.rows[idx].id);
+        });
+      }
+
+      // Tasks kopieren
+      const originalTasks = await query('SELECT * FROM tasks WHERE event_id = $1', [id]);
+
+      if (originalTasks.rows.length > 0) {
+        const taskValues = originalTasks.rows.map((t, idx) => {
+          const baseIdx = idx * 12 + 2;
+          return `($1, $${baseIdx}, $${baseIdx+1}, $${baseIdx+2}, $${baseIdx+3}, $${baseIdx+4}, $${baseIdx+5}, $${baseIdx+6}, $${baseIdx+7}, $${baseIdx+8}, $${baseIdx+9}, $${baseIdx+10}, $${baseIdx+11})`;
+        }).join(', ');
+
+        const taskParams = [template.id];
+        originalTasks.rows.forEach(task => {
+          const newProgramItemId = task.program_item_id ? programItemIdMap.get(task.program_item_id) : null;
+          taskParams.push(
+            newProgramItemId || null,
+            task.day_number,
+            task.title,
+            task.description,
+            task.scheduled_time,
+            task.start_time,
+            task.end_time,
+            task.reminder_minutes,
+            task.is_public,
+            'not_started',
+            task.is_active !== undefined ? task.is_active : true,
+            task.sort_order || 0
+          );
+        });
+
+        await query(
+          `INSERT INTO tasks (
+            event_id, program_item_id, day_number, title, description,
+            scheduled_time, start_time, end_time, reminder_minutes, is_public, status, is_active, sort_order
+          ) VALUES ${taskValues}`,
+          taskParams
+        );
+      }
+
+      // Vorschlag-Flag beim Original entfernen
+      await query('UPDATE events SET is_template_suggestion = false WHERE id = $1', [id]);
+
+      createdTemplates.push(template);
+    }
+
+    broadcastUpdate('event', { action: 'bulk_suggestions_approved', count: createdTemplates.length });
+
+    res.status(201).json({
+      message: `${createdTemplates.length} Vorschläge genehmigt`,
+      templates: createdTemplates,
+    });
+  } catch (error) {
+    console.error('Bulk approve suggestions error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// CSV Export Events
+router.post('/export-csv', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+  try {
+    const { ids } = req.body;
+
+    let result;
+    if (ids && Array.isArray(ids) && ids.length > 0) {
+      result = await query('SELECT id, name, description, start_date, days, is_template FROM events WHERE id = ANY($1) ORDER BY name', [ids]);
+    } else {
+      result = await query('SELECT id, name, description, start_date, days, is_template FROM events ORDER BY name');
+    }
+
+    // Create CSV
+    const headers = ['id', 'name', 'description', 'start_date', 'days', 'is_template'];
+    const rows = result.rows.map(row =>
+      `${row.id},"${row.name}","${row.description || ''}",${row.start_date || ''},${row.days},${row.is_template}`
+    );
+    const csv = [headers.join(','), ...rows].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename=events_${new Date().toISOString().split('T')[0]}.csv`);
+    res.send(csv);
+  } catch (error) {
+    console.error('Export CSV error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// CSV Import Events
+router.post('/import-csv', authMiddleware, teamleiterOrAdminMiddleware, upload.single('file'), async (req: AuthRequest, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Keine Datei hochgeladen' });
+    }
+
+    const csvText = req.file.buffer.toString('utf-8');
+    const lines = csvText.split('\n').filter(line => line.trim());
+
+    if (lines.length < 2) {
+      return res.status(400).json({ error: 'CSV ist leer oder ungültig' });
+    }
+
+    const headers = lines[0].split(',').map(h => h.trim());
+    let imported = 0;
+
+    for (let i = 1; i < lines.length; i++) {
+      // Parse CSV line with quoted strings
+      const values: string[] = [];
+      let currentValue = '';
+      let inQuotes = false;
+
+      for (let j = 0; j < lines[i].length; j++) {
+        const char = lines[i][j];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          values.push(currentValue.trim());
+          currentValue = '';
+        } else {
+          currentValue += char;
+        }
+      }
+      values.push(currentValue.trim());
+
+      const event: any = {};
+      headers.forEach((header, idx) => {
+        event[header] = values[idx];
+      });
+
+      // Only Admin kann Vorlagen importieren
+      const isTemplate = event.is_template === 'true' && req.user!.role === 'admin';
+
+      // Create new event
+      const eventResult = await query(
+        'INSERT INTO events (name, description, start_date, days, created_by, is_template) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+        [
+          event.name,
+          event.description || null,
+          event.start_date || null,
+          parseInt(event.days) || 1,
+          req.user!.id,
+          isTemplate
+        ]
+      );
+
+      const newEvent = eventResult.rows[0];
+
+      // Create event instances
+      const instanceCount = 1;
+      for (let j = 0; j < instanceCount; j++) {
+        const startDate = event.start_date || null;
+        await query(
+          'INSERT INTO event_instances (event_id, instance_number, start_date) VALUES ($1, $2, $3)',
+          [newEvent.id, j + 1, startDate]
+        );
+      }
+
+      imported++;
+    }
+
+    broadcastUpdate('event', { action: 'events_imported', count: imported });
+
+    res.json({ message: `${imported} Events importiert`, imported });
+  } catch (error) {
+    console.error('Import CSV error:', error);
     res.status(500).json({ error: 'Server Fehler' });
   }
 });

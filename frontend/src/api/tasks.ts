@@ -119,4 +119,31 @@ export const tasksApi = {
     const response = await client.put(`/tasks/${taskId}/move-down`);
     return response.data;
   },
+
+  bulkDelete: async (eventId: number, taskIds: number[]) => {
+    const response = await client.post(`/tasks/event/${eventId}/bulk-delete`, { task_ids: taskIds });
+    return response.data;
+  },
+
+  bulkAssign: async (eventInstanceId: number, taskIds: number[], userIds: number[]) => {
+    const response = await client.post(`/tasks/instance/${eventInstanceId}/bulk-assign`, {
+      task_ids: taskIds,
+      user_ids: userIds,
+    });
+    return response.data;
+  },
+
+  exportCSV: async (eventId: number, taskIds?: number[]) => {
+    const response = await client.post(`/tasks/event/${eventId}/export-csv`, { task_ids: taskIds }, { responseType: 'blob' });
+    return response.data;
+  },
+
+  importCSV: async (eventId: number, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await client.post(`/tasks/event/${eventId}/import-csv`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return response.data;
+  },
 };

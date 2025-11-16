@@ -23,6 +23,25 @@ export const usersApi = {
     return response.data;
   },
 
+  bulkDelete: async (ids: number[]) => {
+    const response = await client.post('/users/bulk-delete', { ids });
+    return response.data;
+  },
+
+  exportCSV: async (ids?: number[]) => {
+    const response = await client.post('/users/export-csv', { ids }, { responseType: 'blob' });
+    return response.data;
+  },
+
+  importCSV: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await client.post('/users/import-csv', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return response.data;
+  },
+
   assignToInstance: async (instanceId: number, userIds: number[]) => {
     const response = await client.post(`/users/instance/${instanceId}/staff`, { user_ids: userIds });
     return response.data;
