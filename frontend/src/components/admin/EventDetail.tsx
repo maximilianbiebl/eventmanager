@@ -345,6 +345,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
               instanceStartDate={(event as any)?.instances.find((i: any) => i.id === selectedInstance)?.start_date}
               manualRefreshTrigger={manualRefreshTrigger}
               readOnly={isTeamleiter && event.is_template}
+              eventId={event.id}
             />
           </div>
         )}
