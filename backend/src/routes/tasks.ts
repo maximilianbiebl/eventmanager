@@ -1833,4 +1833,363 @@ router.post('/event/:eventId/import-csv', authMiddleware, teamleiterOrAdminMiddl
   }
 });
 
+// Bulk Remove Task Assignments
+router.post('/bulk-remove-assignments', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+  try {
+    const { assignment_ids } = req.body;
+
+    if (!Array.isArray(assignment_ids) || assignment_ids.length === 0) {
+      return res.status(400).json({ error: 'Keine Assignment-IDs angegeben' });
+    }
+
+    // Delete assignments
+    await query('DELETE FROM task_assignments WHERE id = ANY($1)', [assignment_ids]);
+
+    broadcastUpdate('task', { action: 'bulk_remove_assignments', assignmentIds: assignment_ids });
+
+    res.json({ message: `${assignment_ids.length} Zuweisungen entfernt`, removed: assignment_ids.length });
+  } catch (error) {
+    console.error('Bulk remove assignments error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// Replace Staff Member (reassign all tasks)
+router.post('/replace-staff/:eventId', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const { old_user_id, new_user_id } = req.body;
+
+    if (!old_user_id || !new_user_id) {
+      return res.status(400).json({ error: 'Alte und neue User-ID erforderlich' });
+    }
+
+    // Get all task assignments for the old user in this event's instances
+    const assignmentsResult = await query(
+      `SELECT ta.id, ta.task_id, ta.event_instance_id, ta.reminder_minutes
+       FROM task_assignments ta
+       JOIN tasks t ON ta.task_id = t.id
+       WHERE t.event_id = $1 AND ta.user_id = $2`,
+      [eventId, old_user_id]
+    );
+
+    let replaced = 0;
+
+    for (const assignment of assignmentsResult.rows) {
+      // Check if new user already has this assignment
+      const existingResult = await query(
+        'SELECT id FROM task_assignments WHERE task_id = $1 AND event_instance_id = $2 AND user_id = $3',
+        [assignment.task_id, assignment.event_instance_id, new_user_id]
+      );
+
+      if (existingResult.rows.length === 0) {
+        // Create new assignment for new user
+        await query(
+          'INSERT INTO task_assignments (task_id, event_instance_id, user_id, reminder_minutes) VALUES ($1, $2, $3, $4)',
+          [assignment.task_id, assignment.event_instance_id, new_user_id, assignment.reminder_minutes]
+        );
+        replaced++;
+      }
+
+      // Delete old assignment
+      await query('DELETE FROM task_assignments WHERE id = $1', [assignment.id]);
+    }
+
+    broadcastUpdate('task', {
+      action: 'replace_staff',
+      eventId: parseInt(eventId),
+      oldUserId: old_user_id,
+      newUserId: new_user_id,
+      replaced
+    });
+
+    res.json({ message: `${replaced} Aufgaben neu zugewiesen`, replaced });
+  } catch (error) {
+    console.error('Replace staff error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// ===== TASK SERIES ROUTES =====
+
+// Get all task series for an event
+router.get('/task-series/event/:eventId', authMiddleware, async (req, res) => {
+  try {
+    const { eventId } = req.params;
+
+    const result = await query(
+      `SELECT ts.*,
+        (SELECT COUNT(*) FROM tasks WHERE series_id = ts.id) as task_count,
+        (SELECT COUNT(*) FROM task_series_members WHERE series_id = ts.id) as member_count
+       FROM task_series ts
+       WHERE ts.event_id = $1
+       ORDER BY ts.name`,
+      [eventId]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Get task series error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// Get a single task series with details
+router.get('/task-series/:seriesId', authMiddleware, async (req, res) => {
+  try {
+    const { seriesId } = req.params;
+
+    const seriesResult = await query(
+      'SELECT * FROM task_series WHERE id = $1',
+      [seriesId]
+    );
+
+    if (seriesResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Serie nicht gefunden' });
+    }
+
+    // Get members
+    const membersResult = await query(
+      `SELECT u.id, u.name, u.email
+       FROM task_series_members tsm
+       JOIN users u ON tsm.user_id = u.id
+       WHERE tsm.series_id = $1`,
+      [seriesId]
+    );
+
+    // Get tasks in this series
+    const tasksResult = await query(
+      'SELECT * FROM tasks WHERE series_id = $1 ORDER BY day_number, scheduled_time',
+      [seriesId]
+    );
+
+    res.json({
+      ...seriesResult.rows[0],
+      members: membersResult.rows,
+      tasks: tasksResult.rows,
+    });
+  } catch (error) {
+    console.error('Get task series details error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// Create a new task series
+router.post('/task-series', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+  try {
+    const { event_id, name, description, member_ids } = req.body;
+
+    if (!event_id || !name) {
+      return res.status(400).json({ error: 'Event ID und Name sind erforderlich' });
+    }
+
+    // Create the series
+    const seriesResult = await query(
+      'INSERT INTO task_series (event_id, name, description) VALUES ($1, $2, $3) RETURNING *',
+      [event_id, name, description || null]
+    );
+
+    const series = seriesResult.rows[0];
+
+    // Add members if provided
+    if (member_ids && Array.isArray(member_ids) && member_ids.length > 0) {
+      for (const userId of member_ids) {
+        await query(
+          'INSERT INTO task_series_members (series_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+          [series.id, userId]
+        );
+      }
+    }
+
+    broadcastUpdate('task', { action: 'series_created', seriesId: series.id, eventId: event_id });
+
+    res.status(201).json(series);
+  } catch (error) {
+    console.error('Create task series error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// Update a task series
+router.put('/task-series/:seriesId', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+  try {
+    const { seriesId } = req.params;
+    const { name, description } = req.body;
+
+    const result = await query(
+      'UPDATE task_series SET name = $1, description = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 RETURNING *',
+      [name, description || null, seriesId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Serie nicht gefunden' });
+    }
+
+    broadcastUpdate('task', { action: 'series_updated', seriesId: parseInt(seriesId) });
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Update task series error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// Delete a task series
+router.delete('/task-series/:seriesId', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+  try {
+    const { seriesId } = req.params;
+
+    // Get event_id before deleting
+    const seriesResult = await query('SELECT event_id FROM task_series WHERE id = $1', [seriesId]);
+
+    if (seriesResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Serie nicht gefunden' });
+    }
+
+    const eventId = seriesResult.rows[0].event_id;
+
+    // Delete the series (CASCADE will handle members and set tasks.series_id to NULL)
+    await query('DELETE FROM task_series WHERE id = $1', [seriesId]);
+
+    broadcastUpdate('task', { action: 'series_deleted', seriesId: parseInt(seriesId), eventId });
+
+    res.json({ message: 'Serie gelöscht' });
+  } catch (error) {
+    console.error('Delete task series error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// Get members of a task series
+router.get('/task-series/:seriesId/members', authMiddleware, async (req, res) => {
+  try {
+    const { seriesId } = req.params;
+
+    const result = await query(
+      `SELECT u.id, u.name, u.email, u.role
+       FROM task_series_members tsm
+       JOIN users u ON tsm.user_id = u.id
+       WHERE tsm.series_id = $1
+       ORDER BY u.name`,
+      [seriesId]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Get series members error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// Add members to a task series
+router.post('/task-series/:seriesId/members', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+  try {
+    const { seriesId } = req.params;
+    const { user_ids } = req.body;
+
+    if (!Array.isArray(user_ids) || user_ids.length === 0) {
+      return res.status(400).json({ error: 'Keine User-IDs angegeben' });
+    }
+
+    let added = 0;
+
+    for (const userId of user_ids) {
+      const result = await query(
+        'INSERT INTO task_series_members (series_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING *',
+        [seriesId, userId]
+      );
+      if (result.rows.length > 0) {
+        added++;
+      }
+    }
+
+    broadcastUpdate('task', { action: 'series_members_added', seriesId: parseInt(seriesId), added });
+
+    res.json({ message: `${added} Mitglieder hinzugefügt`, added });
+  } catch (error) {
+    console.error('Add series members error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// Remove a member from a task series
+router.delete('/task-series/:seriesId/members/:userId', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+  try {
+    const { seriesId, userId } = req.params;
+
+    await query(
+      'DELETE FROM task_series_members WHERE series_id = $1 AND user_id = $2',
+      [seriesId, userId]
+    );
+
+    broadcastUpdate('task', { action: 'series_member_removed', seriesId: parseInt(seriesId), userId: parseInt(userId) });
+
+    res.json({ message: 'Mitglied entfernt' });
+  } catch (error) {
+    console.error('Remove series member error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+// Update series members for all tasks in the series (bulk assign)
+router.post('/task-series/:seriesId/assign-to-instance', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+  try {
+    const { seriesId } = req.params;
+    const { event_instance_id } = req.body;
+
+    if (!event_instance_id) {
+      return res.status(400).json({ error: 'Event-Instanz ID erforderlich' });
+    }
+
+    // Get all members of the series
+    const membersResult = await query(
+      'SELECT user_id FROM task_series_members WHERE series_id = $1',
+      [seriesId]
+    );
+
+    if (membersResult.rows.length === 0) {
+      return res.status(400).json({ error: 'Keine Mitglieder in dieser Serie' });
+    }
+
+    const memberIds = membersResult.rows.map(r => r.user_id);
+
+    // Get all tasks in this series
+    const tasksResult = await query(
+      'SELECT id FROM tasks WHERE series_id = $1',
+      [seriesId]
+    );
+
+    if (tasksResult.rows.length === 0) {
+      return res.status(400).json({ error: 'Keine Aufgaben in dieser Serie' });
+    }
+
+    let assigned = 0;
+
+    // Assign each member to each task
+    for (const task of tasksResult.rows) {
+      for (const userId of memberIds) {
+        const existing = await query(
+          'SELECT id FROM task_assignments WHERE task_id = $1 AND event_instance_id = $2 AND user_id = $3',
+          [task.id, event_instance_id, userId]
+        );
+
+        if (existing.rows.length === 0) {
+          await query(
+            'INSERT INTO task_assignments (task_id, event_instance_id, user_id, reminder_minutes) VALUES ($1, $2, $3, $4)',
+            [task.id, event_instance_id, userId, 15]
+          );
+          assigned++;
+        }
+      }
+    }
+
+    broadcastUpdate('task', { action: 'series_assigned', seriesId: parseInt(seriesId), instanceId: event_instance_id, assigned });
+
+    res.json({ message: `${assigned} Zuweisungen erstellt`, assigned });
+  } catch (error) {
+    console.error('Assign series to instance error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
 export default router;

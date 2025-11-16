@@ -227,6 +227,13 @@ export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
             setStaffTasks([]);
           }}
           onUnassign={handleUnassignTask}
+          eventId={eventId}
+          onReload={() => {
+            loadData(false);
+            if (selectedStaffForTasks) {
+              handleShowTasks(selectedStaffForTasks);
+            }
+          }}
         />
       )}
     </div>
@@ -309,12 +316,67 @@ interface TaskListModalProps {
   tasks: StaffTask[];
   onClose: () => void;
   onUnassign: (assignmentId: number) => void;
+  eventId: number;
+  onReload: () => void;
 }
 
-const TaskListModal: React.FC<TaskListModalProps> = ({ staff, tasks, onClose, onUnassign }) => {
+const TaskListModal: React.FC<TaskListModalProps> = ({ staff, tasks, onClose, onUnassign, eventId, onReload }) => {
+  const [selectedTaskIds, setSelectedTaskIds] = React.useState<number[]>([]);
+  const [showReplaceModal, setShowReplaceModal] = React.useState(false);
+  const [showAssignModal, setShowAssignModal] = React.useState(false);
+
   const handleOverlayClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
       onClose();
+    }
+  };
+
+  const handleToggleTask = (assignmentId: number) => {
+    setSelectedTaskIds(prev =>
+      prev.includes(assignmentId) ? prev.filter(id => id !== assignmentId) : [...prev, assignmentId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedTaskIds.length === tasks.length) {
+      setSelectedTaskIds([]);
+    } else {
+      setSelectedTaskIds(tasks.map(t => t.assignment_id));
+    }
+  };
+
+  const handleBulkRemove = async () => {
+    if (selectedTaskIds.length === 0) {
+      alert('Bitte mindestens eine Aufgabe auswählen');
+      return;
+    }
+
+    if (!confirm(`${selectedTaskIds.length} Zuweisungen wirklich entfernen?`)) return;
+
+    try {
+      await client.post('/tasks/bulk-remove-assignments', { assignment_ids: selectedTaskIds });
+      setSelectedTaskIds([]);
+      onReload();
+      alert(`${selectedTaskIds.length} Zuweisungen entfernt`);
+    } catch (error) {
+      console.error('Bulk remove error:', error);
+      alert('Fehler beim Entfernen');
+    }
+  };
+
+  const handleReplaceStaff = async (newStaffId: number) => {
+    try {
+      await client.post(`/tasks/replace-staff/${eventId}`, {
+        old_user_id: staff.id,
+        new_user_id: newStaffId,
+      });
+      setShowReplaceModal(false);
+      onReload();
+      onClose();
+      alert('Mitarbeiter erfolgreich ausgetauscht');
+    } catch (error) {
+      console.error('Replace staff error:', error);
+      alert('Fehler beim Austauschen');
     }
   };
 
@@ -346,64 +408,477 @@ const TaskListModal: React.FC<TaskListModalProps> = ({ staff, tasks, onClose, on
           <button onClick={onClose} style={{...styles.removeButton, position: 'static'}}>✕</button>
         </div>
 
+        {selectedTaskIds.length > 0 && (
+          <div style={{
+            padding: '0.75rem 1rem',
+            backgroundColor: '#f3f4f6',
+            borderRadius: '4px',
+            marginBottom: '1rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '1rem',
+          }}>
+            <span style={{fontSize: '0.875rem', fontWeight: '500', color: '#374151'}}>
+              {selectedTaskIds.length} ausgewählt
+            </span>
+            <button onClick={handleBulkRemove} style={{
+              padding: '0.5rem 1rem',
+              backgroundColor: '#ef4444',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '0.875rem',
+              fontWeight: '500',
+            }}>
+              Ausgewählte entfernen
+            </button>
+            <button onClick={() => setSelectedTaskIds([])} style={{
+              padding: '0.5rem 1rem',
+              backgroundColor: '#6b7280',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '0.875rem',
+            }}>
+              Auswahl aufheben
+            </button>
+          </div>
+        )}
+
         {tasks.length === 0 ? (
           <p style={styles.noStaff}>Diesem Mitarbeiter sind keine Aufgaben zugewiesen.</p>
         ) : (
-          <div style={{display: 'flex', flexDirection: 'column', gap: '0.75rem'}}>
-            {tasks.map((task) => (
-              <div key={task.assignment_id} style={{
-                padding: '1rem',
-                border: '1px solid #e5e7eb',
-                borderRadius: '6px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                gap: '1rem',
-              }}>
-                <div style={{flex: 1}}>
-                  <div style={{fontWeight: '600', marginBottom: '0.25rem'}}>{task.title}</div>
-                  <div style={{fontSize: '0.875rem', color: '#6b7280'}}>
-                    {task.event_name} #{task.instance_number} - Tag {task.day_number}
+          <>
+            <div style={{marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+              <input
+                type="checkbox"
+                checked={selectedTaskIds.length === tasks.length && tasks.length > 0}
+                onChange={handleSelectAll}
+                style={styles.checkbox}
+              />
+              <span style={{fontSize: '0.875rem', fontWeight: '500'}}>Alle auswählen</span>
+            </div>
+            <div style={{display: 'flex', flexDirection: 'column', gap: '0.75rem'}}>
+              {tasks.map((task) => (
+                <div key={task.assignment_id} style={{
+                  padding: '1rem',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '6px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: '1rem',
+                  backgroundColor: selectedTaskIds.includes(task.assignment_id) ? '#eff6ff' : 'white',
+                }}>
+                  <div style={{display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1}}>
+                    <input
+                      type="checkbox"
+                      checked={selectedTaskIds.includes(task.assignment_id)}
+                      onChange={() => handleToggleTask(task.assignment_id)}
+                      style={styles.checkbox}
+                    />
+                    <div style={{flex: 1}}>
+                      <div style={{fontWeight: '600', marginBottom: '0.25rem'}}>{task.title}</div>
+                      <div style={{fontSize: '0.875rem', color: '#6b7280'}}>
+                        {task.event_name} #{task.instance_number} - Tag {task.day_number}
+                      </div>
+                      <div style={{marginTop: '0.5rem'}}>
+                        <span style={{
+                          display: 'inline-block',
+                          padding: '0.25rem 0.625rem',
+                          backgroundColor: getStatusColor(task.status),
+                          color: 'white',
+                          borderRadius: '9999px',
+                          fontSize: '0.75rem',
+                          fontWeight: '500',
+                        }}>
+                          {getStatusLabel(task.status)}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div style={{marginTop: '0.5rem'}}>
-                    <span style={{
-                      display: 'inline-block',
-                      padding: '0.25rem 0.625rem',
-                      backgroundColor: getStatusColor(task.status),
+                  <button
+                    onClick={() => onUnassign(task.assignment_id)}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      backgroundColor: '#ef4444',
                       color: 'white',
-                      borderRadius: '9999px',
-                      fontSize: '0.75rem',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '0.875rem',
                       fontWeight: '500',
-                    }}>
-                      {getStatusLabel(task.status)}
-                    </span>
-                  </div>
+                      whiteSpace: 'nowrap',
+                    }}
+                    title="Zuweisung entfernen"
+                  >
+                    ✕ Entfernen
+                  </button>
                 </div>
-                <button
-                  onClick={() => onUnassign(task.assignment_id)}
-                  style={{
-                    padding: '0.5rem 1rem',
-                    backgroundColor: '#ef4444',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontSize: '0.875rem',
-                    fontWeight: '500',
-                    whiteSpace: 'nowrap',
-                  }}
-                  title="Zuweisung entfernen"
-                >
-                  ✕ Entfernen
-                </button>
-              </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        <div style={{marginTop: '1.5rem', display: 'flex', justifyContent: 'space-between', gap: '0.75rem'}}>
+          <button onClick={() => setShowReplaceModal(true)} style={{
+            ...styles.submitButton,
+            backgroundColor: '#f59e0b',
+          }}>
+            🔄 Mitarbeiter austauschen
+          </button>
+          <div style={{display: 'flex', gap: '0.75rem'}}>
+            <button onClick={() => setShowAssignModal(true)} style={styles.submitButton}>
+              + Zuweisen
+            </button>
+            <button onClick={onClose} style={styles.cancelButton}>
+              Schließen
+            </button>
+          </div>
+        </div>
+
+        {showReplaceModal && (
+          <ReplaceStaffModal
+            eventId={eventId}
+            currentStaffId={staff.id}
+            currentStaffName={staff.name}
+            onClose={() => setShowReplaceModal(false)}
+            onReplace={handleReplaceStaff}
+          />
+        )}
+
+        {showAssignModal && (
+          <AssignTasksModal
+            eventId={eventId}
+            staffId={staff.id}
+            staffName={staff.name}
+            onClose={() => setShowAssignModal(false)}
+            onSuccess={() => {
+              setShowAssignModal(false);
+              onReload();
+            }}
+          />
+        )}
+      </div>
+    </div>
+  );
+};
+
+interface ReplaceStaffModalProps {
+  eventId: number;
+  currentStaffId: number;
+  currentStaffName: string;
+  onClose: () => void;
+  onReplace: (newStaffId: number) => void;
+}
+
+const ReplaceStaffModal: React.FC<ReplaceStaffModalProps> = ({
+  eventId,
+  currentStaffId,
+  currentStaffName,
+  onClose,
+  onReplace
+}) => {
+  const [availableStaff, setAvailableStaff] = React.useState<EventStaff[]>([]);
+  const [selectedStaffId, setSelectedStaffId] = React.useState<number | null>(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    loadAvailableStaff();
+  }, [eventId, currentStaffId]);
+
+  const loadAvailableStaff = async () => {
+    try {
+      setLoading(true);
+      const response = await client.get(`/users/event/${eventId}/staff`);
+      const staff = response.data.filter((s: User) => s.id !== currentStaffId);
+      setAvailableStaff(staff);
+    } catch (error) {
+      console.error('Load available staff error:', error);
+      alert('Fehler beim Laden der Mitarbeiter');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = () => {
+    if (!selectedStaffId) {
+      alert('Bitte einen Mitarbeiter auswählen');
+      return;
+    }
+    if (!confirm(`${currentStaffName} wirklich durch den ausgewählten Mitarbeiter ersetzen? Alle Aufgaben werden neu zugewiesen.`)) {
+      return;
+    }
+    onReplace(selectedStaffId);
+  };
+
+  const handleOverlayClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
+  return (
+    <div style={styles.overlay} onClick={handleOverlayClick}>
+      <div style={{...styles.modal, maxWidth: '500px', zIndex: 1001}}>
+        <h2 style={styles.modalTitle}>Mitarbeiter austauschen</h2>
+        <p style={{marginBottom: '1rem', color: '#6b7280'}}>
+          Wählen Sie einen Mitarbeiter aus, der <strong>{currentStaffName}</strong> ersetzen soll.
+          Alle Aufgaben werden automatisch neu zugewiesen.
+        </p>
+
+        {loading ? (
+          <p style={styles.noStaff}>Lade Mitarbeiter...</p>
+        ) : availableStaff.length === 0 ? (
+          <p style={styles.noStaff}>Keine anderen Mitarbeiter im Pool verfügbar.</p>
+        ) : (
+          <div style={styles.staffList}>
+            {availableStaff.map((staff) => (
+              <label key={staff.id} style={{
+                ...styles.staffCheckbox,
+                backgroundColor: selectedStaffId === staff.id ? '#eff6ff' : 'transparent',
+              }}>
+                <input
+                  type="radio"
+                  name="replace-staff"
+                  checked={selectedStaffId === staff.id}
+                  onChange={() => setSelectedStaffId(staff.id)}
+                  style={styles.checkbox}
+                />
+                <span style={{fontWeight: selectedStaffId === staff.id ? '600' : '400'}}>
+                  {staff.name}
+                </span>
+              </label>
             ))}
           </div>
         )}
 
-        <div style={{marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end'}}>
+        <div style={styles.modalButtons}>
           <button onClick={onClose} style={styles.cancelButton}>
-            Schließen
+            Abbrechen
+          </button>
+          <button
+            onClick={handleSubmit}
+            style={styles.submitButton}
+            disabled={!selectedStaffId}
+          >
+            Austauschen
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+interface AssignTasksModalProps {
+  eventId: number;
+  staffId: number;
+  staffName: string;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+const AssignTasksModal: React.FC<AssignTasksModalProps> = ({
+  eventId,
+  staffId,
+  staffName,
+  onClose,
+  onSuccess
+}) => {
+  const [availableTasks, setAvailableTasks] = React.useState<any[]>([]);
+  const [eventInstances, setEventInstances] = React.useState<any[]>([]);
+  const [selectedInstanceId, setSelectedInstanceId] = React.useState<number | null>(null);
+  const [selectedTaskIds, setSelectedTaskIds] = React.useState<number[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    loadEventInstances();
+  }, [eventId]);
+
+  React.useEffect(() => {
+    if (selectedInstanceId) {
+      loadAvailableTasks();
+    }
+  }, [selectedInstanceId, staffId]);
+
+  const loadEventInstances = async () => {
+    try {
+      setLoading(true);
+      const response = await client.get(`/events/${eventId}/instances`);
+      setEventInstances(response.data);
+      if (response.data.length > 0) {
+        setSelectedInstanceId(response.data[0].id);
+      }
+    } catch (error) {
+      console.error('Load event instances error:', error);
+      alert('Fehler beim Laden der Event-Instanzen');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadAvailableTasks = async () => {
+    try {
+      setLoading(true);
+      // Get all tasks for this event
+      const tasksResponse = await client.get(`/tasks/event/${eventId}`);
+      const allTasks = tasksResponse.data;
+
+      // Get tasks already assigned to this staff member for this instance
+      const assignedResponse = await client.get(`/tasks/event/${eventId}/user/${staffId}/assignments`);
+      const assignedTaskIds = new Set(assignedResponse.data.map((a: any) => a.id));
+
+      // Filter out already assigned tasks
+      const available = allTasks.filter((task: any) => !assignedTaskIds.has(task.id));
+      setAvailableTasks(available);
+    } catch (error) {
+      console.error('Load available tasks error:', error);
+      alert('Fehler beim Laden der verfügbaren Aufgaben');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleTask = (taskId: number) => {
+    setSelectedTaskIds(prev =>
+      prev.includes(taskId) ? prev.filter(id => id !== taskId) : [...prev, taskId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedTaskIds.length === availableTasks.length) {
+      setSelectedTaskIds([]);
+    } else {
+      setSelectedTaskIds(availableTasks.map(t => t.id));
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (selectedTaskIds.length === 0) {
+      alert('Bitte mindestens eine Aufgabe auswählen');
+      return;
+    }
+    if (!selectedInstanceId) {
+      alert('Bitte eine Event-Instanz auswählen');
+      return;
+    }
+
+    try {
+      await client.post('/tasks/assign', {
+        task_id: selectedTaskIds[0], // We'll need to modify this for bulk
+        event_instance_id: selectedInstanceId,
+        user_ids: [staffId],
+      });
+
+      // Assign remaining tasks one by one (or modify backend to handle bulk)
+      for (let i = 1; i < selectedTaskIds.length; i++) {
+        await client.post('/tasks/assign', {
+          task_id: selectedTaskIds[i],
+          event_instance_id: selectedInstanceId,
+          user_ids: [staffId],
+        });
+      }
+
+      alert(`${selectedTaskIds.length} Aufgabe(n) erfolgreich zugewiesen`);
+      onSuccess();
+    } catch (error) {
+      console.error('Assign tasks error:', error);
+      alert('Fehler beim Zuweisen der Aufgaben');
+    }
+  };
+
+  const handleOverlayClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
+  return (
+    <div style={styles.overlay} onClick={handleOverlayClick}>
+      <div style={{...styles.modal, maxWidth: '600px', maxHeight: '80vh', overflow: 'auto', zIndex: 1001}}>
+        <h2 style={styles.modalTitle}>Aufgaben zuweisen - {staffName}</h2>
+
+        {loading ? (
+          <p style={styles.noStaff}>Lade Aufgaben...</p>
+        ) : (
+          <>
+            <div style={{marginBottom: '1.5rem'}}>
+              <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: '500'}}>
+                Event-Instanz:
+              </label>
+              <select
+                value={selectedInstanceId || ''}
+                onChange={(e) => setSelectedInstanceId(Number(e.target.value))}
+                style={{
+                  width: '100%',
+                  padding: '0.5rem',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '4px',
+                  fontSize: '1rem',
+                }}
+              >
+                {eventInstances.map((instance) => (
+                  <option key={instance.id} value={instance.id}>
+                    Instanz #{instance.instance_number} - {new Date(instance.start_date).toLocaleDateString('de-DE')}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {availableTasks.length === 0 ? (
+              <p style={styles.noStaff}>Keine verfügbaren Aufgaben für diese Instanz.</p>
+            ) : (
+              <>
+                <div style={{marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                  <input
+                    type="checkbox"
+                    checked={selectedTaskIds.length === availableTasks.length && availableTasks.length > 0}
+                    onChange={handleSelectAll}
+                    style={styles.checkbox}
+                  />
+                  <span style={{fontSize: '0.875rem', fontWeight: '500'}}>Alle auswählen</span>
+                </div>
+                <div style={{...styles.staffList, maxHeight: '300px'}}>
+                  {availableTasks.map((task) => (
+                    <label key={task.id} style={{
+                      ...styles.staffCheckbox,
+                      backgroundColor: selectedTaskIds.includes(task.id) ? '#eff6ff' : 'transparent',
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedTaskIds.includes(task.id)}
+                        onChange={() => handleToggleTask(task.id)}
+                        style={styles.checkbox}
+                      />
+                      <div>
+                        <div style={{fontWeight: '500'}}>{task.title}</div>
+                        <div style={{fontSize: '0.875rem', color: '#6b7280'}}>
+                          Tag {task.day_number}
+                          {task.scheduled_time && ` - ${task.scheduled_time}`}
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </>
+            )}
+          </>
+        )}
+
+        <div style={styles.modalButtons}>
+          <button onClick={onClose} style={styles.cancelButton}>
+            Abbrechen
+          </button>
+          <button
+            onClick={handleSubmit}
+            style={styles.submitButton}
+            disabled={selectedTaskIds.length === 0}
+          >
+            {selectedTaskIds.length > 0
+              ? `${selectedTaskIds.length} Aufgabe(n) zuweisen`
+              : 'Aufgaben zuweisen'}
           </button>
         </div>
       </div>

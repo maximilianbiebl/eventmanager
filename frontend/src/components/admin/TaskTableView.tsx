@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import client from '../../api/client';
 import { tasksApi } from '../../api/tasks';
+import { taskSeriesApi, TaskSeries } from '../../api/taskSeries';
 import { useSSE } from '../../hooks/useSSE';
 import responsiveStyles from './TaskTableView.module.css';
 import { Toast } from '../Toast';
 import { CSVExportModal } from './CSVExportModal';
 import { CSVImportModal } from './CSVImportModal';
+import { TaskSeriesModal } from './TaskSeriesModal';
 
 interface TaskAssignment {
   id: number;
@@ -23,6 +25,7 @@ interface TaskAssignment {
   completed?: boolean;
   is_active?: boolean;
   sort_order?: number;
+  series_id?: number;
 }
 
 interface Props {
@@ -77,6 +80,8 @@ export const TaskTableView: React.FC<Props> = ({
   const [selectedTaskIds, setSelectedTaskIds] = useState<number[]>([]);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showSeriesModal, setShowSeriesModal] = useState(false);
+  const [taskSeries, setTaskSeries] = useState<TaskSeries[]>([]);
 
   // Use external selectedDay if provided, otherwise use internal state
   const selectedDay = externalSelectedDay !== undefined ? externalSelectedDay : internalSelectedDay;
@@ -112,7 +117,8 @@ export const TaskTableView: React.FC<Props> = ({
 
   useEffect(() => {
     loadAssignments(false); // Load silently on mount - parent already shows loading
-  }, [eventInstanceId]);
+    loadSeries(); // Load series data
+  }, [eventInstanceId, eventId]);
 
   // React to manual refresh from parent
   useEffect(() => {
@@ -155,6 +161,16 @@ export const TaskTableView: React.FC<Props> = ({
       if (showLoading) {
         setLoading(false);
       }
+    }
+  };
+
+  const loadSeries = async () => {
+    if (!eventId) return;
+    try {
+      const seriesData = await taskSeriesApi.getByEvent(eventId);
+      setTaskSeries(seriesData);
+    } catch (error) {
+      console.error('Load series error:', error);
     }
   };
 
@@ -476,6 +492,9 @@ export const TaskTableView: React.FC<Props> = ({
         <div style={styles.headerButtons}>
           {eventId && (
             <>
+              <button onClick={() => setShowSeriesModal(true)} style={styles.seriesButton}>
+                🔁 Serien verwalten
+              </button>
               <button onClick={() => setShowImportModal(true)} style={styles.importButton}>
                 📥 CSV Import
               </button>
@@ -516,6 +535,17 @@ export const TaskTableView: React.FC<Props> = ({
           onClose={() => setShowImportModal(false)}
           onSuccess={handleImportSuccess}
           eventId={eventId}
+        />
+      )}
+
+      {showSeriesModal && eventId && (
+        <TaskSeriesModal
+          eventId={eventId}
+          onClose={() => setShowSeriesModal(false)}
+          onSeriesCreated={() => {
+            loadSeries();
+            setShowSeriesModal(false);
+          }}
         />
       )}
 
@@ -669,6 +699,17 @@ export const TaskTableView: React.FC<Props> = ({
                           fontWeight: '500',
                           marginLeft: '0.5rem'
                         }}>Deaktiviert</span>
+                      )}
+                      {task.series_id && taskSeries.find(s => s.id === task.series_id) && (
+                        <span style={{
+                          fontSize: '0.7rem',
+                          padding: '0.125rem 0.5rem',
+                          backgroundColor: '#dbeafe',
+                          color: '#1e40af',
+                          borderRadius: '9999px',
+                          fontWeight: '500',
+                          marginLeft: '0.5rem'
+                        }}>📋 {taskSeries.find(s => s.id === task.series_id)?.name}</span>
                       )}
                     </div>
                     {task.description && (
@@ -885,6 +926,16 @@ const styles: { [key: string]: React.CSSProperties } = {
   importButton: {
     padding: '0.5rem 1rem',
     backgroundColor: '#8b5cf6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
+    fontWeight: '500',
+  },
+  seriesButton: {
+    padding: '0.5rem 1rem',
+    backgroundColor: '#10b981',
     color: 'white',
     border: 'none',
     borderRadius: '4px',

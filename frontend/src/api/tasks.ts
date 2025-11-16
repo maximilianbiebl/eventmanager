@@ -15,6 +15,7 @@ export interface Task {
   status: string;
   is_active?: boolean;
   sort_order?: number;
+  series_id?: number;
 }
 
 export interface TaskAssignment extends Task {
@@ -41,6 +42,7 @@ export interface CreateTaskData {
   reminder_minutes?: number;
   is_public?: boolean;
   status?: string;
+  series_id?: number;
 }
 
 export const tasksApi = {
