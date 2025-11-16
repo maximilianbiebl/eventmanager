@@ -5,6 +5,8 @@ import { CreateEventModal } from './CreateEventModal';
 import { CreateFromTemplateModal } from './CreateFromTemplateModal';
 import { EventEditModal } from './EventEditModal';
 import { EventDetail } from './EventDetail';
+import { CSVExportModal } from './CSVExportModal';
+import { CSVImportModal } from './CSVImportModal';
 import { useAuth } from '../../context/AuthContext';
 import { useSSE } from '../../hooks/useSSE';
 import responsiveStyles from './EventsList.module.css';
@@ -24,6 +26,9 @@ export const EventsList: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('own');
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const { user, isAdmin, isTeamleiter } = useAuth();
 
   // SSE für Event-Updates
@@ -122,6 +127,67 @@ export const EventsList: React.FC = () => {
     }
   };
 
+  const handleToggleSelect = (eventId: number) => {
+    setSelectedIds(prev =>
+      prev.includes(eventId) ? prev.filter(id => id !== eventId) : [...prev, eventId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    const currentEvents = getEventsForTab(activeTab);
+    if (selectedIds.length === currentEvents.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(currentEvents.map(e => e.id));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) {
+      alert('Bitte mindestens ein Event auswählen');
+      return;
+    }
+
+    if (!confirm(`${selectedIds.length} Events wirklich löschen?`)) return;
+
+    try {
+      await eventsApi.bulkDelete(selectedIds);
+      setSelectedIds([]);
+      await loadData(false);
+    } catch (error) {
+      console.error('Bulk delete error:', error);
+      alert('Fehler beim Löschen');
+    }
+  };
+
+  const handleBulkApproveSuggestions = async () => {
+    if (selectedIds.length === 0) {
+      alert('Bitte mindestens einen Vorschlag auswählen');
+      return;
+    }
+
+    if (!confirm(`${selectedIds.length} Vorschläge als Vorlagen annehmen?`)) return;
+
+    try {
+      await eventsApi.bulkApproveSuggestions(selectedIds);
+      setSelectedIds([]);
+      await loadData(false);
+      alert('Vorlagen erfolgreich erstellt');
+    } catch (error) {
+      console.error('Bulk approve error:', error);
+      alert('Fehler beim Annehmen der Vorschläge');
+    }
+  };
+
+  const handleExportSuccess = () => {
+    setShowExportModal(false);
+  };
+
+  const handleImportSuccess = async () => {
+    setShowImportModal(false);
+    await loadData(false);
+  };
+
   const getTabs = () => {
     const tabs: { id: TabType; label: string; count: number }[] = [];
 
@@ -204,9 +270,18 @@ export const EventsList: React.FC = () => {
     const canEdit = isAdmin || (isTeamleiter && isCreator && !event.is_template);
 
     return (
-      <div key={event.id} style={styles.card}>
+      <div key={event.id} style={{...styles.card, ...(selectedIds.includes(event.id) ? styles.selectedCard : {})}}>
         <div style={styles.cardHeader}>
-          <h3 style={styles.eventName}>{event.name}</h3>
+          <div style={styles.cardHeaderLeft}>
+            <input
+              type="checkbox"
+              checked={selectedIds.includes(event.id)}
+              onChange={() => handleToggleSelect(event.id)}
+              style={styles.checkbox}
+              onClick={(e) => e.stopPropagation()}
+            />
+            <h3 style={styles.eventName}>{event.name}</h3>
+          </div>
           <div style={styles.badges}>
             {event.is_template && <span style={styles.templateBadge}>Vorlage</span>}
             {event.is_template_suggestion && <span style={styles.suggestionBadge}>Vorgeschlagen</span>}
@@ -280,6 +355,12 @@ export const EventsList: React.FC = () => {
       <div style={styles.header} className={responsiveStyles.header}>
         <h2 style={styles.title}>Veranstaltungen</h2>
         <div style={styles.headerButtons}>
+          <button onClick={() => setShowImportModal(true)} style={styles.importButton} className={responsiveStyles.importButton}>
+            📥 CSV Import
+          </button>
+          <button onClick={() => setShowExportModal(true)} style={styles.exportButton} className={responsiveStyles.exportButton}>
+            📤 CSV Export
+          </button>
           {tabs.some(t => t.id === 'templates' && t.count > 0) && (
             <button
               onClick={() => setShowTemplateModal(true)}
@@ -298,6 +379,41 @@ export const EventsList: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {selectedIds.length > 0 && (
+        <div style={styles.bulkActions}>
+          <span style={styles.bulkActionsText}>{selectedIds.length} ausgewählt</span>
+          <button onClick={handleBulkDelete} style={styles.bulkDeleteButton}>
+            Ausgewählte löschen
+          </button>
+          {activeTab === 'templates' && isAdmin && (
+            <button onClick={handleBulkApproveSuggestions} style={styles.bulkApproveButton}>
+              Vorschläge annehmen
+            </button>
+          )}
+          <button onClick={() => setSelectedIds([])} style={styles.bulkCancelButton}>
+            Auswahl aufheben
+          </button>
+        </div>
+      )}
+
+      {showExportModal && (
+        <CSVExportModal
+          type="events"
+          items={events}
+          selectedIds={selectedIds}
+          onClose={() => setShowExportModal(false)}
+          onSuccess={handleExportSuccess}
+        />
+      )}
+
+      {showImportModal && (
+        <CSVImportModal
+          type="events"
+          onClose={() => setShowImportModal(false)}
+          onSuccess={handleImportSuccess}
+        />
+      )}
 
       {/* Desktop Tabs */}
       <div style={styles.tabsContainerDesktop} className={responsiveStyles.tabsDesktop}>
@@ -458,6 +574,72 @@ const styles: { [key: string]: React.CSSProperties } = {
     cursor: 'pointer',
     fontWeight: '500',
   },
+  exportButton: {
+    padding: '0.75rem 1.5rem',
+    backgroundColor: '#3b82f6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontWeight: '500',
+  },
+  importButton: {
+    padding: '0.75rem 1.5rem',
+    backgroundColor: '#8b5cf6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontWeight: '500',
+  },
+  bulkActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '1rem',
+    padding: '0.75rem 1rem',
+    backgroundColor: '#f3f4f6',
+    borderRadius: '4px',
+    marginBottom: '1rem',
+  },
+  bulkActionsText: {
+    fontSize: '0.875rem',
+    fontWeight: '500',
+    color: '#374151',
+  },
+  bulkDeleteButton: {
+    padding: '0.5rem 1rem',
+    backgroundColor: '#ef4444',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
+    fontWeight: '500',
+  },
+  bulkApproveButton: {
+    padding: '0.5rem 1rem',
+    backgroundColor: '#10b981',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
+    fontWeight: '500',
+  },
+  bulkCancelButton: {
+    padding: '0.5rem 1rem',
+    backgroundColor: '#6b7280',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
+  },
+  checkbox: {
+    width: '18px',
+    height: '18px',
+    cursor: 'pointer',
+  },
   tabsContainerDesktop: {
     display: 'flex',
     gap: '0.5rem',
@@ -517,17 +699,26 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: '8px',
     backgroundColor: '#fafafa',
   },
+  selectedCard: {
+    backgroundColor: '#eff6ff',
+    border: '2px solid #3b82f6',
+  },
   cardHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: '0.5rem',
   },
+  cardHeaderLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.75rem',
+    flex: 1,
+  },
   eventName: {
     fontSize: '1.25rem',
     fontWeight: '600',
     margin: 0,
-    flex: 1,
   },
   badges: {
     display: 'flex',
