@@ -33,45 +33,45 @@ export interface CreateTaskSeriesData {
 
 export const taskSeriesApi = {
   getByEvent: async (eventId: number): Promise<TaskSeries[]> => {
-    const response = await client.get(`/task-series/event/${eventId}`);
+    const response = await client.get(`/tasks/task-series/event/${eventId}`);
     return response.data;
   },
 
   getById: async (seriesId: number): Promise<TaskSeriesDetails> => {
-    const response = await client.get(`/task-series/${seriesId}`);
+    const response = await client.get(`/tasks/task-series/${seriesId}`);
     return response.data;
   },
 
   create: async (data: CreateTaskSeriesData): Promise<TaskSeries> => {
-    const response = await client.post('/task-series', data);
+    const response = await client.post('/tasks/task-series', data);
     return response.data;
   },
 
   update: async (seriesId: number, data: { name: string; description?: string }): Promise<TaskSeries> => {
-    const response = await client.put(`/task-series/${seriesId}`, data);
+    const response = await client.put(`/tasks/task-series/${seriesId}`, data);
     return response.data;
   },
 
   delete: async (seriesId: number): Promise<void> => {
-    await client.delete(`/task-series/${seriesId}`);
+    await client.delete(`/tasks/task-series/${seriesId}`);
   },
 
   getMembers: async (seriesId: number): Promise<Array<{ id: number; name: string; email: string; role: string }>> => {
-    const response = await client.get(`/task-series/${seriesId}/members`);
+    const response = await client.get(`/tasks/task-series/${seriesId}/members`);
     return response.data;
   },
 
   addMembers: async (seriesId: number, userIds: number[]): Promise<{ added: number }> => {
-    const response = await client.post(`/task-series/${seriesId}/members`, { user_ids: userIds });
+    const response = await client.post(`/tasks/task-series/${seriesId}/members`, { user_ids: userIds });
     return response.data;
   },
 
   removeMember: async (seriesId: number, userId: number): Promise<void> => {
-    await client.delete(`/task-series/${seriesId}/members/${userId}`);
+    await client.delete(`/tasks/task-series/${seriesId}/members/${userId}`);
   },
 
   assignToInstance: async (seriesId: number, instanceId: number): Promise<{ assigned: number }> => {
-    const response = await client.post(`/task-series/${seriesId}/assign-to-instance`, { event_instance_id: instanceId });
+    const response = await client.post(`/tasks/task-series/${seriesId}/assign-to-instance`, { event_instance_id: instanceId });
     return response.data;
   },
 };

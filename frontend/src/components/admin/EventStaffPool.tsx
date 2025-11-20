@@ -197,11 +197,10 @@ export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
                 onClick={() => handleShowTasks(staff)}
                 style={{
                   ...styles.taskCount,
-                  cursor: staff.taskCount ? 'pointer' : 'default',
-                  textDecoration: staff.taskCount ? 'underline' : 'none',
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
                 }}
-                disabled={!staff.taskCount}
-                title={staff.taskCount ? 'Aufgaben anzeigen' : ''}
+                title="Aufgaben anzeigen"
               >
                 {staff.taskCount || 0} Aufgabe{(staff.taskCount || 0) !== 1 ? 'n' : ''}
               </button>
@@ -804,28 +803,30 @@ const AssignTasksModal: React.FC<AssignTasksModalProps> = ({
           <p style={styles.noStaff}>Lade Aufgaben...</p>
         ) : (
           <>
-            <div style={{marginBottom: '1.5rem'}}>
-              <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: '500'}}>
-                Event-Instanz:
-              </label>
-              <select
-                value={selectedInstanceId || ''}
-                onChange={(e) => setSelectedInstanceId(Number(e.target.value))}
-                style={{
-                  width: '100%',
-                  padding: '0.5rem',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '4px',
-                  fontSize: '1rem',
-                }}
-              >
-                {eventInstances.map((instance) => (
-                  <option key={instance.id} value={instance.id}>
-                    Instanz #{instance.instance_number} - {new Date(instance.start_date).toLocaleDateString('de-DE')}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {eventInstances.length > 1 && (
+              <div style={{marginBottom: '1.5rem'}}>
+                <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: '500'}}>
+                  Event-Instanz:
+                </label>
+                <select
+                  value={selectedInstanceId || ''}
+                  onChange={(e) => setSelectedInstanceId(Number(e.target.value))}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '4px',
+                    fontSize: '1rem',
+                  }}
+                >
+                  {eventInstances.map((instance) => (
+                    <option key={instance.id} value={instance.id}>
+                      Instanz #{instance.instance_number} - {new Date(instance.start_date).toLocaleDateString('de-DE')}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {availableTasks.length === 0 ? (
               <p style={styles.noStaff}>Keine verfügbaren Aufgaben für diese Instanz.</p>
