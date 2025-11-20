@@ -101,7 +101,7 @@ export const TaskSeriesModal: React.FC<Props> = ({ eventId, onClose, onSeriesCre
       if (!seriesMembers[seriesId]) {
         try {
           const members = await taskSeriesApi.getMembers(seriesId);
-          setSeriesMembers({ ...seriesMembers, [seriesId]: members });
+          setSeriesMembers(prev => ({ ...prev, [seriesId]: members }));
         } catch (error) {
           console.error('Load series members error:', error);
         }

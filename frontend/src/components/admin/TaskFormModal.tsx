@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { tasksApi } from '../../api/tasks';
+import { taskSeriesApi, TaskSeries } from '../../api/taskSeries';
 import client from '../../api/client';
 
 interface Props {
@@ -29,6 +30,7 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
     reminder_minutes: task?.reminder_minutes || 15,
     is_public: task?.is_public || false,
     status: task?.status || 'not_started',
+    series_id: task?.series_id || null,
   });
 
   const [loading, setLoading] = useState(false);
@@ -37,10 +39,12 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
   const [staffUsers, setStaffUsers] = useState<User[]>([]);
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
   const [showStaffSelection, setShowStaffSelection] = useState(false);
+  const [taskSeries, setTaskSeries] = useState<TaskSeries[]>([]);
 
   useEffect(() => {
-    // Lade Event Staff Pool
+    // Lade Event Staff Pool und Task Series
     loadStaff();
+    loadTaskSeries();
 
     // Lade bestehende Zuweisungen im Edit-Modus
     if (isEdit && task?.id && eventInstances && eventInstances.length > 0) {
@@ -79,6 +83,15 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
       setStaffUsers(response.data);
     } catch (error) {
       console.error('Load staff error:', error);
+    }
+  };
+
+  const loadTaskSeries = async () => {
+    try {
+      const series = await taskSeriesApi.getByEvent(eventId);
+      setTaskSeries(series);
+    } catch (error) {
+      console.error('Load task series error:', error);
     }
   };
 
@@ -228,6 +241,25 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
                 <option value="completed">Erledigt</option>
                 <option value="overdue">Überfällig</option>
               </select>
+            </div>
+          </div>
+
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Serie (optional)</label>
+            <select
+              value={formData.series_id || ''}
+              onChange={(e) => setFormData({ ...formData, series_id: e.target.value ? parseInt(e.target.value) : null })}
+              style={styles.input}
+            >
+              <option value="">Keine Serie</option>
+              {taskSeries.map((series) => (
+                <option key={series.id} value={series.id}>
+                  {series.name} ({series.member_count || 0} Mitglieder)
+                </option>
+              ))}
+            </select>
+            <div style={{fontSize: '0.875rem', color: '#6b7280', marginTop: '0.25rem'}}>
+              Aufgaben einer Serie können gemeinsam einem Team zugewiesen werden
             </div>
           </div>
 
