@@ -139,6 +139,16 @@ export const EventsList: React.FC = () => {
       return;
     }
 
+    // Teamleiter cannot delete templates
+    if (isTeamleiter && !isAdmin) {
+      const eventsToDelete = events.filter(e => selectedIds.includes(e.id));
+      const hasTemplates = eventsToDelete.some(e => e.is_template);
+      if (hasTemplates) {
+        alert('Teamleiter können keine Vorlagen löschen. Bitte wenden Sie sich an einen Administrator.');
+        return;
+      }
+    }
+
     if (!confirm(`${selectedIds.length} Events wirklich löschen?`)) return;
 
     try {
@@ -259,18 +269,21 @@ export const EventsList: React.FC = () => {
   const renderEventCard = (event: Event) => {
     const isCreator = event.created_by === user?.id;
     const canEdit = isAdmin || (isTeamleiter && isCreator && !event.is_template);
+    const canSelect = isAdmin || !event.is_template; // Teamleiter can only select non-templates
 
     return (
       <div key={event.id} style={{...styles.card, ...(selectedIds.includes(event.id) ? styles.selectedCard : {})}}>
         <div style={styles.cardHeader}>
           <div style={styles.cardHeaderLeft}>
-            <input
-              type="checkbox"
-              checked={selectedIds.includes(event.id)}
-              onChange={() => handleToggleSelect(event.id)}
-              style={styles.checkbox}
-              onClick={(e) => e.stopPropagation()}
-            />
+            {canSelect && (
+              <input
+                type="checkbox"
+                checked={selectedIds.includes(event.id)}
+                onChange={() => handleToggleSelect(event.id)}
+                style={styles.checkbox}
+                onClick={(e) => e.stopPropagation()}
+              />
+            )}
             <h3 style={styles.eventName}>{event.name}</h3>
           </div>
           <div style={styles.badges}>
@@ -346,9 +359,11 @@ export const EventsList: React.FC = () => {
       <div style={styles.header} className={responsiveStyles.header}>
         <h2 style={styles.title}>Veranstaltungen</h2>
         <div style={styles.headerButtons}>
-          <button onClick={() => setShowImportModal(true)} style={styles.importButton} className={responsiveStyles.importButton}>
-            📥 CSV Import
-          </button>
+          {(isAdmin || activeTab !== 'templates') && (
+            <button onClick={() => setShowImportModal(true)} style={styles.importButton} className={responsiveStyles.importButton}>
+              📥 CSV Import
+            </button>
+          )}
           <button onClick={() => setShowExportModal(true)} style={styles.exportButton} className={responsiveStyles.exportButton}>
             📤 CSV Export
           </button>

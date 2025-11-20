@@ -89,6 +89,23 @@ router.get('/:id', authMiddleware, async (req, res) => {
   }
 });
 
+// Event-Instanzen abrufen
+router.get('/:eventId/instances', authMiddleware, async (req, res) => {
+  try {
+    const { eventId } = req.params;
+
+    const instancesResult = await query(
+      'SELECT * FROM event_instances WHERE event_id = $1 ORDER BY instance_number',
+      [eventId]
+    );
+
+    res.json(instancesResult.rows);
+  } catch (error) {
+    console.error('Get event instances error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
 // Event erstellen
 router.post('/', authMiddleware, teamleiterOrAdminMiddleware, async (req: AuthRequest, res) => {
   try {

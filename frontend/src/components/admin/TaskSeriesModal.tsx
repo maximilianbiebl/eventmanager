@@ -27,12 +27,20 @@ export const TaskSeriesModal: React.FC<Props> = ({ eventId, onClose, onSeriesCre
   const loadData = async () => {
     try {
       setLoading(true);
-      const [seriesData, staffData] = await Promise.all([
+      const [seriesData, eventStaffData, allUsersData] = await Promise.all([
         taskSeriesApi.getByEvent(eventId),
-        client.get(`/users/event/${eventId}/staff`).then(res => res.data),
+        client.get(`/users/event/${eventId}/staff`).then(res => res.data).catch(() => []),
+        client.get('/users').then(res => res.data),
       ]);
+
+      // Combine event staff with admins and teamleiters (who are automatically in the pool)
+      const eventStaffIds = new Set(eventStaffData.map((u: User) => u.id));
+      const availableStaff = allUsersData.filter((u: User) =>
+        eventStaffIds.has(u.id) || u.role === 'admin' || u.role === 'teamleiter' || u.role === 'co_teamleiter'
+      );
+
       setSeries(seriesData);
-      setEventStaff(staffData);
+      setEventStaff(availableStaff);
     } catch (error) {
       console.error('Load series data error:', error);
       alert('Fehler beim Laden der Serien');
