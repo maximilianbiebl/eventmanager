@@ -453,18 +453,6 @@ export const TaskTableView: React.FC<Props> = ({
     }
   };
 
-  const handleBulkAssign = async () => {
-    if (selectedTaskIds.length === 0) {
-      alert('Bitte mindestens eine Aufgabe auswählen');
-      return;
-    }
-
-    // Open the first task's assign modal, but we'll need to modify the assign logic
-    // For now, just show a message
-    setSuccessMessage('Bitte einzelne Aufgaben über den "Zuweisen" Button zuweisen');
-    setTimeout(() => setSuccessMessage(''), 3000);
-  };
-
   const handleExportSuccess = () => {
     setShowExportModal(false);
   };

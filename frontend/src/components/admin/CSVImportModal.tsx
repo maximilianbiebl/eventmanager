@@ -87,9 +87,7 @@ export const CSVImportModal: React.FC<Props> = ({ type, onClose, onSuccess, even
     try {
       setLoading(true);
 
-      // Create filtered CSV with only selected items
-      const filteredItems = preview?.items.filter((_, idx) => selectedItems.includes(idx)) || [];
-
+      // Note: Currently imports all items from file, filtering by selection not yet implemented
       let result;
       if (type === 'users') {
         result = await usersApi.importCSV(file);

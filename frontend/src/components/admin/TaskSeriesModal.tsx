@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { taskSeriesApi, TaskSeries } from '../../api/taskSeries';
-import { usersApi, User } from '../../api/users';
+import { User } from '../../api/users';
 import client from '../../api/client';
 
 interface Props {

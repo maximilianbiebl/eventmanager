@@ -133,15 +133,6 @@ export const EventsList: React.FC = () => {
     );
   };
 
-  const handleSelectAll = () => {
-    const currentEvents = getEventsForTab(activeTab);
-    if (selectedIds.length === currentEvents.length) {
-      setSelectedIds([]);
-    } else {
-      setSelectedIds(currentEvents.map(e => e.id));
-    }
-  };
-
   const handleBulkDelete = async () => {
     if (selectedIds.length === 0) {
       alert('Bitte mindestens ein Event auswählen');
