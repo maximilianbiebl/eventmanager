@@ -3,6 +3,13 @@ import { taskSeriesApi, TaskSeries } from '../../api/taskSeries';
 import { User } from '../../api/users';
 import client from '../../api/client';
 
+interface Task {
+  id: number;
+  title: string;
+  day_number: number;
+  series_id: number | null;
+}
+
 interface Props {
   eventId: number;
   onClose: () => void;
@@ -12,13 +19,16 @@ interface Props {
 export const TaskSeriesModal: React.FC<Props> = ({ eventId, onClose, onSeriesCreated }) => {
   const [series, setSeries] = useState<TaskSeries[]>([]);
   const [eventStaff, setEventStaff] = useState<User[]>([]);
+  const [eventTasks, setEventTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newSeriesName, setNewSeriesName] = useState('');
   const [newSeriesDescription, setNewSeriesDescription] = useState('');
   const [selectedMembers, setSelectedMembers] = useState<number[]>([]);
+  const [selectedTasks, setSelectedTasks] = useState<number[]>([]);
   const [expandedSeriesId, setExpandedSeriesId] = useState<number | null>(null);
   const [seriesMembers, setSeriesMembers] = useState<{ [key: number]: any[] }>({});
+  const [seriesTasks, setSeriesTasks] = useState<{ [key: number]: Task[] }>({});
 
   useEffect(() => {
     loadData();
@@ -27,10 +37,11 @@ export const TaskSeriesModal: React.FC<Props> = ({ eventId, onClose, onSeriesCre
   const loadData = async () => {
     try {
       setLoading(true);
-      const [seriesData, eventStaffData, allUsersData] = await Promise.all([
+      const [seriesData, eventStaffData, allUsersData, tasksData] = await Promise.all([
         taskSeriesApi.getByEvent(eventId),
         client.get(`/users/event/${eventId}/staff`).then(res => res.data).catch(() => []),
         client.get('/users').then(res => res.data),
+        client.get(`/tasks/event/${eventId}`).then(res => res.data).catch(() => []),
       ]);
 
       // Combine event staff with admins and teamleiters (who are automatically in the pool)
@@ -41,6 +52,7 @@ export const TaskSeriesModal: React.FC<Props> = ({ eventId, onClose, onSeriesCre
 
       setSeries(seriesData);
       setEventStaff(availableStaff);
+      setEventTasks(tasksData);
     } catch (error) {
       console.error('Load series data error:', error);
       alert('Fehler beim Laden der Serien');
@@ -56,16 +68,26 @@ export const TaskSeriesModal: React.FC<Props> = ({ eventId, onClose, onSeriesCre
     }
 
     try {
-      await taskSeriesApi.create({
+      const newSeries = await taskSeriesApi.create({
         event_id: eventId,
         name: newSeriesName,
         description: newSeriesDescription || undefined,
         member_ids: selectedMembers.length > 0 ? selectedMembers : undefined,
       });
 
+      // Link selected tasks to the new series
+      if (selectedTasks.length > 0) {
+        await Promise.all(
+          selectedTasks.map(taskId =>
+            client.put(`/tasks/${taskId}`, { series_id: newSeries.id })
+          )
+        );
+      }
+
       setNewSeriesName('');
       setNewSeriesDescription('');
       setSelectedMembers([]);
+      setSelectedTasks([]);
       setShowCreateForm(false);
       await loadData();
       if (onSeriesCreated) {
@@ -98,20 +120,38 @@ export const TaskSeriesModal: React.FC<Props> = ({ eventId, onClose, onSeriesCre
       setExpandedSeriesId(null);
     } else {
       setExpandedSeriesId(seriesId);
+      // Load members and tasks if not already loaded
+      const loadPromises: Promise<any>[] = [];
       if (!seriesMembers[seriesId]) {
-        try {
-          const members = await taskSeriesApi.getMembers(seriesId);
-          setSeriesMembers(prev => ({ ...prev, [seriesId]: members }));
-        } catch (error) {
-          console.error('Load series members error:', error);
-        }
+        loadPromises.push(
+          taskSeriesApi.getMembers(seriesId)
+            .then(members => setSeriesMembers(prev => ({ ...prev, [seriesId]: members })))
+            .catch(err => console.error('Load series members error:', err))
+        );
       }
+      if (!seriesTasks[seriesId]) {
+        loadPromises.push(
+          client.get(`/tasks/task-series/${seriesId}`)
+            .then(res => {
+              const tasks = res.data.tasks || [];
+              setSeriesTasks(prev => ({ ...prev, [seriesId]: tasks }));
+            })
+            .catch(err => console.error('Load series tasks error:', err))
+        );
+      }
+      await Promise.all(loadPromises);
     }
   };
 
   const handleToggleMember = (userId: number) => {
     setSelectedMembers(prev =>
       prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+    );
+  };
+
+  const handleToggleTask = (taskId: number) => {
+    setSelectedTasks(prev =>
+      prev.includes(taskId) ? prev.filter(id => id !== taskId) : [...prev, taskId]
     );
   };
 
@@ -184,8 +224,30 @@ export const TaskSeriesModal: React.FC<Props> = ({ eventId, onClose, onSeriesCre
                     </div>
                   )}
                 </div>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Aufgaben verknüpfen (optional)</label>
+                  {eventTasks.filter(t => !t.series_id).length === 0 ? (
+                    <p style={styles.hint}>Keine unverknüpften Aufgaben vorhanden</p>
+                  ) : (
+                    <div style={styles.membersList}>
+                      {eventTasks
+                        .filter(t => !t.series_id)
+                        .map((task) => (
+                          <label key={task.id} style={styles.memberCheckbox}>
+                            <input
+                              type="checkbox"
+                              checked={selectedTasks.includes(task.id)}
+                              onChange={() => handleToggleTask(task.id)}
+                              style={styles.checkbox}
+                            />
+                            <span>Tag {task.day_number}: {task.title}</span>
+                          </label>
+                        ))}
+                    </div>
+                  )}
+                </div>
                 <div style={styles.formButtons}>
-                  <button onClick={() => setShowCreateForm(false)} style={styles.cancelButton}>
+                  <button onClick={() => { setShowCreateForm(false); setSelectedTasks([]); setSelectedMembers([]); }} style={styles.cancelButton}>
                     Abbrechen
                   </button>
                   <button onClick={handleCreateSeries} style={styles.submitButton}>
@@ -242,6 +304,18 @@ export const TaskSeriesModal: React.FC<Props> = ({ eventId, onClose, onSeriesCre
                             </ul>
                           ) : (
                             <p style={styles.hint}>Keine Mitglieder zugewiesen</p>
+                          )}
+                        </div>
+                        <div style={styles.membersSection}>
+                          <strong>Verknüpfte Aufgaben:</strong>
+                          {seriesTasks[s.id] && seriesTasks[s.id].length > 0 ? (
+                            <ul style={styles.memberList}>
+                              {seriesTasks[s.id].map((task) => (
+                                <li key={task.id}>Tag {task.day_number}: {task.title}</li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p style={styles.hint}>Keine Aufgaben verknüpft</p>
                           )}
                         </div>
                       </div>

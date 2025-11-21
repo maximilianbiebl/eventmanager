@@ -254,7 +254,8 @@ router.post('/', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) =
       end_time,
       reminder_minutes,
       is_public,
-      status
+      status,
+      series_id
     } = req.body;
 
     // Get all existing tasks for this event, sorted by day and time
@@ -315,9 +316,9 @@ router.post('/', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) =
     const result = await query(
       `INSERT INTO tasks (
         event_id, program_item_id, day_number, title, description,
-        scheduled_time, start_time, end_time, reminder_minutes, is_public, status, sort_order
+        scheduled_time, start_time, end_time, reminder_minutes, is_public, status, sort_order, series_id
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
       [
         event_id,
         program_item_id,
@@ -330,7 +331,8 @@ router.post('/', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) =
         reminder_minutes || 15,
         is_public || false,
         status || 'not_started',
-        newSortOrder
+        newSortOrder,
+        series_id || null
       ]
     );
 
@@ -1277,7 +1279,8 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req: Auth
       end_time = currentTask.end_time,
       reminder_minutes = currentTask.reminder_minutes,
       is_public = currentTask.is_public,
-      status = currentTask.status
+      status = currentTask.status,
+      series_id = currentTask.series_id
     } = req.body;
 
     const result = await query(
@@ -1290,8 +1293,9 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req: Auth
         end_time = $6,
         reminder_minutes = $7,
         is_public = $8,
-        status = $9
-       WHERE id = $10 RETURNING *`,
+        status = $9,
+        series_id = $10
+       WHERE id = $11 RETURNING *`,
       [
         title,
         description,
@@ -1302,6 +1306,7 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req: Auth
         reminder_minutes,
         is_public,
         status,
+        series_id || null,
         id
       ]
     );
