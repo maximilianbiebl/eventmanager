@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { taskSeriesApi, TaskSeries } from '../../api/taskSeries';
 import { User } from '../../api/users';
 import client from '../../api/client';
+import { Toast } from '../Toast';
 
 interface Task {
   id: number;
@@ -29,6 +30,7 @@ export const TaskSeriesModal: React.FC<Props> = ({ eventId, onClose, onSeriesCre
   const [expandedSeriesId, setExpandedSeriesId] = useState<number | null>(null);
   const [seriesMembers, setSeriesMembers] = useState<{ [key: number]: any[] }>({});
   const [seriesTasks, setSeriesTasks] = useState<{ [key: number]: Task[] }>({});
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   useEffect(() => {
     loadData();
@@ -55,7 +57,7 @@ export const TaskSeriesModal: React.FC<Props> = ({ eventId, onClose, onSeriesCre
       setEventTasks(tasksData);
     } catch (error) {
       console.error('Load series data error:', error);
-      alert('Fehler beim Laden der Serien');
+      setToast({ message: 'Fehler beim Laden der Serien', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -63,7 +65,7 @@ export const TaskSeriesModal: React.FC<Props> = ({ eventId, onClose, onSeriesCre
 
   const handleCreateSeries = async () => {
     if (!newSeriesName.trim()) {
-      alert('Bitte einen Namen eingeben');
+      setToast({ message: 'Bitte einen Namen eingeben', type: 'error' });
       return;
     }
 
@@ -93,10 +95,10 @@ export const TaskSeriesModal: React.FC<Props> = ({ eventId, onClose, onSeriesCre
       if (onSeriesCreated) {
         onSeriesCreated();
       }
-      alert('Serie erfolgreich erstellt');
+      setToast({ message: 'Serie erfolgreich erstellt', type: 'success' });
     } catch (error) {
       console.error('Create series error:', error);
-      alert('Fehler beim Erstellen der Serie');
+      setToast({ message: 'Fehler beim Erstellen der Serie', type: 'error' });
     }
   };
 
@@ -108,10 +110,10 @@ export const TaskSeriesModal: React.FC<Props> = ({ eventId, onClose, onSeriesCre
     try {
       await taskSeriesApi.delete(seriesId);
       await loadData();
-      alert('Serie gelöscht');
+      setToast({ message: 'Serie gelöscht', type: 'success' });
     } catch (error) {
       console.error('Delete series error:', error);
-      alert('Fehler beim Löschen');
+      setToast({ message: 'Fehler beim Löschen', type: 'error' });
     }
   };
 
@@ -120,26 +122,19 @@ export const TaskSeriesModal: React.FC<Props> = ({ eventId, onClose, onSeriesCre
       setExpandedSeriesId(null);
     } else {
       setExpandedSeriesId(seriesId);
-      // Load members and tasks if not already loaded
-      const loadPromises: Promise<any>[] = [];
-      if (!seriesMembers[seriesId]) {
-        loadPromises.push(
-          taskSeriesApi.getMembers(seriesId)
-            .then(members => setSeriesMembers(prev => ({ ...prev, [seriesId]: members })))
-            .catch(err => console.error('Load series members error:', err))
-        );
+      // Load members and tasks using getById which returns everything
+      if (!seriesMembers[seriesId] || !seriesTasks[seriesId]) {
+        try {
+          const details = await taskSeriesApi.getById(seriesId);
+          setSeriesMembers(prev => ({ ...prev, [seriesId]: details.members || [] }));
+          setSeriesTasks(prev => ({ ...prev, [seriesId]: details.tasks || [] }));
+        } catch (err) {
+          console.error('Load series details error:', err);
+          // Set empty arrays to show "keine" message
+          setSeriesMembers(prev => ({ ...prev, [seriesId]: [] }));
+          setSeriesTasks(prev => ({ ...prev, [seriesId]: [] }));
+        }
       }
-      if (!seriesTasks[seriesId]) {
-        loadPromises.push(
-          client.get(`/tasks/task-series/${seriesId}`)
-            .then(res => {
-              const tasks = res.data.tasks || [];
-              setSeriesTasks(prev => ({ ...prev, [seriesId]: tasks }));
-            })
-            .catch(err => console.error('Load series tasks error:', err))
-        );
-      }
-      await Promise.all(loadPromises);
     }
   };
 
@@ -163,6 +158,13 @@ export const TaskSeriesModal: React.FC<Props> = ({ eventId, onClose, onSeriesCre
 
   return (
     <div style={styles.overlay} onClick={handleOverlayClick}>
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
       <div style={styles.modal}>
         <div style={styles.header}>
           <h2 style={styles.title}>Aufgaben-Serien verwalten</h2>

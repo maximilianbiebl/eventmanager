@@ -82,6 +82,7 @@ export const TaskTableView: React.FC<Props> = ({
   const [showImportModal, setShowImportModal] = useState(false);
   const [showSeriesModal, setShowSeriesModal] = useState(false);
   const [taskSeries, setTaskSeries] = useState<TaskSeries[]>([]);
+  const [seriesMembers, setSeriesMembers] = useState<{ [seriesId: number]: { id: number; name: string }[] }>({});
 
   // Use external selectedDay if provided, otherwise use internal state
   const selectedDay = externalSelectedDay !== undefined ? externalSelectedDay : internalSelectedDay;
@@ -169,6 +170,20 @@ export const TaskTableView: React.FC<Props> = ({
     try {
       const seriesData = await taskSeriesApi.getByEvent(eventId);
       setTaskSeries(seriesData);
+
+      // Load members for each series
+      const membersMap: { [seriesId: number]: { id: number; name: string }[] } = {};
+      await Promise.all(
+        seriesData.map(async (s) => {
+          try {
+            const details = await taskSeriesApi.getById(s.id);
+            membersMap[s.id] = details.members || [];
+          } catch (err) {
+            membersMap[s.id] = [];
+          }
+        })
+      );
+      setSeriesMembers(membersMap);
     } catch (error) {
       console.error('Load series error:', error);
     }
@@ -692,12 +707,13 @@ export const TaskTableView: React.FC<Props> = ({
                         <span style={{
                           fontSize: '0.7rem',
                           padding: '0.125rem 0.5rem',
-                          backgroundColor: '#dbeafe',
-                          color: '#1e40af',
+                          backgroundColor: assignedUsers.length > 0 ? '#e5e7eb' : '#dbeafe',
+                          color: assignedUsers.length > 0 ? '#6b7280' : '#1e40af',
                           borderRadius: '9999px',
                           fontWeight: '500',
-                          marginLeft: '0.5rem'
-                        }}>📋 {taskSeries.find(s => s.id === task.series_id)?.name}</span>
+                          marginLeft: '0.5rem',
+                          opacity: assignedUsers.length > 0 ? 0.7 : 1
+                        }} title={assignedUsers.length > 0 ? 'Individuelle Zuweisung überschreibt Serien-Team' : 'Serien-Team zugewiesen'}>{taskSeries.find(s => s.id === task.series_id)?.name}</span>
                       )}
                     </div>
                     {task.description && (
@@ -751,7 +767,23 @@ export const TaskTableView: React.FC<Props> = ({
                   </td>
                   <td style={styles.td}>
                     {assignedUsers.length === 0 ? (
-                      <span style={styles.noAssignments}>Nicht zugewiesen</span>
+                      // Check if task has series members to show
+                      task.series_id && seriesMembers[task.series_id]?.length > 0 ? (
+                        <div style={styles.usersList} className={responsiveStyles.usersList}>
+                          {seriesMembers[task.series_id].map((member, idx) => (
+                            <span key={idx} style={{
+                              ...styles.userBadge,
+                              backgroundColor: '#dbeafe',
+                              color: '#1e40af',
+                              border: '1px dashed #93c5fd'
+                            }} className={responsiveStyles.userBadge} title="Serien-Zuweisung">
+                              {member.name}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span style={styles.noAssignments}>Nicht zugewiesen</span>
+                      )
                     ) : (
                       <div style={styles.usersList} className={responsiveStyles.usersList}>
                         {assignedUsers.map((user, idx) => (
