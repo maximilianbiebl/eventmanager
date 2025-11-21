@@ -1955,7 +1955,14 @@ router.get('/task-series/:seriesId', authMiddleware, async (req, res) => {
       return res.status(404).json({ error: 'Serie nicht gefunden' });
     }
 
-    // Get members
+    // Debug: Check raw members first
+    const rawMembers = await query(
+      'SELECT * FROM task_series_members WHERE series_id = $1',
+      [seriesId]
+    );
+    console.log('Raw task_series_members:', rawMembers.rows);
+
+    // Get members with JOIN
     const membersResult = await query(
       `SELECT u.id, u.name, u.email
        FROM task_series_members tsm
@@ -1963,7 +1970,7 @@ router.get('/task-series/:seriesId', authMiddleware, async (req, res) => {
        WHERE tsm.series_id = $1`,
       [seriesId]
     );
-    console.log('Members found:', membersResult.rows.length, membersResult.rows);
+    console.log('Members found after JOIN:', membersResult.rows.length, membersResult.rows);
 
     // Get tasks in this series
     const tasksResult = await query(
@@ -2082,6 +2089,13 @@ router.get('/task-series/:seriesId/members', authMiddleware, async (req, res) =>
   try {
     const { seriesId } = req.params;
 
+    // Debug: First check raw data in task_series_members
+    const rawMembers = await query(
+      'SELECT * FROM task_series_members WHERE series_id = $1',
+      [seriesId]
+    );
+    console.log('Raw task_series_members for series', seriesId, ':', rawMembers.rows);
+
     const result = await query(
       `SELECT u.id, u.name, u.email, u.role
        FROM task_series_members tsm
@@ -2090,6 +2104,7 @@ router.get('/task-series/:seriesId/members', authMiddleware, async (req, res) =>
        ORDER BY u.name`,
       [seriesId]
     );
+    console.log('Joined members result:', result.rows);
 
     res.json(result.rows);
   } catch (error) {
