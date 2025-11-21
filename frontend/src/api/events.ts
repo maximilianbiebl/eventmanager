@@ -95,15 +95,16 @@ export const eventsApi = {
     return response.data;
   },
 
-  exportCSV: async (ids?: number[]) => {
-    const response = await client.post('/events/export-csv', { ids }, { responseType: 'blob' });
+  exportCSV: async (ids?: number[], withTasks?: boolean) => {
+    const response = await client.post('/events/export-csv', { ids, withTasks }, { responseType: 'blob' });
     return response.data;
   },
 
-  importCSV: async (file: File) => {
+  importCSV: async (file: File, asTemplate?: boolean) => {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await client.post('/events/import-csv', formData, {
+    const url = asTemplate ? '/events/import-csv?asTemplate=true' : '/events/import-csv';
+    const response = await client.post(url, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
     return response.data;

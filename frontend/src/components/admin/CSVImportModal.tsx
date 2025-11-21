@@ -21,6 +21,7 @@ export const CSVImportModal: React.FC<Props> = ({ type, onClose, onSuccess, even
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
+  const [importAsTemplate, setImportAsTemplate] = useState(false);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -107,7 +108,7 @@ export const CSVImportModal: React.FC<Props> = ({ type, onClose, onSuccess, even
       if (type === 'users') {
         result = await usersApi.importCSV(filteredFile);
       } else if (type === 'events') {
-        result = await eventsApi.importCSV(filteredFile);
+        result = await eventsApi.importCSV(filteredFile, importAsTemplate);
       } else if (type === 'tasks' && eventId) {
         result = await tasksApi.importCSV(eventId, filteredFile);
       } else {
@@ -151,6 +152,18 @@ export const CSVImportModal: React.FC<Props> = ({ type, onClose, onSuccess, even
           />
           {file && <p style={styles.fileName}>{file.name}</p>}
         </div>
+
+        {type === 'events' && (
+          <label style={styles.templateOption}>
+            <input
+              type="checkbox"
+              checked={importAsTemplate}
+              onChange={(e) => setImportAsTemplate(e.target.checked)}
+              style={styles.checkbox}
+            />
+            <span>Als Vorlage importieren (ohne Startdatum)</span>
+          </label>
+        )}
 
         {preview && (
           <>
@@ -311,5 +324,16 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '1rem',
     cursor: 'pointer',
     fontWeight: '500',
+  },
+  templateOption: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.75rem',
+    padding: '0.75rem 1rem',
+    backgroundColor: '#f0f9ff',
+    border: '1px solid #bae6fd',
+    borderRadius: '4px',
+    marginBottom: '1rem',
+    cursor: 'pointer',
   },
 };

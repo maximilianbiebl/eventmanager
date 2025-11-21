@@ -15,6 +15,7 @@ interface Props {
 export const CSVExportModal: React.FC<Props> = ({ type, items, selectedIds, onClose, onSuccess, eventId }) => {
   const [exportType, setExportType] = useState<'all' | 'selected'>('all');
   const [loading, setLoading] = useState(false);
+  const [includeTasks, setIncludeTasks] = useState(false);
 
   const handleExport = async () => {
     if (exportType === 'selected' && selectedIds.length === 0) {
@@ -27,12 +28,18 @@ export const CSVExportModal: React.FC<Props> = ({ type, items, selectedIds, onCl
       const idsToExport = exportType === 'selected' ? selectedIds : undefined;
 
       let blob: Blob;
+      let filename: string;
       if (type === 'users') {
         blob = await usersApi.exportCSV(idsToExport);
+        filename = `users_${new Date().toISOString().split('T')[0]}.csv`;
       } else if (type === 'events') {
-        blob = await eventsApi.exportCSV(idsToExport);
+        blob = await eventsApi.exportCSV(idsToExport, includeTasks);
+        filename = includeTasks
+          ? `events_full_${new Date().toISOString().split('T')[0]}.json`
+          : `events_${new Date().toISOString().split('T')[0]}.csv`;
       } else if (type === 'tasks' && eventId) {
         blob = await tasksApi.exportCSV(eventId, idsToExport);
+        filename = `tasks_${new Date().toISOString().split('T')[0]}.csv`;
       } else {
         throw new Error('Invalid export type');
       }
@@ -41,7 +48,7 @@ export const CSVExportModal: React.FC<Props> = ({ type, items, selectedIds, onCl
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${type}_${new Date().toISOString().split('T')[0]}.csv`;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -101,6 +108,23 @@ export const CSVExportModal: React.FC<Props> = ({ type, items, selectedIds, onCl
             </span>
           </label>
         </div>
+
+        {type === 'events' && (
+          <label style={styles.fullExportOption}>
+            <input
+              type="checkbox"
+              checked={includeTasks}
+              onChange={(e) => setIncludeTasks(e.target.checked)}
+              style={styles.checkbox}
+            />
+            <div>
+              <span style={{ fontWeight: '500' }}>Mit Aufgaben exportieren</span>
+              <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8rem', color: '#6b7280' }}>
+                Exportiert Events mit allen Aufgaben als JSON-Datei
+              </p>
+            </div>
+          </label>
+        )}
 
         <div style={styles.buttons}>
           <button onClick={onClose} style={styles.cancelButton} disabled={loading}>
@@ -186,5 +210,22 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '1rem',
     cursor: 'pointer',
     fontWeight: '500',
+  },
+  fullExportOption: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '0.75rem',
+    padding: '1rem',
+    backgroundColor: '#f0f9ff',
+    border: '1px solid #bae6fd',
+    borderRadius: '4px',
+    marginBottom: '1.5rem',
+    cursor: 'pointer',
+  },
+  checkbox: {
+    width: '18px',
+    height: '18px',
+    cursor: 'pointer',
+    marginTop: '2px',
   },
 };

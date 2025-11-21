@@ -961,7 +961,7 @@ router.post('/bulk-approve-suggestions', authMiddleware, adminMiddleware, async 
 // CSV Export Events
 router.post('/export-csv', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
   try {
-    const { ids } = req.body;
+    const { ids, withTasks } = req.body;
 
     let result;
     if (ids && Array.isArray(ids) && ids.length > 0) {
@@ -970,16 +970,35 @@ router.post('/export-csv', authMiddleware, teamleiterOrAdminMiddleware, async (r
       result = await query('SELECT id, name, description, start_date, days, is_template FROM events ORDER BY name');
     }
 
-    // Create CSV
-    const headers = ['id', 'name', 'description', 'start_date', 'days', 'is_template'];
-    const rows = result.rows.map(row =>
-      `${row.id},"${row.name}","${row.description || ''}",${row.start_date || ''},${row.days},${row.is_template}`
-    );
-    const csv = [headers.join(','), ...rows].join('\n');
+    if (withTasks) {
+      // Export as JSON with tasks included
+      const eventsWithTasks = [];
+      for (const event of result.rows) {
+        const tasksResult = await query(
+          'SELECT id, title, description, day_number, scheduled_time, start_time, end_time, is_public FROM tasks WHERE event_id = $1 ORDER BY day_number, sort_order',
+          [event.id]
+        );
+        eventsWithTasks.push({
+          ...event,
+          tasks: tasksResult.rows
+        });
+      }
 
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename=events_${new Date().toISOString().split('T')[0]}.csv`);
-    res.send(csv);
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', `attachment; filename=events_full_${new Date().toISOString().split('T')[0]}.json`);
+      res.send(JSON.stringify(eventsWithTasks, null, 2));
+    } else {
+      // Create CSV (events only)
+      const headers = ['id', 'name', 'description', 'start_date', 'days', 'is_template'];
+      const rows = result.rows.map(row =>
+        `${row.id},"${row.name}","${row.description || ''}",${row.start_date || ''},${row.days},${row.is_template}`
+      );
+      const csv = [headers.join(','), ...rows].join('\n');
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename=events_${new Date().toISOString().split('T')[0]}.csv`);
+      res.send(csv);
+    }
   } catch (error) {
     console.error('Export CSV error:', error);
     res.status(500).json({ error: 'Server Fehler' });
@@ -992,6 +1011,9 @@ router.post('/import-csv', authMiddleware, teamleiterOrAdminMiddleware, upload.s
     if (!req.file) {
       return res.status(400).json({ error: 'Keine Datei hochgeladen' });
     }
+
+    // Check if import as template is requested via query param
+    const forceAsTemplate = req.query.asTemplate === 'true';
 
     const csvText = req.file.buffer.toString('utf-8');
     const lines = csvText.split('\n').filter(line => line.trim());
@@ -1027,8 +1049,8 @@ router.post('/import-csv', authMiddleware, teamleiterOrAdminMiddleware, upload.s
         event[header] = values[idx];
       });
 
-      // Only Admin kann Vorlagen importieren
-      const isTemplate = event.is_template === 'true' && req.user!.role === 'admin';
+      // Import as template if: query param set OR CSV field is true (admin only for CSV field)
+      const isTemplate = forceAsTemplate || (event.is_template === 'true' && req.user!.role === 'admin');
 
       // Create new event
       const eventResult = await query(
@@ -1036,7 +1058,7 @@ router.post('/import-csv', authMiddleware, teamleiterOrAdminMiddleware, upload.s
         [
           event.name,
           event.description || null,
-          event.start_date || null,
+          isTemplate ? null : (event.start_date || null), // Templates have no start date
           parseInt(event.days) || 1,
           req.user!.id,
           isTemplate
