@@ -1964,7 +1964,7 @@ router.get('/task-series/:seriesId', authMiddleware, async (req, res) => {
 
     // Get members with JOIN
     const membersResult = await query(
-      `SELECT u.id, u.name, u.email
+      `SELECT u.id, u.name
        FROM task_series_members tsm
        JOIN users u ON tsm.user_id = u.id
        WHERE tsm.series_id = $1`,
@@ -2097,7 +2097,7 @@ router.get('/task-series/:seriesId/members', authMiddleware, async (req, res) =>
     console.log('Raw task_series_members for series', seriesId, ':', rawMembers.rows);
 
     const result = await query(
-      `SELECT u.id, u.name, u.email, u.role
+      `SELECT u.id, u.name, u.role
        FROM task_series_members tsm
        JOIN users u ON tsm.user_id = u.id
        WHERE tsm.series_id = $1

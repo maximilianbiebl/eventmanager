@@ -15,7 +15,6 @@ export interface TaskSeriesDetails extends TaskSeries {
   members: Array<{
     id: number;
     name: string;
-    email: string;
   }>;
   tasks: Array<{
     id: number;
@@ -56,7 +55,7 @@ export const taskSeriesApi = {
     await client.delete(`/tasks/task-series/${seriesId}`);
   },
 
-  getMembers: async (seriesId: number): Promise<Array<{ id: number; name: string; email: string; role: string }>> => {
+  getMembers: async (seriesId: number): Promise<Array<{ id: number; name: string; role: string }>> => {
     const response = await client.get(`/tasks/task-series/${seriesId}/members`);
     return response.data;
   },
