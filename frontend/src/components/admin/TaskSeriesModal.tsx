@@ -127,7 +127,7 @@ export const TaskSeriesModal: React.FC<Props> = ({ eventId, onClose, onSeriesCre
         try {
           const details = await taskSeriesApi.getById(seriesId);
           setSeriesMembers(prev => ({ ...prev, [seriesId]: details.members || [] }));
-          setSeriesTasks(prev => ({ ...prev, [seriesId]: details.tasks || [] }));
+          setSeriesTasks(prev => ({ ...prev, [seriesId]: (details.tasks || []).map(t => ({ ...t, series_id: seriesId })) }));
         } catch (err) {
           console.error('Load series details error:', err);
           // Set empty arrays to show "keine" message
