@@ -74,7 +74,7 @@ export const CSVImportModal: React.FC<Props> = ({ type, onClose, onSuccess, even
   };
 
   const handleImport = async () => {
-    if (!file) {
+    if (!file || !preview) {
       alert('Bitte Datei auswählen');
       return;
     }
@@ -87,14 +87,29 @@ export const CSVImportModal: React.FC<Props> = ({ type, onClose, onSuccess, even
     try {
       setLoading(true);
 
-      // Note: Currently imports all items from file, filtering by selection not yet implemented
+      // Create filtered CSV with only selected items
+      const text = await file.text();
+      const lines = text.split('\n').filter(line => line.trim());
+      const headerLine = lines[0];
+      const selectedLines = [headerLine];
+
+      // Add only selected items (selectedItems contains indices)
+      lines.slice(1).forEach((line, idx) => {
+        if (selectedItems.includes(idx)) {
+          selectedLines.push(line);
+        }
+      });
+
+      const filteredCsv = selectedLines.join('\n');
+      const filteredFile = new File([filteredCsv], file.name, { type: 'text/csv' });
+
       let result;
       if (type === 'users') {
-        result = await usersApi.importCSV(file);
+        result = await usersApi.importCSV(filteredFile);
       } else if (type === 'events') {
-        result = await eventsApi.importCSV(file);
+        result = await eventsApi.importCSV(filteredFile);
       } else if (type === 'tasks' && eventId) {
-        result = await tasksApi.importCSV(eventId, file);
+        result = await tasksApi.importCSV(eventId, filteredFile);
       } else {
         throw new Error('Invalid import type');
       }

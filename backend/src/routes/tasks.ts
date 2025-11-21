@@ -1804,7 +1804,7 @@ router.post('/event/:eventId/import-csv', authMiddleware, teamleiterOrAdminMiddl
         task[header] = values[idx];
       });
 
-      // Create new task
+      // Create new task - always reset status to not_started on import
       await query(
         `INSERT INTO tasks (
           event_id, day_number, title, description, scheduled_time, start_time, end_time,
@@ -1820,7 +1820,7 @@ router.post('/event/:eventId/import-csv', authMiddleware, teamleiterOrAdminMiddl
           task.end_time || null,
           15,
           task.is_public === 'true',
-          task.status || 'not_started',
+          'not_started', // Always reset status on import
           nextSortOrder
         ]
       );

@@ -617,16 +617,15 @@ export const TaskTableView: React.FC<Props> = ({
           <table style={styles.table}>
             <thead>
               <tr style={styles.headerRow}>
-                {!readOnly && (
-                  <th style={styles.th}>
-                    <input
-                      type="checkbox"
-                      checked={selectedTaskIds.length === sortedTasks.length && sortedTasks.length > 0}
-                      onChange={handleSelectAllTasks}
-                      style={styles.checkbox}
-                    />
-                  </th>
-                )}
+                <th style={styles.th}>
+                  <input
+                    type="checkbox"
+                    checked={selectedTaskIds.length === sortedTasks.length && sortedTasks.length > 0}
+                    onChange={handleSelectAllTasks}
+                    style={styles.checkbox}
+                    title="Alle auswählen für Export"
+                  />
+                </th>
                 <th
                   style={{ ...styles.th, cursor: 'pointer', userSelect: 'none' }}
                   onClick={() => handleSort('day')}
@@ -678,16 +677,14 @@ export const TaskTableView: React.FC<Props> = ({
             <tbody>
               {sortedTasks.map(({ task, assignedUsers }) => (
                 <tr key={task.id} style={{...styles.row, ...(selectedTaskIds.includes(task.id) ? styles.selectedRow : {})}}>
-                  {!readOnly && (
-                    <td style={styles.td}>
-                      <input
-                        type="checkbox"
-                        checked={selectedTaskIds.includes(task.id)}
-                        onChange={() => handleToggleSelectTask(task.id)}
-                        style={styles.checkbox}
-                      />
-                    </td>
-                  )}
+                  <td style={styles.td}>
+                    <input
+                      type="checkbox"
+                      checked={selectedTaskIds.includes(task.id)}
+                      onChange={() => handleToggleSelectTask(task.id)}
+                      style={styles.checkbox}
+                    />
+                  </td>
                   <td style={styles.td} className={responsiveStyles.hideOnMobile}>Tag {task.day_number}</td>
                   <td style={styles.td} className={responsiveStyles.hideOnMobile}>{getTaskDate(task.day_number)}</td>
                   <td style={styles.td}>
