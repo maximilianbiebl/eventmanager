@@ -115,6 +115,9 @@ export const TaskSeriesModal: React.FC<Props> = ({ eventId, onClose, onSeriesCre
     try {
       await taskSeriesApi.delete(seriesId);
       await loadData();
+      if (onSeriesCreated) {
+        onSeriesCreated();
+      }
       setToast({ message: 'Serie gelöscht', type: 'success' });
     } catch (error) {
       console.error('Delete series error:', error);
@@ -239,6 +242,9 @@ export const TaskSeriesModal: React.FC<Props> = ({ eventId, onClose, onSeriesCre
         return newState;
       });
       await loadData();
+      if (onSeriesCreated) {
+        onSeriesCreated();
+      }
       setToast({ message: 'Serie aktualisiert', type: 'success' });
     } catch (error) {
       console.error('Save edit error:', error);

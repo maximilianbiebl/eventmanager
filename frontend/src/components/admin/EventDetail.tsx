@@ -347,6 +347,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
               manualRefreshTrigger={manualRefreshTrigger}
               readOnly={isTeamleiter && event.is_template}
               eventId={event.id}
+              onSeriesUpdated={() => setManualRefreshTrigger(prev => prev + 1)}
             />
           </div>
         )}
@@ -511,7 +512,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       }
     };
     loadSeriesData();
-  }, [event?.id]);
+  }, [event?.id, manualRefreshTrigger]);
 
   // React to manual refresh from parent
   React.useEffect(() => {

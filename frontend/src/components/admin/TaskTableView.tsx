@@ -39,6 +39,7 @@ interface Props {
   manualRefreshTrigger?: number;
   readOnly?: boolean;
   eventId?: number; // Needed for CSV export/import
+  onSeriesUpdated?: () => void; // Callback when series is created/updated/deleted
 }
 
 const STATUS_COLORS: { [key: string]: string } = {
@@ -66,6 +67,7 @@ export const TaskTableView: React.FC<Props> = ({
   manualRefreshTrigger,
   readOnly = false,
   eventId,
+  onSeriesUpdated,
 }) => {
   const [assignments, setAssignments] = useState<TaskAssignment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -547,7 +549,9 @@ export const TaskTableView: React.FC<Props> = ({
           onClose={() => setShowSeriesModal(false)}
           onSeriesCreated={() => {
             loadSeries();
-            setShowSeriesModal(false);
+            if (onSeriesUpdated) {
+              onSeriesUpdated();
+            }
           }}
         />
       )}
