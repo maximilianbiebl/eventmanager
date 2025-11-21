@@ -125,7 +125,11 @@ export const TaskSeriesModal: React.FC<Props> = ({ eventId, onClose, onSeriesCre
       // Load members and tasks using getById which returns everything
       if (!seriesMembers[seriesId] || !seriesTasks[seriesId]) {
         try {
+          console.log('Loading series details for:', seriesId);
           const details = await taskSeriesApi.getById(seriesId);
+          console.log('Series details received:', details);
+          console.log('Members:', details.members);
+          console.log('Tasks:', details.tasks);
           setSeriesMembers(prev => ({ ...prev, [seriesId]: details.members || [] }));
           setSeriesTasks(prev => ({ ...prev, [seriesId]: (details.tasks || []).map(t => ({ ...t, series_id: seriesId })) }));
         } catch (err) {

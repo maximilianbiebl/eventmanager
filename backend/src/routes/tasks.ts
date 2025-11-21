@@ -1943,6 +1943,7 @@ router.get('/task-series/event/:eventId', authMiddleware, async (req, res) => {
 router.get('/task-series/:seriesId', authMiddleware, async (req, res) => {
   try {
     const { seriesId } = req.params;
+    console.log('Getting task series details for seriesId:', seriesId);
 
     const seriesResult = await query(
       'SELECT * FROM task_series WHERE id = $1',
@@ -1950,6 +1951,7 @@ router.get('/task-series/:seriesId', authMiddleware, async (req, res) => {
     );
 
     if (seriesResult.rows.length === 0) {
+      console.log('Series not found:', seriesId);
       return res.status(404).json({ error: 'Serie nicht gefunden' });
     }
 
@@ -1961,12 +1963,14 @@ router.get('/task-series/:seriesId', authMiddleware, async (req, res) => {
        WHERE tsm.series_id = $1`,
       [seriesId]
     );
+    console.log('Members found:', membersResult.rows.length, membersResult.rows);
 
     // Get tasks in this series
     const tasksResult = await query(
       'SELECT * FROM tasks WHERE series_id = $1 ORDER BY day_number, scheduled_time',
       [seriesId]
     );
+    console.log('Tasks found:', tasksResult.rows.length);
 
     res.json({
       ...seriesResult.rows[0],
@@ -1983,6 +1987,7 @@ router.get('/task-series/:seriesId', authMiddleware, async (req, res) => {
 router.post('/task-series', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
   try {
     const { event_id, name, description, member_ids } = req.body;
+    console.log('Creating task series:', { event_id, name, description, member_ids });
 
     if (!event_id || !name) {
       return res.status(400).json({ error: 'Event ID und Name sind erforderlich' });
@@ -1995,16 +2000,23 @@ router.post('/task-series', authMiddleware, teamleiterOrAdminMiddleware, async (
     );
 
     const series = seriesResult.rows[0];
+    console.log('Series created with id:', series.id);
 
     // Add members if provided
+    let membersAdded = 0;
     if (member_ids && Array.isArray(member_ids) && member_ids.length > 0) {
       for (const userId of member_ids) {
-        await query(
-          'INSERT INTO task_series_members (series_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+        const memberResult = await query(
+          'INSERT INTO task_series_members (series_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING *',
           [series.id, userId]
         );
+        if (memberResult.rows.length > 0) {
+          membersAdded++;
+        }
+        console.log('Added member:', userId, 'result:', memberResult.rows);
       }
     }
+    console.log('Total members added:', membersAdded);
 
     broadcastUpdate('task', { action: 'series_created', seriesId: series.id, eventId: event_id });
 
