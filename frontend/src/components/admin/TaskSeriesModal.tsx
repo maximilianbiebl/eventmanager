@@ -31,6 +31,11 @@ export const TaskSeriesModal: React.FC<Props> = ({ eventId, onClose, onSeriesCre
   const [seriesMembers, setSeriesMembers] = useState<{ [key: number]: any[] }>({});
   const [seriesTasks, setSeriesTasks] = useState<{ [key: number]: Task[] }>({});
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [editingSeriesId, setEditingSeriesId] = useState<number | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editSelectedMembers, setEditSelectedMembers] = useState<number[]>([]);
+  const [editSelectedTasks, setEditSelectedTasks] = useState<number[]>([]);
 
   useEffect(() => {
     loadData();
@@ -154,6 +159,105 @@ export const TaskSeriesModal: React.FC<Props> = ({ eventId, onClose, onSeriesCre
     );
   };
 
+  const handleStartEdit = async (s: TaskSeries) => {
+    setEditingSeriesId(s.id);
+    setEditName(s.name);
+    setEditDescription(s.description || '');
+
+    // Load current members and tasks for this series
+    try {
+      const details = await taskSeriesApi.getById(s.id);
+      setEditSelectedMembers(details.members?.map(m => m.id) || []);
+      setEditSelectedTasks(details.tasks?.map(t => t.id) || []);
+    } catch (err) {
+      setEditSelectedMembers([]);
+      setEditSelectedTasks([]);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingSeriesId(null);
+    setEditName('');
+    setEditDescription('');
+    setEditSelectedMembers([]);
+    setEditSelectedTasks([]);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingSeriesId || !editName.trim()) {
+      setToast({ message: 'Bitte einen Namen eingeben', type: 'error' });
+      return;
+    }
+
+    try {
+      // Update series name/description
+      await taskSeriesApi.update(editingSeriesId, {
+        name: editName,
+        description: editDescription || undefined,
+      });
+
+      // Get current members and tasks
+      const details = await taskSeriesApi.getById(editingSeriesId);
+      const currentMemberIds = details.members?.map(m => m.id) || [];
+      const currentTaskIds = details.tasks?.map(t => t.id) || [];
+
+      // Add new members
+      const membersToAdd = editSelectedMembers.filter(id => !currentMemberIds.includes(id));
+      if (membersToAdd.length > 0) {
+        await taskSeriesApi.addMembers(editingSeriesId, membersToAdd);
+      }
+
+      // Remove old members
+      const membersToRemove = currentMemberIds.filter(id => !editSelectedMembers.includes(id));
+      for (const userId of membersToRemove) {
+        await taskSeriesApi.removeMember(editingSeriesId, userId);
+      }
+
+      // Update tasks - add series_id to new tasks
+      const tasksToAdd = editSelectedTasks.filter(id => !currentTaskIds.includes(id));
+      for (const taskId of tasksToAdd) {
+        await client.put(`/tasks/${taskId}`, { series_id: editingSeriesId });
+      }
+
+      // Remove series_id from tasks no longer in series
+      const tasksToRemove = currentTaskIds.filter(id => !editSelectedTasks.includes(id));
+      for (const taskId of tasksToRemove) {
+        await client.put(`/tasks/${taskId}`, { series_id: null });
+      }
+
+      // Clear edit state and reload
+      handleCancelEdit();
+      // Clear cached data so it reloads
+      setSeriesMembers(prev => {
+        const newState = { ...prev };
+        delete newState[editingSeriesId];
+        return newState;
+      });
+      setSeriesTasks(prev => {
+        const newState = { ...prev };
+        delete newState[editingSeriesId];
+        return newState;
+      });
+      await loadData();
+      setToast({ message: 'Serie aktualisiert', type: 'success' });
+    } catch (error) {
+      console.error('Save edit error:', error);
+      setToast({ message: 'Fehler beim Speichern', type: 'error' });
+    }
+  };
+
+  const handleToggleEditMember = (userId: number) => {
+    setEditSelectedMembers(prev =>
+      prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+    );
+  };
+
+  const handleToggleEditTask = (taskId: number) => {
+    setEditSelectedTasks(prev =>
+      prev.includes(taskId) ? prev.filter(id => id !== taskId) : [...prev, taskId]
+    );
+  };
+
   const handleOverlayClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
       onClose();
@@ -273,58 +377,133 @@ export const TaskSeriesModal: React.FC<Props> = ({ eventId, onClose, onSeriesCre
                 <h3 style={styles.sectionTitle}>Bestehende Serien</h3>
                 {series.map((s) => (
                   <div key={s.id} style={styles.seriesCard}>
-                    <div style={styles.seriesHeader} onClick={() => handleToggleExpand(s.id)}>
-                      <div style={styles.seriesInfo}>
-                        <span style={styles.seriesName}>{s.name}</span>
-                        <span style={styles.seriesMeta}>
-                          {s.task_count || 0} Aufgabe(n) · {s.member_count || 0} Mitglied(er)
-                        </span>
+                    {editingSeriesId === s.id ? (
+                      <div style={styles.createForm}>
+                        <h3 style={styles.formTitle}>Serie bearbeiten</h3>
+                        <div style={styles.formGroup}>
+                          <label style={styles.label}>Name der Serie *</label>
+                          <input
+                            type="text"
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            style={styles.input}
+                          />
+                        </div>
+                        <div style={styles.formGroup}>
+                          <label style={styles.label}>Beschreibung (optional)</label>
+                          <textarea
+                            value={editDescription}
+                            onChange={(e) => setEditDescription(e.target.value)}
+                            rows={2}
+                            style={styles.textarea}
+                          />
+                        </div>
+                        <div style={styles.formGroup}>
+                          <label style={styles.label}>Team-Mitglieder</label>
+                          <div style={styles.membersList}>
+                            {eventStaff.map((staff) => (
+                              <label key={staff.id} style={styles.memberCheckbox}>
+                                <input
+                                  type="checkbox"
+                                  checked={editSelectedMembers.includes(staff.id)}
+                                  onChange={() => handleToggleEditMember(staff.id)}
+                                  style={styles.checkbox}
+                                />
+                                <span>{staff.name}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                        <div style={styles.formGroup}>
+                          <label style={styles.label}>Verknüpfte Aufgaben</label>
+                          <div style={styles.membersList}>
+                            {eventTasks.map((task) => (
+                              <label key={task.id} style={styles.memberCheckbox}>
+                                <input
+                                  type="checkbox"
+                                  checked={editSelectedTasks.includes(task.id)}
+                                  onChange={() => handleToggleEditTask(task.id)}
+                                  style={styles.checkbox}
+                                />
+                                <span>Tag {task.day_number}: {task.title}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                        <div style={styles.formButtons}>
+                          <button onClick={handleCancelEdit} style={styles.cancelButton}>
+                            Abbrechen
+                          </button>
+                          <button onClick={handleSaveEdit} style={styles.submitButton}>
+                            Speichern
+                          </button>
+                        </div>
                       </div>
-                      <div style={styles.seriesActions}>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteSeries(s.id);
-                          }}
-                          style={styles.deleteButton}
-                        >
-                          Löschen
-                        </button>
-                        <span style={styles.expandIcon}>
-                          {expandedSeriesId === s.id ? '▼' : '▶'}
-                        </span>
-                      </div>
-                    </div>
-                    {expandedSeriesId === s.id && (
-                      <div style={styles.seriesDetails}>
-                        {s.description && (
-                          <p style={styles.seriesDescription}>{s.description}</p>
+                    ) : (
+                      <>
+                        <div style={styles.seriesHeader} onClick={() => handleToggleExpand(s.id)}>
+                          <div style={styles.seriesInfo}>
+                            <span style={styles.seriesName}>{s.name}</span>
+                            <span style={styles.seriesMeta}>
+                              {s.task_count || 0} Aufgabe(n) · {s.member_count || 0} Mitglied(er)
+                            </span>
+                          </div>
+                          <div style={styles.seriesActions}>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleStartEdit(s);
+                              }}
+                              style={styles.editButton}
+                            >
+                              Bearbeiten
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteSeries(s.id);
+                              }}
+                              style={styles.deleteButton}
+                            >
+                              Löschen
+                            </button>
+                            <span style={styles.expandIcon}>
+                              {expandedSeriesId === s.id ? '▼' : '▶'}
+                            </span>
+                          </div>
+                        </div>
+                        {expandedSeriesId === s.id && (
+                          <div style={styles.seriesDetails}>
+                            {s.description && (
+                              <p style={styles.seriesDescription}>{s.description}</p>
+                            )}
+                            <div style={styles.membersSection}>
+                              <strong>Team-Mitglieder:</strong>
+                              {seriesMembers[s.id] && seriesMembers[s.id].length > 0 ? (
+                                <ul style={styles.memberList}>
+                                  {seriesMembers[s.id].map((member) => (
+                                    <li key={member.id}>{member.name}</li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <p style={styles.hint}>Keine Mitglieder zugewiesen</p>
+                              )}
+                            </div>
+                            <div style={styles.membersSection}>
+                              <strong>Verknüpfte Aufgaben:</strong>
+                              {seriesTasks[s.id] && seriesTasks[s.id].length > 0 ? (
+                                <ul style={styles.memberList}>
+                                  {seriesTasks[s.id].map((task) => (
+                                    <li key={task.id}>Tag {task.day_number}: {task.title}</li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <p style={styles.hint}>Keine Aufgaben verknüpft</p>
+                              )}
+                            </div>
+                          </div>
                         )}
-                        <div style={styles.membersSection}>
-                          <strong>Team-Mitglieder:</strong>
-                          {seriesMembers[s.id] && seriesMembers[s.id].length > 0 ? (
-                            <ul style={styles.memberList}>
-                              {seriesMembers[s.id].map((member) => (
-                                <li key={member.id}>{member.name}</li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <p style={styles.hint}>Keine Mitglieder zugewiesen</p>
-                          )}
-                        </div>
-                        <div style={styles.membersSection}>
-                          <strong>Verknüpfte Aufgaben:</strong>
-                          {seriesTasks[s.id] && seriesTasks[s.id].length > 0 ? (
-                            <ul style={styles.memberList}>
-                              {seriesTasks[s.id].map((task) => (
-                                <li key={task.id}>Tag {task.day_number}: {task.title}</li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <p style={styles.hint}>Keine Aufgaben verknüpft</p>
-                          )}
-                        </div>
-                      </div>
+                      </>
                     )}
                   </div>
                 ))}
@@ -540,6 +719,16 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     alignItems: 'center',
     gap: '1rem',
+  },
+  editButton: {
+    padding: '0.5rem 1rem',
+    backgroundColor: '#3b82f6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
+    fontWeight: '500',
   },
   deleteButton: {
     padding: '0.5rem 1rem',

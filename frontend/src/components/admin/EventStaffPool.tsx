@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { usersApi, User } from '../../api/users';
 import { useSSE } from '../../hooks/useSSE';
 import client from '../../api/client';
+import { taskSeriesApi } from '../../api/taskSeries';
 
 interface Props {
   eventId: number;
@@ -10,6 +11,7 @@ interface Props {
 interface EventStaff extends User {
   isInPool?: boolean;
   taskCount?: number;
+  seriesTaskCount?: number;
 }
 
 interface StaffTask {
@@ -17,9 +19,11 @@ interface StaffTask {
   title: string;
   status: string;
   day_number: number;
-  assignment_id: number;
+  assignment_id?: number;
   event_name: string;
   instance_number: number;
+  isSeriesTask?: boolean;
+  seriesName?: string;
 }
 
 export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
@@ -55,10 +59,11 @@ export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
       if (showLoading) {
         setLoading(true);
       }
-      const [allUsers, eventUsers, assignments] = await Promise.all([
+      const [allUsers, eventUsers, assignments, seriesData] = await Promise.all([
         usersApi.getAll(),
         client.get(`/users/event/${eventId}/staff`).then(res => res.data),
         client.get(`/tasks/event/${eventId}/all-assignments`).then(res => res.data).catch(() => []),
+        taskSeriesApi.getByEvent(eventId).catch(() => []),
       ]);
 
       // Zähle Task-Zuweisungen pro User
@@ -69,6 +74,20 @@ export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
         }
       });
 
+      // Load series members and count series tasks per user
+      const seriesTaskCounts: { [userId: number]: number } = {};
+      for (const s of seriesData) {
+        try {
+          const details = await taskSeriesApi.getById(s.id);
+          const taskCount = details.tasks?.length || 0;
+          details.members?.forEach(member => {
+            seriesTaskCounts[member.id] = (seriesTaskCounts[member.id] || 0) + taskCount;
+          });
+        } catch (err) {
+          // ignore
+        }
+      }
+
       // Nur Mitarbeiter anzeigen
       const staffOnly = allUsers.filter(u => u.role === 'staff');
 
@@ -78,12 +97,14 @@ export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
         ...staff,
         isInPool: eventStaffIds.has(staff.id),
         taskCount: taskCounts[staff.id] || 0,
+        seriesTaskCount: seriesTaskCounts[staff.id] || 0,
       }));
 
       // Event-Staff mit Task-Counts
       const eventStaffWithCounts = eventUsers.map((staff: User) => ({
         ...staff,
         taskCount: taskCounts[staff.id] || 0,
+        seriesTaskCount: seriesTaskCounts[staff.id] || 0,
       }));
 
       setAllStaff(staffWithPoolStatus);
@@ -125,8 +146,41 @@ export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
 
   const handleShowTasks = async (staff: EventStaff) => {
     try {
+      // Load direct assignments
       const response = await client.get(`/tasks/event/${eventId}/user/${staff.id}/assignments`);
-      setStaffTasks(response.data);
+      const directTasks: StaffTask[] = response.data;
+
+      // Load series tasks where this user is a member
+      const seriesData = await taskSeriesApi.getByEvent(eventId).catch(() => []);
+      const seriesTasks: StaffTask[] = [];
+
+      for (const s of seriesData) {
+        try {
+          const details = await taskSeriesApi.getById(s.id);
+          const isMember = details.members?.some(m => m.id === staff.id);
+          if (isMember && details.tasks) {
+            details.tasks.forEach(task => {
+              // Don't add if already in direct assignments
+              if (!directTasks.some(dt => dt.id === task.id)) {
+                seriesTasks.push({
+                  id: task.id,
+                  title: task.title,
+                  status: 'not_started',
+                  day_number: task.day_number,
+                  event_name: '',
+                  instance_number: 1,
+                  isSeriesTask: true,
+                  seriesName: s.name,
+                });
+              }
+            });
+          }
+        } catch (err) {
+          // ignore
+        }
+      }
+
+      setStaffTasks([...directTasks, ...seriesTasks]);
       setSelectedStaffForTasks(staff);
     } catch (error) {
       console.error('Load staff tasks error:', error);
@@ -202,7 +256,10 @@ export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
                 }}
                 title="Aufgaben anzeigen"
               >
-                {staff.taskCount || 0} Aufgabe{(staff.taskCount || 0) !== 1 ? 'n' : ''}
+                {(staff.taskCount || 0) + (staff.seriesTaskCount || 0)} Aufgabe{((staff.taskCount || 0) + (staff.seriesTaskCount || 0)) !== 1 ? 'n' : ''}
+                {(staff.seriesTaskCount || 0) > 0 && (
+                  <span style={{ fontSize: '0.7rem', color: '#6b7280' }}> ({staff.seriesTaskCount} Serie)</span>
+                )}
               </button>
             </div>
           ))}
@@ -337,10 +394,11 @@ const TaskListModal: React.FC<TaskListModalProps> = ({ staff, tasks, onClose, on
   };
 
   const handleSelectAll = () => {
-    if (selectedTaskIds.length === tasks.length) {
+    const assignableTasks = tasks.filter(t => t.assignment_id);
+    if (selectedTaskIds.length === assignableTasks.length) {
       setSelectedTaskIds([]);
     } else {
-      setSelectedTaskIds(tasks.map(t => t.assignment_id));
+      setSelectedTaskIds(assignableTasks.map(t => t.assignment_id!));
     }
   };
 
@@ -450,38 +508,58 @@ const TaskListModal: React.FC<TaskListModalProps> = ({ staff, tasks, onClose, on
           <p style={styles.noStaff}>Diesem Mitarbeiter sind keine Aufgaben zugewiesen.</p>
         ) : (
           <>
-            <div style={{marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
-              <input
-                type="checkbox"
-                checked={selectedTaskIds.length === tasks.length && tasks.length > 0}
-                onChange={handleSelectAll}
-                style={styles.checkbox}
-              />
-              <span style={{fontSize: '0.875rem', fontWeight: '500'}}>Alle auswählen</span>
-            </div>
+            {tasks.some(t => t.assignment_id) && (
+              <div style={{marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                <input
+                  type="checkbox"
+                  checked={selectedTaskIds.length === tasks.filter(t => t.assignment_id).length && tasks.filter(t => t.assignment_id).length > 0}
+                  onChange={handleSelectAll}
+                  style={styles.checkbox}
+                />
+                <span style={{fontSize: '0.875rem', fontWeight: '500'}}>Alle direkten Zuweisungen auswählen</span>
+              </div>
+            )}
             <div style={{display: 'flex', flexDirection: 'column', gap: '0.75rem'}}>
               {tasks.map((task) => (
-                <div key={task.assignment_id} style={{
+                <div key={task.assignment_id || `series-${task.id}`} style={{
                   padding: '1rem',
-                  border: '1px solid #e5e7eb',
+                  border: task.isSeriesTask ? '1px dashed #93c5fd' : '1px solid #e5e7eb',
                   borderRadius: '6px',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   gap: '1rem',
-                  backgroundColor: selectedTaskIds.includes(task.assignment_id) ? '#eff6ff' : 'white',
+                  backgroundColor: task.isSeriesTask ? '#eff6ff' : (task.assignment_id && selectedTaskIds.includes(task.assignment_id) ? '#eff6ff' : 'white'),
                 }}>
                   <div style={{display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1}}>
-                    <input
-                      type="checkbox"
-                      checked={selectedTaskIds.includes(task.assignment_id)}
-                      onChange={() => handleToggleTask(task.assignment_id)}
-                      style={styles.checkbox}
-                    />
+                    {task.assignment_id ? (
+                      <input
+                        type="checkbox"
+                        checked={selectedTaskIds.includes(task.assignment_id)}
+                        onChange={() => handleToggleTask(task.assignment_id!)}
+                        style={styles.checkbox}
+                      />
+                    ) : (
+                      <span style={{width: '16px'}} />
+                    )}
                     <div style={{flex: 1}}>
-                      <div style={{fontWeight: '600', marginBottom: '0.25rem'}}>{task.title}</div>
+                      <div style={{fontWeight: '600', marginBottom: '0.25rem'}}>
+                        {task.title}
+                        {task.isSeriesTask && task.seriesName && (
+                          <span style={{
+                            marginLeft: '0.5rem',
+                            fontSize: '0.7rem',
+                            padding: '0.125rem 0.5rem',
+                            backgroundColor: '#dbeafe',
+                            color: '#1e40af',
+                            borderRadius: '9999px',
+                            fontWeight: '500',
+                          }}>{task.seriesName}</span>
+                        )}
+                      </div>
                       <div style={{fontSize: '0.875rem', color: '#6b7280'}}>
-                        {task.event_name} #{task.instance_number} - Tag {task.day_number}
+                        {task.event_name ? `${task.event_name} #${task.instance_number} - ` : ''}Tag {task.day_number}
+                        {task.isSeriesTask && <span style={{fontStyle: 'italic'}}> (Serien-Zuweisung)</span>}
                       </div>
                       <div style={{marginTop: '0.5rem'}}>
                         <span style={{
@@ -498,23 +576,34 @@ const TaskListModal: React.FC<TaskListModalProps> = ({ staff, tasks, onClose, on
                       </div>
                     </div>
                   </div>
-                  <button
-                    onClick={() => onUnassign(task.assignment_id)}
-                    style={{
+                  {task.assignment_id ? (
+                    <button
+                      onClick={() => onUnassign(task.assignment_id!)}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        backgroundColor: '#ef4444',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '0.875rem',
+                        fontWeight: '500',
+                        whiteSpace: 'nowrap',
+                      }}
+                      title="Zuweisung entfernen"
+                    >
+                      ✕ Entfernen
+                    </button>
+                  ) : (
+                    <span style={{
                       padding: '0.5rem 1rem',
-                      backgroundColor: '#ef4444',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontSize: '0.875rem',
-                      fontWeight: '500',
-                      whiteSpace: 'nowrap',
-                    }}
-                    title="Zuweisung entfernen"
-                  >
-                    ✕ Entfernen
-                  </button>
+                      fontSize: '0.75rem',
+                      color: '#6b7280',
+                      fontStyle: 'italic',
+                    }}>
+                      Serie
+                    </span>
+                  )}
                 </div>
               ))}
             </div>

@@ -3,6 +3,7 @@ import { eventsApi } from '../../api/events';
 import { tasksApi, Task } from '../../api/tasks';
 import { usersApi, User } from '../../api/users';
 import { programApi, ProgramItem } from '../../api/program';
+import { taskSeriesApi, TaskSeries } from '../../api/taskSeries';
 import { useSSE } from '../../hooks/useSSE';
 import { useAuth } from '../../context/AuthContext';
 import { TaskFormModal } from './TaskFormModal';
@@ -454,6 +455,8 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   const [sortDirection, setSortDirection] = React.useState<'asc' | 'desc'>('asc');
   const [expandedDescriptions, setExpandedDescriptions] = React.useState<Set<number>>(new Set());
   const pendingActionsRef = React.useRef<number>(0);
+  const [taskSeries, setTaskSeries] = React.useState<TaskSeries[]>([]);
+  const [seriesMembers, setSeriesMembers] = React.useState<{ [seriesId: number]: { id: number; name: string }[] }>({});
 
   // SSE for real-time updates
   useSSE({
@@ -484,6 +487,31 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       loadAssignments(false); // Load silently on mount - parent already shows loading
     }
   }, [selectedInstance]);
+
+  // Load series data for the event
+  React.useEffect(() => {
+    const loadSeriesData = async () => {
+      if (!event?.id) return;
+      try {
+        const seriesData = await taskSeriesApi.getByEvent(event.id);
+        setTaskSeries(seriesData);
+        // Load members for each series
+        const membersMap: { [seriesId: number]: { id: number; name: string }[] } = {};
+        for (const s of seriesData) {
+          try {
+            const details = await taskSeriesApi.getById(s.id);
+            membersMap[s.id] = details.members || [];
+          } catch (err) {
+            membersMap[s.id] = [];
+          }
+        }
+        setSeriesMembers(membersMap);
+      } catch (error) {
+        console.error('Load series error:', error);
+      }
+    };
+    loadSeriesData();
+  }, [event?.id]);
 
   // React to manual refresh from parent
   React.useEffect(() => {
@@ -881,6 +909,19 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                         fontWeight: '500'
                       }}>Deaktiviert</span>
                     )}
+                    {task.series_id && taskSeries.find(s => s.id === task.series_id) && (
+                      <span style={{
+                        fontSize: '0.7rem',
+                        padding: '0.125rem 0.5rem',
+                        backgroundColor: taskAssignments.length > 0 ? '#e5e7eb' : '#dbeafe',
+                        color: taskAssignments.length > 0 ? '#6b7280' : '#1e40af',
+                        borderRadius: '9999px',
+                        fontWeight: '500',
+                        opacity: taskAssignments.length > 0 ? 0.7 : 1
+                      }} title={taskAssignments.length > 0 ? 'Individuelle Zuweisung überschreibt Serien-Team' : 'Serien-Team zugewiesen'}>
+                        {taskSeries.find(s => s.id === task.series_id)?.name}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <select
@@ -951,7 +992,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                   )}
                 </div>
 
-                {taskAssignments.length > 0 && (
+                {taskAssignments.length > 0 ? (
                   <div className={styles.assignmentsSection}>
                     <span className={styles.assignmentsLabel}>👥 Zugewiesen an:</span>
                     <div className={styles.assignmentsList}>
@@ -963,7 +1004,18 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                       ))}
                     </div>
                   </div>
-                )}
+                ) : task.series_id && seriesMembers[task.series_id]?.length > 0 ? (
+                  <div className={styles.assignmentsSection}>
+                    <span className={styles.assignmentsLabel}>👥 Serien-Team:</span>
+                    <div className={styles.assignmentsList}>
+                      {seriesMembers[task.series_id].map((member, idx) => (
+                        <span key={idx} className={styles.assignmentBadge} style={{ backgroundColor: '#dbeafe', color: '#1e40af' }}>
+                          {member.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </div>
 
