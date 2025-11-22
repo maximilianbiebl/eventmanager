@@ -365,9 +365,11 @@ export const EventsList: React.FC = () => {
               📥 CSV Import
             </button>
           )}
-          <button onClick={() => setShowExportModal(true)} style={styles.exportButton} className={responsiveStyles.exportButton}>
-            📤 CSV Export
-          </button>
+          {(isAdmin || activeTab !== 'templates') && (
+            <button onClick={() => setShowExportModal(true)} style={styles.exportButton} className={responsiveStyles.exportButton}>
+              📤 CSV Export
+            </button>
+          )}
           {tabs.some(t => t.id === 'templates' && t.count > 0) && (
             <button
               onClick={() => setShowTemplateModal(true)}
