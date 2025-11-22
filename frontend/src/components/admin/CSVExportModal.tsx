@@ -27,32 +27,46 @@ export const CSVExportModal: React.FC<Props> = ({ type, items, selectedIds, onCl
       setLoading(true);
       const idsToExport = exportType === 'selected' ? selectedIds : undefined;
 
-      let blob: Blob;
-      let filename: string;
       if (type === 'users') {
-        blob = await usersApi.exportCSV(idsToExport);
-        filename = `users_${new Date().toISOString().split('T')[0]}.csv`;
+        const blob = await usersApi.exportCSV(idsToExport);
+        const filename = `users_${new Date().toISOString().split('T')[0]}.csv`;
+        downloadBlob(blob, filename);
       } else if (type === 'events') {
-        blob = await eventsApi.exportCSV(idsToExport, includeTasks);
-        filename = includeTasks
-          ? `events_full_${new Date().toISOString().split('T')[0]}.json`
-          : `events_${new Date().toISOString().split('T')[0]}.csv`;
+        const response = await eventsApi.exportCSV(idsToExport, includeTasks);
+
+        // Check if response is multi-csv format (for events with tasks)
+        if (includeTasks && response instanceof Blob) {
+          // Try to parse as JSON to check if it's multi-csv
+          const text = await response.text();
+          try {
+            const json = JSON.parse(text);
+            if (json.type === 'multi-csv' && json.files) {
+              // Download each file
+              json.files.forEach((file: any) => {
+                const blob = new Blob([file.content], { type: file.mimeType });
+                downloadBlob(blob, file.name);
+              });
+            } else {
+              // Fallback to regular download
+              const blob = new Blob([text], { type: 'application/json' });
+              downloadBlob(blob, `events_full_${new Date().toISOString().split('T')[0]}.json`);
+            }
+          } catch {
+            // Not JSON, treat as regular blob
+            downloadBlob(response, `events_${new Date().toISOString().split('T')[0]}.csv`);
+          }
+        } else {
+          // Regular CSV export
+          const filename = `events_${new Date().toISOString().split('T')[0]}.csv`;
+          downloadBlob(response, filename);
+        }
       } else if (type === 'tasks' && eventId) {
-        blob = await tasksApi.exportCSV(eventId, idsToExport);
-        filename = `tasks_${new Date().toISOString().split('T')[0]}.csv`;
+        const blob = await tasksApi.exportCSV(eventId, idsToExport);
+        const filename = `tasks_${new Date().toISOString().split('T')[0]}.csv`;
+        downloadBlob(blob, filename);
       } else {
         throw new Error('Invalid export type');
       }
-
-      // Download file
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
 
       onSuccess();
     } catch (error) {
@@ -61,6 +75,17 @@ export const CSVExportModal: React.FC<Props> = ({ type, items, selectedIds, onCl
     } finally {
       setLoading(false);
     }
+  };
+
+  const downloadBlob = (blob: Blob, filename: string) => {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
   };
 
   const handleOverlayClick = (e: React.MouseEvent) => {
@@ -120,7 +145,7 @@ export const CSVExportModal: React.FC<Props> = ({ type, items, selectedIds, onCl
             <div>
               <span style={{ fontWeight: '500' }}>Mit Aufgaben exportieren</span>
               <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8rem', color: '#6b7280' }}>
-                Exportiert Events mit allen Aufgaben als JSON-Datei
+                Exportiert Events und Aufgaben als zwei separate CSV-Dateien
               </p>
             </div>
           </label>

@@ -100,9 +100,12 @@ export const eventsApi = {
     return response.data;
   },
 
-  importCSV: async (file: File, asTemplate?: boolean) => {
+  importCSV: async (file: File, asTemplate?: boolean, tasksFile?: File) => {
     const formData = new FormData();
     formData.append('file', file);
+    if (tasksFile) {
+      formData.append('tasksFile', tasksFile);
+    }
     const url = asTemplate ? '/events/import-csv?asTemplate=true' : '/events/import-csv';
     const response = await client.post(url, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }

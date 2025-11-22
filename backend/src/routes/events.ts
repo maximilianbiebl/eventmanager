@@ -971,22 +971,47 @@ router.post('/export-csv', authMiddleware, teamleiterOrAdminMiddleware, async (r
     }
 
     if (withTasks) {
-      // Export as JSON with tasks included
-      const eventsWithTasks = [];
-      for (const event of result.rows) {
+      // Export as two CSV files (events and tasks)
+      const dateStr = new Date().toISOString().split('T')[0];
+
+      // Create Events CSV
+      const eventsHeaders = ['id', 'name', 'description', 'start_date', 'days', 'is_template'];
+      const eventsRows = result.rows.map(row =>
+        `${row.id},"${row.name}","${row.description || ''}",${row.start_date || ''},${row.days},${row.is_template}`
+      );
+      const eventsCSV = [eventsHeaders.join(','), ...eventsRows].join('\n');
+
+      // Create Tasks CSV (for all events)
+      const eventIds = result.rows.map(e => e.id);
+      let tasksCSV = '';
+      if (eventIds.length > 0) {
         const tasksResult = await query(
-          'SELECT id, title, description, day_number, scheduled_time, start_time, end_time, is_public FROM tasks WHERE event_id = $1 ORDER BY day_number, sort_order',
-          [event.id]
+          'SELECT event_id, title, description, day_number, scheduled_time, start_time, end_time, is_public FROM tasks WHERE event_id = ANY($1) ORDER BY event_id, day_number, sort_order',
+          [eventIds]
         );
-        eventsWithTasks.push({
-          ...event,
-          tasks: tasksResult.rows
-        });
+        const tasksHeaders = ['event_id', 'title', 'description', 'day_number', 'scheduled_time', 'start_time', 'end_time', 'is_public'];
+        const tasksRows = tasksResult.rows.map(row =>
+          `${row.event_id},"${row.title}","${row.description || ''}",${row.day_number},"${row.scheduled_time || ''}","${row.start_time || ''}","${row.end_time || ''}",${row.is_public}`
+        );
+        tasksCSV = [tasksHeaders.join(','), ...tasksRows].join('\n');
       }
 
-      res.setHeader('Content-Type', 'application/json');
-      res.setHeader('Content-Disposition', `attachment; filename=events_full_${new Date().toISOString().split('T')[0]}.json`);
-      res.send(JSON.stringify(eventsWithTasks, null, 2));
+      // Send both CSVs as JSON response
+      res.json({
+        type: 'multi-csv',
+        files: [
+          {
+            name: `events_${dateStr}.csv`,
+            content: eventsCSV,
+            mimeType: 'text/csv'
+          },
+          {
+            name: `tasks_${dateStr}.csv`,
+            content: tasksCSV,
+            mimeType: 'text/csv'
+          }
+        ]
+      });
     } else {
       // Create CSV (events only)
       const headers = ['id', 'name', 'description', 'start_date', 'days', 'is_template'];
@@ -1006,16 +1031,20 @@ router.post('/export-csv', authMiddleware, teamleiterOrAdminMiddleware, async (r
 });
 
 // CSV Import Events
-router.post('/import-csv', authMiddleware, teamleiterOrAdminMiddleware, upload.single('file'), async (req: AuthRequest, res) => {
+router.post('/import-csv', authMiddleware, teamleiterOrAdminMiddleware, upload.fields([{ name: 'file' }, { name: 'tasksFile' }]), async (req: AuthRequest, res) => {
   try {
-    if (!req.file) {
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    if (!files || !files.file || !files.file[0]) {
       return res.status(400).json({ error: 'Keine Datei hochgeladen' });
     }
+
+    const eventsFile = files.file[0];
+    const tasksFile = files.tasksFile ? files.tasksFile[0] : null;
 
     // Check if import as template is requested via query param
     const forceAsTemplate = req.query.asTemplate === 'true';
 
-    const csvText = req.file.buffer.toString('utf-8');
+    const csvText = eventsFile.buffer.toString('utf-8');
     const lines = csvText.split('\n').filter(line => line.trim());
 
     if (lines.length < 2) {
@@ -1024,6 +1053,7 @@ router.post('/import-csv', authMiddleware, teamleiterOrAdminMiddleware, upload.s
 
     const headers = lines[0].split(',').map(h => h.trim());
     let imported = 0;
+    const eventIdMapping: { [oldId: string]: number } = {}; // Map old ID to new ID
 
     for (let i = 1; i < lines.length; i++) {
       // Parse CSV line with quoted strings
@@ -1049,6 +1079,9 @@ router.post('/import-csv', authMiddleware, teamleiterOrAdminMiddleware, upload.s
         event[header] = values[idx];
       });
 
+      // Save old ID for mapping
+      const oldEventId = event.id;
+
       // Import as template if: query param set OR CSV field is true (admin only for CSV field)
       const isTemplate = forceAsTemplate || (event.is_template === 'true' && req.user!.role === 'admin');
 
@@ -1067,6 +1100,11 @@ router.post('/import-csv', authMiddleware, teamleiterOrAdminMiddleware, upload.s
 
       const newEvent = eventResult.rows[0];
 
+      // Store mapping of old ID to new ID
+      if (oldEventId) {
+        eventIdMapping[oldEventId] = newEvent.id;
+      }
+
       // Create event instances
       const instanceCount = 1;
       for (let j = 0; j < instanceCount; j++) {
@@ -1080,9 +1118,71 @@ router.post('/import-csv', authMiddleware, teamleiterOrAdminMiddleware, upload.s
       imported++;
     }
 
+    // Import tasks if tasksFile is provided
+    let tasksImported = 0;
+    if (tasksFile) {
+      const tasksCSVText = tasksFile.buffer.toString('utf-8');
+      const tasksLines = tasksCSVText.split('\n').filter(line => line.trim());
+
+      if (tasksLines.length >= 2) {
+        const tasksHeaders = tasksLines[0].split(',').map(h => h.trim());
+
+        for (let i = 1; i < tasksLines.length; i++) {
+          // Parse CSV line with quoted strings
+          const values: string[] = [];
+          let currentValue = '';
+          let inQuotes = false;
+
+          for (let j = 0; j < tasksLines[i].length; j++) {
+            const char = tasksLines[i][j];
+            if (char === '"') {
+              inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+              values.push(currentValue.trim());
+              currentValue = '';
+            } else {
+              currentValue += char;
+            }
+          }
+          values.push(currentValue.trim());
+
+          const task: any = {};
+          tasksHeaders.forEach((header, idx) => {
+            task[header] = values[idx];
+          });
+
+          // Map old event_id to new event_id
+          const oldEventId = task.event_id;
+          const newEventId = eventIdMapping[oldEventId];
+
+          if (newEventId) {
+            // Insert task with new event_id
+            await query(
+              'INSERT INTO tasks (event_id, title, description, day_number, scheduled_time, start_time, end_time, is_public) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+              [
+                newEventId,
+                task.title,
+                task.description || null,
+                parseInt(task.day_number) || 1,
+                task.scheduled_time || null,
+                task.start_time || null,
+                task.end_time || null,
+                task.is_public === 'true'
+              ]
+            );
+            tasksImported++;
+          }
+        }
+      }
+    }
+
     broadcastUpdate('event', { action: 'events_imported', count: imported });
 
-    res.json({ message: `${imported} Events importiert`, imported });
+    res.json({
+      message: `${imported} Events${tasksImported > 0 ? ` und ${tasksImported} Aufgaben` : ''} importiert`,
+      imported,
+      tasksImported
+    });
   } catch (error) {
     console.error('Import CSV error:', error);
     res.status(500).json({ error: 'Server Fehler' });

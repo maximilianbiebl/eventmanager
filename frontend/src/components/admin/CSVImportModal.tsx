@@ -20,6 +20,7 @@ interface ImportPreview {
 export const CSVImportModal: React.FC<Props> = ({ type, onClose, onSuccess, eventId }) => {
   const { isAdmin } = useAuth();
   const [file, setFile] = useState<File | null>(null);
+  const [tasksFile, setTasksFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
@@ -110,14 +111,17 @@ export const CSVImportModal: React.FC<Props> = ({ type, onClose, onSuccess, even
       if (type === 'users') {
         result = await usersApi.importCSV(filteredFile);
       } else if (type === 'events') {
-        result = await eventsApi.importCSV(filteredFile, importAsTemplate);
+        result = await eventsApi.importCSV(filteredFile, importAsTemplate, tasksFile || undefined);
       } else if (type === 'tasks' && eventId) {
         result = await tasksApi.importCSV(eventId, filteredFile);
       } else {
         throw new Error('Invalid import type');
       }
 
-      alert(`Erfolgreich importiert: ${result.imported || 0} Einträge`);
+      const message = result.imported
+        ? `Erfolgreich importiert: ${result.imported} Events${result.tasksImported ? ` und ${result.tasksImported} Aufgaben` : ''}`
+        : 'Import abgeschlossen';
+      alert(message);
       onSuccess(result);
     } catch (error: any) {
       console.error('Import error:', error);
@@ -146,6 +150,9 @@ export const CSVImportModal: React.FC<Props> = ({ type, onClose, onSuccess, even
         <h2 style={styles.title}>{getTitleText()}</h2>
 
         <div style={styles.uploadSection}>
+          <label style={styles.fileLabel}>
+            {type === 'events' ? 'Events CSV-Datei:' : 'CSV-Datei:'}
+          </label>
           <input
             type="file"
             accept=".csv"
@@ -154,6 +161,24 @@ export const CSVImportModal: React.FC<Props> = ({ type, onClose, onSuccess, even
           />
           {file && <p style={styles.fileName}>{file.name}</p>}
         </div>
+
+        {type === 'events' && (
+          <div style={styles.uploadSection}>
+            <label style={styles.fileLabel}>
+              Aufgaben CSV-Datei (optional):
+            </label>
+            <input
+              type="file"
+              accept=".csv"
+              onChange={(e) => setTasksFile(e.target.files?.[0] || null)}
+              style={styles.fileInput}
+            />
+            {tasksFile && <p style={styles.fileName}>{tasksFile.name}</p>}
+            <p style={styles.helperText}>
+              Importiert Aufgaben für die Events (event_id muss mit der Event-ID übereinstimmen)
+            </p>
+          </div>
+        )}
 
         {type === 'events' && isAdmin && (
           <label style={styles.templateOption}>
@@ -246,6 +271,13 @@ const styles: { [key: string]: React.CSSProperties } = {
   uploadSection: {
     marginBottom: '1.5rem',
   },
+  fileLabel: {
+    display: 'block',
+    fontSize: '0.875rem',
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: '0.5rem',
+  },
   fileInput: {
     width: '100%',
     padding: '0.5rem',
@@ -256,6 +288,12 @@ const styles: { [key: string]: React.CSSProperties } = {
     marginTop: '0.5rem',
     fontSize: '0.875rem',
     color: '#6b7280',
+  },
+  helperText: {
+    marginTop: '0.5rem',
+    fontSize: '0.75rem',
+    color: '#9ca3af',
+    fontStyle: 'italic',
   },
   previewHeader: {
     display: 'flex',
