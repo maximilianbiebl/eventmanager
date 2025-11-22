@@ -963,6 +963,19 @@ router.post('/export-csv', authMiddleware, teamleiterOrAdminMiddleware, async (r
   try {
     const { ids, withTasks } = req.body;
 
+    // Helper function to format dates for CSV
+    const formatDate = (date: any): string => {
+      if (!date) return '';
+      if (date instanceof Date) {
+        return date.toISOString().split('T')[0];
+      }
+      if (typeof date === 'string') {
+        // Extract just the date part (YYYY-MM-DD)
+        return date.split('T')[0];
+      }
+      return '';
+    };
+
     let result;
     if (ids && Array.isArray(ids) && ids.length > 0) {
       result = await query('SELECT id, name, description, start_date, days, is_template FROM events WHERE id = ANY($1) ORDER BY name', [ids]);
@@ -977,7 +990,7 @@ router.post('/export-csv', authMiddleware, teamleiterOrAdminMiddleware, async (r
       // Create Events CSV
       const eventsHeaders = ['id', 'name', 'description', 'start_date', 'days', 'is_template'];
       const eventsRows = result.rows.map(row =>
-        `${row.id},"${row.name}","${row.description || ''}",${row.start_date || ''},${row.days},${row.is_template}`
+        `${row.id},"${row.name}","${row.description || ''}",${formatDate(row.start_date)},${row.days},${row.is_template}`
       );
       const eventsCSV = [eventsHeaders.join(','), ...eventsRows].join('\n');
 
@@ -1016,7 +1029,7 @@ router.post('/export-csv', authMiddleware, teamleiterOrAdminMiddleware, async (r
       // Create CSV (events only)
       const headers = ['id', 'name', 'description', 'start_date', 'days', 'is_template'];
       const rows = result.rows.map(row =>
-        `${row.id},"${row.name}","${row.description || ''}",${row.start_date || ''},${row.days},${row.is_template}`
+        `${row.id},"${row.name}","${row.description || ''}",${formatDate(row.start_date)},${row.days},${row.is_template}`
       );
       const csv = [headers.join(','), ...rows].join('\n');
 
