@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { usersApi } from '../../api/users';
 import { eventsApi } from '../../api/events';
 import { tasksApi } from '../../api/tasks';
+import { useAuth } from '../../context/AuthContext';
 
 interface Props {
   type: 'users' | 'events' | 'tasks';
@@ -17,6 +18,7 @@ interface ImportPreview {
 }
 
 export const CSVImportModal: React.FC<Props> = ({ type, onClose, onSuccess, eventId }) => {
+  const { isAdmin } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
@@ -153,7 +155,7 @@ export const CSVImportModal: React.FC<Props> = ({ type, onClose, onSuccess, even
           {file && <p style={styles.fileName}>{file.name}</p>}
         </div>
 
-        {type === 'events' && (
+        {type === 'events' && isAdmin && (
           <label style={styles.templateOption}>
             <input
               type="checkbox"

@@ -269,8 +269,8 @@ export const EventsList: React.FC = () => {
   const renderEventCard = (event: Event) => {
     const isCreator = event.created_by === user?.id;
     const canEdit = isAdmin || (isTeamleiter && isCreator && !event.is_template);
-    // Allow selection for export (everyone can select for export purposes)
-    const canSelect = true;
+    // Teamleiter cannot select templates (no delete permission)
+    const canSelect = isAdmin || !event.is_template;
 
     return (
       <div key={event.id} style={{...styles.card, ...(selectedIds.includes(event.id) ? styles.selectedCard : {})}}>
