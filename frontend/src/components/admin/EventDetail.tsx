@@ -9,6 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import { TaskFormModal } from './TaskFormModal';
 import { TaskAssignmentModal } from './TaskAssignmentModal';
 import { TaskTableView } from './TaskTableView';
+import { TaskSeriesModal } from './TaskSeriesModal';
 import { DuplicateEventModal } from './DuplicateEventModal';
 import { CreateFromTemplateModal } from './CreateFromTemplateModal';
 import { EventEditModal } from './EventEditModal';
@@ -465,6 +466,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   const pendingActionsRef = React.useRef<number>(0);
   const [taskSeries, setTaskSeries] = React.useState<TaskSeries[]>([]);
   const [seriesMembers, setSeriesMembers] = React.useState<{ [seriesId: number]: { id: number; name: string }[] }>({});
+  const [showSeriesModal, setShowSeriesModal] = React.useState(false);
 
   // SSE for real-time updates
   useSSE({
@@ -866,6 +868,24 @@ const TaskListView: React.FC<TaskListViewProps> = ({
         >
           Status {sortBy === 'status' ? (sortDirection === 'asc' ? '↑' : '↓') : ''}
         </button>
+        {!readOnly && event?.id && (
+          <button
+            onClick={() => setShowSeriesModal(true)}
+            style={{
+              padding: '0.375rem 0.75rem',
+              backgroundColor: '#64748B',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              fontSize: '0.875rem',
+              cursor: 'pointer',
+              fontWeight: '500',
+              marginLeft: 'auto'
+            }}
+          >
+            Serien verwalten
+          </button>
+        )}
       </div>
 
       {sortedTasks.map((task) => {
@@ -1082,6 +1102,36 @@ const TaskListView: React.FC<TaskListViewProps> = ({
           </div>
         );
       })}
+
+      {showSeriesModal && event?.id && (
+        <TaskSeriesModal
+          eventId={event.id}
+          onClose={() => setShowSeriesModal(false)}
+          onSeriesCreated={() => {
+            const loadSeriesData = async () => {
+              if (!event?.id) return;
+              try {
+                const seriesData = await taskSeriesApi.getByEvent(event.id);
+                setTaskSeries(seriesData);
+                const membersMap: { [seriesId: number]: { id: number; name: string }[] } = {};
+                for (const s of seriesData) {
+                  try {
+                    const details = await taskSeriesApi.getById(s.id);
+                    membersMap[s.id] = details.members || [];
+                  } catch (err) {
+                    membersMap[s.id] = [];
+                  }
+                }
+                setSeriesMembers(membersMap);
+              } catch (error) {
+                console.error('Load series error:', error);
+              }
+            };
+            loadSeriesData();
+            setShowSeriesModal(false);
+          }}
+        />
+      )}
     </div>
   );
 };
