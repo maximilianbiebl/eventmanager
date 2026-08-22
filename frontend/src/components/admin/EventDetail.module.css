@@ -11,68 +11,93 @@
 
 .backButton {
   padding: 0.5rem 1rem;
-  background-color: #6b7280;
-  color: white;
-  border: none;
+  background-color: transparent;
+  color: #1E293B;
+  border: 1px solid #CBD5E1;
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.875rem;
+  font-weight: 500;
   white-space: nowrap;
+  transition: all 0.2s;
 }
 
 .editButton {
   padding: 0.5rem 1rem;
-  background-color: #f59e0b;
-  color: white;
-  border: none;
+  background-color: transparent;
+  color: #1E293B;
+  border: 1px solid #CBD5E1;
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.875rem;
+  font-weight: 500;
   white-space: nowrap;
+  transition: all 0.2s;
 }
 
 .templateUseButton {
   padding: 0.5rem 1rem;
-  background-color: #3b82f6;
+  background-color: #64748B;
   color: white;
   border: none;
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.875rem;
+  font-weight: 500;
   white-space: nowrap;
+  transition: background-color 0.2s;
 }
 
 .duplicateButton {
   padding: 0.5rem 1rem;
-  background-color: #10b981;
-  color: white;
-  border: none;
+  background-color: transparent;
+  color: #1E293B;
+  border: 1px solid #CBD5E1;
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.875rem;
+  font-weight: 500;
   white-space: nowrap;
+  transition: all 0.2s;
 }
 
 .copyTemplateButton {
   padding: 0.5rem 1rem;
-  background-color: #6366f1;
+  background-color: #64748B;
   color: white;
   border: none;
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.875rem;
+  font-weight: 500;
   white-space: nowrap;
+  transition: background-color 0.2s;
 }
 
 .toggleTemplateButton {
   padding: 0.5rem 1rem;
-  background-color: #3b82f6;
+  background-color: #64748B;
   color: white;
   border: none;
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.875rem;
+  font-weight: 500;
   white-space: nowrap;
+  transition: background-color 0.2s;
+}
+
+.approveButton {
+  padding: 0.5rem 1rem;
+  background-color: #059669;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background-color 0.2s;
 }
 
 .title {
@@ -83,7 +108,7 @@
 }
 
 .description {
-  color: #6b7280;
+  color: #64748B;
   margin-bottom: 1.5rem;
 }
 
@@ -122,31 +147,38 @@
 .viewButton {
   padding: 0.5rem 1rem;
   background-color: white;
-  color: #374151;
+  color: #1E293B;
   border: none;
   cursor: pointer;
   font-size: 0.875rem;
+  font-weight: 500;
   white-space: nowrap;
+  transition: background-color 0.2s;
 }
 
 .viewButtonActive {
   padding: 0.5rem 1rem;
-  background-color: #4f46e5;
+  background-color: #1E40AF;
   color: white;
   border: none;
   cursor: pointer;
   font-size: 0.875rem;
+  font-weight: 500;
   white-space: nowrap;
+  transition: background-color 0.2s;
 }
 
 .addButton {
   padding: 0.5rem 1rem;
-  background-color: #10b981;
+  background-color: #1E40AF;
   color: white;
   border: none;
   border-radius: 4px;
   cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
   white-space: nowrap;
+  transition: background-color 0.2s;
 }
 
 .dayTabs {
@@ -162,7 +194,7 @@
 .dayTab {
   padding: 0.5rem 1rem;
   background-color: transparent;
-  color: #6b7280;
+  color: #64748B;
   border: none;
   border-bottom: 2px solid transparent;
   cursor: pointer;
@@ -170,19 +202,21 @@
   font-weight: 500;
   white-space: nowrap;
   flex-shrink: 0;
+  transition: color 0.2s;
 }
 
 .dayTabActive {
   padding: 0.5rem 1rem;
   background-color: transparent;
-  color: #4f46e5;
+  color: #1E40AF;
   border: none;
-  border-bottom: 2px solid #4f46e5;
+  border-bottom: 2px solid #1E40AF;
   cursor: pointer;
   font-size: 0.875rem;
   font-weight: 600;
   white-space: nowrap;
   flex-shrink: 0;
+  transition: color 0.2s;
 }
 
 .instances {
@@ -193,23 +227,28 @@
 
 .instance {
   padding: 0.5rem 1rem;
-  background-color: #f3f4f6;
-  border: 1px solid #d1d5db;
+  background-color: #F8FAFC;
+  border: 1px solid #CBD5E1;
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.875rem;
+  font-weight: 500;
+  color: #1E293B;
   white-space: nowrap;
+  transition: all 0.2s;
 }
 
 .instanceActive {
   padding: 0.5rem 1rem;
-  background-color: #4f46e5;
+  background-color: #1E40AF;
   color: white;
-  border: 1px solid #4f46e5;
+  border: 1px solid #1E40AF;
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.875rem;
+  font-weight: 500;
   white-space: nowrap;
+  transition: all 0.2s;
 }
 
 .tasksList {
@@ -276,7 +315,7 @@
 
 .taskDescription {
   font-size: 0.875rem;
-  color: #6b7280;
+  color: #64748B;
   margin-bottom: 1rem;
   line-height: 1.5;
 }
@@ -301,7 +340,7 @@
 
 .timeLabel {
   font-size: 0.75rem;
-  color: #6b7280;
+  color: #64748B;
   font-weight: 500;
 }
 
@@ -319,7 +358,7 @@
 
 .assignmentsLabel {
   font-size: 0.75rem;
-  color: #6b7280;
+  color: #64748B;
   font-weight: 500;
 }
 
@@ -366,7 +405,7 @@
 
 .taskMeta {
   font-size: 0.875rem;
-  color: #6b7280;
+  color: #64748B;
   margin-top: 0.25rem;
 }
 

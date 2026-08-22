@@ -220,7 +220,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
           {/* Bearbeiten - aber nicht für Teamleiter bei Vorlagen */}
           {(isAdmin || (isTeamleiter && !event.is_template)) && (
             <button onClick={() => setShowEditModal(true)} className={styles.editButton}>
-              ✏️ Bearbeiten
+              Bearbeiten
             </button>
           )}
           {/* Vorlage verwenden - bei Vorlagen */}
@@ -285,7 +285,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
                 className={viewMode === 'table' ? styles.viewButtonActive : styles.viewButton}
                 type="button"
               >
-                📊 Tabelle
+                Tabelle
               </button>
               <button
                 onClick={() => {
@@ -296,7 +296,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
                 title="Daten aktualisieren"
                 type="button"
               >
-                🔄 Aktualisieren
+                Aktualisieren
               </button>
             </div>
             {/* Nur Admins und Teamleiter können Aufgaben erstellen, Teamleiter aber nicht bei Vorlagen */}

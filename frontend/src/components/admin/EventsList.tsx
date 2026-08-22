@@ -361,12 +361,12 @@ export const EventsList: React.FC = () => {
         <h2 style={styles.title}>Veranstaltungen</h2>
         <div style={styles.headerButtons}>
           {(isAdmin || activeTab !== 'templates') && (
-            <button onClick={() => setShowImportModal(true)} style={styles.importButton} className={responsiveStyles.importButton}>
+            <button onClick={() => setShowImportModal(true)} style={styles.secondaryButton} className={responsiveStyles.importButton}>
               CSV Import
             </button>
           )}
           {(isAdmin || activeTab !== 'templates') && (
-            <button onClick={() => setShowExportModal(true)} style={styles.exportButton} className={responsiveStyles.exportButton}>
+            <button onClick={() => setShowExportModal(true)} style={styles.secondaryButton} className={responsiveStyles.exportButton}>
               CSV Export
             </button>
           )}
@@ -585,25 +585,16 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: '500',
     transition: 'background-color 0.2s',
   },
-  exportButton: {
-    padding: '0.75rem 1.5rem',
-    backgroundColor: '#64748B',
-    color: 'white',
-    border: 'none',
+  secondaryButton: {
+    padding: '0.5rem 1rem',
+    backgroundColor: 'transparent',
+    color: '#64748B',
+    border: '1px solid #CBD5E1',
     borderRadius: '4px',
     cursor: 'pointer',
     fontWeight: '500',
-    transition: 'background-color 0.2s',
-  },
-  importButton: {
-    padding: '0.75rem 1.5rem',
-    backgroundColor: '#64748B',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontWeight: '500',
-    transition: 'background-color 0.2s',
+    fontSize: '0.875rem',
+    transition: 'all 0.2s',
   },
   bulkActions: {
     display: 'flex',
@@ -690,11 +681,11 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '0.9rem',
     fontWeight: '500',
     whiteSpace: 'nowrap',
-    transition: 'all 0.2s',
+    transition: 'color 0.2s, background-color 0.2s',
   },
   activeTab: {
     color: '#1E40AF',
-    borderBottomColor: '#1E40AF',
+    borderBottom: '3px solid #1E40AF',
     fontWeight: '600',
     backgroundColor: '#FFFFFF',
   },
