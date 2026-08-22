@@ -342,10 +342,10 @@ export const StaffDashboard: React.FC = () => {
         {/* Desktop buttons */}
         <div className={styles.headerButtons}>
           <button onClick={() => setShowSettings(true)} className={styles.settingsButton}>
-            ⚙️ Einstellungen
+            Einstellungen
           </button>
           <button onClick={() => setShowChangePassword(true)} className={styles.settingsButton}>
-            🔒 Passwort ändern
+            Passwort ändern
           </button>
           <button onClick={logout} className={styles.logoutButton}>
             Abmelden
@@ -380,7 +380,7 @@ export const StaffDashboard: React.FC = () => {
                   }}
                   className={styles.mobileMenuItem}
                 >
-                  ⚙️ Einstellungen
+                  Einstellungen
                 </button>
                 <button
                   onClick={() => {
@@ -389,7 +389,7 @@ export const StaffDashboard: React.FC = () => {
                   }}
                   className={styles.mobileMenuItem}
                 >
-                  🔒 Passwort ändern
+                  Passwort ändern
                 </button>
                 <button
                   onClick={() => {
@@ -422,7 +422,7 @@ export const StaffDashboard: React.FC = () => {
           onClick={() => setViewMode('cards')}
           className={viewMode === 'cards' ? styles.activeTab : styles.tab}
         >
-          📋 Karten
+          Karten
         </button>
         <button
           onClick={() => setViewMode('table')}
@@ -903,7 +903,7 @@ const TaskCard: React.FC<{
                 disabled={updatingStatus}
                 className={styles.inProgressButton}
                 style={{
-                  backgroundColor: '#3b82f6',
+                  backgroundColor: '#1E40AF',
                   color: 'white',
                   padding: '10px 12px',
                   border: 'none',
@@ -1141,7 +1141,7 @@ const StaffTableView: React.FC<{
             style={{
               padding: '0.25rem 0.75rem',
               fontSize: '0.75rem',
-              backgroundColor: '#4f46e5',
+              backgroundColor: '#1E40AF',
               color: 'white',
               border: 'none',
               borderRadius: '4px',

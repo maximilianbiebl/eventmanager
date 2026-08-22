@@ -22,7 +22,7 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          backgroundColor: 'rgba(15, 23, 42, 0.75)',
           zIndex: 9998,
           animation: 'fadeIn 0.2s ease-out'
         }}
@@ -35,9 +35,10 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
           top: '50%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
-          backgroundColor: 'white',
+          backgroundColor: '#FFFFFF',
+          border: '1px solid #CBD5E1',
           borderRadius: '8px',
-          boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+          boxShadow: '0 10px 40px rgba(15, 23, 42, 0.2)',
           zIndex: 9999,
           maxWidth: '90vw',
           maxHeight: '80vh',
@@ -51,13 +52,13 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
         <div
           style={{
             padding: '1.25rem',
-            borderBottom: '1px solid #e5e7eb',
+            borderBottom: '1px solid #CBD5E1',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center'
           }}
         >
-          <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: '600', color: '#111827' }}>
+          <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: '600', color: '#1E293B' }}>
             {title}
           </h3>
           <button
@@ -67,12 +68,12 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
               border: 'none',
               fontSize: '1.5rem',
               cursor: 'pointer',
-              color: '#6b7280',
+              color: '#64748B',
               padding: 0,
               lineHeight: '1'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.color = '#111827'}
-            onMouseLeave={(e) => e.currentTarget.style.color = '#6b7280'}
+            onMouseEnter={(e) => e.currentTarget.style.color = '#1E293B'}
+            onMouseLeave={(e) => e.currentTarget.style.color = '#64748B'}
           >
             ×
           </button>
@@ -84,7 +85,7 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
             padding: '1.25rem',
             overflowY: 'auto',
             flex: 1,
-            color: '#374151',
+            color: '#1E293B',
             lineHeight: '1.6',
             whiteSpace: 'pre-wrap'
           }}
@@ -96,7 +97,7 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
         <div
           style={{
             padding: '1rem 1.25rem',
-            borderTop: '1px solid #e5e7eb',
+            borderTop: '1px solid #CBD5E1',
             display: 'flex',
             justifyContent: 'flex-end'
           }}
@@ -105,7 +106,7 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
             onClick={onClose}
             style={{
               padding: '0.5rem 1.25rem',
-              backgroundColor: '#3b82f6',
+              backgroundColor: '#1E40AF',
               color: 'white',
               border: 'none',
               borderRadius: '6px',
@@ -113,8 +114,8 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
               fontWeight: '500',
               fontSize: '0.875rem'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#3b82f6'}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1E3A8A'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#1E40AF'}
           >
             Schließen
           </button>
