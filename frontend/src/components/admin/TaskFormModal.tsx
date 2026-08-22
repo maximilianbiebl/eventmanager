@@ -335,7 +335,7 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
                   onClick={() => setShowStaffSelection(!showStaffSelection)}
                   style={styles.toggleButton}
                 >
-                  {showStaffSelection ? '− Ausblenden' : '+ Mitarbeiter auswählen'}
+                  {showStaffSelection ? 'Ausblenden' : 'Mitarbeiter auswählen'}
                 </button>
               </div>
 
@@ -375,11 +375,11 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
                 onClick={handleToggleActive}
                 style={{
                   ...styles.deleteButton,
-                  backgroundColor: task.is_active === false ? '#10b981' : '#f59e0b',
+                  backgroundColor: task.is_active === false ? '#059669' : '#D97706',
                   marginBottom: '0.75rem'
                 }}
               >
-                {task.is_active === false ? '✅ Aufgabe aktivieren' : '🚫 Aufgabe deaktivieren'}
+                {task.is_active === false ? 'Aufgabe aktivieren' : 'Aufgabe deaktivieren'}
               </button>
               <button
                 type="button"
@@ -387,7 +387,7 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
                 style={styles.deleteButton}
                 disabled={deleting}
               >
-                {deleting ? 'Löschen...' : '🗑️ Aufgabe löschen'}
+                {deleting ? 'Löschen...' : 'Aufgabe löschen'}
               </button>
               <p style={styles.dangerZoneWarning}>
                 Diese Aktionen können nicht rückgängig gemacht werden.
@@ -416,7 +416,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -424,9 +424,10 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: '1rem',
   },
   modal: {
-    backgroundColor: 'white',
+    backgroundColor: '#FFFFFF',
     padding: '2rem',
     borderRadius: '8px',
+    border: '1px solid #CBD5E1',
     width: '100%',
     maxWidth: '600px',
     maxHeight: '90vh',
@@ -437,6 +438,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: 'bold',
     marginBottom: '1.5rem',
     margin: '0 0 1.5rem 0',
+    color: '#1E293B',
   },
   formGroup: {
     marginBottom: '1rem',
@@ -451,33 +453,37 @@ const styles: { [key: string]: React.CSSProperties } = {
     marginBottom: '0.5rem',
     fontWeight: '500',
     fontSize: '0.875rem',
+    color: '#1E293B',
   },
   input: {
     width: '100%',
     padding: '0.5rem',
-    border: '1px solid #d1d5db',
+    border: '1px solid #CBD5E1',
     borderRadius: '4px',
     fontSize: '1rem',
+    color: '#1E293B',
   },
   textarea: {
     width: '100%',
     padding: '0.5rem',
-    border: '1px solid #d1d5db',
+    border: '1px solid #CBD5E1',
     borderRadius: '4px',
     fontSize: '1rem',
     fontFamily: 'inherit',
+    color: '#1E293B',
   },
   hint: {
     display: 'block',
     marginTop: '0.25rem',
     fontSize: '0.75rem',
-    color: '#6b7280',
+    color: '#64748B',
   },
   checkboxLabel: {
     display: 'flex',
     alignItems: 'center',
     gap: '0.5rem',
     cursor: 'pointer',
+    color: '#1E293B',
   },
   checkbox: {
     width: '1.25rem',
@@ -486,8 +492,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   error: {
     padding: '0.75rem',
-    backgroundColor: '#fee2e2',
-    color: '#991b1b',
+    backgroundColor: '#FEE2E2',
+    color: '#991B1B',
     borderRadius: '4px',
     fontSize: '0.875rem',
     marginBottom: '1rem',
@@ -500,53 +506,56 @@ const styles: { [key: string]: React.CSSProperties } = {
   cancelButton: {
     flex: 1,
     padding: '0.75rem',
-    backgroundColor: '#6b7280',
-    color: 'white',
-    border: 'none',
+    backgroundColor: 'transparent',
+    color: '#1E293B',
+    border: '1px solid #CBD5E1',
     borderRadius: '4px',
     cursor: 'pointer',
     fontWeight: '500',
+    transition: 'all 0.2s',
   },
   submitButton: {
     flex: 1,
     padding: '0.75rem',
-    backgroundColor: '#10b981',
+    backgroundColor: '#1E40AF',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
     fontWeight: '500',
+    transition: 'background-color 0.2s',
   },
   dangerZone: {
     marginTop: '2rem',
     padding: '1rem',
-    backgroundColor: '#fef2f2',
-    border: '1px solid #fecaca',
+    backgroundColor: '#FEF2F2',
+    border: '1px solid #FECACA',
     borderRadius: '8px',
   },
   dangerZoneTitle: {
     fontSize: '1rem',
     fontWeight: 'bold',
-    color: '#991b1b',
+    color: '#991B1B',
     marginBottom: '0.5rem',
     marginTop: 0,
   },
   dangerZoneWarning: {
     fontSize: '0.75rem',
-    color: '#7f1d1d',
+    color: '#7F1D1D',
     marginTop: '0.5rem',
     marginBottom: 0,
   },
   deleteButton: {
     width: '100%',
     padding: '0.75rem',
-    backgroundColor: '#ef4444',
+    backgroundColor: '#DC2626',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
     fontWeight: '500',
     fontSize: '0.875rem',
+    transition: 'background-color 0.2s',
   },
   staffHeader: {
     display: 'flex',
@@ -556,18 +565,20 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   toggleButton: {
     padding: '0.25rem 0.75rem',
-    backgroundColor: '#4f46e5',
+    backgroundColor: '#64748B',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
     fontSize: '0.875rem',
+    fontWeight: '500',
+    transition: 'background-color 0.2s',
   },
   staffList: {
-    border: '1px solid #d1d5db',
+    border: '1px solid #CBD5E1',
     borderRadius: '4px',
     padding: '1rem',
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#F8FAFC',
     maxHeight: '200px',
     overflowY: 'auto',
   },
@@ -578,12 +589,13 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: '0.5rem',
     cursor: 'pointer',
     borderRadius: '4px',
+    color: '#1E293B',
   },
   selectedCount: {
     marginTop: '0.5rem',
     padding: '0.5rem',
-    backgroundColor: '#dbeafe',
-    color: '#1e40af',
+    backgroundColor: '#DBEAFE',
+    color: '#1E40AF',
     borderRadius: '4px',
     fontSize: '0.875rem',
     fontWeight: '500',
