@@ -65,29 +65,32 @@ export const AdminDashboard: React.FC = () => {
               Menü
             </button>
             {showMenu && (
-              <div style={styles.dropdown}>
-                <button
-                  onClick={() => {
-                    setShowSettings(true);
-                    setShowMenu(false);
-                  }}
-                  style={styles.dropdownItem}
-                >
-                  Einstellungen
-                </button>
-                <button
-                  onClick={() => {
-                    setShowChangePassword(true);
-                    setShowMenu(false);
-                  }}
-                  style={styles.dropdownItem}
-                >
-                  Passwort ändern
-                </button>
-                <button onClick={logout} style={styles.dropdownItemDanger}>
-                  Abmelden
-                </button>
-              </div>
+              <>
+                <div style={styles.menuOverlay} onClick={() => setShowMenu(false)} />
+                <div style={styles.dropdown}>
+                  <button
+                    onClick={() => {
+                      setShowSettings(true);
+                      setShowMenu(false);
+                    }}
+                    style={styles.dropdownItem}
+                  >
+                    Einstellungen
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowChangePassword(true);
+                      setShowMenu(false);
+                    }}
+                    style={styles.dropdownItem}
+                  >
+                    Passwort ändern
+                  </button>
+                  <button onClick={logout} style={styles.dropdownItemDanger}>
+                    Abmelden
+                  </button>
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -215,6 +218,14 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: '4px',
     cursor: 'pointer',
     fontWeight: '500',
+  },
+  menuOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 999,
   },
   dropdown: {
     position: 'absolute',

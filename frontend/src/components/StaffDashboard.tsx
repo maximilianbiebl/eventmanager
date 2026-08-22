@@ -816,48 +816,61 @@ const TaskCard: React.FC<{
                 {getStatusLabel(task.status)} ▼
               </span>
               {showStatusDropdown && (
-                <div style={{
-                  position: 'absolute',
-                  top: '100%',
-                  right: 0,
-                  backgroundColor: 'white',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '4px',
-                  boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                  marginTop: '4px',
-                  minWidth: '180px',
-                  zIndex: 9999
-                }}>
-                  {task.status === 'not_started' && (
-                    <div
-                      style={{
-                        padding: '8px 12px',
-                        cursor: 'pointer',
-                        fontSize: '14px'
-                      }}
-                      onClick={() => handleStatusChange('in_progress')}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
-                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
-                    >
-                      ▶ In Arbeit setzen
-                    </div>
-                  )}
-                  {task.status === 'in_progress' && (
-                    <div
-                      style={{
-                        padding: '8px 12px',
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        whiteSpace: 'nowrap'
-                      }}
-                      onClick={() => handleStatusChange('not_started')}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
-                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
-                    >
-                      ↩ Nicht gestartet
-                    </div>
-                  )}
-                </div>
+                <>
+                  <div
+                    style={{
+                      position: 'fixed',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      zIndex: 9998,
+                    }}
+                    onClick={() => setShowStatusDropdown(false)}
+                  />
+                  <div style={{
+                    position: 'absolute',
+                    top: '100%',
+                    right: 0,
+                    backgroundColor: 'white',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '4px',
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                    marginTop: '4px',
+                    minWidth: '180px',
+                    zIndex: 9999
+                  }}>
+                    {task.status === 'not_started' && (
+                      <div
+                        style={{
+                          padding: '8px 12px',
+                          cursor: 'pointer',
+                          fontSize: '14px'
+                        }}
+                        onClick={() => handleStatusChange('in_progress')}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                      >
+                        ▶ In Arbeit setzen
+                      </div>
+                    )}
+                    {task.status === 'in_progress' && (
+                      <div
+                        style={{
+                          padding: '8px 12px',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          whiteSpace: 'nowrap'
+                        }}
+                        onClick={() => handleStatusChange('not_started')}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                      >
+                        ↩ Nicht gestartet
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
             </>
           ) : (
