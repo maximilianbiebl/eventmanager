@@ -717,12 +717,12 @@ const TaskCard: React.FC<{
     if (isOverdue) return '#ef4444';
 
     const colors: { [key: string]: string } = {
-      not_started: '#6b7280',
-      in_progress: '#3b82f6',
+      not_started: '#64748B',
+      in_progress: '#1E40AF',
       completed: '#10b981',
       overdue: '#ef4444',
     };
-    return colors[status] || '#6b7280';
+    return colors[status] || '#64748B';
   };
 
   // Check if task is completed (either assignment-specific or global status)
@@ -732,9 +732,9 @@ const TaskCard: React.FC<{
   const getBorderColor = () => {
     // Show red if task is actually overdue (by time), regardless of status
     if (isOverdue) return '#ef4444'; // red
-    if (task.status === 'in_progress') return '#3b82f6'; // blue
+    if (task.status === 'in_progress') return '#1E40AF'; // blue
     if (task.status === 'completed') return '#10b981'; // green
-    return '#4f46e5'; // default purple
+    return '#1E40AF'; // default purple
   };
 
   return (
@@ -748,7 +748,7 @@ const TaskCard: React.FC<{
         </div>
 
         {/* Zeitinformationen */}
-        <div style={{ marginBottom: '12px', fontSize: '14px', color: '#6b7280' }}>
+        <div style={{ marginBottom: '12px', fontSize: '14px', color: '#64748B' }}>
           {task.scheduled_time && (
             <div>Geplante Zeit: {task.scheduled_time.slice(0, 5)} Uhr</div>
           )}
@@ -1089,12 +1089,12 @@ const StaffTableView: React.FC<{
     if (isTaskOverdue(task)) return '#ef4444';
 
     const colors: { [key: string]: string } = {
-      not_started: '#6b7280',
-      in_progress: '#3b82f6',
+      not_started: '#64748B',
+      in_progress: '#1E40AF',
       completed: '#10b981',
       overdue: '#ef4444',
     };
-    return colors[task.status] || '#6b7280';
+    return colors[task.status] || '#64748B';
   };
 
   const getStatusLabel = (status: string) => {

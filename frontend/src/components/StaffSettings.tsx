@@ -151,7 +151,7 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
               onClick={() => setActiveTab('signal')}
               style={activeTab === 'signal' ? styles.tabActive : styles.tab}
             >
-              💬 Signal Setup
+              Signal Setup
             </button>
           </div>
         )}
@@ -178,7 +178,7 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
                   onChange={(e) => setSettings({ ...settings, push_enabled: e.target.checked })}
                   style={styles.checkbox}
                 />
-                <span>📬 Browser-Benachrichtigungen aktivieren</span>
+                <span>Browser-Benachrichtigungen aktivieren</span>
               </label>
               <p style={styles.hint}>
                 Du erhältst Benachrichtigungen im Browser vor deinen Aufgaben
@@ -198,7 +198,7 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
                     }}
                     style={styles.subscribeButton}
                   >
-                    🔔 Browser-Berechtigung erteilen
+                    Browser-Berechtigung erteilen
                   </button>
                   <p style={{ ...styles.hint, marginTop: '0.5rem' }}>
                     Klicken Sie hier, um dem Browser die Berechtigung zum Senden von Benachrichtigungen zu erteilen.
@@ -213,7 +213,7 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
                     onClick={handleTestNotification}
                     style={styles.testButton}
                   >
-                    📬 Test-Nachricht senden
+                    Test-Nachricht senden
                   </button>
                   {testSuccess && (
                     <p style={{ ...styles.hint, color: '#059669', marginTop: '0.5rem' }}>
@@ -226,7 +226,7 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
 
             <div style={styles.formGroup}>
               <label style={styles.label}>
-                ⏰ Standard-Erinnerungszeit (Minuten vor Aufgabe)
+                Standard-Erinnerungszeit (Minuten vor Aufgabe)
               </label>
               <input
                 type="number"
@@ -252,7 +252,7 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
                   onChange={(e) => setSettings({ ...settings, start_notification_enabled: e.target.checked })}
                   style={styles.checkbox}
                 />
-                <span>🔔 "Aufgabe startet jetzt"-Benachrichtigung</span>
+                <span>"Aufgabe startet jetzt"-Benachrichtigung</span>
               </label>
               <p style={styles.hint}>
                 Du erhältst eine zusätzliche Benachrichtigung zur genauen Startzeit, wenn die Aufgabe noch nicht begonnen wurde
@@ -286,7 +286,7 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
                   onChange={(e) => setSettings({ ...settings, signal_enabled: e.target.checked })}
                   style={styles.checkbox}
                 />
-                <span>💬 Signal Benachrichtigungen aktivieren</span>
+                <span>Signal Benachrichtigungen aktivieren</span>
               </label>
               <p style={styles.hint}>
                 Erhalte Benachrichtigungen via Signal Messenger.

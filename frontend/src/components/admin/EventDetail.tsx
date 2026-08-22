@@ -299,7 +299,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
                     setRefreshing(false);
                   }
                 }}
-                className={styles.viewButton}
+                className={`${styles.viewButton} ${refreshing ? 'refreshing' : ''}`}
                 title="Daten aktualisieren"
                 type="button"
                 disabled={refreshing}
