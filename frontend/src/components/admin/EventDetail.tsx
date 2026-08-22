@@ -212,7 +212,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
                   className={styles.copyTemplateButton}
                   title="Kopie als Vorlage erstellen (ohne Zuweisungen/Datum)"
                 >
-                  📄 Kopie als Vorlage
+                  Kopie als Vorlage
                 </button>
               )}
             </>
@@ -782,7 +782,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
           onClick={() => setSortBy('manual')}
           style={{
             padding: '0.375rem 0.75rem',
-            backgroundColor: sortBy === 'manual' ? '#3b82f6' : 'white',
+            backgroundColor: sortBy === 'manual' ? '#1E40AF' : 'white',
             color: sortBy === 'manual' ? 'white' : '#374151',
             border: '1px solid #d1d5db',
             borderRadius: '4px',
@@ -804,7 +804,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
           }}
           style={{
             padding: '0.375rem 0.75rem',
-            backgroundColor: sortBy === 'time' ? '#3b82f6' : 'white',
+            backgroundColor: sortBy === 'time' ? '#1E40AF' : 'white',
             color: sortBy === 'time' ? 'white' : '#374151',
             border: '1px solid #d1d5db',
             borderRadius: '4px',
@@ -826,7 +826,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
           }}
           style={{
             padding: '0.375rem 0.75rem',
-            backgroundColor: sortBy === 'title' ? '#3b82f6' : 'white',
+            backgroundColor: sortBy === 'title' ? '#1E40AF' : 'white',
             color: sortBy === 'title' ? 'white' : '#374151',
             border: '1px solid #d1d5db',
             borderRadius: '4px',
@@ -848,7 +848,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
           }}
           style={{
             padding: '0.375rem 0.75rem',
-            backgroundColor: sortBy === 'status' ? '#3b82f6' : 'white',
+            backgroundColor: sortBy === 'status' ? '#1E40AF' : 'white',
             color: sortBy === 'status' ? 'white' : '#374151',
             border: '1px solid #d1d5db',
             borderRadius: '4px',

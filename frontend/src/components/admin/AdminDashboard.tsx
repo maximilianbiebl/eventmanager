@@ -209,7 +209,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   menuButton: {
     padding: '0.5rem 1rem',
-    backgroundColor: '#6366f1',
+    backgroundColor: '#1E40AF',
     color: 'white',
     border: 'none',
     borderRadius: '4px',

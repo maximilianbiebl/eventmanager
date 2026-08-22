@@ -946,7 +946,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   importButton: {
     padding: '0.5rem 1rem',
-    backgroundColor: '#8b5cf6',
+    backgroundColor: '#1E40AF',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
