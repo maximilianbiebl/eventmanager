@@ -269,7 +269,7 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
                     onChange={(e) => setSettings({ ...settings, teamleiter_status_notifications: e.target.checked })}
                     style={styles.checkbox}
                   />
-                  <span>📊 Status-Änderungen von Mitarbeitern</span>
+                  <span>Status-Änderungen von Mitarbeitern</span>
                 </label>
                 <p style={styles.hint}>
                   Du erhältst Benachrichtigungen wenn Mitarbeiter Aufgaben-Status ändern (In Arbeit, Erledigt, Überfällig)
@@ -333,7 +333,7 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
           </div>
 
           <div style={styles.infoBox}>
-            <strong>💡 Hinweis:</strong>
+            <strong>Hinweis:</strong>
             <p style={styles.infoText}>
               Diese Einstellung gilt als Standard für neue Aufgaben. Bei einzelnen Aufgaben kann
               die Erinnerungszeit individuell angepasst werden.

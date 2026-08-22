@@ -181,7 +181,7 @@ export const AdminDashboard: React.FC = () => {
 const styles: { [key: string]: React.CSSProperties } = {
   container: {
     minHeight: '100vh',
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#F8FAFC',
     padding: '1rem',
   },
   header: {
@@ -197,11 +197,11 @@ const styles: { [key: string]: React.CSSProperties } = {
   title: {
     fontSize: '1.875rem',
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#1E293B',
     margin: 0,
   },
   subtitle: {
-    color: '#6b7280',
+    color: '#64748B',
     margin: '0.5rem 0 0 0',
   },
   headerActions: {
@@ -233,7 +233,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     top: '100%',
     marginTop: '0.5rem',
     backgroundColor: 'white',
-    border: '1px solid #d1d5db',
+    border: '1px solid #CBD5E1',
     borderRadius: '4px',
     boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
     minWidth: '200px',
@@ -257,7 +257,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     textAlign: 'left',
     cursor: 'pointer',
     fontSize: '1rem',
-    color: '#ef4444',
+    color: '#DC2626',
   },
   tabs: {
     display: 'flex',
@@ -267,17 +267,17 @@ const styles: { [key: string]: React.CSSProperties } = {
   tab: {
     padding: '0.75rem 1.5rem',
     backgroundColor: 'white',
-    border: '1px solid #d1d5db',
+    border: '1px solid #CBD5E1',
     borderRadius: '4px',
     cursor: 'pointer',
     fontWeight: '500',
-    color: '#374151',
+    color: '#1E293B',
   },
   activeTab: {
     padding: '0.75rem 1.5rem',
     backgroundColor: '#1E40AF',
     color: 'white',
-    border: '1px solid #4f46e5',
+    border: '1px solid #1E40AF',
     borderRadius: '4px',
     cursor: 'pointer',
     fontWeight: '500',

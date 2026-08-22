@@ -26,7 +26,7 @@
 .hamburgerIcon span {
   width: 24px;
   height: 2px;
-  background-color: #374151;
+  background-color: #1E293B;
   display: block;
   transition: all 0.3s;
 }
@@ -65,15 +65,15 @@
   font-size: 1rem;
   font-weight: 500;
   transition: background-color 0.2s;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid #F8FAFC;
 }
 
 .mobileMenuItem {
-  color: #374151;
+  color: #1E293B;
 }
 
 .mobileMenuItem:hover {
-  background-color: #f9fafb;
+  background-color: #F8FAFC;
 }
 
 .mobileMenuItemLogout {
