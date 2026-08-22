@@ -184,7 +184,7 @@ export const SignalSetup: React.FC = () => {
                 disabled={loading}
                 className={styles.testButton}
               >
-                {loading ? 'Sende...' : '📤 Test senden'}
+                {loading ? 'Sende...' : 'Test senden'}
               </button>
             </div>
           </div>

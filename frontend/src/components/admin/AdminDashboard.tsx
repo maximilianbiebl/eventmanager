@@ -73,7 +73,7 @@ export const AdminDashboard: React.FC = () => {
                   }}
                   style={styles.dropdownItem}
                 >
-                  ⚙️ Einstellungen
+                  Einstellungen
                 </button>
                 <button
                   onClick={() => {
@@ -120,7 +120,7 @@ export const AdminDashboard: React.FC = () => {
                   }}
                   className={responsiveStyles.mobileMenuItem}
                 >
-                  ⚙️ Einstellungen
+                  Einstellungen
                 </button>
                 <button
                   onClick={() => {
