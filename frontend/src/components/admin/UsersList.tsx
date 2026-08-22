@@ -259,7 +259,7 @@ export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvent }) =
               <td style={styles.td}>
                 <div className={responsiveStyles.userActions}>
                   <button onClick={() => handleResetPassword(user.id, user.name)} style={styles.resetButton}>
-                    🔒 Passwort ändern
+                    Passwort ändern
                   </button>
                   <button onClick={() => handleDelete(user.id)} style={styles.deleteButton}>
                     Löschen
@@ -421,21 +421,24 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   resetButton: {
     padding: '0.5rem 1rem',
-    backgroundColor: '#f59e0b',
+    backgroundColor: '#D97706',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
     fontSize: '0.875rem',
     fontWeight: '500',
+    transition: 'background-color 0.2s',
   },
   deleteButton: {
     padding: '0.5rem 1rem',
-    backgroundColor: '#ef4444',
+    backgroundColor: '#DC2626',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
     fontSize: '0.875rem',
+    fontWeight: '500',
+    transition: 'background-color 0.2s',
   },
 };
