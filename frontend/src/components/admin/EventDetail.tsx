@@ -41,6 +41,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
   const [selectedDay, setSelectedDay] = useState<number | 'all'>('all');
   const [manualRefreshTrigger, setManualRefreshTrigger] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [showSeriesModal, setShowSeriesModal] = useState(false);
   const scrollPositionRef = useRef<number>(0);
 
   useEffect(() => {
@@ -299,7 +300,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
                     setRefreshing(false);
                   }
                 }}
-                className={`${styles.viewButton} ${refreshing ? 'refreshing' : ''}`}
+                className={refreshing ? `${styles.viewButton} ${styles.refreshing}` : styles.viewButton}
                 title="Daten aktualisieren"
                 type="button"
                 disabled={refreshing}
@@ -309,9 +310,18 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
             </div>
             {/* Nur Admins und Teamleiter können Aufgaben erstellen, Teamleiter aber nicht bei Vorlagen */}
             {(isAdmin || (isTeamleiter && !event.is_template)) && (
-              <button onClick={handleCreateTask} className={styles.addButton}>
-                + Neue Aufgabe
-              </button>
+              <>
+                <button
+                  onClick={() => setShowSeriesModal(true)}
+                  className={styles.secondaryButton}
+                  type="button"
+                >
+                  Serien verwalten
+                </button>
+                <button onClick={handleCreateTask} className={styles.addButton}>
+                  Neue Aufgabe
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -355,7 +365,6 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
               manualRefreshTrigger={manualRefreshTrigger}
               readOnly={isTeamleiter && event.is_template}
               eventId={event.id}
-              onSeriesUpdated={() => setManualRefreshTrigger(prev => prev + 1)}
             />
           </div>
         )}
@@ -433,6 +442,18 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
           }}
         />
       )}
+
+      {showSeriesModal && (
+        <TaskSeriesModal
+          eventId={eventId}
+          onClose={() => setShowSeriesModal(false)}
+          onSeriesCreated={() => {
+            // Beide Ansichten neu laden, damit Serien-Zuweisungen sofort sichtbar sind
+            loadData(false);
+            setManualRefreshTrigger(prev => prev + 1);
+          }}
+        />
+      )}
     </div>
   );
 };
@@ -466,7 +487,6 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   const pendingActionsRef = React.useRef<number>(0);
   const [taskSeries, setTaskSeries] = React.useState<TaskSeries[]>([]);
   const [seriesMembers, setSeriesMembers] = React.useState<{ [seriesId: number]: { id: number; name: string }[] }>({});
-  const [showSeriesModal, setShowSeriesModal] = React.useState(false);
 
   // SSE for real-time updates
   useSSE({
@@ -868,24 +888,6 @@ const TaskListView: React.FC<TaskListViewProps> = ({
         >
           Status {sortBy === 'status' ? (sortDirection === 'asc' ? '↑' : '↓') : ''}
         </button>
-        {!readOnly && event?.id && (
-          <button
-            onClick={() => setShowSeriesModal(true)}
-            style={{
-              padding: '0.375rem 0.75rem',
-              backgroundColor: '#64748B',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              fontSize: '0.875rem',
-              cursor: 'pointer',
-              fontWeight: '500',
-              marginLeft: 'auto'
-            }}
-          >
-            Serien verwalten
-          </button>
-        )}
       </div>
 
       {sortedTasks.map((task) => {
@@ -1103,35 +1105,6 @@ const TaskListView: React.FC<TaskListViewProps> = ({
         );
       })}
 
-      {showSeriesModal && event?.id && (
-        <TaskSeriesModal
-          eventId={event.id}
-          onClose={() => setShowSeriesModal(false)}
-          onSeriesCreated={() => {
-            const loadSeriesData = async () => {
-              if (!event?.id) return;
-              try {
-                const seriesData = await taskSeriesApi.getByEvent(event.id);
-                setTaskSeries(seriesData);
-                const membersMap: { [seriesId: number]: { id: number; name: string }[] } = {};
-                for (const s of seriesData) {
-                  try {
-                    const details = await taskSeriesApi.getById(s.id);
-                    membersMap[s.id] = details.members || [];
-                  } catch (err) {
-                    membersMap[s.id] = [];
-                  }
-                }
-                setSeriesMembers(membersMap);
-              } catch (error) {
-                console.error('Load series error:', error);
-              }
-            };
-            loadSeriesData();
-            setShowSeriesModal(false);
-          }}
-        />
-      )}
     </div>
   );
 };

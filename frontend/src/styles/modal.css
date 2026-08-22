@@ -1,0 +1,88 @@
+/*
+ * Globale Modal-Grundlage.
+ *
+ * Alle Modals der App setzen ihre Maße per React-Inline-Style. Inline-Styles
+ * schlagen normale Stylesheet-Regeln, deshalb arbeiten die Mobile-Overrides
+ * hier bewusst mit `!important` - nur so lassen sich die fest verdrahteten
+ * Desktop-Werte (padding: 2rem, width: 90%, ...) auf kleinen Displays
+ * überhaupt korrigieren.
+ *
+ * Verwendung:
+ *   <div className="app-modal-overlay" style={styles.overlay}>
+ *     <div className="app-modal" style={styles.modal}> ... </div>
+ *   </div>
+ */
+
+.app-modal-overlay {
+  /* Sicherheitsnetz: iOS-Safari braucht das für sauberes Scrollen im Overlay */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.app-modal {
+  /* Lange Inhalte dürfen das Modal nie über den Viewport hinaus dehnen */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Kopfzeile/Fußzeile bleiben sichtbar, Inhalt scrollt */
+.app-modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .app-modal-overlay {
+    /* Am oberen Rand ausrichten: zentrierte Modals springen sonst,
+       sobald die Tastatur aufgeht */
+    align-items: flex-start !important;
+    justify-content: center !important;
+    padding: 0.75rem !important;
+    overflow-y: auto !important;
+  }
+
+  .app-modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    /* 1.5rem = zweimal das Overlay-Padding von oben */
+    max-height: calc(100vh - 1.5rem) !important;
+    max-height: calc(100dvh - 1.5rem) !important;
+    padding: 1.25rem !important;
+    border-radius: 8px !important;
+    margin: 0 !important;
+  }
+
+  /* Vollflächige Buttons, damit Touch-Ziele nicht zerquetscht werden */
+  .app-modal-actions {
+    flex-direction: column-reverse !important;
+    gap: 0.5rem !important;
+  }
+
+  .app-modal-actions > button {
+    width: 100% !important;
+    min-height: 44px !important;
+  }
+}
+
+/* Sehr kleine Geräte (iPhone SE u.ä.) */
+@media (max-width: 380px) {
+  .app-modal {
+    padding: 1rem !important;
+  }
+}
+
+/* Querformat auf dem Handy: wenig Höhe, deshalb kompakter */
+@media (max-height: 480px) and (orientation: landscape) {
+  .app-modal-overlay {
+    align-items: flex-start !important;
+    padding: 0.5rem !important;
+  }
+
+  .app-modal {
+    max-height: calc(100vh - 1rem) !important;
+    max-height: calc(100dvh - 1rem) !important;
+    padding: 1rem !important;
+  }
+}

@@ -145,8 +145,8 @@ export const CSVImportModal: React.FC<Props> = ({ type, onClose, onSuccess, even
   };
 
   return (
-    <div style={styles.overlay} onClick={handleOverlayClick}>
-      <div style={styles.modal}>
+    <div className="app-modal-overlay" style={styles.overlay} onClick={handleOverlayClick}>
+      <div className="app-modal" style={styles.modal}>
         <h2 style={styles.title}>{getTitleText()}</h2>
 
         <div style={styles.uploadSection}>
@@ -223,7 +223,7 @@ export const CSVImportModal: React.FC<Props> = ({ type, onClose, onSuccess, even
           </>
         )}
 
-        <div style={styles.buttons}>
+        <div className="app-modal-actions" style={styles.buttons}>
           <button onClick={onClose} style={styles.cancelButton} disabled={loading}>
             Abbrechen
           </button>

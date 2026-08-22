@@ -782,9 +782,9 @@ const TaskCard: React.FC<{
         )}
 
         <div className={styles.taskMeta} style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
-        <span className={styles.taskEvent}>🎪 {task.event_name}</span>
+        <span className={styles.taskEvent}>{task.event_name}</span>
         <span className={styles.taskDay}>
-          🗓️ Tag {task.day_number} ({getEventDate()})
+          Tag {task.day_number} · {getEventDate()}
         </span>
         {task.is_public && (
           <span style={{

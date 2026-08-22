@@ -121,8 +121,8 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
 
   if (loading) {
     return (
-      <div style={styles.overlay} onClick={handleOverlayClick}>
-        <div style={styles.modal}>
+      <div className="app-modal-overlay" style={styles.overlay} onClick={handleOverlayClick}>
+        <div className="app-modal" style={styles.modal}>
           <p>Lade Einstellungen...</p>
         </div>
       </div>
@@ -130,8 +130,8 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
   }
 
   return (
-    <div style={styles.overlay} onClick={handleOverlayClick}>
-      <div style={styles.modal}>
+    <div className="app-modal-overlay" style={styles.overlay} onClick={handleOverlayClick}>
+      <div className="app-modal" style={styles.modal}>
         <h2 style={styles.title}>Einstellungen</h2>
         <p style={styles.subtitle}>
           Hallo {user?.name}, hier kannst du deine Einstellungen anpassen.
@@ -340,7 +340,7 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
             </p>
           </div>
 
-          <div style={styles.buttons}>
+          <div className="app-modal-actions" style={styles.buttons}>
             <button
               type="button"
               onClick={onClose}

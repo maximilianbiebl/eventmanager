@@ -7,7 +7,6 @@ import responsiveStyles from './TaskTableView.module.css';
 import { Toast } from '../Toast';
 import { CSVExportModal } from './CSVExportModal';
 import { CSVImportModal } from './CSVImportModal';
-import { TaskSeriesModal } from './TaskSeriesModal';
 
 interface TaskAssignment {
   id: number;
@@ -39,7 +38,6 @@ interface Props {
   manualRefreshTrigger?: number;
   readOnly?: boolean;
   eventId?: number; // Needed for CSV export/import
-  onSeriesUpdated?: () => void; // Callback when series is created/updated/deleted
 }
 
 const STATUS_COLORS: { [key: string]: string } = {
@@ -67,7 +65,6 @@ export const TaskTableView: React.FC<Props> = ({
   manualRefreshTrigger,
   readOnly = false,
   eventId,
-  onSeriesUpdated,
 }) => {
   const [assignments, setAssignments] = useState<TaskAssignment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -82,7 +79,6 @@ export const TaskTableView: React.FC<Props> = ({
   const [selectedTaskIds, setSelectedTaskIds] = useState<number[]>([]);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
-  const [showSeriesModal, setShowSeriesModal] = useState(false);
   const [taskSeries, setTaskSeries] = useState<TaskSeries[]>([]);
   const [seriesMembers, setSeriesMembers] = useState<{ [seriesId: number]: { id: number; name: string }[] }>({});
 
@@ -127,6 +123,7 @@ export const TaskTableView: React.FC<Props> = ({
   useEffect(() => {
     if (manualRefreshTrigger !== undefined && manualRefreshTrigger > 0) {
       loadAssignments(false);
+      loadSeries();
     }
   }, [manualRefreshTrigger]);
 
@@ -497,9 +494,8 @@ export const TaskTableView: React.FC<Props> = ({
         <div style={styles.headerButtons}>
           {eventId && (
             <>
-              <button onClick={() => setShowSeriesModal(true)} style={styles.seriesButton}>
-                🔁 Serien verwalten
-              </button>
+              {/* "Serien verwalten" lebt jetzt im Sektions-Header von EventDetail,
+                  damit er in Listen- UND Tabellenansicht erreichbar ist. */}
               <button onClick={() => setShowImportModal(true)} style={styles.importButton}>
                 CSV Import
               </button>
@@ -540,19 +536,6 @@ export const TaskTableView: React.FC<Props> = ({
           onClose={() => setShowImportModal(false)}
           onSuccess={handleImportSuccess}
           eventId={eventId}
-        />
-      )}
-
-      {showSeriesModal && eventId && (
-        <TaskSeriesModal
-          eventId={eventId}
-          onClose={() => setShowSeriesModal(false)}
-          onSeriesCreated={() => {
-            loadSeries();
-            if (onSeriesUpdated) {
-              onSeriesUpdated();
-            }
-          }}
         />
       )}
 

@@ -650,12 +650,12 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   tabsContainerDesktop: {
     display: 'flex',
-    gap: '0.5rem',
+    gap: '1.5rem',
     marginBottom: '1.5rem',
-    borderBottom: '2px solid #CBD5E1',
+    // 1px Grundlinie; die Tabs legen ihre eigene Linie per negativem
+    // margin-bottom exakt darüber, damit nichts "schwebt".
+    borderBottom: '1px solid #E2E8F0',
     overflowX: 'auto',
-    paddingBottom: '0.5rem',
-    backgroundColor: '#F8FAFC',
   },
   tabsContainerMobile: {
     display: 'none',
@@ -672,27 +672,31 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: '#1E293B',
   },
   tab: {
-    padding: '0.75rem 1.5rem',
+    padding: '0.75rem 0.25rem',
+    marginBottom: '-1px',
     backgroundColor: 'transparent',
     color: '#64748B',
     border: 'none',
-    borderBottom: '3px solid transparent',
+    borderBottom: '2px solid transparent',
+    borderRadius: 0,
     cursor: 'pointer',
     fontSize: '0.9rem',
     fontWeight: '500',
     whiteSpace: 'nowrap',
-    transition: 'color 0.2s, background-color 0.2s',
+    // Bewusst KEIN border-color in der Transition: Browser interpolieren
+    // von Blau nach `transparent` über Schwarz - das war der schwarze Strich.
+    transition: 'color 0.15s ease',
   },
   activeTab: {
     color: '#1E40AF',
-    borderBottom: '3px solid #1E40AF',
+    borderBottom: '2px solid #1E40AF',
     fontWeight: '600',
-    backgroundColor: '#FFFFFF',
   },
   tabCount: {
-    color: 'inherit',
-    fontSize: '0.85rem',
-    opacity: 0.7,
+    color: '#94A3B8',
+    fontSize: '0.8rem',
+    fontWeight: '400',
+    marginLeft: '0.25rem',
   },
   empty: {
     textAlign: 'center',

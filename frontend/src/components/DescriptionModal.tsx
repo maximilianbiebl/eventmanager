@@ -16,6 +16,7 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
       {/* Overlay */}
       <div
         onClick={onClose}
+        className="app-modal-overlay"
         style={{
           position: 'fixed',
           top: 0,
@@ -30,6 +31,7 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
 
       {/* Modal */}
       <div
+        className="app-modal"
         style={{
           position: 'fixed',
           top: '50%',

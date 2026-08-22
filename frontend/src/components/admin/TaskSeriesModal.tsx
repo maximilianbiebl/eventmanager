@@ -271,7 +271,7 @@ export const TaskSeriesModal: React.FC<Props> = ({ eventId, onClose, onSeriesCre
   };
 
   return (
-    <div style={styles.overlay} onClick={handleOverlayClick}>
+    <div className="app-modal-overlay" style={styles.overlay} onClick={handleOverlayClick}>
       {toast && (
         <Toast
           message={toast.message}
@@ -279,7 +279,7 @@ export const TaskSeriesModal: React.FC<Props> = ({ eventId, onClose, onSeriesCre
           onClose={() => setToast(null)}
         />
       )}
-      <div style={styles.modal}>
+      <div className="app-modal" style={styles.modal}>
         <div style={styles.header}>
           <h2 style={styles.title}>Aufgaben-Serien verwalten</h2>
           <button onClick={onClose} style={styles.closeButton}>✕</button>
@@ -518,7 +518,7 @@ export const TaskSeriesModal: React.FC<Props> = ({ eventId, onClose, onSeriesCre
           </>
         )}
 
-        <div style={styles.footer}>
+        <div className="app-modal-actions" style={styles.footer}>
           <button onClick={onClose} style={styles.footerButton}>
             Schließen
           </button>

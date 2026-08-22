@@ -84,8 +84,8 @@ export const TaskAssignmentModal: React.FC<Props> = ({ taskId, eventId, eventIns
   };
 
   return (
-    <div style={styles.overlay} onClick={handleOverlayClick}>
-      <div style={styles.modal}>
+    <div className="app-modal-overlay" style={styles.overlay} onClick={handleOverlayClick}>
+      <div className="app-modal" style={styles.modal}>
         <h2 style={styles.title}>Aufgabe zuweisen</h2>
 
         {error && <div style={styles.error}>{error}</div>}
@@ -134,7 +134,7 @@ export const TaskAssignmentModal: React.FC<Props> = ({ taskId, eventId, eventIns
             </div>
           </div>
 
-          <div style={styles.buttons}>
+          <div className="app-modal-actions" style={styles.buttons}>
             <button
               type="button"
               onClick={onClose}

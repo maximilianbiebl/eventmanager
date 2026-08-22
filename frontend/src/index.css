@@ -1,3 +1,46 @@
+/* ==========================================================================
+   Design-Grundlage
+   Tokens + Basis-Verhalten. Komponenten-Styles bauen darauf auf.
+   ========================================================================== */
+
+:root {
+  /* Flächen */
+  --c-canvas: #F1F5F9;
+  --c-surface: #FFFFFF;
+  --c-surface-muted: #F8FAFC;
+
+  /* Linien */
+  --c-border: #E2E8F0;
+  --c-border-strong: #CBD5E1;
+
+  /* Text */
+  --c-text: #0F172A;
+  --c-text-muted: #64748B;
+  --c-text-subtle: #94A3B8;
+
+  /* Akzent */
+  --c-accent: #1E40AF;
+  --c-accent-hover: #1E3A8A;
+  --c-accent-soft: #EFF6FF;
+
+  /* Status - bleiben semantisch, nie durch den Akzent ersetzen */
+  --c-danger: #DC2626;
+  --c-danger-hover: #B91C1C;
+  --c-danger-soft: #FEE2E2;
+  --c-warning: #D97706;
+  --c-warning-soft: #FEF3C7;
+  --c-success: #059669;
+  --c-success-soft: #D1FAE5;
+
+  /* Elevation - flach und zurückhaltend, kein Drop-Shadow-Wettbewerb */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 10px 30px rgba(15, 23, 42, 0.12);
+
+  --radius: 6px;
+  --radius-lg: 10px;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -5,6 +48,7 @@
 html {
   /* Größere Base-Font-Size für bessere Mobile-Lesbarkeit */
   font-size: 16px;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -14,8 +58,9 @@ body {
     'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #f3f4f6;
-  line-height: 1.6;
+  background-color: var(--c-canvas);
+  color: var(--c-text);
+  line-height: 1.55;
   overflow-x: hidden; /* Prevent horizontal scroll */
 }
 
@@ -23,9 +68,26 @@ body {
   min-height: 100vh;
 }
 
+/* --- Typografie ---------------------------------------------------------- */
+
+h1, h2, h3, h4 {
+  /* Überschriften brechen nicht mit einem einzelnen Wort in der letzten Zeile */
+  text-wrap: balance;
+  letter-spacing: -0.011em;
+  line-height: 1.25;
+}
+
+/* Zahlenkolonnen in Tabellen sauber untereinander */
+table td,
+table th {
+  font-variant-numeric: tabular-nums;
+}
+
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
 }
+
+/* --- Formulare ----------------------------------------------------------- */
 
 button {
   font-family: inherit;
@@ -59,19 +121,46 @@ textarea {
   min-height: 44px;
 }
 
+/* Einheitlicher Fokus-Ring auf Eingaben statt Browser-Default */
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--c-accent);
+  box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.12);
+}
+
 button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-button:not(:disabled):hover {
-  opacity: 0.9;
+/*
+ * Bewusst KEIN globales `button:hover { opacity }` mehr.
+ * Das hat jeden echten Hover-State der Komponenten überlagert und alles
+ * gleich "ausgegraut" aussehen lassen. Hover gehört zur Komponente.
+ */
+
+/* Fokus nur bei Tastaturnavigation zeigen - nicht nach jedem Mausklick */
+:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
+  border-radius: 3px;
 }
 
-input:focus,
-textarea:focus,
-select:focus,
-button:focus {
-  outline: 2px solid #4f46e5;
-  outline-offset: 2px;
+button:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* --- Bewegung ------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

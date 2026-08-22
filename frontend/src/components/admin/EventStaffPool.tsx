@@ -326,8 +326,8 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ availableStaff, onClose, 
   };
 
   return (
-    <div style={styles.overlay} onClick={handleOverlayClick}>
-      <div style={styles.modal}>
+    <div className="app-modal-overlay" style={styles.overlay} onClick={handleOverlayClick}>
+      <div className="app-modal" style={styles.modal}>
         <h2 style={styles.modalTitle}>Mitarbeiter hinzufügen</h2>
 
         {availableStaff.length === 0 ? (
@@ -458,8 +458,8 @@ const TaskListModal: React.FC<TaskListModalProps> = ({ staff, tasks, onClose, on
   };
 
   return (
-    <div style={styles.overlay} onClick={handleOverlayClick}>
-      <div style={{...styles.modal, maxWidth: '700px', maxHeight: '80vh', overflow: 'auto'}}>
+    <div className="app-modal-overlay" style={styles.overlay} onClick={handleOverlayClick}>
+      <div className="app-modal" style={{...styles.modal, maxWidth: '700px', maxHeight: '80vh', overflow: 'auto'}}>
         <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem'}}>
           <h2 style={styles.modalTitle}>Aufgaben von {staff.name}</h2>
           <button onClick={onClose} style={{...styles.removeButton, position: 'static'}}>✕</button>
@@ -709,8 +709,8 @@ const ReplaceStaffModal: React.FC<ReplaceStaffModalProps> = ({
   };
 
   return (
-    <div style={styles.overlay} onClick={handleOverlayClick}>
-      <div style={{...styles.modal, maxWidth: '500px', zIndex: 1001}}>
+    <div className="app-modal-overlay" style={styles.overlay} onClick={handleOverlayClick}>
+      <div className="app-modal" style={{...styles.modal, maxWidth: '500px', zIndex: 1001}}>
         <h2 style={styles.modalTitle}>Mitarbeiter austauschen</h2>
         <p style={{marginBottom: '1rem', color: '#6b7280'}}>
           Wählen Sie einen Mitarbeiter aus, der <strong>{currentStaffName}</strong> ersetzen soll.
@@ -884,8 +884,8 @@ const AssignTasksModal: React.FC<AssignTasksModalProps> = ({
   };
 
   return (
-    <div style={styles.overlay} onClick={handleOverlayClick}>
-      <div style={{...styles.modal, maxWidth: '600px', maxHeight: '80vh', overflow: 'auto', zIndex: 1001}}>
+    <div className="app-modal-overlay" style={styles.overlay} onClick={handleOverlayClick}>
+      <div className="app-modal" style={{...styles.modal, maxWidth: '600px', maxHeight: '80vh', overflow: 'auto', zIndex: 1001}}>
         <h2 style={styles.modalTitle}>Aufgaben zuweisen - {staffName}</h2>
 
         {loading ? (

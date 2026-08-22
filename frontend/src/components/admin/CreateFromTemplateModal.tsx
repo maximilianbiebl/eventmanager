@@ -75,8 +75,8 @@ export const CreateFromTemplateModal: React.FC<Props> = ({ templates, onClose, o
   };
 
   return (
-    <div style={styles.overlay} onClick={onClose}>
-      <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+    <div className="app-modal-overlay" style={styles.overlay} onClick={onClose}>
+      <div className="app-modal" style={styles.modal} onClick={(e) => e.stopPropagation()}>
         <h2 style={styles.title}>Veranstaltung aus Vorlage erstellen</h2>
         <form onSubmit={handleSubmit}>
           {/* Nur Dropdown zeigen wenn mehr als eine Vorlage */}
@@ -187,7 +187,7 @@ export const CreateFromTemplateModal: React.FC<Props> = ({ templates, onClose, o
             </div>
           )}
 
-          <div style={styles.actions}>
+          <div className="app-modal-actions" style={styles.actions}>
             <button type="button" onClick={onClose} style={styles.cancelButton}>
               Abbrechen
             </button>

@@ -188,8 +188,8 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
   };
 
   return (
-    <div style={styles.overlay} onClick={onClose}>
-      <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+    <div className="app-modal-overlay" style={styles.overlay} onClick={onClose}>
+      <div className="app-modal" style={styles.modal} onClick={(e) => e.stopPropagation()}>
         <h2 style={styles.title}>{isEdit ? 'Aufgabe bearbeiten' : 'Neue Aufgabe'}</h2>
 
         <form onSubmit={handleSubmit}>
@@ -395,7 +395,7 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
             </div>
           )}
 
-          <div style={styles.actions}>
+          <div className="app-modal-actions" style={styles.actions}>
             <button type="button" onClick={onClose} style={styles.cancelButton}>
               Abbrechen
             </button>

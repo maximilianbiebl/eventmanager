@@ -159,27 +159,40 @@
 }
 
 .viewButton:disabled {
-  cursor: not-allowed;
-  opacity: 0.7;
+  cursor: progress;
 }
 
-.viewButton.refreshing::before {
+/* Refresh button: progress bar fills left-to-right underneath the label.
+   Doubled class so it outranks the global `button:disabled { opacity }` rule. */
+.viewButton.refreshing {
+  color: #1E40AF;
+  opacity: 1;
+}
+
+.refreshing::after {
   content: '';
   position: absolute;
-  top: 0;
-  left: -100%;
+  left: 0;
+  bottom: 0;
+  height: 2px;
   width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(30, 64, 175, 0.3), transparent);
-  animation: fillAnimation 1.5s ease-in-out infinite;
+  background-color: #1E40AF;
+  transform-origin: left center;
+  animation: refreshFill 1.1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
-@keyframes fillAnimation {
+@keyframes refreshFill {
   0% {
-    left: -100%;
+    transform: scaleX(0);
+    opacity: 1;
+  }
+  70% {
+    transform: scaleX(1);
+    opacity: 1;
   }
   100% {
-    left: 100%;
+    transform: scaleX(1);
+    opacity: 0;
   }
 }
 
@@ -193,6 +206,25 @@
   font-weight: 500;
   white-space: nowrap;
   transition: background-color 0.2s;
+}
+
+/* Sekundäraktion neben der Primäraktion "Neue Aufgabe" */
+.secondaryButton {
+  padding: 0.5rem 1rem;
+  background-color: transparent;
+  color: #1E293B;
+  border: 1px solid #CBD5E1;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+}
+
+.secondaryButton:hover {
+  background-color: #F8FAFC;
+  border-color: #94A3B8;
 }
 
 .addButton {
@@ -573,4 +605,20 @@
   .taskActions {
     flex-direction: column;
   }
+}
+
+/* Status-Dropdown in der Aufgabenliste. Hintergrundfarbe kommt aus dem
+   Status per Inline-Style - hier nur Form und Lesbarkeit. */
+.statusSelect {
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  line-height: 1.4;
+  min-height: 0;
+  text-align: left;
+  text-align-last: left;
+}
+
+.statusSelect:disabled {
+  cursor: not-allowed;
 }

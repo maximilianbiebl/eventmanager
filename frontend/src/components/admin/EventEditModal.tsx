@@ -71,8 +71,8 @@ export const EventEditModal: React.FC<Props> = ({ event, onClose, onSuccess, onD
   };
 
   return (
-    <div style={styles.overlay} onClick={onClose}>
-      <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+    <div className="app-modal-overlay" style={styles.overlay} onClick={onClose}>
+      <div className="app-modal" style={styles.modal} onClick={(e) => e.stopPropagation()}>
         <h2 style={styles.title}>Veranstaltung bearbeiten</h2>
         <form onSubmit={handleSubmit}>
           <div style={styles.formGroup}>
@@ -141,7 +141,7 @@ export const EventEditModal: React.FC<Props> = ({ event, onClose, onSuccess, onD
               </div>
             </div>
           ) : (
-            <div style={styles.actions}>
+            <div className="app-modal-actions" style={styles.actions}>
               {/* Teamleiter dürfen vorgeschlagene Events nicht löschen */}
               {!(isTeamleiter && event.is_template_suggestion) && (
                 <button

@@ -47,8 +47,8 @@ export const DuplicateEventModal: React.FC<Props> = ({ event, onClose, onSuccess
   };
 
   return (
-    <div style={styles.overlay} onClick={handleOverlayClick}>
-      <div style={styles.modal}>
+    <div className="app-modal-overlay" style={styles.overlay} onClick={handleOverlayClick}>
+      <div className="app-modal" style={styles.modal}>
         <h2 style={styles.title}>Event duplizieren</h2>
         <p style={styles.subtitle}>
           Kopiert alle Aufgaben und Programmpunkte des Events "{event.name}"
@@ -113,7 +113,7 @@ export const DuplicateEventModal: React.FC<Props> = ({ event, onClose, onSuccess
             </ul>
           </div>
 
-          <div style={styles.buttons}>
+          <div className="app-modal-actions" style={styles.buttons}>
             <button
               type="button"
               onClick={onClose}
