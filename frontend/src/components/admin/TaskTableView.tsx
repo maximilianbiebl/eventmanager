@@ -747,9 +747,9 @@ export const TaskTableView: React.FC<Props> = ({
                       </div>
                     )}
                   </td>
-                  <td style={styles.td}>{task.scheduled_time || '-'}</td>
-                  <td style={styles.td}>{task.start_time || '-'}</td>
-                  <td style={styles.td}>{task.end_time || '-'}</td>
+                  <td style={styles.td}>{task.scheduled_time ? task.scheduled_time.slice(0, 5) : '-'}</td>
+                  <td style={styles.td}>{task.start_time ? task.start_time.slice(0, 5) : '-'}</td>
+                  <td style={styles.td}>{task.end_time ? task.end_time.slice(0, 5) : '-'}</td>
                   <td style={styles.td}>
                     <select
                       value={task.status}

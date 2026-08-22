@@ -39,6 +39,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [selectedDay, setSelectedDay] = useState<number | 'all'>('all');
   const [manualRefreshTrigger, setManualRefreshTrigger] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
   const scrollPositionRef = useRef<number>(0);
 
   useEffect(() => {
@@ -288,15 +289,21 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
                 Tabelle
               </button>
               <button
-                onClick={() => {
-                  loadData(false);
-                  setManualRefreshTrigger(prev => prev + 1);
+                onClick={async () => {
+                  setRefreshing(true);
+                  try {
+                    await loadData(false);
+                    setManualRefreshTrigger(prev => prev + 1);
+                  } finally {
+                    setRefreshing(false);
+                  }
                 }}
                 className={styles.viewButton}
                 title="Daten aktualisieren"
                 type="button"
+                disabled={refreshing}
               >
-                Aktualisieren
+                {refreshing ? 'Aktualisiere...' : 'Aktualisieren'}
               </button>
             </div>
             {/* Nur Admins und Teamleiter können Aufgaben erstellen, Teamleiter aber nicht bei Vorlagen */}

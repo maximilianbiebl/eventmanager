@@ -750,13 +750,13 @@ const TaskCard: React.FC<{
         {/* Zeitinformationen */}
         <div style={{ marginBottom: '12px', fontSize: '14px', color: '#6b7280' }}>
           {task.scheduled_time && (
-            <div>⏰ Geplante Zeit: {task.scheduled_time} Uhr</div>
+            <div>Geplante Zeit: {task.scheduled_time.slice(0, 5)} Uhr</div>
           )}
           {task.start_time && (
-            <div>🚀 Startzeit: {task.start_time} Uhr</div>
+            <div>Startzeit: {task.start_time.slice(0, 5)} Uhr</div>
           )}
           {task.end_time && (
-            <div>🏁 Endzeit: {task.end_time} Uhr</div>
+            <div>Endzeit: {task.end_time.slice(0, 5)} Uhr</div>
           )}
         </div>
 
@@ -1262,15 +1262,15 @@ const StaffTableView: React.FC<{
                     <div className={styles.mobileMeta}>
                       {showEventColumn && <div>🎪 {task.event_name}</div>}
                       <div>📅 Tag {task.day_number} • {getEventDate(task)}</div>
-                      {task.scheduled_time && <div>⏰ {task.scheduled_time} Uhr</div>}
-                      {task.start_time && <div>🚀 {task.start_time} Uhr</div>}
-                      {task.end_time && <div>🏁 {task.end_time} Uhr</div>}
+                      {task.scheduled_time && <div>{task.scheduled_time.slice(0, 5)} Uhr</div>}
+                      {task.start_time && <div>{task.start_time.slice(0, 5)} Uhr</div>}
+                      {task.end_time && <div>{task.end_time.slice(0, 5)} Uhr</div>}
                     </div>
                   </div>
                 </td>
-                <td className={styles.hideOnMobile}>{task.scheduled_time || '-'}</td>
-                <td className={styles.hideOnMobile}>{task.start_time || '-'}</td>
-                <td className={styles.hideOnMobile}>{task.end_time || '-'}</td>
+                <td className={styles.hideOnMobile}>{task.scheduled_time ? task.scheduled_time.slice(0, 5) : '-'}</td>
+                <td className={styles.hideOnMobile}>{task.start_time ? task.start_time.slice(0, 5) : '-'}</td>
+                <td className={styles.hideOnMobile}>{task.end_time ? task.end_time.slice(0, 5) : '-'}</td>
                 <td>
                   <div className={styles.statusDropdownContainer}>
                     {task.status !== 'completed' ? (
