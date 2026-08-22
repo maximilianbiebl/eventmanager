@@ -10,12 +10,18 @@
 @media (max-width: 640px) {
   .header {
     flex-direction: column !important;
-    align-items: flex-start !important;
+    align-items: stretch !important;
     gap: 1rem;
   }
 
-  .createButton {
-    width: 100%;
+  .header > div {
+    width: 100% !important;
+  }
+
+  .createButton,
+  .importButton,
+  .exportButton {
+    width: 100% !important;
     font-size: 0.875rem !important;
     padding: 0.625rem 1rem !important;
   }

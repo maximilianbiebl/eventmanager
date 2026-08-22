@@ -362,12 +362,12 @@ export const EventsList: React.FC = () => {
         <div style={styles.headerButtons}>
           {(isAdmin || activeTab !== 'templates') && (
             <button onClick={() => setShowImportModal(true)} style={styles.importButton} className={responsiveStyles.importButton}>
-              📥 CSV Import
+              CSV Import
             </button>
           )}
           {(isAdmin || activeTab !== 'templates') && (
             <button onClick={() => setShowExportModal(true)} style={styles.exportButton} className={responsiveStyles.exportButton}>
-              📤 CSV Export
+              CSV Export
             </button>
           )}
           {tabs.some(t => t.id === 'templates' && t.count > 0) && (
@@ -376,7 +376,7 @@ export const EventsList: React.FC = () => {
               style={styles.templateButton}
               className={responsiveStyles.createButton}
             >
-              📋 Vorlage verwenden
+              Vorlage verwenden
             </button>
           )}
           <button
@@ -384,7 +384,7 @@ export const EventsList: React.FC = () => {
             style={styles.createButton}
             className={responsiveStyles.createButton}
           >
-            + Neue Veranstaltung
+            Neue Veranstaltung
           </button>
         </div>
       </div>
@@ -567,82 +567,90 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   createButton: {
     padding: '0.75rem 1.5rem',
-    backgroundColor: '#10b981',
+    backgroundColor: '#1E40AF',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
     fontWeight: '500',
+    transition: 'background-color 0.2s',
   },
   templateButton: {
     padding: '0.75rem 1.5rem',
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#64748B',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
     fontWeight: '500',
+    transition: 'background-color 0.2s',
   },
   exportButton: {
     padding: '0.75rem 1.5rem',
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#64748B',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
     fontWeight: '500',
+    transition: 'background-color 0.2s',
   },
   importButton: {
     padding: '0.75rem 1.5rem',
-    backgroundColor: '#8b5cf6',
+    backgroundColor: '#64748B',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
     fontWeight: '500',
+    transition: 'background-color 0.2s',
   },
   bulkActions: {
     display: 'flex',
     alignItems: 'center',
     gap: '1rem',
     padding: '0.75rem 1rem',
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#F8FAFC',
+    border: '1px solid #CBD5E1',
     borderRadius: '4px',
     marginBottom: '1rem',
   },
   bulkActionsText: {
     fontSize: '0.875rem',
     fontWeight: '500',
-    color: '#374151',
+    color: '#1E293B',
   },
   bulkDeleteButton: {
     padding: '0.5rem 1rem',
-    backgroundColor: '#ef4444',
+    backgroundColor: '#DC2626',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
     fontSize: '0.875rem',
     fontWeight: '500',
+    transition: 'background-color 0.2s',
   },
   bulkApproveButton: {
     padding: '0.5rem 1rem',
-    backgroundColor: '#10b981',
+    backgroundColor: '#059669',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
     fontSize: '0.875rem',
     fontWeight: '500',
+    transition: 'background-color 0.2s',
   },
   bulkCancelButton: {
     padding: '0.5rem 1rem',
-    backgroundColor: '#6b7280',
+    backgroundColor: '#64748B',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
     fontSize: '0.875rem',
+    transition: 'background-color 0.2s',
   },
   checkbox: {
     width: '18px',
@@ -653,9 +661,10 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     gap: '0.5rem',
     marginBottom: '1.5rem',
-    borderBottom: '2px solid #e5e7eb',
+    borderBottom: '2px solid #CBD5E1',
     overflowX: 'auto',
     paddingBottom: '0.5rem',
+    backgroundColor: '#F8FAFC',
   },
   tabsContainerMobile: {
     display: 'none',
@@ -665,15 +674,16 @@ const styles: { [key: string]: React.CSSProperties } = {
     width: '100%',
     padding: '0.75rem',
     fontSize: '1rem',
-    border: '2px solid #e5e7eb',
+    border: '1px solid #CBD5E1',
     borderRadius: '4px',
     backgroundColor: 'white',
     cursor: 'pointer',
+    color: '#1E293B',
   },
   tab: {
     padding: '0.75rem 1.5rem',
     backgroundColor: 'transparent',
-    color: '#6b7280',
+    color: '#64748B',
     border: 'none',
     borderBottom: '3px solid transparent',
     cursor: 'pointer',
@@ -683,9 +693,10 @@ const styles: { [key: string]: React.CSSProperties } = {
     transition: 'all 0.2s',
   },
   activeTab: {
-    color: '#4f46e5',
-    borderBottomColor: '#4f46e5',
+    color: '#1E40AF',
+    borderBottomColor: '#1E40AF',
     fontWeight: '600',
+    backgroundColor: '#FFFFFF',
   },
   tabCount: {
     color: 'inherit',
@@ -695,7 +706,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   empty: {
     textAlign: 'center',
     padding: '3rem',
-    color: '#6b7280',
+    color: '#64748B',
   },
   grid: {
     display: 'grid',
@@ -704,13 +715,13 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   card: {
     padding: '1.5rem',
-    border: '1px solid #e5e7eb',
-    borderRadius: '8px',
-    backgroundColor: '#fafafa',
+    border: '1px solid #CBD5E1',
+    borderRadius: '4px',
+    backgroundColor: '#FFFFFF',
   },
   selectedCard: {
-    backgroundColor: '#eff6ff',
-    border: '2px solid #3b82f6',
+    backgroundColor: '#EFF6FF',
+    border: '2px solid #1E40AF',
   },
   cardHeader: {
     display: 'flex',
@@ -728,29 +739,30 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '1.25rem',
     fontWeight: '600',
     margin: 0,
+    color: '#1E293B',
   },
   badges: {
     display: 'flex',
     gap: '0.25rem',
   },
   templateBadge: {
-    backgroundColor: '#3b82f6',
-    color: 'white',
-    padding: '0.25rem 0.5rem',
+    backgroundColor: '#DBEAFE',
+    color: '#1E40AF',
+    padding: '0.25rem 0.75rem',
     borderRadius: '4px',
     fontSize: '0.75rem',
     fontWeight: '500',
   },
   suggestionBadge: {
-    backgroundColor: '#f59e0b',
-    color: 'white',
-    padding: '0.25rem 0.5rem',
+    backgroundColor: '#FEF3C7',
+    color: '#92400E',
+    padding: '0.25rem 0.75rem',
     borderRadius: '4px',
     fontSize: '0.75rem',
     fontWeight: '500',
   },
   eventDescription: {
-    color: '#6b7280',
+    color: '#64748B',
     fontSize: '0.875rem',
     margin: '0 0 1rem 0',
   },
@@ -758,12 +770,12 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     gap: '1rem',
     fontSize: '0.875rem',
-    color: '#6b7280',
+    color: '#64748B',
     marginBottom: '0.5rem',
   },
   creatorInfo: {
     fontSize: '0.75rem',
-    color: '#9ca3af',
+    color: '#94A3B8',
     marginBottom: '1rem',
   },
   actions: {
@@ -774,57 +786,70 @@ const styles: { [key: string]: React.CSSProperties } = {
   viewButton: {
     flex: 1,
     padding: '0.5rem',
-    backgroundColor: '#4f46e5',
+    backgroundColor: '#1E40AF',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
+    fontSize: '0.875rem',
+    fontWeight: '500',
+    transition: 'background-color 0.2s',
   },
   editButton: {
     padding: '0.5rem 1rem',
-    backgroundColor: '#f59e0b',
-    color: 'white',
-    border: 'none',
+    backgroundColor: 'transparent',
+    color: '#1E293B',
+    border: '1px solid #CBD5E1',
     borderRadius: '4px',
     cursor: 'pointer',
     fontSize: '0.875rem',
+    fontWeight: '500',
+    transition: 'all 0.2s',
   },
   templateButton2: {
     padding: '0.5rem 1rem',
-    backgroundColor: '#3b82f6',
-    color: 'white',
-    border: 'none',
+    backgroundColor: 'transparent',
+    color: '#1E293B',
+    border: '1px solid #CBD5E1',
     borderRadius: '4px',
     cursor: 'pointer',
     fontSize: '0.875rem',
+    fontWeight: '500',
+    transition: 'all 0.2s',
   },
   suggestButton: {
     padding: '0.5rem 1rem',
-    backgroundColor: '#8b5cf6',
-    color: 'white',
-    border: 'none',
+    backgroundColor: 'transparent',
+    color: '#1E293B',
+    border: '1px solid #CBD5E1',
     borderRadius: '4px',
     cursor: 'pointer',
     fontSize: '0.875rem',
+    fontWeight: '500',
+    transition: 'all 0.2s',
   },
   approveButton: {
     padding: '0.5rem 1rem',
-    backgroundColor: '#10b981',
+    backgroundColor: '#059669',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
     fontSize: '0.875rem',
+    fontWeight: '500',
+    transition: 'background-color 0.2s',
   },
   useTemplateButton: {
     flex: 1,
     padding: '0.5rem',
-    backgroundColor: '#3b82f6',
-    color: 'white',
-    border: 'none',
+    backgroundColor: 'transparent',
+    color: '#1E293B',
+    border: '1px solid #CBD5E1',
     borderRadius: '4px',
     cursor: 'pointer',
     fontSize: '0.875rem',
+    fontWeight: '500',
+    transition: 'all 0.2s',
   },
   teamleiterGroup: {
     marginBottom: '2rem',

@@ -163,13 +163,13 @@ export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvent }) =
         <h2 style={styles.title}>Mitarbeiter</h2>
         <div style={styles.headerButtons}>
           <button onClick={() => setShowImportModal(true)} style={styles.importButton} className={responsiveStyles.importButton}>
-            📥 CSV Import
+            CSV Import
           </button>
           <button onClick={() => setShowExportModal(true)} style={styles.exportButton} className={responsiveStyles.exportButton}>
-            📤 CSV Export
+            CSV Export
           </button>
           <button onClick={() => setShowCreateModal(true)} style={styles.createButton} className={responsiveStyles.createButton}>
-            + Neuer Mitarbeiter
+            Neuer Mitarbeiter
           </button>
         </div>
       </div>
@@ -280,12 +280,14 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   backButton: {
     padding: '0.5rem 1rem',
-    backgroundColor: '#6b7280',
+    backgroundColor: '#64748B',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
     fontSize: '0.875rem',
+    fontWeight: '500',
+    transition: 'background-color 0.2s',
   },
   header: {
     display: 'flex',
@@ -304,63 +306,69 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   createButton: {
     padding: '0.75rem 1.5rem',
-    backgroundColor: '#10b981',
+    backgroundColor: '#1E40AF',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
     fontWeight: '500',
+    transition: 'background-color 0.2s',
   },
   exportButton: {
     padding: '0.75rem 1.5rem',
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#64748B',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
     fontWeight: '500',
+    transition: 'background-color 0.2s',
   },
   importButton: {
     padding: '0.75rem 1.5rem',
-    backgroundColor: '#8b5cf6',
+    backgroundColor: '#64748B',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
     fontWeight: '500',
+    transition: 'background-color 0.2s',
   },
   bulkActions: {
     display: 'flex',
     alignItems: 'center',
     gap: '1rem',
     padding: '0.75rem 1rem',
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#F8FAFC',
+    border: '1px solid #CBD5E1',
     borderRadius: '4px',
     marginBottom: '1rem',
   },
   bulkActionsText: {
     fontSize: '0.875rem',
     fontWeight: '500',
-    color: '#374151',
+    color: '#1E293B',
   },
   bulkDeleteButton: {
     padding: '0.5rem 1rem',
-    backgroundColor: '#ef4444',
+    backgroundColor: '#DC2626',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
     fontSize: '0.875rem',
     fontWeight: '500',
+    transition: 'background-color 0.2s',
   },
   bulkCancelButton: {
     padding: '0.5rem 1rem',
-    backgroundColor: '#6b7280',
+    backgroundColor: '#64748B',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
     fontSize: '0.875rem',
+    transition: 'background-color 0.2s',
   },
   checkbox: {
     width: '18px',
@@ -368,7 +376,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     cursor: 'pointer',
   },
   selectedRow: {
-    backgroundColor: '#eff6ff',
+    backgroundColor: '#EFF6FF',
   },
   table: {
     width: '100%',
@@ -377,13 +385,15 @@ const styles: { [key: string]: React.CSSProperties } = {
   th: {
     textAlign: 'left',
     padding: '0.75rem',
-    backgroundColor: '#f9fafb',
-    borderBottom: '2px solid #e5e7eb',
+    backgroundColor: '#F8FAFC',
+    borderBottom: '2px solid #CBD5E1',
     fontWeight: '600',
+    color: '#1E293B',
   },
   td: {
     padding: '0.75rem',
-    borderBottom: '1px solid #e5e7eb',
+    borderBottom: '1px solid #E2E8F0',
+    color: '#1E293B',
   },
   badgeAdmin: {
     padding: '0.25rem 0.75rem',
