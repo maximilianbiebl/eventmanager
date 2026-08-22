@@ -501,10 +501,10 @@ export const TaskTableView: React.FC<Props> = ({
                 🔁 Serien verwalten
               </button>
               <button onClick={() => setShowImportModal(true)} style={styles.importButton}>
-                📥 CSV Import
+                CSV Import
               </button>
               <button onClick={() => setShowExportModal(true)} style={styles.exportButton}>
-                📤 CSV Export
+                CSV Export
               </button>
             </>
           )}
@@ -895,7 +895,7 @@ export const TaskTableView: React.FC<Props> = ({
               onClick={() => setDescriptionModal(null)}
               style={{
                 padding: '0.5rem 1rem',
-                backgroundColor: '#4f46e5',
+                backgroundColor: '#1E40AF',
                 color: 'white',
                 border: 'none',
                 borderRadius: '4px',
@@ -936,7 +936,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   exportButton: {
     padding: '0.5rem 1rem',
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#1E40AF',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
@@ -956,7 +956,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   seriesButton: {
     padding: '0.5rem 1rem',
-    backgroundColor: '#10b981',
+    backgroundColor: '#1E40AF',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
@@ -1155,7 +1155,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   editButton: {
     padding: '0.375rem 0.75rem',
-    backgroundColor: '#f59e0b',
+    backgroundColor: '#D97706',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
@@ -1165,7 +1165,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   assignButton: {
     padding: '0.375rem 0.75rem',
-    backgroundColor: '#4f46e5',
+    backgroundColor: '#1E40AF',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
@@ -1185,7 +1185,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   deactivateButton: {
     padding: '0.375rem 0.75rem',
-    backgroundColor: '#f59e0b',
+    backgroundColor: '#D97706',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
@@ -1195,7 +1195,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   activateButton: {
     padding: '0.375rem 0.75rem',
-    backgroundColor: '#10b981',
+    backgroundColor: '#1E40AF',
     color: 'white',
     border: 'none',
     borderRadius: '4px',

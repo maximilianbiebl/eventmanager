@@ -613,7 +613,7 @@ const TaskListModal: React.FC<TaskListModalProps> = ({ staff, tasks, onClose, on
         <div style={{marginTop: '1.5rem', display: 'flex', justifyContent: 'space-between', gap: '0.75rem'}}>
           <button onClick={() => setShowReplaceModal(true)} style={{
             ...styles.submitButton,
-            backgroundColor: '#f59e0b',
+            backgroundColor: '#D97706',
           }}>
             🔄 Mitarbeiter austauschen
           </button>
@@ -1002,7 +1002,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   addButton: {
     padding: '0.5rem 1rem',
-    backgroundColor: '#10b981',
+    backgroundColor: '#1E40AF',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
@@ -1177,7 +1177,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   submitButton: {
     padding: '0.625rem 1.25rem',
-    backgroundColor: '#10b981',
+    backgroundColor: '#1E40AF',
     color: 'white',
     border: 'none',
     borderRadius: '4px',

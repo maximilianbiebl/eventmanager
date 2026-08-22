@@ -196,7 +196,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
                   className={styles.approveButton}
                   title="Vorschlag als Vorlage annehmen"
                 >
-                  ✅ Annehmen
+                  Annehmen
                 </button>
               )}
               <button
@@ -204,7 +204,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
                 className={styles.toggleTemplateButton}
                 title={event.is_template ? 'Als normales Event markieren' : 'Als Vorlage markieren'}
               >
-                {event.is_template ? '📄 Vorlage → Event' : '📋 Als Vorlage'}
+                {event.is_template ? 'Vorlage → Event' : 'Als Vorlage'}
               </button>
               {!event.is_template && (
                 <button
@@ -226,13 +226,13 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
           {/* Vorlage verwenden - bei Vorlagen */}
           {event.is_template && (
             <button onClick={() => setShowTemplateModal(true)} className={styles.templateUseButton}>
-              📋 Vorlage verwenden
+              Vorlage verwenden
             </button>
           )}
           {/* Event duplizieren - für Admin immer, für Teamleiter nur bei nicht-Vorlagen */}
           {(isAdmin || (isTeamleiter && !event.is_template)) && (
             <button onClick={() => setShowDuplicateModal(true)} className={styles.duplicateButton}>
-              📋 Duplizieren
+              Duplizieren
             </button>
           )}
         </div>
@@ -278,7 +278,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
                 className={viewMode === 'list' ? styles.viewButtonActive : styles.viewButton}
                 type="button"
               >
-                📋 Liste
+                Liste
               </button>
               <button
                 onClick={() => handleViewModeChange('table')}

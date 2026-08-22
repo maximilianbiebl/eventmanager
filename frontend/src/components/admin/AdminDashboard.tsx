@@ -82,7 +82,7 @@ export const AdminDashboard: React.FC = () => {
                   }}
                   style={styles.dropdownItem}
                 >
-                  🔒 Passwort ändern
+                  Passwort ändern
                 </button>
                 <button onClick={logout} style={styles.dropdownItemDanger}>
                   Abmelden
@@ -129,7 +129,7 @@ export const AdminDashboard: React.FC = () => {
                   }}
                   className={responsiveStyles.mobileMenuItem}
                 >
-                  🔒 Passwort ändern
+                  Passwort ändern
                 </button>
                 <button
                   onClick={logout}
@@ -264,7 +264,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   activeTab: {
     padding: '0.75rem 1.5rem',
-    backgroundColor: '#4f46e5',
+    backgroundColor: '#1E40AF',
     color: 'white',
     border: '1px solid #4f46e5',
     borderRadius: '4px',
