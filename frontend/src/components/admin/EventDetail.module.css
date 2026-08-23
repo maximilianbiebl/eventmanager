@@ -963,19 +963,30 @@
    in der Listenansicht daneben stehen; beide Ansichten sollen sich gleich
    verhalten. */
 @media (max-height: 480px) and (orientation: landscape) {
+  /* Bewusst KEIN flex-wrap: nowrap. Das verhindert zwar den Umbruch, lässt
+     den Inhalt bei zu wenig Platz aber überlaufen statt umzubrechen -
+     gemessen bei 667x375: Kopf brauchte 620px bei 587px Platz, die Buttons
+     ragten 33px heraus. Die gestrafften Abstände reichen ab etwa 700px
+     Breite für eine Zeile; darunter wird sauber umgebrochen. */
   .sectionHeader {
-    flex-wrap: nowrap;
     gap: 0.625rem;
   }
 
+  /* Die Titelzeile darf schrumpfen: dann rutschen die CSV-Links unter
+     "Aufgaben" statt den ganzen Aktionsblock in eine neue Zeile zu
+     schieben. So stehen die Aktionen auch auf schmalen Querformaten
+     neben der Überschrift - wie in der Listenansicht. */
   .sectionTitleRow {
-    flex-shrink: 0;
     gap: 0.625rem;
+    min-width: 0;
+  }
+
+  .sectionTitleRow h3 {
+    white-space: nowrap;
   }
 
   .headerActions {
     gap: 0.5rem;
-    flex-wrap: nowrap;
   }
 
   .viewToggle > button {
@@ -991,5 +1002,18 @@
   .addButton {
     padding-left: 0.625rem;
     padding-right: 0.625rem;
+  }
+}
+
+/* Enges Querformat (iPhone SE/8 quer, 641-700px): hier braucht die
+   Kopfzeile mit CSV-Links 620px bei 587px Platz. Bei flex-wrap: wrap
+   bricht der Browser um, statt zu schrumpfen - flex-shrink greift über
+   Zeilengrenzen hinweg nicht. Also die Titelzeile deckeln: dann rutschen
+   die CSV-Links unter "Aufgaben" und der Aktionsblock bleibt daneben,
+   wie in der Listenansicht. Oberhalb 700px passt alles ohnehin in eine
+   Zeile, deshalb greift die Regel nur hier. */
+@media (max-height: 480px) and (orientation: landscape) and (max-width: 700px) {
+  .sectionTitleRow {
+    max-width: 12rem;
   }
 }
