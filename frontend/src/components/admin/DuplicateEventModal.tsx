@@ -10,7 +10,6 @@ interface Props {
 export const DuplicateEventModal: React.FC<Props> = ({ event, onClose, onSuccess }) => {
   const [name, setName] = useState(`${event.name} (Kopie)`);
   const [startDate, setStartDate] = useState(event.start_date);
-  const [instanceCount, setInstanceCount] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -23,14 +22,11 @@ export const DuplicateEventModal: React.FC<Props> = ({ event, onClose, onSuccess
       return;
     }
 
-    if (instanceCount < 1 || instanceCount > 10) {
-      setError('Anzahl Durchführungen muss zwischen 1 und 10 liegen');
-      return;
-    }
-
     setLoading(true);
     try {
-      await eventsApi.duplicate(event.id, { name, start_date: startDate, instance_count: instanceCount });
+      // instance_count fest auf 1: "Anzahl Durchführungen" war eine Altlast
+      // und ist aus der Oberfläche entfernt. Der Backend-Vertrag bleibt gleich.
+      await eventsApi.duplicate(event.id, { name, start_date: startDate, instance_count: 1 });
       onSuccess();
     } catch (error: any) {
       console.error('Duplicate event error:', error);
@@ -80,22 +76,7 @@ export const DuplicateEventModal: React.FC<Props> = ({ event, onClose, onSuccess
               required
             />
             <div style={styles.hint}>
-              Startdatum der ersten Durchführung
-            </div>
-          </div>
-
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Anzahl Durchführungen</label>
-            <input
-              type="number"
-              min="1"
-              max="10"
-              value={instanceCount}
-              onChange={(e) => setInstanceCount(parseInt(e.target.value))}
-              style={styles.input}
-            />
-            <div style={styles.hint}>
-              Wie oft soll das Event stattfinden? (1-10)
+              Startdatum der Kopie
             </div>
           </div>
 
