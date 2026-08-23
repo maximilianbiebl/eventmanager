@@ -161,14 +161,20 @@ export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvent }) =
 
       <div style={styles.header} className={responsiveStyles.header}>
         <h2 style={styles.title}>Mitarbeiter</h2>
-        <div style={styles.headerButtons}>
-          <button onClick={() => setShowImportModal(true)} style={styles.importButton} className={responsiveStyles.importButton}>
-            CSV Import
-          </button>
-          <button onClick={() => setShowExportModal(true)} style={styles.exportButton} className={responsiveStyles.exportButton}>
-            CSV Export
-          </button>
-          <button onClick={() => setShowCreateModal(true)} style={styles.createButton} className={responsiveStyles.createButton}>
+        <div style={styles.headerButtons} className={responsiveStyles.headerButtons}>
+          {/* CSV als dezente Nebenfunktion in einer Zeile - wie in der
+              Veranstaltungsübersicht, damit beide Seiten gleich funktionieren. */}
+          <div style={styles.csvGroup} className={responsiveStyles.csvGroup}>
+            <span style={styles.csvLabel}>CSV</span>
+            <button onClick={() => setShowImportModal(true)} style={styles.csvButton} className={responsiveStyles.importButton}>
+              Import
+            </button>
+            <span style={styles.csvDivider} aria-hidden="true" />
+            <button onClick={() => setShowExportModal(true)} style={styles.csvButton} className={responsiveStyles.exportButton}>
+              Export
+            </button>
+          </div>
+          <button onClick={() => setShowCreateModal(true)} style={styles.createButton} className={responsiveStyles.primaryButton}>
             Neuer Mitarbeiter
           </button>
         </div>
@@ -211,6 +217,10 @@ export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvent }) =
         />
       )}
 
+      {/* Eigener Scroll-Container: die Aktionen-Spalte ist breiter als ein
+          Handy-Display. Ohne ihn schiebt die Tabelle das ganze Dokument
+          seitlich raus - was wiederum jedes position:fixed-Modal zu breit macht. */}
+      <div className={responsiveStyles.tableScroll}>
       <table style={styles.table} className={responsiveStyles.table}>
         <thead>
           <tr>
@@ -270,6 +280,7 @@ export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvent }) =
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 };
@@ -303,6 +314,42 @@ const styles: { [key: string]: React.CSSProperties } = {
   headerButtons: {
     display: 'flex',
     gap: '0.75rem',
+    // Ohne wrap schiebt sich die Primäraktion aus dem Viewport - und ein
+    // horizontal überlaufendes Dokument macht jedes position:fixed-Modal zu breit.
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  csvGroup: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+  },
+  csvLabel: {
+    fontSize: '0.75rem',
+    fontWeight: '600',
+    letterSpacing: '0.04em',
+    color: '#94A3B8',
+    textTransform: 'uppercase',
+  },
+  csvButton: {
+    padding: '0.25rem 0.125rem',
+    backgroundColor: 'transparent',
+    color: '#64748B',
+    border: 'none',
+    borderRadius: '2px',
+    cursor: 'pointer',
+    fontWeight: '500',
+    fontSize: '0.8125rem',
+    textDecoration: 'underline',
+    textUnderlineOffset: '3px',
+    textDecorationColor: '#CBD5E1',
+    transition: 'color 0.15s ease',
+  },
+  csvDivider: {
+    width: '1px',
+    height: '0.875rem',
+    backgroundColor: '#E2E8F0',
   },
   createButton: {
     padding: '0.75rem 1.5rem',
