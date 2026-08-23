@@ -120,6 +120,20 @@
   min-width: 0;
 }
 
+/* Ein Dropdown muss immer als Bedienelement erkennbar sein. Die Chips
+   daneben dürfen randlos sein - sie stehen in einer Reihe und erklären
+   sich gegenseitig; ein einzelner Auslöser tut das nicht.
+   Doppelte Klasse, damit .tv-chip-active (blauer Rand bei gesetztem
+   Filter) weiterhin gewinnt. */
+.tv-chip.tv-trigger {
+  background-color: #FFFFFF;
+  border-color: #CBD5E1;
+}
+
+.tv-chip.tv-trigger:hover {
+  border-color: #94A3B8;
+}
+
 .tv-caret {
   font-size: 0.625rem;
   line-height: 1;
