@@ -305,7 +305,8 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
                 type="button"
                 disabled={refreshing}
               >
-                {refreshing ? 'Aktualisiere...' : 'Aktualisieren'}
+                {/* eigenes Element, damit die Füllung dahinter liegen kann */}
+                <span>{refreshing ? 'Aktualisiere…' : 'Aktualisieren'}</span>
               </button>
             </div>
             {/* Nur Admins und Teamleiter können Aufgaben erstellen, Teamleiter aber nicht bei Vorlagen */}

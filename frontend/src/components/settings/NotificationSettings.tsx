@@ -65,7 +65,7 @@ export const NotificationSettings: React.FC = () => {
             checked={settings.web_push_enabled}
             onChange={(e) => setSettings({ ...settings, web_push_enabled: e.target.checked })}
           />
-          <span>📱 Web Push Benachrichtigungen</span>
+          <span>Web Push Benachrichtigungen</span>
         </label>
         <p className={styles.hint}>Browser-Benachrichtigungen auf diesem Gerät</p>
       </div>
@@ -77,7 +77,7 @@ export const NotificationSettings: React.FC = () => {
             checked={settings.signal_enabled}
             onChange={(e) => setSettings({ ...settings, signal_enabled: e.target.checked })}
           />
-          <span>💬 Signal Benachrichtigungen</span>
+          <span>Signal Benachrichtigungen</span>
         </label>
         <p className={styles.hint}>Benachrichtigungen via Signal Messenger</p>
 
@@ -106,7 +106,7 @@ export const NotificationSettings: React.FC = () => {
           disabled={loading}
           className={styles.saveButton}
         >
-          {loading ? 'Speichern...' : '💾 Speichern'}
+          {loading ? 'Speichern...' : 'Speichern'}
         </button>
       </div>
 

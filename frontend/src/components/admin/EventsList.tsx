@@ -359,16 +359,20 @@ export const EventsList: React.FC = () => {
     <div>
       <div style={styles.header} className={responsiveStyles.header}>
         <h2 style={styles.title}>Veranstaltungen</h2>
-        <div style={styles.headerButtons}>
+        <div style={styles.headerButtons} className={responsiveStyles.headerButtons}>
+          {/* CSV ist eine Nebenfunktion: dezent und als Paar in einer Zeile,
+              damit sie nicht mit den Hauptaktionen konkurriert. */}
           {(isAdmin || activeTab !== 'templates') && (
-            <button onClick={() => setShowImportModal(true)} style={styles.secondaryButton} className={responsiveStyles.importButton}>
-              CSV Import
-            </button>
-          )}
-          {(isAdmin || activeTab !== 'templates') && (
-            <button onClick={() => setShowExportModal(true)} style={styles.secondaryButton} className={responsiveStyles.exportButton}>
-              CSV Export
-            </button>
+            <div style={styles.csvGroup} className={responsiveStyles.csvGroup}>
+              <span style={styles.csvLabel}>CSV</span>
+              <button onClick={() => setShowImportModal(true)} style={styles.csvButton} className={responsiveStyles.importButton}>
+                Import
+              </button>
+              <span style={styles.csvDivider} aria-hidden="true" />
+              <button onClick={() => setShowExportModal(true)} style={styles.csvButton} className={responsiveStyles.exportButton}>
+                Export
+              </button>
+            </div>
           )}
           {tabs.some(t => t.id === 'templates' && t.count > 0) && (
             <button
@@ -382,7 +386,7 @@ export const EventsList: React.FC = () => {
           <button
             onClick={() => setShowCreateModal(true)}
             style={styles.createButton}
-            className={responsiveStyles.createButton}
+            className={responsiveStyles.primaryButton}
           >
             Neue Veranstaltung
           </button>
@@ -564,6 +568,11 @@ const styles: { [key: string]: React.CSSProperties } = {
   headerButtons: {
     display: 'flex',
     gap: '0.75rem',
+    // Ohne wrap schiebt sich "Neue Veranstaltung" auf schmalen Displays
+    // aus dem Viewport - und ein horizontal überlaufendes Dokument macht
+    // anschliessend jedes position:fixed-Modal zu breit.
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
   },
   createButton: {
     padding: '0.75rem 1.5rem',
@@ -575,26 +584,51 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: '500',
     transition: 'background-color 0.2s',
   },
+  // Mittlere Stufe: umrandet wie CSV, aber kräftigerer Text.
+  // Nur "Neue Veranstaltung" ist gefüllt - eine Primäraktion pro Ansicht.
   templateButton: {
-    padding: '0.75rem 1.5rem',
-    backgroundColor: '#64748B',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontWeight: '500',
-    transition: 'background-color 0.2s',
-  },
-  secondaryButton: {
     padding: '0.5rem 1rem',
     backgroundColor: 'transparent',
-    color: '#64748B',
-    border: '1px solid #CBD5E1',
+    color: '#1E293B',
+    border: '1px solid #94A3B8',
     borderRadius: '4px',
     cursor: 'pointer',
     fontWeight: '500',
     fontSize: '0.875rem',
     transition: 'all 0.2s',
+  },
+  // CSV als zusammengehörige Nebenfunktion: kein Rahmen, nur Textlinks
+  // mit einem gemeinsamen Label - tritt deutlich hinter die Hauptaktionen zurück.
+  csvGroup: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+  },
+  csvLabel: {
+    fontSize: '0.75rem',
+    fontWeight: '600',
+    letterSpacing: '0.04em',
+    color: '#94A3B8',
+    textTransform: 'uppercase',
+  },
+  csvButton: {
+    padding: '0.25rem 0.125rem',
+    backgroundColor: 'transparent',
+    color: '#64748B',
+    border: 'none',
+    borderRadius: '2px',
+    cursor: 'pointer',
+    fontWeight: '500',
+    fontSize: '0.8125rem',
+    textDecoration: 'underline',
+    textUnderlineOffset: '3px',
+    textDecorationColor: '#CBD5E1',
+    transition: 'color 0.15s ease',
+  },
+  csvDivider: {
+    width: '1px',
+    height: '0.875rem',
+    backgroundColor: '#E2E8F0',
   },
   bulkActions: {
     display: 'flex',

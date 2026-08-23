@@ -162,38 +162,36 @@
   cursor: progress;
 }
 
-/* Refresh button: progress bar fills left-to-right underneath the label.
-   Doubled class so it outranks the global `button:disabled { opacity }` rule. */
+/* Aktualisieren-Button: eine Füllung läuft von links nach rechts durch den
+   ganzen Button. Doppelte Klasse, damit sie das globale
+   `button:disabled { opacity }` schlägt. */
 .viewButton.refreshing {
   color: #1E40AF;
   opacity: 1;
+  background-color: #EFF6FF;
 }
 
-.refreshing::after {
+/* Die Füllung liegt hinter dem Text (z-index 0 vs. 1). */
+.refreshing::before {
   content: '';
   position: absolute;
-  left: 0;
-  bottom: 0;
-  height: 2px;
-  width: 100%;
-  background-color: #1E40AF;
+  inset: 0;
+  background-color: #BFDBFE;
+  transform: scaleX(0);
   transform-origin: left center;
-  animation: refreshFill 1.1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  animation: refreshFill 1.2s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  z-index: 0;
+}
+
+.viewButton.refreshing > * {
+  position: relative;
+  z-index: 1;
 }
 
 @keyframes refreshFill {
-  0% {
-    transform: scaleX(0);
-    opacity: 1;
-  }
-  70% {
-    transform: scaleX(1);
-    opacity: 1;
-  }
-  100% {
-    transform: scaleX(1);
-    opacity: 0;
-  }
+  0%   { transform: scaleX(0);   opacity: 1; }
+  75%  { transform: scaleX(1);   opacity: 1; }
+  100% { transform: scaleX(1);   opacity: 0; }
 }
 
 .viewButtonActive {

@@ -125,7 +125,7 @@ export const SignalSetup: React.FC = () => {
             disabled={loading}
             className={styles.setupButton}
           >
-            {loading ? 'Lädt...' : '🔗 Signal einrichten'}
+            {loading ? 'Lädt...' : 'Signal einrichten'}
           </button>
         </div>
       )}
@@ -195,7 +195,7 @@ export const SignalSetup: React.FC = () => {
               disabled={loading}
               className={styles.unlinkButton}
             >
-              {loading ? 'Trenne...' : '🔌 Verbindung trennen'}
+              {loading ? 'Trenne...' : 'Verbindung trennen'}
             </button>
           </div>
         </div>

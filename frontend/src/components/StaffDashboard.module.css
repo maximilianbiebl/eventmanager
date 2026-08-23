@@ -499,6 +499,8 @@
 }
 
 .tab {
+  position: relative;
+  overflow: hidden;
   padding: 0.75rem 1.5rem;
   background-color: white;
   border: 1px solid #d1d5db;
@@ -825,6 +827,7 @@
 
   .controls {
     flex-direction: row;
+    flex-wrap: wrap;
     gap: 0.375rem;
     margin-bottom: 0.5rem;
   }
@@ -833,7 +836,11 @@
     padding: 0.5rem 0.75rem;
     text-align: center;
     font-size: 0.8125rem;
-    flex: 1;
+    /* Kein `flex: 1`: das presste die Buttons schmaler als ihre
+       Beschriftung, die wegen white-space:nowrap dann herauslief.
+       Stattdessen an den Inhalt anpassen und bei Bedarf umbrechen. */
+    flex: 0 1 auto;
+    min-width: 0;
   }
 
   .filterSection {
@@ -1064,4 +1071,36 @@
   .taskList {
     gap: 1rem;
   }
+}
+
+/* Aktualisieren-Button: Füllung läuft von links nach rechts durch den Button.
+   Doppelte Klasse, damit sie das globale `button:disabled { opacity }` schlägt. */
+.tab.refreshing {
+  color: #1E40AF;
+  opacity: 1;
+  background-color: #EFF6FF;
+  border-color: #BFDBFE;
+  cursor: progress;
+}
+
+.tab.refreshing::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-color: #BFDBFE;
+  transform: scaleX(0);
+  transform-origin: left center;
+  animation: refreshFill 1.2s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  z-index: 0;
+}
+
+.tab.refreshing > * {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes refreshFill {
+  0%   { transform: scaleX(0); opacity: 1; }
+  75%  { transform: scaleX(1); opacity: 1; }
+  100% { transform: scaleX(1); opacity: 0; }
 }

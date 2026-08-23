@@ -22,6 +22,7 @@ export const StaffDashboard: React.FC = () => {
   const [selectedDay, setSelectedDay] = useState<number | 'all'>('all');
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [filtersInitialized, setFiltersInitialized] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const { user, logout } = useAuth();
   const notifications = useNotifications();
 
@@ -428,7 +429,7 @@ export const StaffDashboard: React.FC = () => {
           onClick={() => setViewMode('table')}
           className={viewMode === 'table' ? styles.activeTab : styles.tab}
         >
-          📊 Tabelle
+          Tabelle
         </button>
 
         {/* Sortierung - nur für Karten-Ansicht */}
@@ -462,11 +463,20 @@ export const StaffDashboard: React.FC = () => {
         )}
 
         <button
-          onClick={() => loadTasks(false)}
-          className={styles.tab}
+          onClick={async () => {
+            setRefreshing(true);
+            try {
+              await loadTasks(false);
+            } finally {
+              setRefreshing(false);
+            }
+          }}
+          className={refreshing ? `${styles.tab} ${styles.refreshing}` : styles.tab}
           title="Daten aktualisieren"
+          disabled={refreshing}
         >
-          🔄 Aktualisieren
+          {/* eigenes Element, damit die Füllung dahinter liegen kann */}
+          <span>{refreshing ? 'Aktualisiere…' : 'Aktualisieren'}</span>
         </button>
       </div>
 
@@ -512,7 +522,7 @@ export const StaffDashboard: React.FC = () => {
               onClick={() => setShowEventFilter(!showEventFilter)}
               className={styles.filterToggleButton}
             >
-              🎪 Veranstaltungen filtern ({selectedEvents.size}/{uniqueEvents.length})
+              Veranstaltungen filtern ({selectedEvents.size}/{uniqueEvents.length})
             </button>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button onClick={handleSelectAllEvents} className={styles.filterActionButton}>
@@ -851,7 +861,7 @@ const TaskCard: React.FC<{
                         onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
                         onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
                       >
-                        ▶ In Arbeit setzen
+                        In Arbeit setzen
                       </div>
                     )}
                     {task.status === 'in_progress' && (
@@ -866,7 +876,7 @@ const TaskCard: React.FC<{
                         onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
                         onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
                       >
-                        ↩ Nicht gestartet
+                        Nicht gestartet
                       </div>
                     )}
                   </div>
@@ -907,7 +917,7 @@ const TaskCard: React.FC<{
                   padding: '10px 12px'
                 }}
               >
-                🔔 Erinnerung
+                Erinnerung
               </button>
             )}
             {(task.status === 'not_started' || task.status === 'overdue') && (
@@ -1146,7 +1156,7 @@ const StaffTableView: React.FC<{
         gap: '0.5rem'
       }}>
         <span style={{ fontSize: '0.875rem', color: '#374151', fontWeight: '500' }}>
-          {sortColumn === 'manual' ? '📌 Standard-Sortierung aktiv' : '⚠️ Spalten-Sortierung aktiv'}
+          {sortColumn === 'manual' ? 'Standard-Sortierung aktiv' : '⚠️ Spalten-Sortierung aktiv'}
         </span>
         {sortColumn !== 'manual' && (
           <button
@@ -1260,8 +1270,8 @@ const StaffTableView: React.FC<{
                   )}
                   <div className={styles.showOnMobile}>
                     <div className={styles.mobileMeta}>
-                      {showEventColumn && <div>🎪 {task.event_name}</div>}
-                      <div>📅 Tag {task.day_number} • {getEventDate(task)}</div>
+                      {showEventColumn && <div>{task.event_name}</div>}
+                      <div>Tag {task.day_number} · {getEventDate(task)}</div>
                       {task.scheduled_time && <div>{task.scheduled_time.slice(0, 5)} Uhr</div>}
                       {task.start_time && <div>{task.start_time.slice(0, 5)} Uhr</div>}
                       {task.end_time && <div>{task.end_time.slice(0, 5)} Uhr</div>}
@@ -1289,7 +1299,7 @@ const StaffTableView: React.FC<{
                                 className={styles.statusOption}
                                 onClick={() => handleStatusChange(task, 'not_started')}
                               >
-                                ⏸ Nicht gestartet
+                                Nicht gestartet
                               </div>
                             )}
                             {task.status !== 'in_progress' && (
@@ -1297,7 +1307,7 @@ const StaffTableView: React.FC<{
                                 className={styles.statusOption}
                                 onClick={() => handleStatusChange(task, 'in_progress')}
                               >
-                                ▶ In Arbeit
+                                In Arbeit
                               </div>
                             )}
                             {task.status !== 'completed' && (
@@ -1305,7 +1315,7 @@ const StaffTableView: React.FC<{
                                 className={styles.statusOption}
                                 onClick={() => handleStatusChange(task, 'completed')}
                               >
-                                ✓ Erledigt
+                                Erledigt
                               </div>
                             )}
                           </div>
