@@ -8,6 +8,7 @@ import { Toast } from '../Toast';
 import { CSVExportModal } from './CSVExportModal';
 import { CSVImportModal } from './CSVImportModal';
 import { StatusFilter } from './StatusFilter';
+import { StatusCell } from './StatusCell';
 
 interface TaskAssignment {
   id: number;
@@ -725,20 +726,13 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
                   <td style={styles.td}>{task.start_time ? task.start_time.slice(0, 5) : '-'}</td>
                   <td style={styles.td}>{task.end_time ? task.end_time.slice(0, 5) : '-'}</td>
                   <td style={styles.td}>
-                    <select
+                    <StatusCell
                       value={task.status}
-                      onChange={(e) => handleStatusChange(task.id, e.target.value)}
-                      style={{
-                        ...styles.statusSelect,
-                        backgroundColor: getTaskStatusColor(task),
-                      }}
-                      className={responsiveStyles.statusSelect}
-                    >
-                      <option value="not_started">Nicht gestartet</option>
-                      <option value="in_progress">In Arbeit</option>
-                      <option value="completed">Erledigt</option>
-                      <option value="overdue">Überfällig</option>
-                    </select>
+                      label={STATUS_LABELS[task.status] || task.status}
+                      color={getTaskStatusColor(task)}
+                      disabled={readOnly}
+                      onChange={(v) => handleStatusChange(task.id, v)}
+                    />
                   </td>
                   <td style={styles.td}>
                     {assignedUsers.length === 0 ? (
@@ -1165,19 +1159,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '0.75rem',
     fontWeight: '500',
     color: 'white',
-  },
-  statusSelect: {
-    padding: '0.1875rem 1.5rem 0.1875rem 0.625rem',
-    borderRadius: '9999px',
-    fontSize: '0.75rem',
-    fontWeight: '600',
-    color: 'white',
-    border: 'none',
-    cursor: 'pointer',
-    // Ohne Deckel richtet sich die Breite nach der längsten Option
-    // ("Nicht gestartet") und die Zelle wird unnötig breit.
-    width: '100%',
-    maxWidth: '8.5rem',
   },
   noAssignments: {
     color: '#9ca3af',

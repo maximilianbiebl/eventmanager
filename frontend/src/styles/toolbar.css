@@ -195,3 +195,36 @@
     min-height: 40px;
   }
 }
+
+/* ---- Status-Pille in der Aufgaben-Tabelle -------------------------------
+   Ersetzt das native <select> in der Zeile. Ein Button passt sich seinem
+   Inhalt an, statt auf die Spaltenbreite gequetscht zu werden. */
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.625rem;
+  border: none;
+  border-radius: 9999px;
+  color: #FFFFFF;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.status-pill-button {
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.status-pill-button:hover {
+  filter: brightness(0.93);
+}
+
+.status-caret {
+  font-size: 0.5625rem;
+  line-height: 1;
+  opacity: 0.85;
+}

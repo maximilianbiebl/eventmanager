@@ -185,16 +185,13 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
 
   return (
     <div>
-      {/* Zurück-Zeile: bewusst schmal, sie ist nur Navigation. */}
-      <div className={styles.backRow}>
-        <button onClick={onBack} className={styles.backButton}>
-          ← Zurück
-        </button>
-      </div>
-
-      {/* Titelzeile: Name, Info-Button und Aktionen teilen sich eine Zeile.
-          Die Beschreibung hängt am "i" statt eine eigene Zeile zu belegen. */}
+      {/* Titelzeile: Zurück, Name, Info-Button und Aktionen teilen sich eine
+          Zeile. Die Beschreibung hängt am "i" statt eine eigene Zeile zu
+          belegen. */}
       <div className={styles.titleRow}>
+        <button onClick={onBack} className={styles.backButton} type="button">
+          Zurück
+        </button>
         <h2 className={styles.title}>{event.name}</h2>
 
         {event.description && (

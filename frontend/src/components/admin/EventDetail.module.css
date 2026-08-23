@@ -13,24 +13,26 @@
   flex-wrap: nowrap;
 }
 
+/* Echter Button statt Textlink: er stand vorher als graue Schrift in
+   einer eigenen Zeile und war als Bedienelement kaum zu erkennen. */
 .backButton {
-  /* Navigation, keine Aktion: als Textlink ohne Rahmen */
-  padding: 0.375rem 0.5rem;
-  margin-left: -0.5rem;
+  flex-shrink: 0;
+  padding: 0.375rem 0.75rem;
   background-color: transparent;
   color: #64748B;
-  border: none;
-  border-radius: 4px;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 500;
   white-space: nowrap;
-  transition: color 0.15s ease, background-color 0.15s ease;
+  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
 }
 
 .backButton:hover {
+  background-color: #F8FAFC;
+  border-color: #CBD5E1;
   color: #1E293B;
-  background-color: #F1F5F9;
 }
 
 .editButton {
@@ -830,10 +832,6 @@
 }
 
 /* ---- Kopfbereich: Zurück-Zeile, dann Titelzeile -------------------------- */
-
-.backRow {
-  margin-bottom: 0.5rem;
-}
 
 /* Name, Info-Button und Aktionen in EINER Zeile. */
 .titleRow {
