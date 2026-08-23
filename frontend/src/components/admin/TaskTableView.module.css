@@ -241,3 +241,23 @@
     justify-content: space-between;
   }
 }
+
+@media (max-width: 640px) {
+  .toolbar {
+    align-items: stretch;
+  }
+
+  .dayFilter {
+    width: 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+  }
+
+  .dayFilter::-webkit-scrollbar { display: none; }
+
+  .toolbarRight {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}

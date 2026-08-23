@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import client from '../../api/client';
 import { tasksApi } from '../../api/tasks';
 import { taskSeriesApi, TaskSeries } from '../../api/taskSeries';
@@ -54,7 +54,12 @@ const STATUS_LABELS: { [key: string]: string } = {
   overdue: 'Überfällig',
 };
 
-export const TaskTableView: React.FC<Props> = ({
+export interface TaskTableViewHandle {
+  openImport: () => void;
+  openExport: () => void;
+}
+
+export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
   eventInstanceId,
   onEditTask,
   onAssignTask,
@@ -65,7 +70,7 @@ export const TaskTableView: React.FC<Props> = ({
   manualRefreshTrigger,
   readOnly = false,
   eventId,
-}) => {
+}, ref) => {
   const [assignments, setAssignments] = useState<TaskAssignment[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -81,6 +86,11 @@ export const TaskTableView: React.FC<Props> = ({
   const [showImportModal, setShowImportModal] = useState(false);
   const [taskSeries, setTaskSeries] = useState<TaskSeries[]>([]);
   const [seriesMembers, setSeriesMembers] = useState<{ [seriesId: number]: { id: number; name: string }[] }>({});
+
+  useImperativeHandle(ref, () => ({
+    openImport: () => setShowImportModal(true),
+    openExport: () => setShowExportModal(true),
+  }));
 
   // Use external selectedDay if provided, otherwise use internal state
   const selectedDay = externalSelectedDay !== undefined ? externalSelectedDay : internalSelectedDay;
@@ -489,28 +499,10 @@ export const TaskTableView: React.FC<Props> = ({
       {successMessage && (
         <Toast message={successMessage} onClose={() => setSuccessMessage('')} />
       )}
-      <div style={styles.header} className={responsiveStyles.header}>
-        <h3 style={styles.title} className={responsiveStyles.title}>Aufgaben-Übersicht</h3>
-        <div style={styles.headerButtons}>
-          {eventId && (
-            <>
-              {/* "Serien verwalten" lebt jetzt im Sektions-Header von EventDetail,
-                  damit er in Listen- UND Tabellenansicht erreichbar ist.
-                  CSV ist eine Nebenfunktion - gleiche schlichte Darstellung
-                  wie in der Veranstaltungs- und Mitarbeiterübersicht. */}
-              <div style={styles.csvGroup}>
-                  <button onClick={() => setShowImportModal(true)} style={styles.csvButton}>
-                  Importieren
-                </button>
-                <span style={styles.csvDivider} aria-hidden="true" />
-                <button onClick={() => setShowExportModal(true)} style={styles.csvButton}>
-                  Exportieren
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
+      {/* Eigene Überschrift entfernt: "Aufgaben" steht bereits darüber.
+          Die CSV-Auslöser liegen jetzt dort in der Überschriftenzeile und
+          rufen die Modals über die Ref auf - so bleibt die Auswahl beim
+          Export erhalten. */}
 
       {selectedTaskIds.length > 0 && !readOnly && (
         <div style={styles.bulkActions}>
@@ -544,59 +536,59 @@ export const TaskTableView: React.FC<Props> = ({
         />
       )}
 
-      <div style={styles.filterGroup} className={responsiveStyles.filterGroup}>
-        <label style={styles.filterLabel} className={responsiveStyles.filterLabel}>Status</label>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          style={styles.filterSelect}
-          className={responsiveStyles.filterSelect}
-        >
-          <option value="all">Alle</option>
-          <option value="not_started">Nicht gestartet</option>
-          <option value="in_progress">In Arbeit</option>
-          <option value="completed">Erledigt</option>
-          <option value="overdue">Überfällig</option>
-        </select>
-
-        {/* Sortier-Hinweis und Rücksprung teilen sich die Zeile mit dem
-            Filter - dafür war rechts ohnehin Platz frei. */}
-        {sortColumn !== 'manual' && (
-          <div style={styles.sortNotice} className={responsiveStyles.sortIndicator}>
-            <span style={styles.sortNoticeText}>Spalten-Sortierung aktiv</span>
+      {/* Eine Werkzeugleiste statt drei gestapelter Blöcke: links der
+          Tagesfilter (die häufigste Einschränkung), rechts der Status und
+          - nur wenn nötig - der Rücksprung zur manuellen Reihenfolge. */}
+      <div style={styles.toolbar} className={responsiveStyles.toolbar}>
+        {eventDays && eventDays > 1 && (
+          <div style={styles.dayFilter} className={responsiveStyles.dayFilter}>
             <button
-              onClick={() => setSortColumn('manual')}
-              style={styles.sortResetButton}
-              title="Zurück zur manuellen Reihenfolge"
+              onClick={() => handleDayChange('all')}
+              style={selectedDay === 'all' ? styles.dayChipActive : styles.dayChip}
+              type="button"
             >
-              Manuelle Reihenfolge
+              Alle
             </button>
+            {Array.from({ length: eventDays }, (_, i) => i + 1).map((day) => (
+              <button
+                key={day}
+                onClick={() => handleDayChange(day)}
+                style={selectedDay === day ? styles.dayChipActive : styles.dayChip}
+                type="button"
+              >
+                {day}
+              </button>
+            ))}
           </div>
         )}
+
+        <div style={styles.toolbarRight} className={responsiveStyles.toolbarRight}>
+          {sortColumn !== 'manual' && (
+            <button
+              onClick={() => setSortColumn('manual')}
+              style={styles.resetChip}
+              title="Zurück zur manuellen Reihenfolge"
+              type="button"
+            >
+              Sortierung zurücksetzen
+            </button>
+          )}
+          <label style={styles.filterLabel} className={responsiveStyles.filterLabel}>Status</label>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            style={styles.filterSelect}
+            className={responsiveStyles.filterSelect}
+          >
+            <option value="all">Alle</option>
+            <option value="not_started">Nicht gestartet</option>
+            <option value="in_progress">In Arbeit</option>
+            <option value="completed">Erledigt</option>
+            <option value="overdue">Überfällig</option>
+          </select>
+        </div>
       </div>
 
-      {/* Tag-Tabs */}
-      {eventDays && eventDays > 1 && (
-        <div style={styles.dayTabs} className={responsiveStyles.dayTabs}>
-          <button
-            onClick={() => handleDayChange('all')}
-            style={selectedDay === 'all' ? styles.dayTabActive : styles.dayTab}
-            className={selectedDay === 'all' ? responsiveStyles.dayTabActive : responsiveStyles.dayTab}
-          >
-            Alle Tage
-          </button>
-          {Array.from({ length: eventDays }, (_, i) => i + 1).map((day) => (
-            <button
-              key={day}
-              onClick={() => handleDayChange(day)}
-              style={selectedDay === day ? styles.dayTabActive : styles.dayTab}
-              className={selectedDay === day ? responsiveStyles.dayTabActive : responsiveStyles.dayTab}
-            >
-              Tag {day}
-            </button>
-          ))}
-        </div>
-      )}
 
       {sortedTasks.length === 0 ? (
         <div style={styles.noTasks}>
@@ -902,7 +894,7 @@ export const TaskTableView: React.FC<Props> = ({
       )}
     </div>
   );
-};
+});
 
 const styles: { [key: string]: React.CSSProperties } = {
   container: {
@@ -1002,6 +994,64 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   selectedRow: {
     backgroundColor: '#eff6ff',
+  },
+  toolbar: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '0.75rem',
+    flexWrap: 'wrap',
+    padding: '0.5rem 0.625rem',
+    marginBottom: '1rem',
+    backgroundColor: '#F8FAFC',
+    border: '1px solid #E2E8F0',
+    borderRadius: '8px',
+  },
+  dayFilter: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.25rem',
+    flexWrap: 'wrap',
+  },
+  dayChip: {
+    minWidth: '2rem',
+    padding: '0.25rem 0.5rem',
+    backgroundColor: 'transparent',
+    color: '#64748B',
+    border: '1px solid transparent',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '0.8125rem',
+    fontWeight: '500',
+    transition: 'all 0.12s ease',
+  },
+  dayChipActive: {
+    minWidth: '2rem',
+    padding: '0.25rem 0.5rem',
+    backgroundColor: '#FFFFFF',
+    color: '#1E40AF',
+    border: '1px solid #BFDBFE',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '0.8125rem',
+    fontWeight: '600',
+    boxShadow: '0 1px 2px rgba(15, 23, 42, 0.06)',
+  },
+  toolbarRight: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+  },
+  resetChip: {
+    padding: '0.25rem 0.625rem',
+    backgroundColor: '#FFFFFF',
+    color: '#64748B',
+    border: '1px solid #E2E8F0',
+    borderRadius: '9999px',
+    cursor: 'pointer',
+    fontSize: '0.75rem',
+    fontWeight: '500',
+    whiteSpace: 'nowrap',
   },
   filterGroup: {
     display: 'flex',
@@ -1127,13 +1177,17 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: 'white',
   },
   statusSelect: {
-    padding: '0.25rem 0.5rem',
-    borderRadius: '4px',
+    padding: '0.1875rem 1.5rem 0.1875rem 0.625rem',
+    borderRadius: '9999px',
     fontSize: '0.75rem',
-    fontWeight: '500',
+    fontWeight: '600',
     color: 'white',
     border: 'none',
     cursor: 'pointer',
+    // Ohne Deckel richtet sich die Breite nach der längsten Option
+    // ("Nicht gestartet") und die Zelle wird unnötig breit.
+    width: '100%',
+    maxWidth: '8.5rem',
   },
   noAssignments: {
     color: '#9ca3af',
@@ -1181,24 +1235,26 @@ const styles: { [key: string]: React.CSSProperties } = {
     gap: '0.5rem',
   },
   editButton: {
-    padding: '0.375rem 0.75rem',
-    backgroundColor: '#D97706',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
+    padding: '0.3125rem 0.625rem',
+    backgroundColor: 'transparent',
+    color: '#64748B',
+    border: '1px solid #E2E8F0',
+    borderRadius: '6px',
     fontSize: '0.75rem',
     cursor: 'pointer',
     fontWeight: '500',
+    whiteSpace: 'nowrap',
   },
   assignButton: {
-    padding: '0.375rem 0.75rem',
-    backgroundColor: '#1E40AF',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
+    padding: '0.3125rem 0.625rem',
+    backgroundColor: 'transparent',
+    color: '#1E40AF',
+    border: '1px solid #BFDBFE',
+    borderRadius: '6px',
     fontSize: '0.75rem',
     cursor: 'pointer',
-    fontWeight: '500',
+    fontWeight: '600',
+    whiteSpace: 'nowrap',
   },
   deleteButton: {
     padding: '0.375rem 0.75rem',

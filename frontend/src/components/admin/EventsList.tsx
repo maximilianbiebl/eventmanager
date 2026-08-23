@@ -358,22 +358,22 @@ export const EventsList: React.FC = () => {
   return (
     <div>
       <div style={styles.header} className={responsiveStyles.header}>
-        <h2 style={styles.title}>Veranstaltungen</h2>
-        <div style={styles.headerButtons} className={responsiveStyles.headerButtons}>
-          {/* CSV ist eine Nebenfunktion: dezent und als Paar in einer Zeile,
-              damit sie nicht mit den Hauptaktionen konkurriert. */}
-          {(isAdmin || activeTab !== 'templates') && (
+        <div style={styles.titleRow}>
+          <h2 style={styles.title} className={responsiveStyles.title}>Veranstaltungen</h2>
             <div style={styles.csvGroup} className={responsiveStyles.csvGroup}>
-              <button onClick={() => setShowImportModal(true)} style={styles.csvButton} className={responsiveStyles.importButton}>
+              <button onClick={() => setShowImportModal(true)} style={styles.csvButton}>
                 Importieren
               </button>
               <span style={styles.csvDivider} aria-hidden="true" />
-              <button onClick={() => setShowExportModal(true)} style={styles.csvButton} className={responsiveStyles.exportButton}>
+              <button onClick={() => setShowExportModal(true)} style={styles.csvButton}>
                 Exportieren
               </button>
             </div>
-          )}
-          {tabs.some(t => t.id === 'templates' && t.count > 0) && (
+        </div>
+        <div style={styles.headerButtons} className={responsiveStyles.headerButtons}>
+          {/* CSV ist eine Nebenfunktion: dezent und als Paar in einer Zeile,
+              damit sie nicht mit den Hauptaktionen konkurriert. */}
+                    {tabs.some(t => t.id === 'templates' && t.count > 0) && (
             <button
               onClick={() => setShowTemplateModal(true)}
               style={styles.templateButton}
@@ -564,6 +564,12 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: 'bold',
     margin: 0,
   },
+  titleRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.875rem',
+    flexWrap: 'wrap',
+  },
   headerButtons: {
     display: 'flex',
     gap: '0.75rem',
@@ -611,7 +617,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: '2px',
     cursor: 'pointer',
     fontWeight: '500',
-    fontSize: '0.8125rem',
+    fontSize: '0.75rem',
     textDecoration: 'underline',
     textUnderlineOffset: '3px',
     textDecorationColor: '#CBD5E1',

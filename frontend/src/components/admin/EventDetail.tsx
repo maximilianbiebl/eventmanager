@@ -8,7 +8,7 @@ import { useSSE } from '../../hooks/useSSE';
 import { useAuth } from '../../context/AuthContext';
 import { TaskFormModal } from './TaskFormModal';
 import { TaskAssignmentModal } from './TaskAssignmentModal';
-import { TaskTableView } from './TaskTableView';
+import { TaskTableView, TaskTableViewHandle } from './TaskTableView';
 import { TaskSeriesModal } from './TaskSeriesModal';
 import { DuplicateEventModal } from './DuplicateEventModal';
 import { CreateFromTemplateModal } from './CreateFromTemplateModal';
@@ -47,6 +47,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
   // und Mitarbeiterpool ohne Scrollen erreichbar sind.
   const [showDescription, setShowDescription] = useState(false);
   const scrollPositionRef = useRef<number>(0);
+  const tableRef = useRef<TaskTableViewHandle>(null);
 
   useEffect(() => {
     loadData();
@@ -190,108 +191,113 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
 
   return (
     <div>
-      {/* Kopfzeile: Zurück links, Kontext-Aktionen rechts. Auf dem Handy
-          liegen die Aktionen in einem Überlaufmenü - vier ausgeschriebene
-          Buttons haben dort den halben Bildschirm gefüllt. */}
-      <div className={styles.topBar}>
+      {/* Zurück-Zeile: bewusst schmal, sie ist nur Navigation. */}
+      <div className={styles.backRow}>
         <button onClick={onBack} className={styles.backButton}>
           ← Zurück
         </button>
+      </div>
 
-        {event.is_template_suggestion && isAdmin && (
+      {/* Titelzeile: Name, Info-Button und Aktionen teilen sich eine Zeile.
+          Die Beschreibung hängt am "i" statt eine eigene Zeile zu belegen. */}
+      <div className={styles.titleRow}>
+        <h2 className={styles.title}>{event.name}</h2>
+
+        {event.description && (
           <button
-            onClick={handleApproveSuggestion}
-            className={styles.approveButton}
-            title="Vorschlag als Vorlage annehmen"
+            onClick={() => setShowDescription(v => !v)}
+            className={showDescription ? styles.infoButtonActive : styles.infoButton}
+            aria-expanded={showDescription}
+            aria-label="Beschreibung anzeigen"
+            title="Beschreibung anzeigen"
+            type="button"
           >
-            Annehmen
+            i
           </button>
         )}
 
-        <div className={styles.actionMenu}>
-          <button
-            onClick={() => setShowActions(v => !v)}
-            className={styles.actionMenuToggle}
-            aria-expanded={showActions}
-            aria-haspopup="true"
-          >
-            Aktionen
-          </button>
-          {showActions && (
-            <>
-              <div className={styles.menuBackdrop} onClick={() => setShowActions(false)} />
-              <div className={styles.actionMenuList} role="menu">
-                {isAdmin && (
-                  <>
-                    <button
-                      onClick={() => { setShowActions(false); handleToggleTemplate(); }}
-                      className={styles.actionMenuItem}
-                      role="menuitem"
-                    >
-                      {event.is_template ? 'Vorlage → Event' : 'Als Vorlage'}
-                    </button>
-                    {!event.is_template && (
+        <div className={styles.titleRowActions}>
+          {event.is_template_suggestion && isAdmin && (
+            <button
+              onClick={handleApproveSuggestion}
+              className={styles.approveButton}
+              title="Vorschlag als Vorlage annehmen"
+            >
+              Annehmen
+            </button>
+          )}
+
+          <div className={styles.actionMenu}>
+            <button
+              onClick={() => setShowActions(v => !v)}
+              className={styles.actionMenuToggle}
+              aria-expanded={showActions}
+              aria-haspopup="true"
+              type="button"
+            >
+              Aktionen
+            </button>
+            {showActions && (
+              <>
+                <div className={styles.menuBackdrop} onClick={() => setShowActions(false)} />
+                <div className={styles.actionMenuList} role="menu">
+                  {isAdmin && (
+                    <>
                       <button
-                        onClick={() => { setShowActions(false); handleCopyToTemplate(); }}
+                        onClick={() => { setShowActions(false); handleToggleTemplate(); }}
                         className={styles.actionMenuItem}
                         role="menuitem"
                       >
-                        Kopie als Vorlage
+                        {event.is_template ? 'Vorlage → Event' : 'Als Vorlage'}
                       </button>
-                    )}
-                  </>
-                )}
-                {(isAdmin || (isTeamleiter && !event.is_template)) && (
-                  <button
-                    onClick={() => { setShowActions(false); setShowEditModal(true); }}
-                    className={styles.actionMenuItem}
-                    role="menuitem"
-                  >
-                    Bearbeiten
-                  </button>
-                )}
-                {event.is_template && (
-                  <button
-                    onClick={() => { setShowActions(false); setShowTemplateModal(true); }}
-                    className={styles.actionMenuItem}
-                    role="menuitem"
-                  >
-                    Vorlage verwenden
-                  </button>
-                )}
-                {(isAdmin || (isTeamleiter && !event.is_template)) && (
-                  <button
-                    onClick={() => { setShowActions(false); setShowDuplicateModal(true); }}
-                    className={styles.actionMenuItem}
-                    role="menuitem"
-                  >
-                    Duplizieren
-                  </button>
-                )}
-              </div>
-            </>
-          )}
+                      {!event.is_template && (
+                        <button
+                          onClick={() => { setShowActions(false); handleCopyToTemplate(); }}
+                          className={styles.actionMenuItem}
+                          role="menuitem"
+                        >
+                          Kopie als Vorlage
+                        </button>
+                      )}
+                    </>
+                  )}
+                  {(isAdmin || (isTeamleiter && !event.is_template)) && (
+                    <button
+                      onClick={() => { setShowActions(false); setShowEditModal(true); }}
+                      className={styles.actionMenuItem}
+                      role="menuitem"
+                    >
+                      Bearbeiten
+                    </button>
+                  )}
+                  {event.is_template && (
+                    <button
+                      onClick={() => { setShowActions(false); setShowTemplateModal(true); }}
+                      className={styles.actionMenuItem}
+                      role="menuitem"
+                    >
+                      Vorlage verwenden
+                    </button>
+                  )}
+                  {(isAdmin || (isTeamleiter && !event.is_template)) && (
+                    <button
+                      onClick={() => { setShowActions(false); setShowDuplicateModal(true); }}
+                      className={styles.actionMenuItem}
+                      role="menuitem"
+                    >
+                      Duplizieren
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
-      <div className={styles.eventHeader}>
-        <h2 className={styles.title}>{event.name}</h2>
-        {event.description && (
-          <div className={styles.descriptionBlock}>
-            <button
-              onClick={() => setShowDescription(v => !v)}
-              className={styles.descriptionToggle}
-              aria-expanded={showDescription}
-            >
-              <span className={showDescription ? styles.caretOpen : styles.caret} aria-hidden="true">›</span>
-              Beschreibung
-            </button>
-            {showDescription && (
-              <p className={styles.description}>{event.description}</p>
-            )}
-          </div>
-        )}
-      </div>
+      {showDescription && event.description && (
+        <p className={styles.description}>{event.description}</p>
+      )}
 
       {/* Durchführungen nur zeigen, wenn es wirklich mehrere gibt - bei
           einer einzigen ist die Auswahl reine Platzverschwendung. */}
@@ -326,7 +332,22 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
 
       <div className={styles.section}>
         <div className={styles.sectionHeader}>
-          <h3>Aufgaben</h3>
+          <div className={styles.sectionTitleRow}>
+            <h3>Aufgaben</h3>
+            {/* CSV steht neben der Überschrift, nicht darunter. Die Modals
+                leben in TaskTableView, damit die Auswahl beim Export zählt. */}
+            {(isAdmin || (isTeamleiter && !event.is_template)) && (
+              <div className={styles.csvGroup}>
+                <button onClick={() => tableRef.current?.openImport()} className={styles.csvButton} type="button">
+                  Importieren
+                </button>
+                <span className={styles.csvDivider} aria-hidden="true" />
+                <button onClick={() => tableRef.current?.openExport()} className={styles.csvButton} type="button">
+                  Exportieren
+                </button>
+              </div>
+            )}
+          </div>
           <div className={styles.headerActions}>
             <div className={styles.viewToggle}>
               <button
@@ -411,6 +432,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
         {selectedInstance && (
           <div style={{ display: viewMode === 'table' ? 'block' : 'none' }}>
             <TaskTableView
+              ref={tableRef}
               eventInstanceId={selectedInstance}
               onEditTask={handleEditTask}
               onAssignTask={handleAssignTask}
@@ -876,7 +898,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
             fontWeight: '500'
           }}
         >
-          Manuell {sortBy === 'manual' ? '📌' : ''}
+          Manuell
         </button>
         <button
           onClick={() => {
@@ -1061,26 +1083,26 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                   {task.scheduled_time && (
                     <div className={styles.timeItem}>
                       <span className={styles.timeLabel}>⏰ Geplant:</span>
-                      <span className={styles.timeValue}>{task.scheduled_time} Uhr</span>
+                      <span className={styles.timeValue}>{task.scheduled_time.slice(0, 5)} Uhr</span>
                     </div>
                   )}
                   {task.start_time && (
                     <div className={styles.timeItem}>
-                      <span className={styles.timeLabel}>🚀 Start:</span>
-                      <span className={styles.timeValue}>{task.start_time} Uhr</span>
+                      <span className={styles.timeLabel}>Start:</span>
+                      <span className={styles.timeValue}>{task.start_time.slice(0, 5)} Uhr</span>
                     </div>
                   )}
                   {task.end_time && (
                     <div className={styles.timeItem}>
-                      <span className={styles.timeLabel}>🏁 Ende:</span>
-                      <span className={styles.timeValue}>{task.end_time} Uhr</span>
+                      <span className={styles.timeLabel}>Ende:</span>
+                      <span className={styles.timeValue}>{task.end_time.slice(0, 5)} Uhr</span>
                     </div>
                   )}
                 </div>
 
                 {taskAssignments.length > 0 ? (
                   <div className={styles.assignmentsSection}>
-                    <span className={styles.assignmentsLabel}>👥 Zugewiesen an:</span>
+                    <span className={styles.assignmentsLabel}>Zugewiesen an:</span>
                     <div className={styles.assignmentsList}>
                       {taskAssignments.map((assignment, idx) => (
                         <span key={idx} className={styles.assignmentBadge}>
@@ -1092,7 +1114,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                   </div>
                 ) : task.series_id && seriesMembers[task.series_id]?.length > 0 ? (
                   <div className={styles.assignmentsSection}>
-                    <span className={styles.assignmentsLabel}>👥 Serien-Team:</span>
+                    <span className={styles.assignmentsLabel}>Serien-Team:</span>
                     <div className={styles.assignmentsList}>
                       {seriesMembers[task.series_id].map((member, idx) => (
                         <span key={idx} className={styles.assignmentBadge} style={{ backgroundColor: '#dbeafe', color: '#1e40af' }}>

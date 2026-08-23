@@ -1,3 +1,15 @@
+/* Die Tab-Leiste darf bei schmalen Fenstern seitlich scrollen, aber die
+   System-Scrollleiste (zwei Pfeil-Dreiecke plus Ziehpunkt) hat darunter
+   sichtbar gestört. Scrollen bleibt, die Leiste wird ausgeblendet. */
+.tabsDesktop {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.tabsDesktop::-webkit-scrollbar {
+  display: none;
+}
+
 /* Desktop: Show tabs, hide dropdown */
 .tabsDesktop {
   display: flex;
@@ -8,6 +20,13 @@
 }
 
 @media (max-width: 640px) {
+  /* Kleinere Überschrift, damit Importieren/Exportieren daneben passen
+     statt in eine eigene Zeile zu rutschen (gemessen: 354px Bedarf bei
+     326px Platz - mit 20px Schrift passt es). */
+  .title {
+    font-size: 1.25rem !important;
+  }
+
   .header {
     flex-direction: column !important;
     align-items: stretch !important;

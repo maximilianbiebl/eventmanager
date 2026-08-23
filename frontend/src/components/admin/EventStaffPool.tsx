@@ -659,11 +659,11 @@ const TaskListModal: React.FC<TaskListModalProps> = ({ staff, tasks, onClose, on
             ...styles.submitButton,
             backgroundColor: '#D97706',
           }}>
-            🔄 Mitarbeiter austauschen
+            Mitarbeiter austauschen
           </button>
           <div style={{display: 'flex', gap: '0.75rem'}}>
             <button onClick={() => setShowAssignModal(true)} style={styles.submitButton}>
-              + Zuweisen
+              Zuweisen
             </button>
             <button onClick={onClose} style={styles.cancelButton}>
               Schließen

@@ -160,19 +160,21 @@ export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvent }) =
       )}
 
       <div style={styles.header} className={responsiveStyles.header}>
-        <h2 style={styles.title}>Mitarbeiter</h2>
-        <div style={styles.headerButtons} className={responsiveStyles.headerButtons}>
-          {/* CSV als dezente Nebenfunktion in einer Zeile - wie in der
-              Veranstaltungsübersicht, damit beide Seiten gleich funktionieren. */}
+        <div style={styles.titleRow}>
+          <h2 style={styles.title} className={responsiveStyles.title}>Mitarbeiter</h2>
           <div style={styles.csvGroup} className={responsiveStyles.csvGroup}>
-            <button onClick={() => setShowImportModal(true)} style={styles.csvButton} className={responsiveStyles.importButton}>
+            <button onClick={() => setShowImportModal(true)} style={styles.csvButton}>
               Importieren
             </button>
             <span style={styles.csvDivider} aria-hidden="true" />
-            <button onClick={() => setShowExportModal(true)} style={styles.csvButton} className={responsiveStyles.exportButton}>
+            <button onClick={() => setShowExportModal(true)} style={styles.csvButton}>
               Exportieren
             </button>
           </div>
+        </div>
+        <div style={styles.headerButtons} className={responsiveStyles.headerButtons}>
+          {/* CSV als dezente Nebenfunktion in einer Zeile - wie in der
+              Veranstaltungsübersicht, damit beide Seiten gleich funktionieren. */}
           <button onClick={() => setShowCreateModal(true)} style={styles.createButton} className={responsiveStyles.primaryButton}>
             Neuer Mitarbeiter
           </button>
@@ -310,6 +312,12 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: 'bold',
     margin: 0,
   },
+  titleRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.875rem',
+    flexWrap: 'wrap',
+  },
   headerButtons: {
     display: 'flex',
     gap: '0.75rem',
@@ -332,7 +340,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: '2px',
     cursor: 'pointer',
     fontWeight: '500',
-    fontSize: '0.8125rem',
+    fontSize: '0.75rem',
     textDecoration: 'underline',
     textUnderlineOffset: '3px',
     textDecorationColor: '#CBD5E1',

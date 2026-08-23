@@ -828,3 +828,132 @@
   gap: 0.5rem;
   align-items: center;
 }
+
+/* ---- Kopfbereich: Zurück-Zeile, dann Titelzeile -------------------------- */
+
+.backRow {
+  margin-bottom: 0.5rem;
+}
+
+/* Name, Info-Button und Aktionen in EINER Zeile. */
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #E2E8F0;
+}
+
+.titleRow .title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.titleRowActions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+/* Beschreibung hängt an diesem Knopf, statt eine eigene Zeile zu belegen. */
+.infoButton,
+.infoButtonActive {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border-radius: 9999px;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  font-style: italic;
+  line-height: 1;
+  transition: all 0.15s ease;
+}
+
+.infoButton {
+  background-color: transparent;
+  color: #94A3B8;
+  border: 1px solid #CBD5E1;
+}
+
+.infoButton:hover {
+  color: #1E40AF;
+  border-color: #BFDBFE;
+  background-color: #EFF6FF;
+}
+
+.infoButtonActive {
+  background-color: #1E40AF;
+  color: #FFFFFF;
+  border: 1px solid #1E40AF;
+}
+
+.titleRow + .description {
+  margin: -0.25rem 0 1.25rem;
+  padding: 0.75rem 0.875rem;
+  background-color: #F8FAFC;
+  border-left: 3px solid #CBD5E1;
+  border-radius: 0 6px 6px 0;
+  font-size: 0.875rem;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 640px) {
+  .titleRow .title {
+    font-size: 1.25rem;
+  }
+}
+
+/* Überschrift und CSV in einer Zeile */
+.sectionTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  flex-wrap: wrap;
+}
+
+.sectionTitleRow h3 {
+  margin: 0;
+}
+
+.csvGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.csvButton {
+  padding: 0.25rem 0.125rem;
+  background-color: transparent;
+  color: #64748B;
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.8125rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: #CBD5E1;
+  transition: color 0.15s ease;
+}
+
+.csvButton:hover {
+  color: #1E40AF;
+  text-decoration-color: #1E40AF;
+}
+
+.csvDivider {
+  width: 1px;
+  height: 0.875rem;
+  background-color: #E2E8F0;
+}
