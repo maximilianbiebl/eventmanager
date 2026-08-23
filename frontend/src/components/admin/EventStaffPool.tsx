@@ -32,6 +32,24 @@ export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
+  // Aufklappzustand überdauert Reloads: wer den Pool offen lässt, findet ihn
+  // offen wieder - er schliesst sich nur, wenn man ihn selbst zuklappt.
+  const [expanded, setExpanded] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('staffPoolExpanded') !== 'false';
+    } catch {
+      return true;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('staffPoolExpanded', String(expanded));
+    } catch {
+      /* privater Modus o.ä. - dann eben ohne Merken */
+    }
+  }, [expanded]);
   const [selectedStaffForTasks, setSelectedStaffForTasks] = useState<EventStaff | null>(null);
   const [staffTasks, setStaffTasks] = useState<StaffTask[]>([]);
 
@@ -213,17 +231,40 @@ export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <div>
-          <h3 style={styles.title}>Event-Mitarbeiter Pool</h3>
-          <p style={styles.subtitle}>
-            Nur diese Mitarbeiter können Aufgaben für dieses Event zugewiesen werden
-          </p>
-        </div>
-        <button onClick={() => setShowAddModal(true)} style={styles.addButton}>
-          + Mitarbeiter hinzufügen
+        <button
+          onClick={() => setExpanded(!expanded)}
+          style={styles.headerToggle}
+          aria-expanded={expanded}
+        >
+          <span style={{ ...styles.caret, transform: expanded ? 'rotate(90deg)' : 'none' }} aria-hidden="true">›</span>
+          <h3 style={styles.title}>Mitarbeiter-Pool</h3>
+          <span style={styles.count}>{eventStaff.length}</span>
+          {/* Erklärung nur auf Nachfrage, statt dauerhaft Platz zu belegen */}
+          <span
+            style={styles.infoIcon}
+            title="Nur diese Mitarbeiter können Aufgaben für dieses Event zugewiesen bekommen."
+            onClick={(e) => { e.stopPropagation(); setShowInfo(!showInfo); }}
+            role="button"
+            aria-label="Was ist der Mitarbeiter-Pool?"
+          >
+            i
+          </span>
         </button>
+        {expanded && (
+          <button onClick={() => setShowAddModal(true)} style={styles.addButton}>
+            Mitarbeiter hinzufügen
+          </button>
+        )}
       </div>
 
+      {showInfo && (
+        <p style={styles.infoText}>
+          Nur diese Mitarbeiter können Aufgaben für dieses Event zugewiesen bekommen.
+        </p>
+      )}
+
+      {!expanded ? null : (
+      <>
       {error && <div style={styles.error}>{error}</div>}
 
       {eventStaff.length === 0 ? (
@@ -264,6 +305,9 @@ export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
             </div>
           ))}
         </div>
+      )}
+
+      </>
       )}
 
       {showAddModal && (
@@ -986,14 +1030,72 @@ const styles: { [key: string]: React.CSSProperties } = {
   header: {
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: '1.5rem',
+    alignItems: 'center',
+    gap: '0.75rem',
+    flexWrap: 'wrap',
+    marginBottom: '1rem',
+  },
+  headerToggle: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    padding: '0.25rem 0.5rem',
+    marginLeft: '-0.5rem',
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    borderRadius: '4px',
+    transition: 'background-color 0.12s ease',
+  },
+  caret: {
+    display: 'inline-block',
+    fontSize: '1.125rem',
+    lineHeight: 1,
+    color: '#94A3B8',
+    transition: 'transform 0.15s ease',
+  },
+  count: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: '1.375rem',
+    height: '1.375rem',
+    padding: '0 0.375rem',
+    borderRadius: '9999px',
+    backgroundColor: '#F1F5F9',
+    color: '#64748B',
+    fontSize: '0.75rem',
+    fontWeight: '600',
+  },
+  infoIcon: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '1.125rem',
+    height: '1.125rem',
+    borderRadius: '9999px',
+    border: '1px solid #CBD5E1',
+    color: '#94A3B8',
+    fontSize: '0.6875rem',
+    fontWeight: '700',
+    fontStyle: 'italic',
+    cursor: 'help',
+    lineHeight: 1,
+  },
+  infoText: {
+    margin: '0 0 1rem',
+    padding: '0.625rem 0.75rem',
+    backgroundColor: '#F8FAFC',
+    borderLeft: '3px solid #CBD5E1',
+    borderRadius: '0 4px 4px 0',
+    fontSize: '0.8125rem',
+    color: '#64748B',
   },
   title: {
-    fontSize: '1.25rem',
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: '0.25rem',
+    fontSize: '1.0625rem',
+    fontWeight: '600',
+    color: '#1E293B',
+    margin: 0,
   },
   subtitle: {
     fontSize: '0.875rem',
@@ -1001,14 +1103,16 @@ const styles: { [key: string]: React.CSSProperties } = {
     margin: 0,
   },
   addButton: {
-    padding: '0.5rem 1rem',
-    backgroundColor: '#1E40AF',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
+    padding: '0.4375rem 0.875rem',
+    backgroundColor: 'transparent',
+    color: '#1E40AF',
+    border: '1px solid #BFDBFE',
+    borderRadius: '6px',
     cursor: 'pointer',
-    fontSize: '0.875rem',
-    fontWeight: '500',
+    fontSize: '0.8125rem',
+    fontWeight: '600',
+    whiteSpace: 'nowrap',
+    transition: 'background-color 0.15s ease, border-color 0.15s ease',
   },
   loading: {
     padding: '2rem',

@@ -108,19 +108,8 @@ export const CreateEventModal: React.FC<Props> = ({ onClose, onSuccess }) => {
               required
             />
           </div>
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Anzahl Durchführungen *</label>
-            <input
-              type="number"
-              min="1"
-              value={formData.instance_count}
-              onChange={(e) =>
-                setFormData({ ...formData, instance_count: parseInt(e.target.value) })
-              }
-              style={styles.input}
-              required
-            />
-          </div>
+          {/* "Anzahl Durchführungen" entfernt - Altlast. instance_count bleibt
+              fest auf 1, damit der Backend-Vertrag unverändert bleibt. */}
           {teamleiter.length > 0 && (
             <div style={styles.formGroup}>
               <label style={styles.label}>Co-Teamleiter (optional)</label>

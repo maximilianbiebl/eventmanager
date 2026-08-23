@@ -499,13 +499,12 @@ export const TaskTableView: React.FC<Props> = ({
                   CSV ist eine Nebenfunktion - gleiche schlichte Darstellung
                   wie in der Veranstaltungs- und Mitarbeiterübersicht. */}
               <div style={styles.csvGroup}>
-                <span style={styles.csvLabel}>CSV</span>
-                <button onClick={() => setShowImportModal(true)} style={styles.csvButton}>
-                  Import
+                  <button onClick={() => setShowImportModal(true)} style={styles.csvButton}>
+                  Importieren
                 </button>
                 <span style={styles.csvDivider} aria-hidden="true" />
                 <button onClick={() => setShowExportModal(true)} style={styles.csvButton}>
-                  Export
+                  Exportieren
                 </button>
               </div>
             </>
@@ -546,7 +545,7 @@ export const TaskTableView: React.FC<Props> = ({
       )}
 
       <div style={styles.filterGroup} className={responsiveStyles.filterGroup}>
-        <label style={styles.filterLabel} className={responsiveStyles.filterLabel}>Status:</label>
+        <label style={styles.filterLabel} className={responsiveStyles.filterLabel}>Status</label>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
@@ -559,17 +558,21 @@ export const TaskTableView: React.FC<Props> = ({
           <option value="completed">Erledigt</option>
           <option value="overdue">Überfällig</option>
         </select>
-        <span style={{ fontSize: '0.875rem', color: '#6b7280', marginLeft: '1rem' }} className={responsiveStyles.sortIndicator}>
-          {sortColumn === 'manual' ? '📌 Manuelle Sortierung aktiv' : '⚠️ Spalten-Sortierung aktiv'}
-          {sortColumn !== 'manual' && (
+
+        {/* Sortier-Hinweis und Rücksprung teilen sich die Zeile mit dem
+            Filter - dafür war rechts ohnehin Platz frei. */}
+        {sortColumn !== 'manual' && (
+          <div style={styles.sortNotice} className={responsiveStyles.sortIndicator}>
+            <span style={styles.sortNoticeText}>Spalten-Sortierung aktiv</span>
             <button
               onClick={() => setSortColumn('manual')}
-              style={{ marginLeft: '0.5rem', padding: '0.25rem 0.5rem', fontSize: '0.75rem', cursor: 'pointer' }}
+              style={styles.sortResetButton}
+              title="Zurück zur manuellen Reihenfolge"
             >
-              Zurück zu manueller Sortierung
+              Manuelle Reihenfolge
             </button>
-          )}
-        </span>
+          </div>
+        )}
       </div>
 
       {/* Tag-Tabs */}
@@ -930,13 +933,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     gap: '0.5rem',
   },
-  csvLabel: {
-    fontSize: '0.75rem',
-    fontWeight: '600',
-    letterSpacing: '0.04em',
-    color: '#94A3B8',
-    textTransform: 'uppercase',
-  },
   csvButton: {
     padding: '0.25rem 0.125rem',
     backgroundColor: 'transparent',
@@ -1011,17 +1007,46 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     alignItems: 'center',
     gap: '0.5rem',
+    flexWrap: 'wrap',
+    marginBottom: '1rem',
   },
   filterLabel: {
-    fontSize: '0.875rem',
-    fontWeight: '500',
-    color: '#6b7280',
+    fontSize: '0.75rem',
+    fontWeight: '600',
+    letterSpacing: '0.04em',
+    textTransform: 'uppercase',
+    color: '#94A3B8',
   },
   filterSelect: {
-    padding: '0.5rem',
-    border: '1px solid #d1d5db',
-    borderRadius: '4px',
-    fontSize: '0.875rem',
+    padding: '0.3125rem 1.75rem 0.3125rem 0.625rem',
+    border: '1px solid #E2E8F0',
+    borderRadius: '6px',
+    fontSize: '0.8125rem',
+    fontWeight: '500',
+    color: '#1E293B',
+    backgroundColor: '#FFFFFF',
+    cursor: 'pointer',
+  },
+  sortNotice: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    marginLeft: 'auto',
+  },
+  sortNoticeText: {
+    fontSize: '0.75rem',
+    color: '#94A3B8',
+  },
+  sortResetButton: {
+    padding: '0.3125rem 0.625rem',
+    backgroundColor: 'transparent',
+    color: '#64748B',
+    border: '1px solid #E2E8F0',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '0.75rem',
+    fontWeight: '500',
+    whiteSpace: 'nowrap',
   },
   loading: {
     padding: '2rem',

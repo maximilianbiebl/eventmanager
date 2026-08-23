@@ -364,13 +364,12 @@ export const EventsList: React.FC = () => {
               damit sie nicht mit den Hauptaktionen konkurriert. */}
           {(isAdmin || activeTab !== 'templates') && (
             <div style={styles.csvGroup} className={responsiveStyles.csvGroup}>
-              <span style={styles.csvLabel}>CSV</span>
               <button onClick={() => setShowImportModal(true)} style={styles.csvButton} className={responsiveStyles.importButton}>
-                Import
+                Importieren
               </button>
               <span style={styles.csvDivider} aria-hidden="true" />
               <button onClick={() => setShowExportModal(true)} style={styles.csvButton} className={responsiveStyles.exportButton}>
-                Export
+                Exportieren
               </button>
             </div>
           )}
@@ -603,13 +602,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     alignItems: 'center',
     gap: '0.5rem',
-  },
-  csvLabel: {
-    fontSize: '0.75rem',
-    fontWeight: '600',
-    letterSpacing: '0.04em',
-    color: '#94A3B8',
-    textTransform: 'uppercase',
   },
   csvButton: {
     padding: '0.25rem 0.125rem',

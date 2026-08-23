@@ -42,6 +42,10 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
   const [manualRefreshTrigger, setManualRefreshTrigger] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [showSeriesModal, setShowSeriesModal] = useState(false);
+  const [showActions, setShowActions] = useState(false);
+  // Beschreibungen sind oft lang - eingeklappt starten, damit Aufgaben
+  // und Mitarbeiterpool ohne Scrollen erreichbar sind.
+  const [showDescription, setShowDescription] = useState(false);
   const scrollPositionRef = useRef<number>(0);
 
   useEffect(() => {
@@ -186,83 +190,132 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
 
   return (
     <div>
+      {/* Kopfzeile: Zurück links, Kontext-Aktionen rechts. Auf dem Handy
+          liegen die Aktionen in einem Überlaufmenü - vier ausgeschriebene
+          Buttons haben dort den halben Bildschirm gefüllt. */}
       <div className={styles.topBar}>
         <button onClick={onBack} className={styles.backButton}>
           ← Zurück
         </button>
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          {isAdmin && (
+
+        {event.is_template_suggestion && isAdmin && (
+          <button
+            onClick={handleApproveSuggestion}
+            className={styles.approveButton}
+            title="Vorschlag als Vorlage annehmen"
+          >
+            Annehmen
+          </button>
+        )}
+
+        <div className={styles.actionMenu}>
+          <button
+            onClick={() => setShowActions(v => !v)}
+            className={styles.actionMenuToggle}
+            aria-expanded={showActions}
+            aria-haspopup="true"
+          >
+            Aktionen
+          </button>
+          {showActions && (
             <>
-              {event.is_template_suggestion && (
-                <button
-                  onClick={handleApproveSuggestion}
-                  className={styles.approveButton}
-                  title="Vorschlag als Vorlage annehmen"
-                >
-                  Annehmen
-                </button>
-              )}
-              <button
-                onClick={handleToggleTemplate}
-                className={styles.toggleTemplateButton}
-                title={event.is_template ? 'Als normales Event markieren' : 'Als Vorlage markieren'}
-              >
-                {event.is_template ? 'Vorlage → Event' : 'Als Vorlage'}
-              </button>
-              {!event.is_template && (
-                <button
-                  onClick={handleCopyToTemplate}
-                  className={styles.copyTemplateButton}
-                  title="Kopie als Vorlage erstellen (ohne Zuweisungen/Datum)"
-                >
-                  Kopie als Vorlage
-                </button>
-              )}
+              <div className={styles.menuBackdrop} onClick={() => setShowActions(false)} />
+              <div className={styles.actionMenuList} role="menu">
+                {isAdmin && (
+                  <>
+                    <button
+                      onClick={() => { setShowActions(false); handleToggleTemplate(); }}
+                      className={styles.actionMenuItem}
+                      role="menuitem"
+                    >
+                      {event.is_template ? 'Vorlage → Event' : 'Als Vorlage'}
+                    </button>
+                    {!event.is_template && (
+                      <button
+                        onClick={() => { setShowActions(false); handleCopyToTemplate(); }}
+                        className={styles.actionMenuItem}
+                        role="menuitem"
+                      >
+                        Kopie als Vorlage
+                      </button>
+                    )}
+                  </>
+                )}
+                {(isAdmin || (isTeamleiter && !event.is_template)) && (
+                  <button
+                    onClick={() => { setShowActions(false); setShowEditModal(true); }}
+                    className={styles.actionMenuItem}
+                    role="menuitem"
+                  >
+                    Bearbeiten
+                  </button>
+                )}
+                {event.is_template && (
+                  <button
+                    onClick={() => { setShowActions(false); setShowTemplateModal(true); }}
+                    className={styles.actionMenuItem}
+                    role="menuitem"
+                  >
+                    Vorlage verwenden
+                  </button>
+                )}
+                {(isAdmin || (isTeamleiter && !event.is_template)) && (
+                  <button
+                    onClick={() => { setShowActions(false); setShowDuplicateModal(true); }}
+                    className={styles.actionMenuItem}
+                    role="menuitem"
+                  >
+                    Duplizieren
+                  </button>
+                )}
+              </div>
             </>
           )}
-          {/* Bearbeiten - aber nicht für Teamleiter bei Vorlagen */}
-          {(isAdmin || (isTeamleiter && !event.is_template)) && (
-            <button onClick={() => setShowEditModal(true)} className={styles.editButton}>
-              Bearbeiten
-            </button>
-          )}
-          {/* Vorlage verwenden - bei Vorlagen */}
-          {event.is_template && (
-            <button onClick={() => setShowTemplateModal(true)} className={styles.templateUseButton}>
-              Vorlage verwenden
-            </button>
-          )}
-          {/* Event duplizieren - für Admin immer, für Teamleiter nur bei nicht-Vorlagen */}
-          {(isAdmin || (isTeamleiter && !event.is_template)) && (
-            <button onClick={() => setShowDuplicateModal(true)} className={styles.duplicateButton}>
-              Duplizieren
-            </button>
-          )}
         </div>
       </div>
 
-      <h2 className={styles.title}>{event.name}</h2>
-      {event.description && <p className={styles.description}>{event.description}</p>}
-
-      <div className={styles.section}>
-        <h3>Durchführungen</h3>
-        <div className={styles.instances}>
-          {(event as any).instances.map((instance: any) => {
-            const date = instance.start_date ? new Date(instance.start_date) : null;
-            const isValidDate = date && !isNaN(date.getTime()) && date.getFullYear() >= 2000;
-            return (
-              <button
-                key={instance.id}
-                onClick={() => setSelectedInstance(instance.id)}
-                className={selectedInstance === instance.id ? styles.instanceActive : styles.instance}
-              >
-                #{instance.instance_number}
-                {isValidDate ? ` - ${date.toLocaleDateString('de-DE')}` : ' - Vorlage'}
-              </button>
-            );
-          })}
-        </div>
+      <div className={styles.eventHeader}>
+        <h2 className={styles.title}>{event.name}</h2>
+        {event.description && (
+          <div className={styles.descriptionBlock}>
+            <button
+              onClick={() => setShowDescription(v => !v)}
+              className={styles.descriptionToggle}
+              aria-expanded={showDescription}
+            >
+              <span className={showDescription ? styles.caretOpen : styles.caret} aria-hidden="true">›</span>
+              Beschreibung
+            </button>
+            {showDescription && (
+              <p className={styles.description}>{event.description}</p>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Durchführungen nur zeigen, wenn es wirklich mehrere gibt - bei
+          einer einzigen ist die Auswahl reine Platzverschwendung. */}
+      {(event as any).instances.length > 1 && (
+        <div className={styles.section}>
+          <h3>Durchführungen</h3>
+          <div className={styles.instances}>
+            {(event as any).instances.map((instance: any) => {
+              const date = instance.start_date ? new Date(instance.start_date) : null;
+              const isValidDate = date && !isNaN(date.getTime()) && date.getFullYear() >= 2000;
+              return (
+                <button
+                  key={instance.id}
+                  onClick={() => setSelectedInstance(instance.id)}
+                  className={selectedInstance === instance.id ? styles.instanceActive : styles.instance}
+                >
+                  #{instance.instance_number}
+                  {isValidDate ? ` - ${date.toLocaleDateString('de-DE')}` : ' - Vorlage'}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Teamleiter sehen Mitarbeiterpool bei Vorlagen nicht */}
       {(isAdmin || !event.is_template) && (
@@ -311,7 +364,9 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
             </div>
             {/* Nur Admins und Teamleiter können Aufgaben erstellen, Teamleiter aber nicht bei Vorlagen */}
             {(isAdmin || (isTeamleiter && !event.is_template)) && (
-              <>
+              /* Eigene Zeile: im gemeinsamen Container mit dem 100% breiten
+                 Umschalter brach der Flex-Umbruch die beiden auseinander. */
+              <div className={styles.taskActions}>
                 <button
                   onClick={() => setShowSeriesModal(true)}
                   className={styles.secondaryButton}
@@ -322,7 +377,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
                 <button onClick={handleCreateTask} className={styles.addButton}>
                   Neue Aufgabe
                 </button>
-              </>
+              </div>
             )}
           </div>
         </div>
