@@ -162,11 +162,6 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
     }
   };
 
-  const handleDayChange = (day: number) => {
-    setSelectedDay(day);
-    // No reload needed - filter client-side
-  };
-
   const handleViewModeChange = (newMode: 'list' | 'table') => {
     // Save current scroll position
     scrollPositionRef.current = window.scrollY;
@@ -179,10 +174,8 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
       window.scrollTo(0, scrollPositionRef.current);
     });
 
-    // If switching to list view, ensure a valid day is selected
-    if (newMode === 'list' && selectedDay === 'all') {
-      setSelectedDay(1);
-    }
+    // "Alle Tage" ist jetzt auch in der Listenansicht gültig - kein
+    // erzwungener Sprung auf Tag 1 mehr.
   };
 
   if (loading) {
@@ -403,24 +396,11 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
           </div>
         </div>
 
-        {/* Tag-Tabs - nur für List-Ansicht */}
-        {event && event.days > 0 && viewMode === 'list' && (
-          <div className={styles.dayTabs}>
-            {Array.from({ length: event.days }, (_, i) => i + 1).map((day) => (
-              <button
-                key={day}
-                onClick={() => handleDayChange(day)}
-                className={selectedDay === day ? styles.dayTabActive : styles.dayTab}
-              >
-                Tag {day}
-              </button>
-            ))}
-          </div>
-        )}
-
         <div style={{ display: viewMode === 'list' ? 'block' : 'none' }}>
           <TaskListView
             selectedDay={selectedDay}
+            eventDays={event?.days}
+            onDayChange={setSelectedDay}
             selectedInstance={selectedInstance}
             onEditTask={handleEditTask}
             onAssignTask={handleAssignTask}
@@ -545,6 +525,8 @@ interface TaskListViewProps {
   event?: any; // Für overdue check
   manualRefreshTrigger?: number;
   readOnly?: boolean;
+  eventDays?: number;
+  onDayChange?: (day: number | 'all') => void;
 }
 
 const TaskListView: React.FC<TaskListViewProps> = ({
@@ -555,11 +537,15 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   event,
   manualRefreshTrigger,
   readOnly = false,
+  eventDays,
+  onDayChange,
 }) => {
   const [assignments, setAssignments] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [successMessage, setSuccessMessage] = React.useState('');
   const [sortBy, setSortBy] = React.useState<'manual' | 'time' | 'title' | 'status'>('manual');
+  // Gleicher Filter wie in der Tabellenansicht, damit beide gleich bedienbar sind.
+  const [statusFilter, setStatusFilter] = React.useState<string>('all');
   const [sortDirection, setSortDirection] = React.useState<'asc' | 'desc'>('asc');
   const [expandedDescriptions, setExpandedDescriptions] = React.useState<Set<number>>(new Set());
   const pendingActionsRef = React.useRef<number>(0);
@@ -806,9 +792,12 @@ const TaskListView: React.FC<TaskListViewProps> = ({
 
   // Filter by selected day
   const filteredTasks = React.useMemo(() => {
-    if (selectedDay === 'all') return uniqueTasks;
-    return uniqueTasks.filter(t => t.day_number === selectedDay);
-  }, [uniqueTasks, selectedDay]);
+    const byDay = selectedDay === 'all'
+      ? uniqueTasks
+      : uniqueTasks.filter(t => t.day_number === selectedDay);
+    if (statusFilter === 'all') return byDay;
+    return byDay.filter(t => t.status === statusFilter);
+  }, [uniqueTasks, selectedDay, statusFilter]);
 
   const sortedTasks = React.useMemo(() => {
     return [...filteredTasks].sort((a, b) => {
@@ -854,7 +843,11 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   if (filteredTasks.length === 0 && !loading && uniqueTasks.length > 0) {
     return (
       <div className={styles.tasksList}>
-        <p>Keine Aufgaben für Tag {selectedDay} vorhanden</p>
+        <p>
+          {statusFilter === 'all'
+            ? (selectedDay === 'all' ? 'Keine Aufgaben vorhanden' : `Keine Aufgaben für Tag ${selectedDay} vorhanden`)
+            : 'Keine Aufgaben mit diesem Status'}
+        </p>
       </div>
     );
   }
@@ -873,99 +866,73 @@ const TaskListView: React.FC<TaskListViewProps> = ({
         <Toast message={successMessage} onClose={() => setSuccessMessage('')} />
       )}
 
-      {/* Sort Controls */}
-      <div style={{
-        display: 'flex',
-        gap: '0.75rem',
-        marginBottom: '1rem',
-        padding: '0.75rem',
-        backgroundColor: '#f9fafb',
-        borderRadius: '4px',
-        alignItems: 'center',
-        flexWrap: 'wrap'
-      }}>
-        <span style={{ fontWeight: '500', fontSize: '0.875rem', color: '#374151' }}>Sortieren nach:</span>
-        <button
-          onClick={() => setSortBy('manual')}
-          style={{
-            padding: '0.375rem 0.75rem',
-            backgroundColor: sortBy === 'manual' ? '#1E40AF' : 'white',
-            color: sortBy === 'manual' ? 'white' : '#374151',
-            border: '1px solid #d1d5db',
-            borderRadius: '4px',
-            fontSize: '0.875rem',
-            cursor: 'pointer',
-            fontWeight: '500'
-          }}
-        >
-          Manuell
-        </button>
-        <button
-          onClick={() => {
-            if (sortBy === 'time') {
-              setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-            } else {
-              setSortBy('time');
-              setSortDirection('asc');
-            }
-          }}
-          style={{
-            padding: '0.375rem 0.75rem',
-            backgroundColor: sortBy === 'time' ? '#1E40AF' : 'white',
-            color: sortBy === 'time' ? 'white' : '#374151',
-            border: '1px solid #d1d5db',
-            borderRadius: '4px',
-            fontSize: '0.875rem',
-            cursor: 'pointer',
-            fontWeight: '500'
-          }}
-        >
-          Zeit {sortBy === 'time' ? (sortDirection === 'asc' ? '↑' : '↓') : ''}
-        </button>
-        <button
-          onClick={() => {
-            if (sortBy === 'title') {
-              setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-            } else {
-              setSortBy('title');
-              setSortDirection('asc');
-            }
-          }}
-          style={{
-            padding: '0.375rem 0.75rem',
-            backgroundColor: sortBy === 'title' ? '#1E40AF' : 'white',
-            color: sortBy === 'title' ? 'white' : '#374151',
-            border: '1px solid #d1d5db',
-            borderRadius: '4px',
-            fontSize: '0.875rem',
-            cursor: 'pointer',
-            fontWeight: '500'
-          }}
-        >
-          Titel {sortBy === 'title' ? (sortDirection === 'asc' ? '↑' : '↓') : ''}
-        </button>
-        <button
-          onClick={() => {
-            if (sortBy === 'status') {
-              setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-            } else {
-              setSortBy('status');
-              setSortDirection('asc');
-            }
-          }}
-          style={{
-            padding: '0.375rem 0.75rem',
-            backgroundColor: sortBy === 'status' ? '#1E40AF' : 'white',
-            color: sortBy === 'status' ? 'white' : '#374151',
-            border: '1px solid #d1d5db',
-            borderRadius: '4px',
-            fontSize: '0.875rem',
-            cursor: 'pointer',
-            fontWeight: '500'
-          }}
-        >
-          Status {sortBy === 'status' ? (sortDirection === 'asc' ? '↑' : '↓') : ''}
-        </button>
+      {/* Gemeinsame Werkzeugleiste (styles/toolbar.css) - identische Klassen
+          wie in der Tabellenansicht, damit beide Ansichten gleich wirken. */}
+      <div className="tv-toolbar">
+        {eventDays && eventDays > 1 && onDayChange && (
+          <div className="tv-group">
+            <span className="tv-label">Tage</span>
+            <button
+              onClick={() => onDayChange('all')}
+              className={selectedDay === 'all' ? 'tv-chip-active' : 'tv-chip'}
+              type="button"
+            >
+              Alle
+            </button>
+            {Array.from({ length: eventDays }, (_, i) => i + 1).map((day) => (
+              <button
+                key={day}
+                onClick={() => onDayChange(day)}
+                className={selectedDay === day ? 'tv-chip-active' : 'tv-chip'}
+                type="button"
+              >
+                {day}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="tv-group">
+          <span className="tv-label">Status</span>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="tv-select"
+          >
+            <option value="all">Alle</option>
+            <option value="not_started">Nicht gestartet</option>
+            <option value="in_progress">In Arbeit</option>
+            <option value="completed">Erledigt</option>
+            <option value="overdue">Überfällig</option>
+          </select>
+        </div>
+
+        <div className="tv-group">
+          <span className="tv-label">Sortieren</span>
+          {([
+            ['manual', 'Manuell'],
+            ['time', 'Zeit'],
+            ['title', 'Titel'],
+            ['status', 'Status'],
+          ] as const).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => {
+                if (sortBy === key && key !== 'manual') {
+                  setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                } else {
+                  setSortBy(key);
+                  setSortDirection('asc');
+                }
+              }}
+              className={sortBy === key ? 'tv-chip-active' : 'tv-chip'}
+              type="button"
+            >
+              {label}
+              {sortBy === key && key !== 'manual' ? (sortDirection === 'asc' ? ' ↑' : ' ↓') : ''}
+            </button>
+          ))}
+        </div>
       </div>
 
       {sortedTasks.map((task) => {
@@ -1082,7 +1049,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                 <div className={styles.taskTimesGrid}>
                   {task.scheduled_time && (
                     <div className={styles.timeItem}>
-                      <span className={styles.timeLabel}>⏰ Geplant:</span>
+                      <span className={styles.timeLabel}>Geplant:</span>
                       <span className={styles.timeValue}>{task.scheduled_time.slice(0, 5)} Uhr</span>
                     </div>
                   )}

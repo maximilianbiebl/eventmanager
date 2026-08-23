@@ -1,0 +1,128 @@
+/*
+ * Gemeinsame Werkzeugleiste für Listen- und Tabellenansicht der Aufgaben.
+ *
+ * Bewusst globale Klassen statt zweier CSS-Module: beide Ansichten sollen
+ * garantiert gleich aussehen. Zwei parallel gepflegte Kopien laufen
+ * erfahrungsgemäss auseinander.
+ *
+ *   <div class="tv-toolbar">
+ *     <div class="tv-group"><span class="tv-label">Tage</span> …Chips… </div>
+ *     <div class="tv-group"><span class="tv-label">Status</span> <select class="tv-select"> </div>
+ *   </div>
+ */
+
+.tv-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 1rem;
+  background-color: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+}
+
+.tv-group {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+}
+
+.tv-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #94A3B8;
+  margin-right: 0.125rem;
+  white-space: nowrap;
+}
+
+/* Chips: Tagesauswahl und Sortierung teilen dieselbe Form. */
+.tv-chip,
+.tv-chip-active {
+  padding: 0.25rem 0.625rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+  transition: all 0.12s ease;
+}
+
+.tv-chip {
+  min-width: 2rem;
+  background-color: transparent;
+  color: #64748B;
+  border: 1px solid transparent;
+  font-weight: 500;
+}
+
+.tv-chip:hover {
+  background-color: #FFFFFF;
+  border-color: #E2E8F0;
+  color: #1E293B;
+}
+
+.tv-chip-active {
+  min-width: 2rem;
+  background-color: #FFFFFF;
+  color: #1E40AF;
+  border: 1px solid #BFDBFE;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+/* Kompaktes Dropdown. Der globale `select { min-height: 44px }` ist für
+   Touch gedacht - auf Zeigegeräten darf es hier deutlich kleiner sein. */
+.tv-select {
+  padding: 0.1875rem 1.5rem 0.1875rem 0.5rem;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #1E293B;
+  background-color: #FFFFFF;
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .tv-select {
+    min-height: 28px;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Auf Touch bleibt 16px Schrift, sonst zoomt iOS beim Fokus. */
+  .tv-select {
+    font-size: 16px;
+  }
+
+  .tv-toolbar {
+    gap: 0.625rem;
+    align-items: flex-start;
+  }
+
+  .tv-group {
+    width: 100%;
+  }
+}
+
+/* Erscheint nur, wenn eine Spaltensortierung aktiv ist. */
+.tv-reset {
+  padding: 0.25rem 0.625rem;
+  background-color: #FFFFFF;
+  color: #64748B;
+  border: 1px solid #E2E8F0;
+  border-radius: 9999px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.tv-reset:hover {
+  border-color: #CBD5E1;
+  color: #1E293B;
+}

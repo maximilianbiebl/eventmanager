@@ -536,15 +536,15 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
         />
       )}
 
-      {/* Eine Werkzeugleiste statt drei gestapelter Blöcke: links der
-          Tagesfilter (die häufigste Einschränkung), rechts der Status und
-          - nur wenn nötig - der Rücksprung zur manuellen Reihenfolge. */}
-      <div style={styles.toolbar} className={responsiveStyles.toolbar}>
+      {/* Gemeinsame Werkzeugleiste (styles/toolbar.css) - die Listenansicht
+          benutzt exakt dieselben Klassen, damit beide gleich aussehen. */}
+      <div className="tv-toolbar">
         {eventDays && eventDays > 1 && (
-          <div style={styles.dayFilter} className={responsiveStyles.dayFilter}>
+          <div className="tv-group">
+            <span className="tv-label">Tage</span>
             <button
               onClick={() => handleDayChange('all')}
-              style={selectedDay === 'all' ? styles.dayChipActive : styles.dayChip}
+              className={selectedDay === 'all' ? 'tv-chip-active' : 'tv-chip'}
               type="button"
             >
               Alle
@@ -553,7 +553,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
               <button
                 key={day}
                 onClick={() => handleDayChange(day)}
-                style={selectedDay === day ? styles.dayChipActive : styles.dayChip}
+                className={selectedDay === day ? 'tv-chip-active' : 'tv-chip'}
                 type="button"
               >
                 {day}
@@ -562,23 +562,12 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
           </div>
         )}
 
-        <div style={styles.toolbarRight} className={responsiveStyles.toolbarRight}>
-          {sortColumn !== 'manual' && (
-            <button
-              onClick={() => setSortColumn('manual')}
-              style={styles.resetChip}
-              title="Zurück zur manuellen Reihenfolge"
-              type="button"
-            >
-              Sortierung zurücksetzen
-            </button>
-          )}
-          <label style={styles.filterLabel} className={responsiveStyles.filterLabel}>Status</label>
+        <div className="tv-group">
+          <span className="tv-label">Status</span>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            style={styles.filterSelect}
-            className={responsiveStyles.filterSelect}
+            className="tv-select"
           >
             <option value="all">Alle</option>
             <option value="not_started">Nicht gestartet</option>
@@ -587,8 +576,18 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
             <option value="overdue">Überfällig</option>
           </select>
         </div>
-      </div>
 
+        {sortColumn !== 'manual' && (
+          <button
+            onClick={() => setSortColumn('manual')}
+            className="tv-reset"
+            title="Zurück zur manuellen Reihenfolge"
+            type="button"
+          >
+            Sortierung zurücksetzen
+          </button>
+        )}
+      </div>
 
       {sortedTasks.length === 0 ? (
         <div style={styles.noTasks}>

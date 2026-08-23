@@ -636,7 +636,7 @@ const TaskListModal: React.FC<TaskListModalProps> = ({ staff, tasks, onClose, on
                       }}
                       title="Zuweisung entfernen"
                     >
-                      ✕ Entfernen
+                      Entfernen
                     </button>
                   ) : (
                     <span style={{
