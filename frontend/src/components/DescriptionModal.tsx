@@ -96,6 +96,10 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
         </div>
 
         {/* Footer */}
+        {/* Bewusst OHNE app-modal-actions: dieses Modal ist als flex-Spalte
+            gebaut, der Inhalt scrollt und der Fuss steht ohnehin fest. Die
+            klebende Leiste rechnet mit --modal-pad am Modal selbst - hier
+            sitzt das Padding aber in den einzelnen Abschnitten. */}
         <div
           style={{
             padding: '1rem 1.25rem',

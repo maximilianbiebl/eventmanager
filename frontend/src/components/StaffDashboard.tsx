@@ -421,6 +421,8 @@ export const StaffDashboard: React.FC = () => {
           Ansicht ist ein Segment-Umschalter, Sortierung sind beschriftete
           Filter-Pillen, Aktualisieren ist eine eigenständige Aktion. */}
       <div className={styles.viewControls}>
+        {/* Ansicht und Aktualisieren in EINEM Segment - wie im Admin-Bereich,
+            wo Liste/Tabelle/Aktualisieren ebenfalls eine Leiste bilden. */}
         <div className={styles.segmented} role="group" aria-label="Ansicht">
           <button
             onClick={() => setViewMode('cards')}
@@ -435,6 +437,22 @@ export const StaffDashboard: React.FC = () => {
             aria-pressed={viewMode === 'table'}
           >
             Tabelle
+          </button>
+          <button
+            onClick={async () => {
+              setRefreshing(true);
+              try {
+                await loadTasks(false);
+              } finally {
+                setRefreshing(false);
+              }
+            }}
+            className={refreshing ? `${styles.segment} ${styles.refreshing}` : styles.segment}
+            title="Daten aktualisieren"
+            disabled={refreshing}
+          >
+            {/* eigenes Element, damit die Füllung dahinter liegen kann */}
+            <span>{refreshing ? 'Aktualisiere…' : 'Aktualisieren'}</span>
           </button>
         </div>
 
@@ -460,22 +478,6 @@ export const StaffDashboard: React.FC = () => {
           </div>
         )}
 
-        <button
-          onClick={async () => {
-            setRefreshing(true);
-            try {
-              await loadTasks(false);
-            } finally {
-              setRefreshing(false);
-            }
-          }}
-          className={refreshing ? `${styles.refreshButton} ${styles.refreshing}` : styles.refreshButton}
-          title="Daten aktualisieren"
-          disabled={refreshing}
-        >
-          {/* eigenes Element, damit die Füllung dahinter liegen kann */}
-          <span>{refreshing ? 'Aktualisiere…' : 'Aktualisieren'}</span>
-        </button>
       </div>
 
       {/* Tag-Tabs - nur für Tabellen-Ansicht */}

@@ -327,9 +327,12 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
         <div className={styles.sectionHeader}>
           <div className={styles.sectionTitleRow}>
             <h3>Aufgaben</h3>
-            {/* CSV steht neben der Überschrift, nicht darunter. Die Modals
-                leben in TaskTableView, damit die Auswahl beim Export zählt. */}
-            {(isAdmin || (isTeamleiter && !event.is_template)) && (
+            {/* Nur in der Tabellenansicht: die CSV-Modals leben in
+                TaskTableView, und dessen Container ist in der Listenansicht
+                display:none - die Popups wären unsichtbar aufgegangen. Zum
+                Exportieren einzelner Aufgaben braucht es ausserdem die
+                Auswahlkästchen, die nur die Tabelle hat. */}
+            {viewMode === 'table' && (isAdmin || (isTeamleiter && !event.is_template)) && (
               <div className={styles.csvGroup}>
                 <button onClick={() => tableRef.current?.openImport()} className={styles.csvButton} type="button">
                   Importieren

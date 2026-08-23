@@ -1075,7 +1075,7 @@
 
 /* Aktualisieren-Button: Füllung läuft von links nach rechts durch den Button.
    Doppelte Klasse, damit sie das globale `button:disabled { opacity }` schlägt. */
-.refreshButton.refreshing {
+.segment.refreshing {
   color: #1E40AF;
   opacity: 1;
   background-color: #EFF6FF;
@@ -1083,7 +1083,7 @@
   cursor: progress;
 }
 
-.refreshButton.refreshing::before {
+.segment.refreshing::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -1094,7 +1094,7 @@
   z-index: 0;
 }
 
-.refreshButton.refreshing > * {
+.segment.refreshing > * {
   position: relative;
   z-index: 1;
 }
@@ -1125,6 +1125,8 @@
 
 .segment,
 .segmentActive {
+  position: relative;
+  overflow: hidden;
   padding: 0.5rem 1rem;
   border: none;
   cursor: pointer;
@@ -1200,27 +1202,6 @@
   border: 1px solid #BFDBFE;
 }
 
-/* Aktualisieren: eigenständige Aktion, rechts abgesetzt */
-.refreshButton {
-  position: relative;
-  overflow: hidden;
-  margin-left: auto;
-  padding: 0.5rem 1rem;
-  background-color: transparent;
-  color: #64748B;
-  border: 1px solid #E2E8F0;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.875rem;
-  font-weight: 500;
-  white-space: nowrap;
-  transition: all 0.15s ease;
-}
-
-.refreshButton:hover:not(:disabled) {
-  border-color: #CBD5E1;
-  color: #1E293B;
-}
 
 /* Unsichtbare Fläche, die einen Klick ins Leere abfängt und das
    Status-Menü schliesst. */
@@ -1249,8 +1230,4 @@
     width: 100%;
   }
 
-  .refreshButton {
-    margin-left: 0;
-    width: 100%;
-  }
 }

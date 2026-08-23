@@ -392,7 +392,7 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ availableStaff, onClose, 
           </div>
         )}
 
-        <div style={styles.modalButtons}>
+        <div className="app-modal-actions" style={styles.modalButtons}>
           <button onClick={onClose} style={styles.cancelButton}>
             Abbrechen
           </button>
@@ -787,7 +787,7 @@ const ReplaceStaffModal: React.FC<ReplaceStaffModalProps> = ({
           </div>
         )}
 
-        <div style={styles.modalButtons}>
+        <div className="app-modal-actions" style={styles.modalButtons}>
           <button onClick={onClose} style={styles.cancelButton}>
             Abbrechen
           </button>
@@ -1001,7 +1001,7 @@ const AssignTasksModal: React.FC<AssignTasksModalProps> = ({
           </>
         )}
 
-        <div style={styles.modalButtons}>
+        <div className="app-modal-actions" style={styles.modalButtons}>
           <button onClick={onClose} style={styles.cancelButton}>
             Abbrechen
           </button>
