@@ -654,21 +654,21 @@ const TaskListModal: React.FC<TaskListModalProps> = ({ staff, tasks, onClose, on
           </>
         )}
 
-        <div style={{marginTop: '1.5rem', display: 'flex', justifyContent: 'space-between', gap: '0.75rem'}}>
-          <button onClick={() => setShowReplaceModal(true)} style={{
-            ...styles.submitButton,
-            backgroundColor: '#D97706',
-          }}>
+        {/* Flach statt verschachtelt und mit app-modal-actions: die drei
+            Buttons lagen vorher in zwei Ebenen mit space-between, dadurch
+            lief "Schließen" auf dem Handy aus dem Modal heraus (gemessen:
+            bis 406px bei 366px Modalbreite). Jetzt greift die gemeinsame
+            Umbruchregel aus styles/modal.css. */}
+        <div className="app-modal-actions" style={{marginTop: '1.5rem'}}>
+          <button onClick={() => setShowReplaceModal(true)} style={styles.secondaryButton}>
             Mitarbeiter austauschen
           </button>
-          <div style={{display: 'flex', gap: '0.75rem'}}>
-            <button onClick={() => setShowAssignModal(true)} style={styles.submitButton}>
-              Zuweisen
-            </button>
-            <button onClick={onClose} style={styles.cancelButton}>
-              Schließen
-            </button>
-          </div>
+          <button onClick={onClose} style={styles.cancelButton}>
+            Schließen
+          </button>
+          <button onClick={() => setShowAssignModal(true)} style={styles.submitButton}>
+            Zuweisen
+          </button>
         </div>
 
         {showReplaceModal && (
@@ -1268,6 +1268,18 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     gap: '0.75rem',
     justifyContent: 'flex-end',
+  },
+  secondaryButton: {
+    padding: '0.5rem 1rem',
+    backgroundColor: 'transparent',
+    color: '#1E293B',
+    border: '1px solid #CBD5E1',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
+    fontWeight: '500',
+    whiteSpace: 'nowrap',
+    transition: 'all 0.15s ease',
   },
   cancelButton: {
     padding: '0.625rem 1.25rem',
