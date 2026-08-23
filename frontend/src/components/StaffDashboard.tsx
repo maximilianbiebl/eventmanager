@@ -417,49 +417,47 @@ export const StaffDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Ansichtsmodus und Sortierung wählen */}
+      {/* Drei verschiedene Funktionen - deshalb drei sichtbar getrennte Gruppen:
+          Ansicht ist ein Segment-Umschalter, Sortierung sind beschriftete
+          Filter-Pillen, Aktualisieren ist eine eigenständige Aktion. */}
       <div className={styles.viewControls}>
-        <button
-          onClick={() => setViewMode('cards')}
-          className={viewMode === 'cards' ? styles.activeTab : styles.tab}
-        >
-          Karten
-        </button>
-        <button
-          onClick={() => setViewMode('table')}
-          className={viewMode === 'table' ? styles.activeTab : styles.tab}
-        >
-          Tabelle
-        </button>
+        <div className={styles.segmented} role="group" aria-label="Ansicht">
+          <button
+            onClick={() => setViewMode('cards')}
+            className={viewMode === 'cards' ? styles.segmentActive : styles.segment}
+            aria-pressed={viewMode === 'cards'}
+          >
+            Karten
+          </button>
+          <button
+            onClick={() => setViewMode('table')}
+            className={viewMode === 'table' ? styles.segmentActive : styles.segment}
+            aria-pressed={viewMode === 'table'}
+          >
+            Tabelle
+          </button>
+        </div>
 
         {/* Sortierung - nur für Karten-Ansicht */}
         {viewMode === 'cards' && (
-          <>
-            <button
-              onClick={() => setSortBy('standard')}
-              className={sortBy === 'standard' ? styles.activeTab : styles.tab}
-            >
-              Standard
-            </button>
-            <button
-              onClick={() => setSortBy('event-day')}
-              className={sortBy === 'event-day' ? styles.activeTab : styles.tab}
-            >
-              Nach Event-Tag
-            </button>
-            <button
-              onClick={() => setSortBy('event')}
-              className={sortBy === 'event' ? styles.activeTab : styles.tab}
-            >
-              Nach Veranstaltung
-            </button>
-            <button
-              onClick={() => setSortBy('date')}
-              className={sortBy === 'date' ? styles.activeTab : styles.tab}
-            >
-              Nach Datum
-            </button>
-          </>
+          <div className={styles.sortGroup}>
+            <span className={styles.groupLabel}>Sortieren</span>
+            {([
+              ['standard', 'Standard'],
+              ['event-day', 'Event-Tag'],
+              ['event', 'Veranstaltung'],
+              ['date', 'Datum'],
+            ] as const).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setSortBy(key)}
+                className={sortBy === key ? styles.sortPillActive : styles.sortPill}
+                aria-pressed={sortBy === key}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         )}
 
         <button
@@ -471,7 +469,7 @@ export const StaffDashboard: React.FC = () => {
               setRefreshing(false);
             }
           }}
-          className={refreshing ? `${styles.tab} ${styles.refreshing}` : styles.tab}
+          className={refreshing ? `${styles.refreshButton} ${styles.refreshing}` : styles.refreshButton}
           title="Daten aktualisieren"
           disabled={refreshing}
         >
@@ -1293,6 +1291,12 @@ const StaffTableView: React.FC<{
                           {getStatusLabel(task.status)} ▼
                         </span>
                         {showStatusDropdown === taskKey && (
+                          <>
+                          {/* Klick ins Leere schliesst das Menü */}
+                          <div
+                            className={styles.dropdownBackdrop}
+                            onClick={() => setShowStatusDropdown(null)}
+                          />
                           <div className={styles.statusDropdown}>
                             {task.status !== 'not_started' && (
                               <div
@@ -1319,6 +1323,7 @@ const StaffTableView: React.FC<{
                               </div>
                             )}
                           </div>
+                          </>
                         )}
                       </>
                     ) : (

@@ -495,13 +495,19 @@ export const TaskTableView: React.FC<Props> = ({
           {eventId && (
             <>
               {/* "Serien verwalten" lebt jetzt im Sektions-Header von EventDetail,
-                  damit er in Listen- UND Tabellenansicht erreichbar ist. */}
-              <button onClick={() => setShowImportModal(true)} style={styles.importButton}>
-                CSV Import
-              </button>
-              <button onClick={() => setShowExportModal(true)} style={styles.exportButton}>
-                CSV Export
-              </button>
+                  damit er in Listen- UND Tabellenansicht erreichbar ist.
+                  CSV ist eine Nebenfunktion - gleiche schlichte Darstellung
+                  wie in der Veranstaltungs- und Mitarbeiterübersicht. */}
+              <div style={styles.csvGroup}>
+                <span style={styles.csvLabel}>CSV</span>
+                <button onClick={() => setShowImportModal(true)} style={styles.csvButton}>
+                  Import
+                </button>
+                <span style={styles.csvDivider} aria-hidden="true" />
+                <button onClick={() => setShowExportModal(true)} style={styles.csvButton}>
+                  Export
+                </button>
+              </div>
             </>
           )}
         </div>
@@ -916,26 +922,39 @@ const styles: { [key: string]: React.CSSProperties } = {
   headerButtons: {
     display: 'flex',
     gap: '0.75rem',
+    flexWrap: 'wrap',
+    alignItems: 'center',
   },
-  exportButton: {
-    padding: '0.5rem 1rem',
-    backgroundColor: '#1E40AF',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    fontWeight: '500',
+  csvGroup: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
   },
-  importButton: {
-    padding: '0.5rem 1rem',
-    backgroundColor: '#1E40AF',
-    color: 'white',
+  csvLabel: {
+    fontSize: '0.75rem',
+    fontWeight: '600',
+    letterSpacing: '0.04em',
+    color: '#94A3B8',
+    textTransform: 'uppercase',
+  },
+  csvButton: {
+    padding: '0.25rem 0.125rem',
+    backgroundColor: 'transparent',
+    color: '#64748B',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '2px',
     cursor: 'pointer',
-    fontSize: '0.875rem',
     fontWeight: '500',
+    fontSize: '0.8125rem',
+    textDecoration: 'underline',
+    textUnderlineOffset: '3px',
+    textDecorationColor: '#CBD5E1',
+    transition: 'color 0.15s ease',
+  },
+  csvDivider: {
+    width: '1px',
+    height: '0.875rem',
+    backgroundColor: '#E2E8F0',
   },
   seriesButton: {
     padding: '0.5rem 1rem',

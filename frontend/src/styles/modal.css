@@ -70,15 +70,26 @@
     margin: 0 !important;
   }
 
-  /* Vollflächige Buttons, damit Touch-Ziele nicht zerquetscht werden */
+  /* Beide Buttons in EINER Zeile: gestapelt frassen sie zu viel von der
+     ohnehin knappen Höhe. Die Primäraktion (im DOM die zweite) steht
+     rechts und bekommt mehr Gewicht. */
   .app-modal-actions {
-    flex-direction: column-reverse !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
     gap: 0.5rem !important;
   }
 
+  /* Zwei pro Zeile. Bei den üblichen zwei Buttons ergibt das eine Zeile
+     (Abbrechen links, Primäraktion rechts); Modals mit vier Aktionen
+     - etwa "Bearbeiten" - brechen sauber in zwei Zeilen um, statt
+     nebeneinander zerquetscht zu werden. */
   .app-modal-actions > button {
-    width: 100% !important;
+    flex: 1 1 calc(50% - 0.25rem) !important;
+    min-width: 0 !important;
+    width: auto !important;
     min-height: 44px !important;
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
   }
 }
 

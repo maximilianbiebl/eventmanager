@@ -1075,7 +1075,7 @@
 
 /* Aktualisieren-Button: Füllung läuft von links nach rechts durch den Button.
    Doppelte Klasse, damit sie das globale `button:disabled { opacity }` schlägt. */
-.tab.refreshing {
+.refreshButton.refreshing {
   color: #1E40AF;
   opacity: 1;
   background-color: #EFF6FF;
@@ -1083,7 +1083,7 @@
   cursor: progress;
 }
 
-.tab.refreshing::before {
+.refreshButton.refreshing::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -1094,7 +1094,7 @@
   z-index: 0;
 }
 
-.tab.refreshing > * {
+.refreshButton.refreshing > * {
   position: relative;
   z-index: 1;
 }
@@ -1103,4 +1103,154 @@
   0%   { transform: scaleX(0); opacity: 1; }
   75%  { transform: scaleX(1); opacity: 1; }
   100% { transform: scaleX(1); opacity: 0; }
+}
+
+/* ---- Steuerleiste: drei getrennte Funktionsgruppen ------------------------
+   Vorher sahen Ansichtswechsel, Sortierung und Aktualisieren identisch aus.
+   Jetzt trägt jede Gruppe eine eigene Form. */
+
+.viewControls {
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Ansicht: verbundener Segment-Umschalter - liest sich als "entweder/oder" */
+.segmented {
+  display: inline-flex;
+  border: 1px solid #CBD5E1;
+  border-radius: 6px;
+  overflow: hidden;
+  background-color: #FFFFFF;
+}
+
+.segment,
+.segmentActive {
+  padding: 0.5rem 1rem;
+  border: none;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.segment + .segment,
+.segment + .segmentActive,
+.segmentActive + .segment {
+  border-left: 1px solid #CBD5E1;
+}
+
+.segment {
+  background-color: #FFFFFF;
+  color: #64748B;
+}
+
+.segment:hover {
+  background-color: #F1F5F9;
+  color: #1E293B;
+}
+
+.segmentActive {
+  background-color: #1E40AF;
+  color: #FFFFFF;
+}
+
+/* Sortierung: beschriftete Pillen - deutlich leichter als der Umschalter */
+.sortGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+}
+
+.groupLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #94A3B8;
+  margin-right: 0.125rem;
+}
+
+.sortPill,
+.sortPillActive {
+  padding: 0.3125rem 0.75rem;
+  border-radius: 9999px;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.sortPill {
+  background-color: transparent;
+  color: #64748B;
+  border: 1px solid #E2E8F0;
+}
+
+.sortPill:hover {
+  border-color: #CBD5E1;
+  color: #1E293B;
+}
+
+.sortPillActive {
+  background-color: #EFF6FF;
+  color: #1E40AF;
+  border: 1px solid #BFDBFE;
+}
+
+/* Aktualisieren: eigenständige Aktion, rechts abgesetzt */
+.refreshButton {
+  position: relative;
+  overflow: hidden;
+  margin-left: auto;
+  padding: 0.5rem 1rem;
+  background-color: transparent;
+  color: #64748B;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.refreshButton:hover:not(:disabled) {
+  border-color: #CBD5E1;
+  color: #1E293B;
+}
+
+/* Unsichtbare Fläche, die einen Klick ins Leere abfängt und das
+   Status-Menü schliesst. */
+.dropdownBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+}
+
+@media (max-width: 640px) {
+  .viewControls {
+    gap: 0.625rem;
+  }
+
+  .segmented {
+    width: 100%;
+  }
+
+  .segment,
+  .segmentActive {
+    flex: 1;
+    text-align: center;
+  }
+
+  .sortGroup {
+    width: 100%;
+  }
+
+  .refreshButton {
+    margin-left: 0;
+    width: 100%;
+  }
 }

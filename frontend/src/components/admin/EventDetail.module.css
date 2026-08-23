@@ -4,100 +4,135 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
-  gap: 1rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #E2E8F0;
+  gap: 0.75rem;
   flex-wrap: wrap;
 }
 
 .backButton {
-  padding: 0.5rem 1rem;
+  /* Navigation, keine Aktion: als Textlink ohne Rahmen */
+  padding: 0.375rem 0.5rem;
+  margin-left: -0.5rem;
   background-color: transparent;
-  color: #1E293B;
-  border: 1px solid #CBD5E1;
+  color: #64748B;
+  border: none;
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.875rem;
   font-weight: 500;
   white-space: nowrap;
-  transition: all 0.2s;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.backButton:hover {
+  color: #1E293B;
+  background-color: #F1F5F9;
 }
 
 .editButton {
-  padding: 0.5rem 1rem;
+  /* Kontext-Aktionen: leise gehalten, damit sie nicht mit dem
+     Veranstaltungsnamen und den Aufgaben konkurrieren. */
+  padding: 0.375rem 0.75rem;
   background-color: transparent;
-  color: #1E293B;
-  border: 1px solid #CBD5E1;
+  color: #64748B;
+  border: 1px solid #E2E8F0;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 500;
   white-space: nowrap;
-  transition: all 0.2s;
+  transition: border-color 0.15s ease, color 0.15s ease;
 }
 
 .templateUseButton {
-  padding: 0.5rem 1rem;
-  background-color: #64748B;
-  color: white;
-  border: none;
+  /* Kontext-Aktionen: leise gehalten, damit sie nicht mit dem
+     Veranstaltungsnamen und den Aufgaben konkurrieren. */
+  padding: 0.375rem 0.75rem;
+  background-color: transparent;
+  color: #64748B;
+  border: 1px solid #E2E8F0;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 500;
   white-space: nowrap;
-  transition: background-color 0.2s;
+  transition: border-color 0.15s ease, color 0.15s ease;
 }
 
 .duplicateButton {
-  padding: 0.5rem 1rem;
+  /* Kontext-Aktionen: leise gehalten, damit sie nicht mit dem
+     Veranstaltungsnamen und den Aufgaben konkurrieren. */
+  padding: 0.375rem 0.75rem;
   background-color: transparent;
-  color: #1E293B;
-  border: 1px solid #CBD5E1;
+  color: #64748B;
+  border: 1px solid #E2E8F0;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 500;
   white-space: nowrap;
-  transition: all 0.2s;
+  transition: border-color 0.15s ease, color 0.15s ease;
 }
 
 .copyTemplateButton {
-  padding: 0.5rem 1rem;
-  background-color: #64748B;
-  color: white;
-  border: none;
+  /* Kontext-Aktionen: leise gehalten, damit sie nicht mit dem
+     Veranstaltungsnamen und den Aufgaben konkurrieren. */
+  padding: 0.375rem 0.75rem;
+  background-color: transparent;
+  color: #64748B;
+  border: 1px solid #E2E8F0;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 500;
   white-space: nowrap;
-  transition: background-color 0.2s;
+  transition: border-color 0.15s ease, color 0.15s ease;
 }
 
 .toggleTemplateButton {
-  padding: 0.5rem 1rem;
-  background-color: #64748B;
-  color: white;
-  border: none;
+  /* Kontext-Aktionen: leise gehalten, damit sie nicht mit dem
+     Veranstaltungsnamen und den Aufgaben konkurrieren. */
+  padding: 0.375rem 0.75rem;
+  background-color: transparent;
+  color: #64748B;
+  border: 1px solid #E2E8F0;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 500;
   white-space: nowrap;
-  transition: background-color 0.2s;
+  transition: border-color 0.15s ease, color 0.15s ease;
 }
 
 .approveButton {
-  padding: 0.5rem 1rem;
+  /* Einzige hervorgehobene Aktion der Leiste: eine echte Entscheidung.
+     Grün bleibt als Status-/Zustimmungsfarbe erhalten. */
+  padding: 0.375rem 0.75rem;
   background-color: #059669;
   color: white;
-  border: none;
+  border: 1px solid #059669;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 500;
   white-space: nowrap;
-  transition: background-color 0.2s;
+  transition: background-color 0.15s ease;
+}
+
+.approveButton:hover {
+  background-color: #047857;
+}
+
+/* Gemeinsamer Hover für die leisen Kontext-Aktionen */
+.templateUseButton:hover,
+.duplicateButton:hover,
+.copyTemplateButton:hover,
+.toggleTemplateButton:hover,
+.editButton:hover {
+  border-color: #CBD5E1;
+  color: #1E293B;
 }
 
 .title {
