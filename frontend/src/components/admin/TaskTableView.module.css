@@ -13,9 +13,6 @@
     display: none !important;
   }
 
-  .container {
-    padding: 0.75rem !important;
-  }
 
   .header {
     flex-direction: column !important;
@@ -65,10 +62,6 @@
     display: none !important;
   }
 
-  .container {
-    padding: 0.5rem !important;
-    border-radius: 4px !important;
-  }
 
   .title {
     font-size: 1rem !important;

@@ -955,3 +955,41 @@
   height: 0.875rem;
   background-color: #E2E8F0;
 }
+
+/* Handy-Querformat: die Kopfzeile der Aufgaben passt hier auf eine Zeile,
+   wenn man die Abstände strafft - gemessen fehlten nur 26px (Titelzeile 256
+   + Aktionen 414 + 16px Abstand bei 660px Platz). Ohne das rutschen
+   "Serien verwalten" und "Neue Aufgabe" unter die Überschrift, während sie
+   in der Listenansicht daneben stehen; beide Ansichten sollen sich gleich
+   verhalten. */
+@media (max-height: 480px) and (orientation: landscape) {
+  .sectionHeader {
+    flex-wrap: nowrap;
+    gap: 0.625rem;
+  }
+
+  .sectionTitleRow {
+    flex-shrink: 0;
+    gap: 0.625rem;
+  }
+
+  .headerActions {
+    gap: 0.5rem;
+    flex-wrap: nowrap;
+  }
+
+  .viewToggle > button {
+    padding-left: 0.625rem;
+    padding-right: 0.625rem;
+  }
+
+  .taskActions {
+    gap: 0.375rem;
+  }
+
+  .secondaryButton,
+  .addButton {
+    padding-left: 0.625rem;
+    padding-right: 0.625rem;
+  }
+}

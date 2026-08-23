@@ -882,10 +882,10 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
 
 const styles: { [key: string]: React.CSSProperties } = {
   container: {
-    backgroundColor: 'white',
-    borderRadius: '8px',
-    padding: '1.5rem',
-    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+    // Keine eigene Card mehr: die Überschrift "Aufgaben-Übersicht", für die
+    // dieser Rahmen mal gedacht war, gibt es nicht mehr, und die Listen-
+    // ansicht hat auch keine. Der ganze Bereich liegt bereits in der Card
+    // des Dashboards - die zweite Ebene hat nur Platz gekostet.
   },
   header: {
     display: 'flex',
