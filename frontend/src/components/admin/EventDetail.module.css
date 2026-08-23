@@ -645,20 +645,6 @@
 
 /* Status-Dropdown in der Aufgabenliste. Hintergrundfarbe kommt aus dem
    Status per Inline-Style - hier nur Form und Lesbarkeit. */
-.statusSelect {
-  appearance: none;
-  -webkit-appearance: none;
-  cursor: pointer;
-  line-height: 1.4;
-  min-height: 0;
-  text-align: left;
-  text-align-last: left;
-}
-
-.statusSelect:disabled {
-  cursor: not-allowed;
-}
-
 /* ---- Kopfzeile: Aktionen im Überlaufmenü ---------------------------------
    Vier ausgeschriebene Buttons haben auf dem Handy den halben Bildschirm
    gefüllt. Jetzt ein Auslöser, der Rest liegt im Menü. */

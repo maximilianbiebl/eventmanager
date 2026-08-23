@@ -15,8 +15,16 @@ import { CreateFromTemplateModal } from './CreateFromTemplateModal';
 import { EventEditModal } from './EventEditModal';
 import { EventStaffPool } from './EventStaffPool';
 import { StatusFilter } from './StatusFilter';
+import { StatusCell } from './StatusCell';
 import { Toast } from '../Toast';
 import styles from './EventDetail.module.css';
+
+const STATUS_LABELS: { [key: string]: string } = {
+  not_started: 'Nicht gestartet',
+  in_progress: 'In Arbeit',
+  completed: 'Erledigt',
+  overdue: 'Überfällig',
+};
 
 interface Props {
   eventId: number;
@@ -990,25 +998,17 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                     )}
                   </div>
                 </div>
-                <select
+                {/* Dieselbe Komponente wie in der Tabellenansicht: mit Pfeil
+                    erkennbar als Bedienelement, nicht als blosses Abzeichen.
+                    Vorher ein <select> mit appearance:none - dadurch fehlte
+                    der native Pfeil und es sah aus wie ein Badge. */}
+                <StatusCell
                   value={task.status}
-                  onChange={(e) => handleStatusChange(task.id, e.target.value)}
-                  className={styles.statusSelect}
-                  style={{
-                    backgroundColor: getStatusColor(task),
-                    fontSize: '0.75rem',
-                    padding: '0.25rem 0.5rem',
-                    borderRadius: '4px',
-                    fontWeight: '500',
-                    color: 'white',
-                    border: 'none'
-                  }}
-                >
-                  <option value="not_started">Nicht gestartet</option>
-                  <option value="in_progress">In Arbeit</option>
-                  <option value="completed">Erledigt</option>
-                  <option value="overdue">Überfällig</option>
-                </select>
+                  label={STATUS_LABELS[task.status] || task.status}
+                  color={getStatusColor(task)}
+                  disabled={readOnly}
+                  onChange={(v) => handleStatusChange(task.id, v)}
+                />
               </div>
 
               {task.description && (
