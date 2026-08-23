@@ -7,6 +7,7 @@ import responsiveStyles from './TaskTableView.module.css';
 import { Toast } from '../Toast';
 import { CSVExportModal } from './CSVExportModal';
 import { CSVImportModal } from './CSVImportModal';
+import { StatusFilter } from './StatusFilter';
 
 interface TaskAssignment {
   id: number;
@@ -564,17 +565,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
 
         <div className="tv-group">
           <span className="tv-label">Status</span>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="tv-select"
-          >
-            <option value="all">Alle</option>
-            <option value="not_started">Nicht gestartet</option>
-            <option value="in_progress">In Arbeit</option>
-            <option value="completed">Erledigt</option>
-            <option value="overdue">Überfällig</option>
-          </select>
+          <StatusFilter value={statusFilter} onChange={setStatusFilter} />
         </div>
 
         {sortColumn !== 'manual' && (

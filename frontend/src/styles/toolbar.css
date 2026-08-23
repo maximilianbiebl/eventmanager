@@ -74,31 +74,8 @@
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
 }
 
-/* Kompaktes Dropdown. Der globale `select { min-height: 44px }` ist für
-   Touch gedacht - auf Zeigegeräten darf es hier deutlich kleiner sein. */
-.tv-select {
-  padding: 0.1875rem 1.5rem 0.1875rem 0.5rem;
-  border: 1px solid #E2E8F0;
-  border-radius: 6px;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: #1E293B;
-  background-color: #FFFFFF;
-  cursor: pointer;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .tv-select {
-    min-height: 28px;
-  }
-}
 
 @media (max-width: 640px) {
-  /* Auf Touch bleibt 16px Schrift, sonst zoomt iOS beim Fokus. */
-  .tv-select {
-    font-size: 16px;
-  }
-
   .tv-toolbar {
     gap: 0.625rem;
     align-items: flex-start;
@@ -125,4 +102,82 @@
 .tv-reset:hover {
   border-color: #CBD5E1;
   color: #1E293B;
+}
+
+/* ---- Kompakter Statusfilter ---------------------------------------------
+   Ersetzt das native <select>, das sich immer nach der längsten Option
+   bemisst. Der Auslöser ist so breit wie der gewählte Wert. */
+
+.tv-dropdown {
+  position: relative;
+  display: inline-flex;
+}
+
+.tv-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.tv-caret {
+  font-size: 0.625rem;
+  line-height: 1;
+  opacity: 0.6;
+}
+
+.tv-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+
+.tv-menu {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  z-index: 41;
+  min-width: 10rem;
+  padding: 0.25rem;
+  background-color: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+}
+
+.tv-menuItem {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0.625rem;
+  background: none;
+  border: none;
+  border-radius: 5px;
+  text-align: left;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #1E293B;
+  white-space: nowrap;
+  transition: background-color 0.12s ease;
+}
+
+.tv-menuItem:hover {
+  background-color: #F1F5F9;
+}
+
+.tv-menuItemActive {
+  color: #1E40AF;
+  background-color: #EFF6FF;
+}
+
+/* Auf Touch grössere Trefferflächen */
+@media (hover: none) and (pointer: coarse) {
+  .tv-trigger {
+    min-height: 32px;
+  }
+
+  .tv-menuItem {
+    padding: 0.625rem 0.75rem;
+    min-height: 40px;
+  }
 }

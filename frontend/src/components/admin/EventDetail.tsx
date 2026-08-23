@@ -14,6 +14,7 @@ import { DuplicateEventModal } from './DuplicateEventModal';
 import { CreateFromTemplateModal } from './CreateFromTemplateModal';
 import { EventEditModal } from './EventEditModal';
 import { EventStaffPool } from './EventStaffPool';
+import { StatusFilter } from './StatusFilter';
 import { Toast } from '../Toast';
 import styles from './EventDetail.module.css';
 
@@ -897,17 +898,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
 
         <div className="tv-group">
           <span className="tv-label">Status</span>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="tv-select"
-          >
-            <option value="all">Alle</option>
-            <option value="not_started">Nicht gestartet</option>
-            <option value="in_progress">In Arbeit</option>
-            <option value="completed">Erledigt</option>
-            <option value="overdue">Überfällig</option>
-          </select>
+          <StatusFilter value={statusFilter} onChange={setStatusFilter} />
         </div>
 
         <div className="tv-group">
