@@ -1316,10 +1316,26 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req: Auth
       ]
     );
 
-    // Serie neu gesetzt oder gewechselt: die Mitglieder der neuen Serie
-    // bekommen die Aufgabe. Fällt sie aus einer Serie heraus, bleiben ihre
-    // bisherigen Zuweisungen als normale Einzelzuweisungen bestehen.
+    /*
+     * Serie gewechselt: die Aufgabe ist jetzt Sache der neuen Serie. Deren
+     * Mitglieder bekommen sie, die der alten verlieren sie - sonst haetten
+     * beide Teams dieselbe Aufgabe auf dem Zettel.
+     *
+     * Wird die Serie dagegen nur geleert ("Keine Serie"), bleiben die
+     * bestehenden Zuweisungen als normale Einzelzuweisungen erhalten. Das
+     * ist bewusst der weniger eingreifende Fall - wer die Zuweisungen dabei
+     * loswerden will, loescht die Serie mit der entsprechenden Option.
+     */
     if (series_id && series_id !== currentTask.series_id) {
+      if (currentTask.series_id) {
+        await query(
+          `DELETE FROM task_assignments
+           WHERE task_id = $1
+             AND user_id IN (SELECT user_id FROM task_series_members WHERE series_id = $2)
+             AND user_id NOT IN (SELECT user_id FROM task_series_members WHERE series_id = $3)`,
+          [id, currentTask.series_id, series_id]
+        );
+      }
       await syncSeriesAssignments(series_id);
     }
 
@@ -2087,12 +2103,55 @@ router.delete('/task-series/:seriesId', authMiddleware, teamleiterOrAdminMiddlew
 
     const eventId = seriesResult.rows[0].event_id;
 
+    /*
+     * Was mit den Aufgaben der Serie geschehen soll, entscheidet der Aufrufer:
+     *   keep         - Aufgaben und Zuweisungen bleiben (Voreinstellung, wie bisher)
+     *   unassign     - Aufgaben bleiben, die Zuweisungen der Serien-Mitglieder fallen weg
+     *   delete_tasks - Aufgaben werden geloescht (damit auch ihre Zuweisungen)
+     * Ohne Angabe bleibt es beim bisherigen Verhalten.
+     */
+    const mode = String(req.query.mode || 'keep');
+    if (!['keep', 'unassign', 'delete_tasks'].includes(mode)) {
+      return res.status(400).json({ error: 'Ungültiger Modus' });
+    }
+
+    const seriesTasks = await query('SELECT id FROM tasks WHERE series_id = $1', [seriesId]);
+    const taskIds = seriesTasks.rows.map((r: any) => r.id);
+
+    let removedAssignments = 0;
+    let deletedTasks = 0;
+
+    if (taskIds.length > 0 && mode === 'unassign') {
+      // Nur die Zuweisungen der Serien-Mitglieder - wer zusaetzlich einzeln
+      // zugewiesen wurde, ist von der Serie nicht zu unterscheiden; beides
+      // entstand aus derselben Mitgliedschaft.
+      const removed = await query(
+        `DELETE FROM task_assignments
+         WHERE task_id = ANY($1)
+           AND user_id IN (SELECT user_id FROM task_series_members WHERE series_id = $2)
+         RETURNING id`,
+        [taskIds, seriesId]
+      );
+      removedAssignments = removed.rows.length;
+    }
+
+    if (taskIds.length > 0 && mode === 'delete_tasks') {
+      const removed = await query(
+        'DELETE FROM task_assignments WHERE task_id = ANY($1) RETURNING id',
+        [taskIds]
+      );
+      removedAssignments = removed.rows.length;
+
+      const deleted = await query('DELETE FROM tasks WHERE id = ANY($1) RETURNING id', [taskIds]);
+      deletedTasks = deleted.rows.length;
+    }
+
     // Delete the series (CASCADE will handle members and set tasks.series_id to NULL)
     await query('DELETE FROM task_series WHERE id = $1', [seriesId]);
 
     broadcastUpdate('task', { action: 'series_deleted', seriesId: parseInt(seriesId), eventId });
 
-    res.json({ message: 'Serie gelöscht' });
+    res.json({ message: 'Serie gelöscht', mode, removedAssignments, deletedTasks });
   } catch (error) {
     console.error('Delete task series error:', error);
     res.status(500).json({ error: 'Server Fehler' });

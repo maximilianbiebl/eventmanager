@@ -51,8 +51,14 @@ export const taskSeriesApi = {
     return response.data;
   },
 
-  delete: async (seriesId: number): Promise<void> => {
-    await client.delete(`/tasks/task-series/${seriesId}`);
+  /**
+   * Was mit den Aufgaben der Serie geschieht:
+   *   keep         - Aufgaben und Zuweisungen bleiben
+   *   unassign     - Aufgaben bleiben, Zuweisungen der Mitglieder fallen weg
+   *   delete_tasks - Aufgaben werden mitgelöscht
+   */
+  delete: async (seriesId: number, mode: 'keep' | 'unassign' | 'delete_tasks' = 'keep'): Promise<void> => {
+    await client.delete(`/tasks/task-series/${seriesId}?mode=${mode}`);
   },
 
   getMembers: async (seriesId: number): Promise<Array<{ id: number; name: string; role: string }>> => {

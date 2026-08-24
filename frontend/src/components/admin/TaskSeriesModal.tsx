@@ -23,6 +23,7 @@ export const TaskSeriesModal: React.FC<Props> = ({ eventId, onClose, onSeriesCre
   const [eventTasks, setEventTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [deleteCandidate, setDeleteCandidate] = useState<TaskSeries | null>(null);
   const [newSeriesName, setNewSeriesName] = useState('');
   const [newSeriesDescription, setNewSeriesDescription] = useState('');
   const [selectedMembers, setSelectedMembers] = useState<number[]>([]);
@@ -107,18 +108,30 @@ export const TaskSeriesModal: React.FC<Props> = ({ eventId, onClose, onSeriesCre
     }
   };
 
-  const handleDeleteSeries = async (seriesId: number) => {
-    if (!confirm('Serie wirklich löschen? Aufgaben werden nicht gelöscht, nur die Serie-Zuordnung.')) {
-      return;
-    }
+  /*
+   * Löschen ist nicht eine Entscheidung, sondern zwei: die Serie geht weg -
+   * aber was passiert mit ihren Aufgaben und deren Zuweisungen? Deshalb ein
+   * Dialog statt einer Rückfrage mit Ja/Nein.
+   */
+  const handleDeleteSeries = (series: TaskSeries) => {
+    setDeleteCandidate(series);
+  };
 
+  const runDeleteSeries = async (mode: 'keep' | 'unassign' | 'delete_tasks') => {
+    if (!deleteCandidate) return;
     try {
-      await taskSeriesApi.delete(seriesId);
+      await taskSeriesApi.delete(deleteCandidate.id, mode);
+      setDeleteCandidate(null);
       await loadData();
       if (onSeriesCreated) {
         onSeriesCreated();
       }
-      setToast({ message: 'Serie gelöscht', type: 'success' });
+      const done = {
+        keep: 'Serie gelöscht, Aufgaben unverändert',
+        unassign: 'Serie gelöscht, Zuweisungen aufgehoben',
+        delete_tasks: 'Serie und Aufgaben gelöscht',
+      }[mode];
+      setToast({ message: done, type: 'success' });
     } catch (error) {
       console.error('Delete series error:', error);
       setToast({ message: 'Fehler beim Löschen', type: 'error' });
@@ -467,7 +480,7 @@ export const TaskSeriesModal: React.FC<Props> = ({ eventId, onClose, onSeriesCre
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleDeleteSeries(s.id);
+                                handleDeleteSeries(s);
                               }}
                               style={styles.deleteButton}
                             >
@@ -524,11 +537,171 @@ export const TaskSeriesModal: React.FC<Props> = ({ eventId, onClose, onSeriesCre
           </button>
         </div>
       </div>
+
+      {deleteCandidate && (
+        <DeleteSeriesModal
+          series={deleteCandidate}
+          onClose={() => setDeleteCandidate(null)}
+          onConfirm={runDeleteSeries}
+        />
+      )}
+    </div>
+  );
+};
+
+/*
+ * Beim Löschen einer Serie ist die Serie selbst der harmlose Teil - die
+ * Frage ist, was mit ihren Aufgaben und deren Zuweisungen passiert. Drei
+ * Wege, von harmlos nach endgültig sortiert.
+ */
+interface DeleteSeriesModalProps {
+  series: TaskSeries;
+  onClose: () => void;
+  onConfirm: (mode: 'keep' | 'unassign' | 'delete_tasks') => void | Promise<void>;
+}
+
+const DeleteSeriesModal: React.FC<DeleteSeriesModalProps> = ({ series, onClose, onConfirm }) => {
+  const [mode, setMode] = useState<'keep' | 'unassign' | 'delete_tasks'>('keep');
+  const [busy, setBusy] = useState(false);
+
+  const taskCount = series.task_count || 0;
+  const memberCount = series.member_count || 0;
+  const tasksLabel = `${taskCount} Aufgabe${taskCount !== 1 ? 'n' : ''}`;
+
+  const options: { value: typeof mode; title: string; hint: string }[] = [
+    {
+      value: 'keep',
+      title: 'Nur die Serie auflösen',
+      hint: `${tasksLabel} bleiben bestehen, die Zuweisungen ebenfalls - ab dann als normale Einzelzuweisungen.`,
+    },
+    {
+      value: 'unassign',
+      title: 'Zuweisungen aufheben',
+      hint: `${tasksLabel} bleiben bestehen, verschwinden aber bei den ${memberCount} Mitgliedern und können neu vergeben werden.`,
+    },
+    {
+      value: 'delete_tasks',
+      title: 'Aufgaben mitlöschen',
+      hint: `${tasksLabel} werden gelöscht. Das lässt sich nicht rückgängig machen.`,
+    },
+  ];
+
+  const run = async () => {
+    if (mode === 'delete_tasks' && !confirm(`${tasksLabel} endgültig löschen?`)) return;
+    setBusy(true);
+    try {
+      await onConfirm(mode);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleOverlayClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) onClose();
+  };
+
+  return (
+    <div className="app-modal-overlay" style={{ ...styles.overlay, zIndex: 1002 }} onClick={handleOverlayClick}>
+      <div className="app-modal" style={{ ...styles.modal, maxWidth: '540px' }}>
+        <h2 style={styles.title}>Serie „{series.name}" löschen</h2>
+
+        <p style={styles.deleteIntro}>
+          {taskCount === 0
+            ? 'Zu dieser Serie gehören keine Aufgaben.'
+            : `Zu dieser Serie gehören ${tasksLabel}. Was soll damit geschehen?`}
+        </p>
+
+        {taskCount > 0 && (
+          <div style={styles.optionList}>
+            {options.map(o => (
+              <label
+                key={o.value}
+                style={{
+                  ...styles.option,
+                  borderColor: mode === o.value ? 'var(--c-accent)' : 'var(--c-border)',
+                  backgroundColor: mode === o.value ? 'var(--c-accent-soft)' : 'transparent',
+                }}
+              >
+                <input
+                  type="radio"
+                  name="delete-series-mode"
+                  checked={mode === o.value}
+                  onChange={() => setMode(o.value)}
+                  style={styles.optionRadio}
+                />
+                <span>
+                  <span style={styles.optionTitle}>{o.title}</span>
+                  <span style={styles.optionHint}>{o.hint}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        )}
+
+        <div className="app-modal-actions" style={styles.footer}>
+          <button onClick={onClose} style={styles.footerButton} disabled={busy}>
+            Abbrechen
+          </button>
+          <button onClick={run} style={styles.confirmDeleteButton} disabled={busy}>
+            Serie löschen
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
 
 const styles: { [key: string]: React.CSSProperties } = {
+  deleteIntro: {
+    marginBottom: '1rem',
+    color: 'var(--c-text-muted)',
+  },
+  optionList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.5rem',
+    marginBottom: '0.5rem',
+  },
+  option: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '0.75rem',
+    padding: '0.75rem',
+    border: '1px solid var(--c-border)',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    transition: 'border-color 0.15s ease, background-color 0.15s ease',
+  },
+  optionRadio: {
+    width: '18px',
+    height: '18px',
+    marginTop: '0.125rem',
+    flex: '0 0 auto',
+    cursor: 'pointer',
+  },
+  optionTitle: {
+    display: 'block',
+    fontWeight: 600,
+    fontSize: '0.9375rem',
+    marginBottom: '0.125rem',
+  },
+  optionHint: {
+    display: 'block',
+    fontSize: '0.8125rem',
+    color: 'var(--c-text-muted)',
+    lineHeight: 1.4,
+  },
+  confirmDeleteButton: {
+    padding: '0.625rem 1.25rem',
+    backgroundColor: 'var(--c-danger)',
+    color: 'var(--c-text-inverse)',
+    border: 'none',
+    borderRadius: '4px',
+    fontSize: '0.9375rem',
+    fontWeight: 500,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+  },
   overlay: {
     position: 'fixed',
     top: 0,
