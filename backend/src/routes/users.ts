@@ -57,6 +57,15 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req: Auth
       }
     }
 
+    // Der Name ist der Anmeldename und seit Migration 016 eindeutig. Ohne
+    // diese Pruefung kaeme hier ein nackter 500er aus der Datenbank.
+    if (name) {
+      const nameTaken = await query('SELECT id FROM users WHERE name = $1 AND id <> $2', [name, id]);
+      if (nameTaken.rows.length > 0) {
+        return res.status(400).json({ error: 'Dieser Name ist bereits vergeben' });
+      }
+    }
+
     let updateQuery = 'UPDATE users SET name = $1, role = $2';
     let params: any[] = [name, role];
 

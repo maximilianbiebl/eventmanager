@@ -40,6 +40,51 @@ const parseCsvLine = (line: string): string[] => {
   return out;
 };
 
+/*
+ * Die erwarteten Spalten je Import-Art. Die Namen stammen aus den
+ * Import-Routen des Servers - wer sie hier aendert, muss dort nachziehen.
+ */
+const FORMATS: {
+  [key in 'users' | 'events' | 'tasks']: {
+    header: string;
+    columns: { name: string; required: boolean; hint: string }[];
+    note: string;
+  };
+} = {
+  users: {
+    header: 'name,role,password',
+    columns: [
+      { name: 'name', required: true, hint: 'Anmeldename, auch mit Leerzeichen ("Max Mustermann")' },
+      { name: 'role', required: false, hint: 'admin, teamleiter oder staff - leer bedeutet staff' },
+      { name: 'password', required: false, hint: 'mindestens 6 Zeichen; leer = wird zufällig erzeugt' },
+    ],
+    note: 'Bereits vorhandene Namen werden übersprungen, deren Passwörter bleiben unverändert. Die Zugangsdaten werden nach dem Import einmalig angezeigt.',
+  },
+  events: {
+    header: 'name,description,start_date,days',
+    columns: [
+      { name: 'name', required: true, hint: 'Name der Veranstaltung' },
+      { name: 'description', required: false, hint: 'Beschreibung' },
+      { name: 'start_date', required: false, hint: 'Startdatum als JJJJ-MM-TT, z. B. 2026-09-01' },
+      { name: 'days', required: false, hint: 'Anzahl Tage, leer bedeutet 1' },
+    ],
+    note: 'Als Vorlage importierte Veranstaltungen bekommen kein Startdatum.',
+  },
+  tasks: {
+    header: 'title,description,day_number,scheduled_time,start_time,end_time,is_public',
+    columns: [
+      { name: 'title', required: true, hint: 'Titel der Aufgabe' },
+      { name: 'description', required: false, hint: 'Beschreibung' },
+      { name: 'day_number', required: false, hint: 'Veranstaltungstag als Zahl, leer bedeutet 1' },
+      { name: 'scheduled_time', required: false, hint: 'geplante Zeit als HH:MM' },
+      { name: 'start_time', required: false, hint: 'Startzeit als HH:MM' },
+      { name: 'end_time', required: false, hint: 'Endzeit als HH:MM' },
+      { name: 'is_public', required: false, hint: 'true oder false' },
+    ],
+    note: 'Felder mit Komma bitte in Anführungszeichen setzen: "Aufbau, Halle 2".',
+  },
+};
+
 interface Credential {
   name: string;
   password: string;
@@ -190,6 +235,15 @@ export const CSVImportModal: React.FC<Props> = ({ type, onClose, onSuccess, even
     return 'Importieren';
   };
 
+  const copyHeader = async () => {
+    try {
+      await navigator.clipboard.writeText(FORMATS[type].header);
+      alert('Kopfzeile kopiert');
+    } catch {
+      alert('Kopieren nicht möglich - bitte von Hand übernehmen');
+    }
+  };
+
   const copyCredentials = async () => {
     if (!credentials) return;
     const text = credentials.map(c => `${c.name}\t${c.password}`).join('\n');
@@ -296,14 +350,32 @@ export const CSVImportModal: React.FC<Props> = ({ type, onClose, onSuccess, even
             style={styles.fileInput}
           />
           {file && <p style={styles.fileName}>{file.name}</p>}
-          {type === 'users' && (
-            <p style={styles.helperText}>
-              Spalten: <code>name</code>, <code>role</code> (optional), <code>password</code> (optional,
-              mindestens 6 Zeichen). Ohne Passwort-Spalte wird pro Person ein zufälliges
-              Passwort erzeugt und nach dem Import einmalig angezeigt.
-              Bereits vorhandene Namen werden übersprungen.
-            </p>
-          )}
+        </div>
+
+        {/*
+          Welche Spalten erwartet werden, stand bisher nirgends - man musste
+          es raten oder erst exportieren. Kopfzeile zum Kopieren, damit man
+          direkt loslegen kann.
+        */}
+        <div style={styles.formatBox}>
+          <div style={styles.formatHeader}>
+            <span style={styles.formatTitle}>Erwartete Spalten</span>
+            <button type="button" onClick={copyHeader} style={styles.formatCopy}>
+              Kopfzeile kopieren
+            </button>
+          </div>
+          <code style={styles.formatCode}>{FORMATS[type].header}</code>
+          <ul style={styles.formatList}>
+            {FORMATS[type].columns.map(col => (
+              <li key={col.name} style={styles.formatItem}>
+                <code style={styles.formatName}>{col.name}</code>
+                <span style={styles.formatDesc}>
+                  {col.required ? '' : '(optional) '}{col.hint}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p style={styles.formatNote}>{FORMATS[type].note}</p>
         </div>
 
         {type === 'events' && (
@@ -385,6 +457,77 @@ export const CSVImportModal: React.FC<Props> = ({ type, onClose, onSuccess, even
 };
 
 const styles: { [key: string]: React.CSSProperties } = {
+  formatBox: {
+    marginBottom: '1.5rem',
+    padding: '0.875rem',
+    backgroundColor: 'var(--c-surface-muted)',
+    border: '1px solid var(--c-border)',
+    borderRadius: '6px',
+  },
+  formatHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '0.5rem',
+    marginBottom: '0.5rem',
+  },
+  formatTitle: {
+    fontSize: '0.8125rem',
+    fontWeight: 600,
+    color: 'var(--c-text)',
+  },
+  formatCopy: {
+    padding: '0.25rem 0.625rem',
+    backgroundColor: 'var(--c-surface)',
+    color: 'var(--c-text)',
+    border: '1px solid var(--c-border-strong)',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '0.75rem',
+    fontFamily: 'inherit',
+    whiteSpace: 'nowrap',
+  },
+  formatCode: {
+    display: 'block',
+    padding: '0.375rem 0.5rem',
+    marginBottom: '0.625rem',
+    backgroundColor: 'var(--c-surface)',
+    border: '1px solid var(--c-border)',
+    borderRadius: '4px',
+    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+    fontSize: '0.75rem',
+    color: 'var(--c-text)',
+    overflowX: 'auto',
+    whiteSpace: 'nowrap',
+  },
+  formatList: {
+    listStyle: 'none',
+    margin: 0,
+    padding: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.25rem',
+  },
+  formatItem: {
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: '0.5rem',
+    fontSize: '0.75rem',
+    flexWrap: 'wrap',
+  },
+  formatName: {
+    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+    fontWeight: 600,
+    color: 'var(--c-accent-text)',
+  },
+  formatDesc: {
+    color: 'var(--c-text-muted)',
+  },
+  formatNote: {
+    marginTop: '0.625rem',
+    fontSize: '0.75rem',
+    color: 'var(--c-text-muted)',
+  },
   credHint: {
     marginBottom: '1rem',
     color: 'var(--c-text-muted)',
