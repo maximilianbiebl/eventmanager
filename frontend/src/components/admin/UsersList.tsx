@@ -566,26 +566,36 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '0.875rem',
     fontWeight: '500',
   },
+  /*
+   * "Passwort ändern" ist eine normale Verwaltungsaktion, keine Warnung.
+   * Gefuellt in Warnfarbe stand der Knopf in derselben Zeile wie der gelbe
+   * Admin-Badge - zwei Spalten auseinander, dieselbe Farbe, zwei voellig
+   * verschiedene Bedeutungen. Jetzt derselbe leise Umriss-Stil wie
+   * "Bearbeiten" in der Aufgabenansicht. Rot fuer "Löschen" bleibt: das ist
+   * eine eigene, etablierte Bedeutung (zerstoerende Aktion).
+   */
   resetButton: {
-    padding: '0.5rem 1rem',
-    backgroundColor: 'var(--c-warning)',
-    color: 'var(--c-text-inverse)',
-    border: 'none',
-    borderRadius: '4px',
+    padding: '0.375rem 0.75rem',
+    backgroundColor: 'transparent',
+    color: 'var(--c-text-muted)',
+    border: '1px solid var(--c-border)',
+    borderRadius: '6px',
     cursor: 'pointer',
-    fontSize: '0.875rem',
+    fontSize: '0.8125rem',
     fontWeight: '500',
-    transition: 'background-color 0.2s',
+    whiteSpace: 'nowrap',
+    transition: 'border-color 0.15s ease, color 0.15s ease',
   },
   deleteButton: {
-    padding: '0.5rem 1rem',
+    padding: '0.375rem 0.75rem',
     backgroundColor: 'var(--c-danger)',
     color: 'var(--c-text-inverse)',
-    border: 'none',
-    borderRadius: '4px',
+    border: '1px solid var(--c-danger)',
+    borderRadius: '6px',
     cursor: 'pointer',
-    fontSize: '0.875rem',
+    fontSize: '0.8125rem',
     fontWeight: '500',
+    whiteSpace: 'nowrap',
     transition: 'background-color 0.2s',
   },
 };
