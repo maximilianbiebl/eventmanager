@@ -4,6 +4,8 @@
    ========================================================================== */
 
 :root {
+  color-scheme: light;
+
   /* Flächen */
   --c-canvas: #F1F5F9;
   --c-surface: #FFFFFF;
@@ -14,31 +16,145 @@
   --c-border-strong: #CBD5E1;
 
   /* Text */
-  --c-text: #0F172A;
+  --c-text: #1E293B;
   --c-text-muted: #64748B;
   --c-text-subtle: #94A3B8;
+  --c-text-inverse: #FFFFFF; /* Text auf farbigen Flächen */
 
-  /* Akzent */
+  /* Akzent. Fläche und Text sind getrennt: eine gefüllte Fläche braucht
+     genug Sättigung für weisse Schrift, Akzenttext auf dunklem Grund
+     dagegen muss hell sein. */
   --c-accent: #1E40AF;
   --c-accent-hover: #1E3A8A;
+  --c-accent-text: #1E40AF;
   --c-accent-soft: #EFF6FF;
+  --c-accent-border: #BFDBFE;
+  --c-accent-strong: #3730A3;
 
-  /* Status - bleiben semantisch, nie durch den Akzent ersetzen */
+  /* Status - müssen in beiden Themes als rot/gelb/grün erkennbar bleiben */
   --c-danger: #DC2626;
   --c-danger-hover: #B91C1C;
+  --c-danger-text: #DC2626;
   --c-danger-soft: #FEE2E2;
-  --c-warning: #D97706;
-  --c-warning-soft: #FEF3C7;
-  --c-success: #059669;
-  --c-success-soft: #D1FAE5;
+  --c-danger-strong: #991B1B;
 
-  /* Elevation - flach und zurückhaltend, kein Drop-Shadow-Wettbewerb */
+  --c-success: #059669;
+  --c-success-hover: #047857;
+  --c-success-text: #059669;
+  --c-success-soft: #D1FAE5;
+  --c-success-strong: #065F46;
+
+  --c-warning: #D97706;
+  --c-warning-text: #D97706;
+  --c-warning-soft: #FEF3C7;
+  --c-warning-strong: #92400E;
+
+  /* Overlays und Elevation */
+  --c-overlay: rgba(15, 23, 42, 0.75);
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
-  --shadow-md: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 1px 3px rgba(15, 23, 42, 0.10);
   --shadow-lg: 0 10px 30px rgba(15, 23, 42, 0.12);
 
   --radius: 6px;
   --radius-lg: 10px;
+}
+
+/* Werte des dunklen Themes - einmal definiert, zweimal angewandt. */
+
+/* Ausdrückliche Wahl "Dunkel" */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --c-canvas: #0B1220;
+  --c-surface: #141D2E;
+  --c-surface-muted: #1C2739;
+
+  --c-border: #27334A;
+  --c-border-strong: #3A4A66;
+
+  --c-text: #E7EDF7;
+  --c-text-muted: #9CABC2;
+  --c-text-subtle: #6E7F97;
+  --c-text-inverse: #FFFFFF;
+
+  --c-accent: #2563EB;
+  --c-accent-hover: #3B82F6;
+  --c-accent-text: #93C5FD;
+  --c-accent-soft: #16243D;
+  --c-accent-border: #2F4C7A;
+  --c-accent-strong: #BFDBFE;
+
+  --c-danger: #DC2626;
+  --c-danger-hover: #EF4444;
+  --c-danger-text: #F87171;
+  --c-danger-soft: #3A1618;
+  --c-danger-strong: #FCA5A5;
+
+  --c-success: #047857;
+  --c-success-hover: #059669;
+  --c-success-text: #34D399;
+  --c-success-soft: #0E2C22;
+  --c-success-strong: #6EE7B7;
+
+  --c-warning: #B45309;
+  --c-warning-text: #FBBF24;
+  --c-warning-soft: #33240B;
+  --c-warning-strong: #FCD34D;
+
+  --c-overlay: rgba(2, 6, 16, 0.8);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 1px 3px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.55);
+}
+
+/* "System": kein data-theme gesetzt, das Betriebssystem entscheidet.
+   Der :not()-Schutz sorgt dafür, dass eine ausdrückliche Hell-Wahl ein
+   dunkles Betriebssystem schlägt. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    --c-canvas: #0B1220;
+    --c-surface: #141D2E;
+    --c-surface-muted: #1C2739;
+
+    --c-border: #27334A;
+    --c-border-strong: #3A4A66;
+
+    --c-text: #E7EDF7;
+    --c-text-muted: #9CABC2;
+    --c-text-subtle: #6E7F97;
+    --c-text-inverse: #FFFFFF;
+
+    --c-accent: #2563EB;
+    --c-accent-hover: #3B82F6;
+    --c-accent-text: #93C5FD;
+    --c-accent-soft: #16243D;
+    --c-accent-border: #2F4C7A;
+    --c-accent-strong: #BFDBFE;
+
+    --c-danger: #DC2626;
+    --c-danger-hover: #EF4444;
+    --c-danger-text: #F87171;
+    --c-danger-soft: #3A1618;
+    --c-danger-strong: #FCA5A5;
+
+    --c-success: #047857;
+    --c-success-hover: #059669;
+    --c-success-text: #34D399;
+    --c-success-soft: #0E2C22;
+    --c-success-strong: #6EE7B7;
+
+    --c-warning: #B45309;
+    --c-warning-text: #FBBF24;
+    --c-warning-soft: #33240B;
+    --c-warning-strong: #FCD34D;
+
+    --c-overlay: rgba(2, 6, 16, 0.8);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 1px 3px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.55);
+  }
 }
 
 * {
@@ -119,6 +235,21 @@ select,
 textarea {
   font-size: 16px; /* Verhindert Auto-Zoom auf iOS */
   min-height: 44px;
+}
+
+/* Eingabefelder setzen in der App meist nur den Rahmen - ohne diese Regel
+   bleibt im dunklen Modus die Browser-Vorgabe (ein neutrales Grau), das
+   nicht zur Palette passt. */
+input,
+textarea,
+select {
+  background-color: var(--c-surface);
+  color: var(--c-text);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--c-text-subtle);
 }
 
 /* Einheitlicher Fokus-Ring auf Eingaben statt Browser-Default */

@@ -22,9 +22,9 @@ export const Toast: React.FC<ToastProps> = ({
   }, [duration, onClose]);
 
   const backgroundColor = {
-    success: '#10b981',
-    error: '#ef4444',
-    info: '#3b82f6'
+    success: 'var(--c-success)',
+    error: 'var(--c-danger)',
+    info: 'var(--c-accent)'
   }[type];
 
   return (
@@ -34,7 +34,7 @@ export const Toast: React.FC<ToastProps> = ({
         top: '1rem',
         right: '1rem',
         backgroundColor,
-        color: 'white',
+        color: 'var(--c-text-inverse)',
         padding: '0.75rem 1.25rem',
         borderRadius: '8px',
         boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
@@ -54,7 +54,7 @@ export const Toast: React.FC<ToastProps> = ({
         style={{
           background: 'none',
           border: 'none',
-          color: 'white',
+          color: 'var(--c-text-inverse)',
           fontSize: '1.25rem',
           cursor: 'pointer',
           padding: 0,

@@ -129,7 +129,7 @@
 
   .taskDescription {
     font-size: 0.65rem !important;
-    color: #6b7280;
+    color:var(--c-text-muted);
     margin-top: 0.25rem;
     line-height: 1.3;
   }

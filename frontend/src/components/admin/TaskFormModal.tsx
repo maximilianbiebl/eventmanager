@@ -258,7 +258,7 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
                 </option>
               ))}
             </select>
-            <div style={{fontSize: '0.875rem', color: '#6b7280', marginTop: '0.25rem'}}>
+            <div style={{fontSize: '0.875rem', color: 'var(--c-text-muted)', marginTop: '0.25rem'}}>
               Aufgaben einer Serie können gemeinsam einem Team zugewiesen werden
             </div>
           </div>
@@ -375,7 +375,7 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
                 onClick={handleToggleActive}
                 style={{
                   ...styles.deleteButton,
-                  backgroundColor: task.is_active === false ? '#059669' : '#D97706',
+                  backgroundColor: task.is_active === false ? 'var(--c-success)' : 'var(--c-warning)',
                   marginBottom: '0.75rem'
                 }}
               >
@@ -416,7 +416,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    backgroundColor: 'var(--c-overlay)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -424,10 +424,10 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: '1rem',
   },
   modal: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'var(--c-surface)',
     padding: '2rem',
     borderRadius: '8px',
-    border: '1px solid #CBD5E1',
+    border: '1px solid var(--c-border-strong)',
     width: '100%',
     maxWidth: '600px',
     maxHeight: '90vh',
@@ -438,7 +438,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: 'bold',
     marginBottom: '1.5rem',
     margin: '0 0 1.5rem 0',
-    color: '#1E293B',
+    color: 'var(--c-text)',
   },
   formGroup: {
     marginBottom: '1rem',
@@ -453,37 +453,37 @@ const styles: { [key: string]: React.CSSProperties } = {
     marginBottom: '0.5rem',
     fontWeight: '500',
     fontSize: '0.875rem',
-    color: '#1E293B',
+    color: 'var(--c-text)',
   },
   input: {
     width: '100%',
     padding: '0.5rem',
-    border: '1px solid #CBD5E1',
+    border: '1px solid var(--c-border-strong)',
     borderRadius: '4px',
     fontSize: '1rem',
-    color: '#1E293B',
+    color: 'var(--c-text)',
   },
   textarea: {
     width: '100%',
     padding: '0.5rem',
-    border: '1px solid #CBD5E1',
+    border: '1px solid var(--c-border-strong)',
     borderRadius: '4px',
     fontSize: '1rem',
     fontFamily: 'inherit',
-    color: '#1E293B',
+    color: 'var(--c-text)',
   },
   hint: {
     display: 'block',
     marginTop: '0.25rem',
     fontSize: '0.75rem',
-    color: '#64748B',
+    color: 'var(--c-text-muted)',
   },
   checkboxLabel: {
     display: 'flex',
     alignItems: 'center',
     gap: '0.5rem',
     cursor: 'pointer',
-    color: '#1E293B',
+    color: 'var(--c-text)',
   },
   checkbox: {
     width: '1.25rem',
@@ -492,8 +492,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   error: {
     padding: '0.75rem',
-    backgroundColor: '#FEE2E2',
-    color: '#991B1B',
+    backgroundColor: 'var(--c-danger-soft)',
+    color: 'var(--c-danger-strong)',
     borderRadius: '4px',
     fontSize: '0.875rem',
     marginBottom: '1rem',
@@ -507,8 +507,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     flex: 1,
     padding: '0.75rem',
     backgroundColor: 'transparent',
-    color: '#1E293B',
-    border: '1px solid #CBD5E1',
+    color: 'var(--c-text)',
+    border: '1px solid var(--c-border-strong)',
     borderRadius: '4px',
     cursor: 'pointer',
     fontWeight: '500',
@@ -517,8 +517,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   submitButton: {
     flex: 1,
     padding: '0.75rem',
-    backgroundColor: '#1E40AF',
-    color: 'white',
+    backgroundColor: 'var(--c-accent)',
+    color: 'var(--c-text-inverse)',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
@@ -528,28 +528,28 @@ const styles: { [key: string]: React.CSSProperties } = {
   dangerZone: {
     marginTop: '2rem',
     padding: '1rem',
-    backgroundColor: '#FEF2F2',
-    border: '1px solid #FECACA',
+    backgroundColor: 'var(--c-danger-soft)',
+    border: '1px solid var(--c-danger-soft)',
     borderRadius: '8px',
   },
   dangerZoneTitle: {
     fontSize: '1rem',
     fontWeight: 'bold',
-    color: '#991B1B',
+    color: 'var(--c-danger-strong)',
     marginBottom: '0.5rem',
     marginTop: 0,
   },
   dangerZoneWarning: {
     fontSize: '0.75rem',
-    color: '#7F1D1D',
+    color: 'var(--c-danger-strong)',
     marginTop: '0.5rem',
     marginBottom: 0,
   },
   deleteButton: {
     width: '100%',
     padding: '0.75rem',
-    backgroundColor: '#DC2626',
-    color: 'white',
+    backgroundColor: 'var(--c-danger)',
+    color: 'var(--c-text-inverse)',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
@@ -565,8 +565,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   toggleButton: {
     padding: '0.25rem 0.75rem',
-    backgroundColor: '#64748B',
-    color: 'white',
+    backgroundColor: 'var(--c-text-muted)',
+    color: 'var(--c-text-inverse)',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
@@ -575,10 +575,10 @@ const styles: { [key: string]: React.CSSProperties } = {
     transition: 'background-color 0.2s',
   },
   staffList: {
-    border: '1px solid #CBD5E1',
+    border: '1px solid var(--c-border-strong)',
     borderRadius: '4px',
     padding: '1rem',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: 'var(--c-surface-muted)',
     maxHeight: '200px',
     overflowY: 'auto',
   },
@@ -589,13 +589,13 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: '0.5rem',
     cursor: 'pointer',
     borderRadius: '4px',
-    color: '#1E293B',
+    color: 'var(--c-text)',
   },
   selectedCount: {
     marginTop: '0.5rem',
     padding: '0.5rem',
-    backgroundColor: '#DBEAFE',
-    color: '#1E40AF',
+    backgroundColor: 'var(--c-accent-soft)',
+    color: 'var(--c-accent-text)',
     borderRadius: '4px',
     fontSize: '0.875rem',
     fontWeight: '500',

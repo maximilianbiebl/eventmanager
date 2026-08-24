@@ -2,18 +2,18 @@
   max-width: 700px;
   margin: 2rem auto;
   padding: 2rem;
-  background: white;
+  background:var(--c-surface);
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .container h2 {
   margin: 0 0 1rem 0;
-  color: #1f2937;
+  color:var(--c-text);
 }
 
 .description {
-  color: #6b7280;
+  color:var(--c-text-muted);
   margin-bottom: 2rem;
 }
 
@@ -23,8 +23,8 @@
 
 .setupButton {
   padding: 1rem 2rem;
-  background: #4f46e5;
-  color: white;
+  background:var(--c-accent);
+  color:var(--c-text-inverse);
   border: none;
   border-radius: 6px;
   font-size: 1.1rem;
@@ -34,11 +34,11 @@
 }
 
 .setupButton:hover:not(:disabled) {
-  background: #4338ca;
+  background:var(--c-accent-hover);
 }
 
 .setupButton:disabled {
-  background: #9ca3af;
+  background:var(--c-text-subtle);
   cursor: not-allowed;
 }
 
@@ -46,7 +46,7 @@
   display: flex;
   justify-content: center;
   padding: 2rem;
-  background: #f9fafb;
+  background:var(--c-surface-muted);
   border-radius: 8px;
   margin: 1.5rem 0;
 }
@@ -55,27 +55,27 @@
   max-width: 300px;
   width: 100%;
   height: auto;
-  border: 4px solid white;
+  border:4px solid var(--c-surface);
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .instructions {
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
+  background:var(--c-accent-soft);
+  border:1px solid var(--c-accent-border);
   border-radius: 6px;
   padding: 1.5rem;
   margin: 1.5rem 0;
 }
 
 .instructions strong {
-  color: #1e40af;
+  color:var(--c-accent-text);
 }
 
 .instructions ol {
   margin: 1rem 0 0 0;
   padding-left: 1.5rem;
-  color: #1f2937;
+  color:var(--c-text);
 }
 
 .instructions li {
@@ -87,8 +87,8 @@
   align-items: center;
   gap: 1rem;
   padding: 1rem;
-  background: #fef3c7;
-  border: 1px solid #fde68a;
+  background:var(--c-warning-soft);
+  border:1px solid var(--c-warning-soft);
   border-radius: 6px;
   margin-top: 1.5rem;
 }
@@ -96,7 +96,7 @@
 .spinner {
   width: 20px;
   height: 20px;
-  border: 3px solid #d97706;
+  border:3px solid var(--c-warning);
   border-top-color: transparent;
   border-radius: 50%;
   animation: spin 1s linear infinite;
@@ -113,8 +113,8 @@
   align-items: start;
   gap: 1.5rem;
   padding: 1.5rem;
-  background: #d1fae5;
-  border: 1px solid #6ee7b7;
+  background:var(--c-success-soft);
+  border:1px solid var(--c-success-soft);
   border-radius: 8px;
 }
 
@@ -124,31 +124,31 @@
 
 .connectedStatus h3 {
   margin: 0 0 0.5rem 0;
-  color: #065f46;
+  color:var(--c-success-strong);
 }
 
 .accountInfo {
   margin: 0.25rem 0;
-  color: #047857;
+  color:var(--c-success-strong);
   font-weight: 500;
 }
 
 .linkedDate {
   margin: 0.5rem 0 0 0;
-  color: #059669;
+  color:var(--c-success-text);
   font-size: 0.875rem;
 }
 
 .testSection {
   margin-top: 2rem;
   padding: 1.5rem;
-  background: #f9fafb;
+  background:var(--c-surface-muted);
   border-radius: 6px;
 }
 
 .testSection h4 {
   margin: 0 0 1rem 0;
-  color: #1f2937;
+  color:var(--c-text);
 }
 
 .testForm {
@@ -159,21 +159,21 @@
 .input {
   flex: 1;
   padding: 0.75rem;
-  border: 1px solid #d1d5db;
+  border:1px solid var(--c-border-strong);
   border-radius: 6px;
   font-size: 1rem;
 }
 
 .input:focus {
   outline: none;
-  border-color: #4f46e5;
+  border-color:var(--c-accent);
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
 .testButton {
   padding: 0.75rem 1.5rem;
-  background: #10b981;
-  color: white;
+  background:var(--c-success);
+  color:var(--c-text-inverse);
   border: none;
   border-radius: 6px;
   font-weight: 500;
@@ -183,24 +183,24 @@
 }
 
 .testButton:hover:not(:disabled) {
-  background: #059669;
+  background:var(--c-success);
 }
 
 .testButton:disabled {
-  background: #9ca3af;
+  background:var(--c-text-subtle);
   cursor: not-allowed;
 }
 
 .actions {
   margin-top: 2rem;
   padding-top: 1.5rem;
-  border-top: 1px solid #e5e7eb;
+  border-top:1px solid var(--c-border);
 }
 
 .unlinkButton {
   padding: 0.75rem 1.5rem;
-  background: #ef4444;
-  color: white;
+  background:var(--c-danger);
+  color:var(--c-text-inverse);
   border: none;
   border-radius: 6px;
   font-weight: 500;
@@ -209,31 +209,31 @@
 }
 
 .unlinkButton:hover:not(:disabled) {
-  background: #dc2626;
+  background:var(--c-danger);
 }
 
 .unlinkButton:disabled {
-  background: #9ca3af;
+  background:var(--c-text-subtle);
   cursor: not-allowed;
 }
 
 .success {
   margin-top: 1.5rem;
   padding: 1rem;
-  background: #d1fae5;
-  border: 1px solid #6ee7b7;
+  background:var(--c-success-soft);
+  border:1px solid var(--c-success-soft);
   border-radius: 6px;
-  color: #065f46;
+  color:var(--c-success-strong);
   font-weight: 500;
 }
 
 .error {
   margin-top: 1.5rem;
   padding: 1rem;
-  background: #fee2e2;
-  border: 1px solid #fca5a5;
+  background:var(--c-danger-soft);
+  border:1px solid var(--c-danger-soft);
   border-radius: 6px;
-  color: #991b1b;
+  color:var(--c-danger-strong);
   font-weight: 500;
 }
 

@@ -4,6 +4,7 @@ import { EventsList } from './EventsList';
 import { UsersList } from './UsersList';
 import { ChangePasswordDialog } from './ChangePasswordDialog';
 import { StaffSettings } from '../StaffSettings';
+import { ThemeSwitch } from '../ThemeSwitch';
 import responsiveStyles from './AdminDashboard.module.css';
 
 type Tab = 'events' | 'users';
@@ -68,6 +69,7 @@ export const AdminDashboard: React.FC = () => {
               <>
                 <div style={styles.menuOverlay} onClick={() => setShowMenu(false)} />
                 <div style={styles.dropdown}>
+                  <ThemeSwitch />
                   <button
                     onClick={() => {
                       setShowSettings(true);
@@ -116,6 +118,7 @@ export const AdminDashboard: React.FC = () => {
                 onClick={() => setShowMenu(false)}
               />
               <div className={responsiveStyles.mobileMenu}>
+                <ThemeSwitch />
                 <button
                   onClick={() => {
                     setShowSettings(true);
@@ -181,7 +184,7 @@ export const AdminDashboard: React.FC = () => {
 const styles: { [key: string]: React.CSSProperties } = {
   container: {
     minHeight: '100vh',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: 'var(--c-surface-muted)',
     padding: '1rem',
   },
   header: {
@@ -189,19 +192,19 @@ const styles: { [key: string]: React.CSSProperties } = {
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: '2rem',
-    backgroundColor: 'white',
+    backgroundColor: 'var(--c-surface)',
     padding: '1.5rem',
     borderRadius: '8px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+    boxShadow: 'var(--shadow-md)',
   },
   title: {
     fontSize: '1.875rem',
     fontWeight: 'bold',
-    color: '#1E293B',
+    color: 'var(--c-text)',
     margin: 0,
   },
   subtitle: {
-    color: '#64748B',
+    color: 'var(--c-text-muted)',
     margin: '0.5rem 0 0 0',
   },
   headerActions: {
@@ -212,8 +215,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   menuButton: {
     padding: '0.5rem 1rem',
-    backgroundColor: '#1E40AF',
-    color: 'white',
+    backgroundColor: 'var(--c-accent)',
+    color: 'var(--c-text-inverse)',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
@@ -232,10 +235,10 @@ const styles: { [key: string]: React.CSSProperties } = {
     right: 0,
     top: '100%',
     marginTop: '0.5rem',
-    backgroundColor: 'white',
-    border: '1px solid #CBD5E1',
+    backgroundColor: 'var(--c-surface)',
+    border: '1px solid var(--c-border-strong)',
     borderRadius: '4px',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+    boxShadow: 'var(--shadow-md)',
     minWidth: '200px',
     zIndex: 1000,
   },
@@ -253,11 +256,11 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: '0.75rem 1rem',
     backgroundColor: 'transparent',
     border: 'none',
-    borderTop: '1px solid #e5e7eb',
+    borderTop: '1px solid var(--c-border)',
     textAlign: 'left',
     cursor: 'pointer',
     fontSize: '1rem',
-    color: '#DC2626',
+    color: 'var(--c-danger-text)',
   },
   tabs: {
     display: 'flex',
@@ -266,26 +269,26 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   tab: {
     padding: '0.75rem 1.5rem',
-    backgroundColor: 'white',
-    border: '1px solid #CBD5E1',
+    backgroundColor: 'var(--c-surface)',
+    border: '1px solid var(--c-border-strong)',
     borderRadius: '4px',
     cursor: 'pointer',
     fontWeight: '500',
-    color: '#1E293B',
+    color: 'var(--c-text)',
   },
   activeTab: {
     padding: '0.75rem 1.5rem',
-    backgroundColor: '#1E40AF',
-    color: 'white',
-    border: '1px solid #1E40AF',
+    backgroundColor: 'var(--c-accent)',
+    color: 'var(--c-text-inverse)',
+    border: '1px solid var(--c-accent)',
     borderRadius: '4px',
     cursor: 'pointer',
     fontWeight: '500',
   },
   content: {
-    backgroundColor: 'white',
+    backgroundColor: 'var(--c-surface)',
     borderRadius: '8px',
     padding: '1.5rem',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+    boxShadow: 'var(--shadow-md)',
   },
 };

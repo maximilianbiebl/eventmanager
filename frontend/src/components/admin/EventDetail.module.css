@@ -6,7 +6,7 @@
   align-items: center;
   margin-bottom: 1rem;
   padding-bottom: 0.625rem;
-  border-bottom: 1px solid #E2E8F0;
+  border-bottom:1px solid var(--c-border);
   gap: 0.5rem;
   /* nowrap: mit Umbruch landete "Aktionen" in einer zweiten Zeile und
      "Zurück" rutschte in die Mitte - eine ganze Zeile für nichts. */
@@ -19,8 +19,8 @@
   flex-shrink: 0;
   padding: 0.375rem 0.75rem;
   background-color: transparent;
-  color: #64748B;
-  border: 1px solid #E2E8F0;
+  color:var(--c-text-muted);
+  border:1px solid var(--c-border);
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.8125rem;
@@ -30,9 +30,9 @@
 }
 
 .backButton:hover {
-  background-color: #F8FAFC;
-  border-color: #CBD5E1;
-  color: #1E293B;
+  background-color:var(--c-surface-muted);
+  border-color:var(--c-border-strong);
+  color:var(--c-text);
 }
 
 .editButton {
@@ -40,8 +40,8 @@
      Veranstaltungsnamen und den Aufgaben konkurrieren. */
   padding: 0.375rem 0.75rem;
   background-color: transparent;
-  color: #64748B;
-  border: 1px solid #E2E8F0;
+  color:var(--c-text-muted);
+  border:1px solid var(--c-border);
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.8125rem;
@@ -55,8 +55,8 @@
      Veranstaltungsnamen und den Aufgaben konkurrieren. */
   padding: 0.375rem 0.75rem;
   background-color: transparent;
-  color: #64748B;
-  border: 1px solid #E2E8F0;
+  color:var(--c-text-muted);
+  border:1px solid var(--c-border);
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.8125rem;
@@ -70,8 +70,8 @@
      Veranstaltungsnamen und den Aufgaben konkurrieren. */
   padding: 0.375rem 0.75rem;
   background-color: transparent;
-  color: #64748B;
-  border: 1px solid #E2E8F0;
+  color:var(--c-text-muted);
+  border:1px solid var(--c-border);
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.8125rem;
@@ -85,8 +85,8 @@
      Veranstaltungsnamen und den Aufgaben konkurrieren. */
   padding: 0.375rem 0.75rem;
   background-color: transparent;
-  color: #64748B;
-  border: 1px solid #E2E8F0;
+  color:var(--c-text-muted);
+  border:1px solid var(--c-border);
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.8125rem;
@@ -100,8 +100,8 @@
      Veranstaltungsnamen und den Aufgaben konkurrieren. */
   padding: 0.375rem 0.75rem;
   background-color: transparent;
-  color: #64748B;
-  border: 1px solid #E2E8F0;
+  color:var(--c-text-muted);
+  border:1px solid var(--c-border);
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.8125rem;
@@ -114,9 +114,9 @@
   /* Einzige hervorgehobene Aktion der Leiste: eine echte Entscheidung.
      Grün bleibt als Status-/Zustimmungsfarbe erhalten. */
   padding: 0.375rem 0.75rem;
-  background-color: #059669;
-  color: white;
-  border: 1px solid #059669;
+  background-color:var(--c-success);
+  color:var(--c-text-inverse);
+  border:1px solid var(--c-success);
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.8125rem;
@@ -126,7 +126,7 @@
 }
 
 .approveButton:hover {
-  background-color: #047857;
+  background-color:var(--c-success-hover);
 }
 
 /* Gemeinsamer Hover für die leisen Kontext-Aktionen */
@@ -135,8 +135,8 @@
 .copyTemplateButton:hover,
 .toggleTemplateButton:hover,
 .editButton:hover {
-  border-color: #CBD5E1;
-  color: #1E293B;
+  border-color:var(--c-border-strong);
+  color:var(--c-text);
 }
 
 .title {
@@ -147,7 +147,7 @@
 }
 
 .description {
-  color: #64748B;
+  color:var(--c-text-muted);
   margin-bottom: 1.5rem;
 }
 
@@ -178,15 +178,15 @@
 .viewToggle {
   display: flex;
   gap: 0.25rem;
-  border: 1px solid #d1d5db;
+  border:1px solid var(--c-border-strong);
   border-radius: 4px;
   overflow: hidden;
 }
 
 .viewButton {
   padding: 0.5rem 1rem;
-  background-color: white;
-  color: #1E293B;
+  background-color:var(--c-surface);
+  color:var(--c-text);
   border: none;
   cursor: pointer;
   font-size: 0.875rem;
@@ -205,9 +205,9 @@
    ganzen Button. Doppelte Klasse, damit sie das globale
    `button:disabled { opacity }` schlägt. */
 .viewButton.refreshing {
-  color: #1E40AF;
+  color:var(--c-accent-text);
   opacity: 1;
-  background-color: #EFF6FF;
+  background-color:var(--c-accent-soft);
 }
 
 /* Die Füllung liegt hinter dem Text (z-index 0 vs. 1). */
@@ -215,7 +215,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background-color: #BFDBFE;
+  background-color:var(--c-accent-border);
   transform: scaleX(0);
   transform-origin: left center;
   animation: refreshFill 1.2s cubic-bezier(0.65, 0, 0.35, 1) infinite;
@@ -235,8 +235,8 @@
 
 .viewButtonActive {
   padding: 0.5rem 1rem;
-  background-color: #1E40AF;
-  color: white;
+  background-color:var(--c-accent);
+  color:var(--c-text-inverse);
   border: none;
   cursor: pointer;
   font-size: 0.875rem;
@@ -249,8 +249,8 @@
 .secondaryButton {
   padding: 0.5rem 1rem;
   background-color: transparent;
-  color: #1E293B;
-  border: 1px solid #CBD5E1;
+  color:var(--c-text);
+  border:1px solid var(--c-border-strong);
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.875rem;
@@ -260,14 +260,14 @@
 }
 
 .secondaryButton:hover {
-  background-color: #F8FAFC;
-  border-color: #94A3B8;
+  background-color:var(--c-surface-muted);
+  border-color:var(--c-text-subtle);
 }
 
 .addButton {
   padding: 0.5rem 1rem;
-  background-color: #1E40AF;
-  color: white;
+  background-color:var(--c-accent);
+  color:var(--c-text-inverse);
   border: none;
   border-radius: 4px;
   cursor: pointer;
@@ -281,7 +281,7 @@
   display: flex;
   gap: 0.5rem;
   margin-bottom: 1rem;
-  border-bottom: 2px solid #e5e7eb;
+  border-bottom:2px solid var(--c-border);
   padding-bottom: 0.5rem;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -290,7 +290,7 @@
 .dayTab {
   padding: 0.5rem 1rem;
   background-color: transparent;
-  color: #64748B;
+  color:var(--c-text-muted);
   border: none;
   border-bottom: 2px solid transparent;
   cursor: pointer;
@@ -304,9 +304,9 @@
 .dayTabActive {
   padding: 0.5rem 1rem;
   background-color: transparent;
-  color: #1E40AF;
+  color:var(--c-accent-text);
   border: none;
-  border-bottom: 2px solid #1E40AF;
+  border-bottom:2px solid var(--c-accent);
   cursor: pointer;
   font-size: 0.875rem;
   font-weight: 600;
@@ -323,22 +323,22 @@
 
 .instance {
   padding: 0.5rem 1rem;
-  background-color: #F8FAFC;
-  border: 1px solid #CBD5E1;
+  background-color:var(--c-surface-muted);
+  border:1px solid var(--c-border-strong);
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.875rem;
   font-weight: 500;
-  color: #1E293B;
+  color:var(--c-text);
   white-space: nowrap;
   transition: all 0.2s;
 }
 
 .instanceActive {
   padding: 0.5rem 1rem;
-  background-color: #1E40AF;
-  color: white;
-  border: 1px solid #1E40AF;
+  background-color:var(--c-accent);
+  color:var(--c-text-inverse);
+  border:1px solid var(--c-accent);
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.875rem;
@@ -358,8 +358,8 @@
   justify-content: space-between;
   align-items: center;
   padding: 1rem;
-  background-color: #f9fafb;
-  border: 1px solid #e5e7eb;
+  background-color:var(--c-surface-muted);
+  border:1px solid var(--c-border);
   border-radius: 4px;
   gap: 1rem;
 }
@@ -369,16 +369,16 @@
   justify-content: space-between;
   align-items: flex-start;
   padding: 1.25rem;
-  background-color: white;
-  border: 1px solid #e5e7eb;
+  background-color:var(--c-surface);
+  border:1px solid var(--c-border);
   border-radius: 8px;
   gap: 1.5rem;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sm);
   transition: box-shadow 0.2s;
 }
 
 .taskItemExtended:hover {
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
 }
 
 .taskMainInfo {
@@ -396,13 +396,13 @@
 
 .taskTitle {
   font-size: 1.125rem;
-  color: #111827;
+  color:var(--c-text);
 }
 
 .statusBadge {
   display: inline-block;
   padding: 0.25rem 0.75rem;
-  color: white;
+  color:var(--c-text-inverse);
   border-radius: 9999px;
   font-size: 0.75rem;
   font-weight: 500;
@@ -411,7 +411,7 @@
 
 .taskDescription {
   font-size: 0.875rem;
-  color: #64748B;
+  color:var(--c-text-muted);
   margin-bottom: 1rem;
   line-height: 1.5;
 }
@@ -436,13 +436,13 @@
 
 .timeLabel {
   font-size: 0.75rem;
-  color: #64748B;
+  color:var(--c-text-muted);
   font-weight: 500;
 }
 
 .timeValue {
   font-size: 0.875rem;
-  color: #111827;
+  color:var(--c-text);
   font-weight: 600;
 }
 
@@ -454,7 +454,7 @@
 
 .assignmentsLabel {
   font-size: 0.75rem;
-  color: #64748B;
+  color:var(--c-text-muted);
   font-weight: 500;
 }
 
@@ -469,8 +469,8 @@
   align-items: center;
   gap: 0.25rem;
   padding: 0.25rem 0.5rem;
-  background-color: #e0e7ff;
-  color: #3730a3;
+  background-color:var(--c-accent-soft);
+  color:var(--c-accent-strong);
   border: none;
   border-radius: 9999px;
   font-size: 0.8125rem;
@@ -478,7 +478,7 @@
 }
 
 .completedMark {
-  color: #10b981;
+  color:var(--c-success-text);
   font-weight: bold;
   margin-left: 0.25rem;
 }
@@ -487,8 +487,8 @@
   display: inline-flex;
   align-items: center;
   padding: 0.375rem 0.75rem;
-  background-color: #dbeafe;
-  color: #1e40af;
+  background-color:var(--c-accent-soft);
+  color:var(--c-accent-text);
   border-radius: 4px;
   font-size: 0.8125rem;
   font-weight: 500;
@@ -501,7 +501,7 @@
 
 .taskMeta {
   font-size: 0.875rem;
-  color: #64748B;
+  color:var(--c-text-muted);
   margin-top: 0.25rem;
 }
 
@@ -513,8 +513,8 @@
 
 .editButton {
   padding: 0.5rem 1rem;
-  background-color: #f59e0b;
-  color: white;
+  background-color:var(--c-warning);
+  color:var(--c-text-inverse);
   border: none;
   border-radius: 4px;
   cursor: pointer;
@@ -524,8 +524,8 @@
 
 .assignButton {
   padding: 0.5rem 1rem;
-  background-color: #4f46e5;
-  color: white;
+  background-color:var(--c-accent);
+  color:var(--c-text-inverse);
   border: none;
   border-radius: 4px;
   cursor: pointer;
@@ -657,8 +657,8 @@
 .actionMenuToggle {
   padding: 0.375rem 0.75rem;
   background-color: transparent;
-  color: #64748B;
-  border: 1px solid #E2E8F0;
+  color:var(--c-text-muted);
+  border:1px solid var(--c-border);
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.8125rem;
@@ -669,8 +669,8 @@
 
 .actionMenuToggle:hover,
 .actionMenuToggle[aria-expanded='true'] {
-  border-color: #CBD5E1;
-  color: #1E293B;
+  border-color:var(--c-border-strong);
+  color:var(--c-text);
 }
 
 .menuBackdrop {
@@ -685,10 +685,10 @@
   top: calc(100% + 0.375rem);
   z-index: 41;
   min-width: 200px;
-  background-color: #FFFFFF;
-  border: 1px solid #E2E8F0;
+  background-color:var(--c-surface);
+  border:1px solid var(--c-border);
   border-radius: 8px;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+  box-shadow: var(--shadow-lg);
   overflow: hidden;
   padding: 0.25rem;
 }
@@ -704,13 +704,13 @@
   cursor: pointer;
   font-size: 0.875rem;
   font-weight: 500;
-  color: #1E293B;
+  color:var(--c-text);
   white-space: nowrap;
   transition: background-color 0.12s ease;
 }
 
 .actionMenuItem:hover {
-  background-color: #F1F5F9;
+  background-color:var(--c-surface-muted);
 }
 
 /* ---- Titelbereich -------------------------------------------------------- */
@@ -740,14 +740,14 @@
   cursor: pointer;
   font-size: 0.8125rem;
   font-weight: 500;
-  color: #64748B;
+  color:var(--c-text-muted);
   border-radius: 4px;
   transition: color 0.15s ease, background-color 0.15s ease;
 }
 
 .descriptionToggle:hover {
-  color: #1E293B;
-  background-color: #F1F5F9;
+  color:var(--c-text);
+  background-color:var(--c-surface-muted);
 }
 
 .caret,
@@ -826,7 +826,7 @@
   gap: 0.625rem;
   margin-bottom: 1rem;
   padding-bottom: 0.75rem;
-  border-bottom: 1px solid #E2E8F0;
+  border-bottom:1px solid var(--c-border);
 }
 
 .titleRow .title {
@@ -866,27 +866,27 @@
 
 .infoButton {
   background-color: transparent;
-  color: #94A3B8;
-  border: 1px solid #CBD5E1;
+  color:var(--c-text-subtle);
+  border:1px solid var(--c-border-strong);
 }
 
 .infoButton:hover {
-  color: #1E40AF;
-  border-color: #BFDBFE;
-  background-color: #EFF6FF;
+  color:var(--c-accent-text);
+  border-color:var(--c-accent-border);
+  background-color:var(--c-accent-soft);
 }
 
 .infoButtonActive {
-  background-color: #1E40AF;
-  color: #FFFFFF;
-  border: 1px solid #1E40AF;
+  background-color:var(--c-accent);
+  color:var(--c-text-inverse);
+  border:1px solid var(--c-accent);
 }
 
 .titleRow + .description {
   margin: -0.25rem 0 1.25rem;
   padding: 0.75rem 0.875rem;
-  background-color: #F8FAFC;
-  border-left: 3px solid #CBD5E1;
+  background-color:var(--c-surface-muted);
+  border-left:3px solid var(--c-border-strong);
   border-radius: 0 6px 6px 0;
   font-size: 0.875rem;
   white-space: pre-wrap;
@@ -919,7 +919,7 @@
 .csvButton {
   padding: 0.25rem 0.125rem;
   background-color: transparent;
-  color: #64748B;
+  color:var(--c-text-muted);
   border: none;
   border-radius: 2px;
   cursor: pointer;
@@ -927,19 +927,19 @@
   font-size: 0.8125rem;
   text-decoration: underline;
   text-underline-offset: 3px;
-  text-decoration-color: #CBD5E1;
+  text-decoration-color:var(--c-border-strong);
   transition: color 0.15s ease;
 }
 
 .csvButton:hover {
-  color: #1E40AF;
-  text-decoration-color: #1E40AF;
+  color:var(--c-accent-text);
+  text-decoration-color:var(--c-accent);
 }
 
 .csvDivider {
   width: 1px;
   height: 0.875rem;
-  background-color: #E2E8F0;
+  background-color:var(--c-border);
 }
 
 /* Handy-Querformat: die Kopfzeile der Aufgaben passt hier auf eine Zeile,

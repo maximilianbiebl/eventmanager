@@ -18,8 +18,8 @@
   flex-wrap: wrap;
   padding: 0.5rem 0.75rem;
   margin-bottom: 1rem;
-  background-color: #F8FAFC;
-  border: 1px solid #E2E8F0;
+  background-color:var(--c-surface-muted);
+  border:1px solid var(--c-border);
   border-radius: 8px;
 }
 
@@ -35,7 +35,7 @@
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #94A3B8;
+  color:var(--c-text-subtle);
   margin-right: 0.125rem;
   white-space: nowrap;
 }
@@ -54,24 +54,24 @@
 .tv-chip {
   min-width: 2rem;
   background-color: transparent;
-  color: #64748B;
+  color:var(--c-text-muted);
   border: 1px solid transparent;
   font-weight: 500;
 }
 
 .tv-chip:hover {
-  background-color: #FFFFFF;
-  border-color: #E2E8F0;
-  color: #1E293B;
+  background-color:var(--c-surface);
+  border-color:var(--c-border);
+  color:var(--c-text);
 }
 
 .tv-chip-active {
   min-width: 2rem;
-  background-color: #FFFFFF;
-  color: #1E40AF;
-  border: 1px solid #BFDBFE;
+  background-color:var(--c-surface);
+  color:var(--c-accent-text);
+  border:1px solid var(--c-accent-border);
   font-weight: 600;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  box-shadow: var(--shadow-sm);
 }
 
 
@@ -89,9 +89,9 @@
 /* Erscheint nur, wenn eine Spaltensortierung aktiv ist. */
 .tv-reset {
   padding: 0.25rem 0.625rem;
-  background-color: #FFFFFF;
-  color: #64748B;
-  border: 1px solid #E2E8F0;
+  background-color:var(--c-surface);
+  color:var(--c-text-muted);
+  border:1px solid var(--c-border);
   border-radius: 9999px;
   cursor: pointer;
   font-size: 0.75rem;
@@ -100,8 +100,8 @@
 }
 
 .tv-reset:hover {
-  border-color: #CBD5E1;
-  color: #1E293B;
+  border-color:var(--c-border-strong);
+  color:var(--c-text);
 }
 
 /* ---- Kompakter Statusfilter ---------------------------------------------
@@ -126,12 +126,12 @@
    Doppelte Klasse, damit .tv-chip-active (blauer Rand bei gesetztem
    Filter) weiterhin gewinnt. */
 .tv-chip.tv-trigger {
-  background-color: #FFFFFF;
-  border-color: #CBD5E1;
+  background-color:var(--c-surface);
+  border-color:var(--c-border-strong);
 }
 
 .tv-chip.tv-trigger:hover {
-  border-color: #94A3B8;
+  border-color:var(--c-text-subtle);
 }
 
 .tv-caret {
@@ -153,10 +153,10 @@
   z-index: 41;
   min-width: 10rem;
   padding: 0.25rem;
-  background-color: #FFFFFF;
-  border: 1px solid #E2E8F0;
+  background-color:var(--c-surface);
+  border:1px solid var(--c-border);
   border-radius: 8px;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+  box-shadow: var(--shadow-lg);
 }
 
 .tv-menuItem {
@@ -170,18 +170,18 @@
   cursor: pointer;
   font-size: 0.8125rem;
   font-weight: 500;
-  color: #1E293B;
+  color:var(--c-text);
   white-space: nowrap;
   transition: background-color 0.12s ease;
 }
 
 .tv-menuItem:hover {
-  background-color: #F1F5F9;
+  background-color:var(--c-surface-muted);
 }
 
 .tv-menuItemActive {
-  color: #1E40AF;
-  background-color: #EFF6FF;
+  color:var(--c-accent-text);
+  background-color:var(--c-accent-soft);
 }
 
 /* Auf Touch grössere Trefferflächen */
@@ -207,7 +207,7 @@
   padding: 0.25rem 0.625rem;
   border: none;
   border-radius: 9999px;
-  color: #FFFFFF;
+  color:var(--c-text-inverse);
   font-size: 0.75rem;
   font-weight: 600;
   line-height: 1.4;
@@ -227,4 +227,64 @@
   font-size: 0.5625rem;
   line-height: 1;
   opacity: 0.85;
+}
+
+/* ---- Umschalter für das Farbschema --------------------------------------
+   Liegt in den Menüs und in den Einstellungen. */
+
+.theme-switch {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.625rem 0.75rem;
+  border-bottom: 1px solid var(--c-border);
+}
+
+.theme-switch-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--c-text-subtle);
+}
+
+.theme-switch-group {
+  display: inline-flex;
+  border: 1px solid var(--c-border-strong);
+  border-radius: 6px;
+  overflow: hidden;
+  background-color: var(--c-surface);
+}
+
+.theme-switch-option,
+.theme-switch-option-active {
+  flex: 1;
+  padding: 0.375rem 0.625rem;
+  border: none;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.theme-switch-option + .theme-switch-option,
+.theme-switch-option + .theme-switch-option-active,
+.theme-switch-option-active + .theme-switch-option {
+  border-left: 1px solid var(--c-border-strong);
+}
+
+.theme-switch-option {
+  background-color: var(--c-surface);
+  color: var(--c-text-muted);
+}
+
+.theme-switch-option:hover {
+  background-color: var(--c-surface-muted);
+  color: var(--c-text);
+}
+
+.theme-switch-option-active {
+  background-color: var(--c-accent);
+  color: var(--c-text-inverse);
 }

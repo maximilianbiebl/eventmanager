@@ -26,7 +26,7 @@
 .hamburgerIcon span {
   width: 24px;
   height: 2px;
-  background-color: #1E293B;
+  background-color:var(--c-text);
   display: block;
   transition: all 0.3s;
 }
@@ -37,7 +37,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: var(--c-overlay);
   z-index: 1000;
 }
 
@@ -46,9 +46,9 @@
   top: 100%;
   right: 0;
   margin-top: 0.5rem;
-  background-color: white;
+  background-color:var(--c-surface);
   border-radius: 8px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-lg);
   min-width: 200px;
   z-index: 1001;
   overflow: hidden;
@@ -65,24 +65,24 @@
   font-size: 1rem;
   font-weight: 500;
   transition: background-color 0.2s;
-  border-bottom: 1px solid #F8FAFC;
+  border-bottom:1px solid var(--c-surface-muted);
 }
 
 .mobileMenuItem {
-  color: #1E293B;
+  color:var(--c-text);
 }
 
 .mobileMenuItem:hover {
-  background-color: #F8FAFC;
+  background-color:var(--c-surface-muted);
 }
 
 .mobileMenuItemLogout {
-  color: #ef4444;
+  color:var(--c-danger-text);
   border-bottom: none;
 }
 
 .mobileMenuItemLogout:hover {
-  background-color: #fef2f2;
+  background-color:var(--c-danger-soft);
 }
 
 .headerButtons {

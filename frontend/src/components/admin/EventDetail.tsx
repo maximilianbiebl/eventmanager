@@ -674,17 +674,17 @@ const TaskListView: React.FC<TaskListViewProps> = ({
 
     // Show red if task is actually overdue (by time), regardless of status
     if (currentInstance && isTaskOverdue(task, currentInstance)) {
-      return '#ef4444'; // Red for overdue
+      return 'var(--c-danger)'; // Red for overdue
     }
 
     // Otherwise use actual status color
     const colors: { [key: string]: string } = {
-      not_started: '#6b7280',
-      in_progress: '#3b82f6',
-      completed: '#10b981',
-      overdue: '#ef4444',
+      not_started: 'var(--c-text-muted)',
+      in_progress: 'var(--c-accent)',
+      completed: 'var(--c-success)',
+      overdue: 'var(--c-danger)',
     };
-    return colors[task.status] || '#6b7280';
+    return colors[task.status] || 'var(--c-text-muted)';
   };
 
   const handleStatusChange = async (taskId: number, newStatus: string) => {
@@ -967,8 +967,8 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                       <span style={{
                         fontSize: '0.7rem',
                         padding: '0.125rem 0.5rem',
-                        backgroundColor: '#dbeafe',
-                        color: '#1e40af',
+                        backgroundColor: 'var(--c-accent-soft)',
+                        color: 'var(--c-accent-text)',
                         borderRadius: '9999px',
                         fontWeight: '500'
                       }}>Öffentlich</span>
@@ -977,8 +977,8 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                       <span style={{
                         fontSize: '0.7rem',
                         padding: '0.125rem 0.5rem',
-                        backgroundColor: '#fee2e2',
-                        color: '#991b1b',
+                        backgroundColor: 'var(--c-danger-soft)',
+                        color: 'var(--c-danger-strong)',
                         borderRadius: '9999px',
                         fontWeight: '500'
                       }}>Deaktiviert</span>
@@ -987,8 +987,8 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                       <span style={{
                         fontSize: '0.7rem',
                         padding: '0.125rem 0.5rem',
-                        backgroundColor: taskAssignments.length > 0 ? '#e5e7eb' : '#dbeafe',
-                        color: taskAssignments.length > 0 ? '#6b7280' : '#1e40af',
+                        backgroundColor: taskAssignments.length > 0 ? 'var(--c-border)' : 'var(--c-accent-soft)',
+                        color: taskAssignments.length > 0 ? 'var(--c-text-muted)' : 'var(--c-accent-text)',
                         borderRadius: '9999px',
                         fontWeight: '500',
                         opacity: taskAssignments.length > 0 ? 0.7 : 1
@@ -1021,11 +1021,11 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                         marginLeft: '0.5rem',
                         padding: '0.25rem 0.5rem',
                         fontSize: '0.7rem',
-                        backgroundColor: '#e0e7ff',
+                        backgroundColor: 'var(--c-accent-soft)',
                         border: 'none',
                         borderRadius: '9999px',
                         cursor: 'pointer',
-                        color: '#3730a3',
+                        color: 'var(--c-accent-strong)',
                         fontWeight: '500',
                         verticalAlign: 'baseline'
                       }}
@@ -1075,7 +1075,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                     <span className={styles.assignmentsLabel}>Serien-Team:</span>
                     <div className={styles.assignmentsList}>
                       {seriesMembers[task.series_id].map((member, idx) => (
-                        <span key={idx} className={styles.assignmentBadge} style={{ backgroundColor: '#dbeafe', color: '#1e40af' }}>
+                        <span key={idx} className={styles.assignmentBadge} style={{ backgroundColor: 'var(--c-accent-soft)', color: 'var(--c-accent-text)' }}>
                           {member.name}
                         </span>
                       ))}
@@ -1103,8 +1103,8 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                     style={{
                       padding: '0.25rem 0.375rem',
                       backgroundColor: 'transparent',
-                      color: '#9ca3af',
-                      border: '1px solid #e5e7eb',
+                      color: 'var(--c-text-subtle)',
+                      border: '1px solid var(--c-border)',
                       borderRadius: '4px',
                       fontSize: '0.75rem',
                       cursor: 'pointer',
@@ -1121,8 +1121,8 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                     style={{
                       padding: '0.25rem 0.375rem',
                       backgroundColor: 'transparent',
-                      color: '#9ca3af',
-                      border: '1px solid #e5e7eb',
+                      color: 'var(--c-text-subtle)',
+                      border: '1px solid var(--c-border)',
                       borderRadius: '4px',
                       fontSize: '0.75rem',
                       cursor: 'pointer',

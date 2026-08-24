@@ -43,10 +43,10 @@ interface Props {
 }
 
 const STATUS_COLORS: { [key: string]: string } = {
-  not_started: '#6b7280',
-  in_progress: '#3b82f6',
-  completed: '#10b981',
-  overdue: '#ef4444',
+  not_started: 'var(--c-text-muted)',
+  in_progress: 'var(--c-accent)',
+  completed: 'var(--c-success)',
+  overdue: 'var(--c-danger)',
 };
 
 const STATUS_LABELS: { [key: string]: string } = {
@@ -429,11 +429,11 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
   const getTaskStatusColor = (task: TaskAssignment): string => {
     // Show red if task is actually overdue (by time), regardless of status
     if (isTaskOverdue(task)) {
-      return '#ef4444'; // Red for overdue
+      return 'var(--c-danger)'; // Red for overdue
     }
 
     // Otherwise use actual status color
-    return STATUS_COLORS[task.status] || '#6b7280';
+    return STATUS_COLORS[task.status] || 'var(--c-text-muted)';
   };
 
   const getSortIcon = (column: string) => {
@@ -672,8 +672,8 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
                         <span style={{
                           fontSize: '0.7rem',
                           padding: '0.125rem 0.5rem',
-                          backgroundColor: '#fee2e2',
-                          color: '#991b1b',
+                          backgroundColor: 'var(--c-danger-soft)',
+                          color: 'var(--c-danger-strong)',
                           borderRadius: '9999px',
                           fontWeight: '500',
                           marginLeft: '0.5rem'
@@ -683,8 +683,8 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
                         <span style={{
                           fontSize: '0.7rem',
                           padding: '0.125rem 0.5rem',
-                          backgroundColor: assignedUsers.length > 0 ? '#e5e7eb' : '#dbeafe',
-                          color: assignedUsers.length > 0 ? '#6b7280' : '#1e40af',
+                          backgroundColor: assignedUsers.length > 0 ? 'var(--c-border)' : 'var(--c-accent-soft)',
+                          color: assignedUsers.length > 0 ? 'var(--c-text-muted)' : 'var(--c-accent-text)',
                           borderRadius: '9999px',
                           fontWeight: '500',
                           marginLeft: '0.5rem',
@@ -703,11 +703,11 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
                                 marginLeft: '0.5rem',
                                 padding: '0.25rem 0.5rem',
                                 fontSize: '0.7rem',
-                                backgroundColor: '#e0e7ff',
+                                backgroundColor: 'var(--c-accent-soft)',
                                 border: 'none',
                                 borderRadius: '9999px',
                                 cursor: 'pointer',
-                                color: '#3730a3',
+                                color: 'var(--c-accent-strong)',
                                 fontWeight: '500',
                                 display: 'inline-block',
                                 verticalAlign: 'baseline'
@@ -742,9 +742,9 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
                           {seriesMembers[task.series_id].map((member, idx) => (
                             <span key={idx} style={{
                               ...styles.userBadge,
-                              backgroundColor: '#dbeafe',
-                              color: '#1e40af',
-                              border: '1px dashed #93c5fd'
+                              backgroundColor: 'var(--c-accent-soft)',
+                              color: 'var(--c-accent-text)',
+                              border: '1px dashed var(--c-accent-border)'
                             }} className={responsiveStyles.userBadge} title="Serien-Zuweisung">
                               {member.name}
                             </span>
@@ -832,7 +832,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.5)',
+            backgroundColor: 'var(--c-overlay)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -843,7 +843,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
         >
           <div
             style={{
-              backgroundColor: 'white',
+              backgroundColor: 'var(--c-surface)',
               borderRadius: '8px',
               padding: '1.5rem',
               maxWidth: '500px',
@@ -863,8 +863,8 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
               onClick={() => setDescriptionModal(null)}
               style={{
                 padding: '0.5rem 1rem',
-                backgroundColor: '#1E40AF',
-                color: 'white',
+                backgroundColor: 'var(--c-accent)',
+                color: 'var(--c-text-inverse)',
                 border: 'none',
                 borderRadius: '4px',
                 cursor: 'pointer',
@@ -896,7 +896,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   title: {
     fontSize: '1.25rem',
     fontWeight: 'bold',
-    color: '#1f2937',
+    color: 'var(--c-text)',
   },
   headerButtons: {
     display: 'flex',
@@ -912,7 +912,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   csvButton: {
     padding: '0.25rem 0.125rem',
     backgroundColor: 'transparent',
-    color: '#64748B',
+    color: 'var(--c-text-muted)',
     border: 'none',
     borderRadius: '2px',
     cursor: 'pointer',
@@ -920,18 +920,18 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '0.8125rem',
     textDecoration: 'underline',
     textUnderlineOffset: '3px',
-    textDecorationColor: '#CBD5E1',
+    textDecorationColor: 'var(--c-border-strong)',
     transition: 'color 0.15s ease',
   },
   csvDivider: {
     width: '1px',
     height: '0.875rem',
-    backgroundColor: '#E2E8F0',
+    backgroundColor: 'var(--c-border)',
   },
   seriesButton: {
     padding: '0.5rem 1rem',
-    backgroundColor: '#1E40AF',
-    color: 'white',
+    backgroundColor: 'var(--c-accent)',
+    color: 'var(--c-text-inverse)',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
@@ -943,19 +943,19 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     gap: '1rem',
     padding: '0.75rem 1rem',
-    backgroundColor: '#f3f4f6',
+    backgroundColor: 'var(--c-surface-muted)',
     borderRadius: '4px',
     marginBottom: '1rem',
   },
   bulkActionsText: {
     fontSize: '0.875rem',
     fontWeight: '500',
-    color: '#374151',
+    color: 'var(--c-text)',
   },
   bulkDeleteButton: {
     padding: '0.5rem 1rem',
-    backgroundColor: '#ef4444',
-    color: 'white',
+    backgroundColor: 'var(--c-danger)',
+    color: 'var(--c-text-inverse)',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
@@ -964,8 +964,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   bulkCancelButton: {
     padding: '0.5rem 1rem',
-    backgroundColor: '#6b7280',
-    color: 'white',
+    backgroundColor: 'var(--c-text-muted)',
+    color: 'var(--c-text-inverse)',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
@@ -977,7 +977,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     cursor: 'pointer',
   },
   selectedRow: {
-    backgroundColor: '#eff6ff',
+    backgroundColor: 'var(--c-accent-soft)',
   },
   toolbar: {
     display: 'flex',
@@ -987,8 +987,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     flexWrap: 'wrap',
     padding: '0.5rem 0.625rem',
     marginBottom: '1rem',
-    backgroundColor: '#F8FAFC',
-    border: '1px solid #E2E8F0',
+    backgroundColor: 'var(--c-surface-muted)',
+    border: '1px solid var(--c-border)',
     borderRadius: '8px',
   },
   dayFilter: {
@@ -1001,7 +1001,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     minWidth: '2rem',
     padding: '0.25rem 0.5rem',
     backgroundColor: 'transparent',
-    color: '#64748B',
+    color: 'var(--c-text-muted)',
     border: '1px solid transparent',
     borderRadius: '6px',
     cursor: 'pointer',
@@ -1012,14 +1012,14 @@ const styles: { [key: string]: React.CSSProperties } = {
   dayChipActive: {
     minWidth: '2rem',
     padding: '0.25rem 0.5rem',
-    backgroundColor: '#FFFFFF',
-    color: '#1E40AF',
-    border: '1px solid #BFDBFE',
+    backgroundColor: 'var(--c-surface)',
+    color: 'var(--c-accent-text)',
+    border: '1px solid var(--c-accent-border)',
     borderRadius: '6px',
     cursor: 'pointer',
     fontSize: '0.8125rem',
     fontWeight: '600',
-    boxShadow: '0 1px 2px rgba(15, 23, 42, 0.06)',
+    boxShadow: 'var(--shadow-sm)',
   },
   toolbarRight: {
     display: 'flex',
@@ -1028,9 +1028,9 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   resetChip: {
     padding: '0.25rem 0.625rem',
-    backgroundColor: '#FFFFFF',
-    color: '#64748B',
-    border: '1px solid #E2E8F0',
+    backgroundColor: 'var(--c-surface)',
+    color: 'var(--c-text-muted)',
+    border: '1px solid var(--c-border)',
     borderRadius: '9999px',
     cursor: 'pointer',
     fontSize: '0.75rem',
@@ -1049,16 +1049,16 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: '600',
     letterSpacing: '0.04em',
     textTransform: 'uppercase',
-    color: '#94A3B8',
+    color: 'var(--c-text-subtle)',
   },
   filterSelect: {
     padding: '0.3125rem 1.75rem 0.3125rem 0.625rem',
-    border: '1px solid #E2E8F0',
+    border: '1px solid var(--c-border)',
     borderRadius: '6px',
     fontSize: '0.8125rem',
     fontWeight: '500',
-    color: '#1E293B',
-    backgroundColor: '#FFFFFF',
+    color: 'var(--c-text)',
+    backgroundColor: 'var(--c-surface)',
     cursor: 'pointer',
   },
   sortNotice: {
@@ -1069,13 +1069,13 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   sortNoticeText: {
     fontSize: '0.75rem',
-    color: '#94A3B8',
+    color: 'var(--c-text-subtle)',
   },
   sortResetButton: {
     padding: '0.3125rem 0.625rem',
     backgroundColor: 'transparent',
-    color: '#64748B',
-    border: '1px solid #E2E8F0',
+    color: 'var(--c-text-muted)',
+    border: '1px solid var(--c-border)',
     borderRadius: '6px',
     cursor: 'pointer',
     fontSize: '0.75rem',
@@ -1085,18 +1085,18 @@ const styles: { [key: string]: React.CSSProperties } = {
   loading: {
     padding: '2rem',
     textAlign: 'center',
-    color: '#6b7280',
+    color: 'var(--c-text-muted)',
   },
   error: {
     padding: '1rem',
-    backgroundColor: '#fee2e2',
-    color: '#991b1b',
+    backgroundColor: 'var(--c-danger-soft)',
+    color: 'var(--c-danger-strong)',
     borderRadius: '4px',
   },
   successBanner: {
     padding: '1rem',
-    backgroundColor: '#d1fae5',
-    color: '#065f46',
+    backgroundColor: 'var(--c-success-soft)',
+    color: 'var(--c-success-strong)',
     borderRadius: '4px',
     marginBottom: '1rem',
     textAlign: 'center',
@@ -1105,7 +1105,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   noTasks: {
     padding: '2rem',
     textAlign: 'center',
-    color: '#6b7280',
+    color: 'var(--c-text-muted)',
   },
   tableWrapper: {
     overflow: 'auto',
@@ -1115,23 +1115,23 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderCollapse: 'collapse',
   },
   headerRow: {
-    backgroundColor: '#f9fafb',
-    borderBottom: '2px solid #e5e7eb',
+    backgroundColor: 'var(--c-surface-muted)',
+    borderBottom: '2px solid var(--c-border)',
   },
   th: {
     padding: '0.75rem',
     textAlign: 'left',
     fontSize: '0.875rem',
     fontWeight: '600',
-    color: '#374151',
+    color: 'var(--c-text)',
   },
   row: {
-    borderBottom: '1px solid #e5e7eb',
+    borderBottom: '1px solid var(--c-border)',
   },
   td: {
     padding: '0.75rem',
     fontSize: '0.875rem',
-    color: '#1f2937',
+    color: 'var(--c-text)',
   },
   taskTitle: {
     fontWeight: '500',
@@ -1141,14 +1141,14 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   taskDescription: {
     fontSize: '0.75rem',
-    color: '#6b7280',
+    color: 'var(--c-text-muted)',
     marginTop: '0.25rem',
   },
   publicBadge: {
     fontSize: '0.7rem',
     padding: '0.125rem 0.5rem',
-    backgroundColor: '#dbeafe',
-    color: '#1e40af',
+    backgroundColor: 'var(--c-accent-soft)',
+    color: 'var(--c-accent-text)',
     borderRadius: '9999px',
     fontWeight: '500',
   },
@@ -1158,10 +1158,10 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: '9999px',
     fontSize: '0.75rem',
     fontWeight: '500',
-    color: 'white',
+    color: 'var(--c-text-inverse)',
   },
   noAssignments: {
-    color: '#9ca3af',
+    color: 'var(--c-text-subtle)',
     fontStyle: 'italic',
   },
   usersList: {
@@ -1174,15 +1174,15 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     gap: '0.25rem',
     padding: '0.25rem 0.5rem',
-    backgroundColor: '#e0e7ff',
-    color: '#3730a3',
+    backgroundColor: 'var(--c-accent-soft)',
+    color: 'var(--c-accent-strong)',
     border: 'none',
     borderRadius: '9999px',
     fontSize: '0.75rem',
     fontWeight: '500',
   },
   completedIcon: {
-    color: '#10b981',
+    color: 'var(--c-success-text)',
     fontWeight: 'bold',
   },
   unassignButton: {
@@ -1193,7 +1193,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'transparent',
-    color: '#ef4444',
+    color: 'var(--c-danger-text)',
     border: 'none',
     cursor: 'pointer',
     fontSize: '0.7rem',
@@ -1208,8 +1208,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   editButton: {
     padding: '0.3125rem 0.625rem',
     backgroundColor: 'transparent',
-    color: '#64748B',
-    border: '1px solid #E2E8F0',
+    color: 'var(--c-text-muted)',
+    border: '1px solid var(--c-border)',
     borderRadius: '6px',
     fontSize: '0.75rem',
     cursor: 'pointer',
@@ -1219,8 +1219,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   assignButton: {
     padding: '0.3125rem 0.625rem',
     backgroundColor: 'transparent',
-    color: '#1E40AF',
-    border: '1px solid #BFDBFE',
+    color: 'var(--c-accent-text)',
+    border: '1px solid var(--c-accent-border)',
     borderRadius: '6px',
     fontSize: '0.75rem',
     cursor: 'pointer',
@@ -1229,8 +1229,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   deleteButton: {
     padding: '0.375rem 0.75rem',
-    backgroundColor: '#ef4444',
-    color: 'white',
+    backgroundColor: 'var(--c-danger)',
+    color: 'var(--c-text-inverse)',
     border: 'none',
     borderRadius: '4px',
     fontSize: '0.75rem',
@@ -1239,8 +1239,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   deactivateButton: {
     padding: '0.375rem 0.75rem',
-    backgroundColor: '#D97706',
-    color: 'white',
+    backgroundColor: 'var(--c-warning)',
+    color: 'var(--c-text-inverse)',
     border: 'none',
     borderRadius: '4px',
     fontSize: '0.75rem',
@@ -1249,8 +1249,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   activateButton: {
     padding: '0.375rem 0.75rem',
-    backgroundColor: '#1E40AF',
-    color: 'white',
+    backgroundColor: 'var(--c-accent)',
+    color: 'var(--c-text-inverse)',
     border: 'none',
     borderRadius: '4px',
     fontSize: '0.75rem',
@@ -1260,8 +1260,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   moveButton: {
     padding: '0.25rem 0.375rem',
     backgroundColor: 'transparent',
-    color: '#9ca3af',
-    border: '1px solid #e5e7eb',
+    color: 'var(--c-text-subtle)',
+    border: '1px solid var(--c-border)',
     borderRadius: '4px',
     fontSize: '0.75rem',
     cursor: 'pointer',
@@ -1273,14 +1273,14 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     gap: '0.5rem',
     marginBottom: '1rem',
-    borderBottom: '2px solid #e5e7eb',
+    borderBottom: '2px solid var(--c-border)',
     paddingBottom: '0.5rem',
     overflowX: 'auto',
   },
   dayTab: {
     padding: '0.5rem 1rem',
     backgroundColor: 'transparent',
-    color: '#6b7280',
+    color: 'var(--c-text-muted)',
     border: 'none',
     borderBottom: '2px solid transparent',
     cursor: 'pointer',
@@ -1291,9 +1291,9 @@ const styles: { [key: string]: React.CSSProperties } = {
   dayTabActive: {
     padding: '0.5rem 1rem',
     backgroundColor: 'transparent',
-    color: '#4f46e5',
+    color: 'var(--c-accent-text)',
     border: 'none',
-    borderBottom: '2px solid #4f46e5',
+    borderBottom: '2px solid var(--c-accent)',
     cursor: 'pointer',
     fontSize: '0.875rem',
     fontWeight: '600',

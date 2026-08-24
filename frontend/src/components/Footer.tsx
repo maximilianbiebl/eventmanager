@@ -3,13 +3,13 @@ import React from 'react';
 export const Footer: React.FC = () => {
   return (
     <footer style={{
-      backgroundColor: '#f9fafb',
-      borderTop: '1px solid #e5e7eb',
+      backgroundColor: 'var(--c-surface-muted)',
+      borderTop: '1px solid var(--c-border)',
       padding: '1rem',
       textAlign: 'center',
       marginTop: 'auto',
       fontSize: '0.875rem',
-      color: '#6b7280'
+      color: 'var(--c-text-muted)'
     }}>
       <p style={{ margin: 0 }}>
         © {new Date().getFullYear()} <a
@@ -17,7 +17,7 @@ export const Footer: React.FC = () => {
           target="_blank"
           rel="noopener noreferrer"
           style={{
-            color: '#4f46e5',
+            color: 'var(--c-accent-text)',
             textDecoration: 'none',
             fontWeight: '500'
           }}

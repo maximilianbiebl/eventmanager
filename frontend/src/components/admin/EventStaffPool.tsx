@@ -299,7 +299,7 @@ export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
               >
                 {(staff.taskCount || 0) + (staff.seriesTaskCount || 0)} Aufgabe{((staff.taskCount || 0) + (staff.seriesTaskCount || 0)) !== 1 ? 'n' : ''}
                 {(staff.seriesTaskCount || 0) > 0 && (
-                  <span style={{ fontSize: '0.7rem', color: '#6b7280' }}> ({staff.seriesTaskCount} Serie)</span>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--c-text-muted)' }}> ({staff.seriesTaskCount} Serie)</span>
                 )}
               </button>
             </div>
@@ -483,12 +483,12 @@ const TaskListModal: React.FC<TaskListModalProps> = ({ staff, tasks, onClose, on
 
   const getStatusColor = (status: string) => {
     const colors: { [key: string]: string } = {
-      not_started: '#6b7280',
-      in_progress: '#3b82f6',
-      completed: '#10b981',
-      overdue: '#ef4444',
+      not_started: 'var(--c-text-muted)',
+      in_progress: 'var(--c-accent)',
+      completed: 'var(--c-success)',
+      overdue: 'var(--c-danger)',
     };
-    return colors[status] || '#6b7280';
+    return colors[status] || 'var(--c-text-muted)';
   };
 
   const getStatusLabel = (status: string) => {
@@ -512,20 +512,20 @@ const TaskListModal: React.FC<TaskListModalProps> = ({ staff, tasks, onClose, on
         {selectedTaskIds.length > 0 && (
           <div style={{
             padding: '0.75rem 1rem',
-            backgroundColor: '#f3f4f6',
+            backgroundColor: 'var(--c-surface-muted)',
             borderRadius: '4px',
             marginBottom: '1rem',
             display: 'flex',
             alignItems: 'center',
             gap: '1rem',
           }}>
-            <span style={{fontSize: '0.875rem', fontWeight: '500', color: '#374151'}}>
+            <span style={{fontSize: '0.875rem', fontWeight: '500', color: 'var(--c-text)'}}>
               {selectedTaskIds.length} ausgewählt
             </span>
             <button onClick={handleBulkRemove} style={{
               padding: '0.5rem 1rem',
-              backgroundColor: '#ef4444',
-              color: 'white',
+              backgroundColor: 'var(--c-danger)',
+              color: 'var(--c-text-inverse)',
               border: 'none',
               borderRadius: '4px',
               cursor: 'pointer',
@@ -536,8 +536,8 @@ const TaskListModal: React.FC<TaskListModalProps> = ({ staff, tasks, onClose, on
             </button>
             <button onClick={() => setSelectedTaskIds([])} style={{
               padding: '0.5rem 1rem',
-              backgroundColor: '#6b7280',
-              color: 'white',
+              backgroundColor: 'var(--c-text-muted)',
+              color: 'var(--c-text-inverse)',
               border: 'none',
               borderRadius: '4px',
               cursor: 'pointer',
@@ -567,13 +567,13 @@ const TaskListModal: React.FC<TaskListModalProps> = ({ staff, tasks, onClose, on
               {tasks.map((task) => (
                 <div key={task.assignment_id || `series-${task.id}`} style={{
                   padding: '1rem',
-                  border: task.isSeriesTask ? '1px dashed #93c5fd' : '1px solid #e5e7eb',
+                  border: task.isSeriesTask ? '1px dashed var(--c-accent-border)' : '1px solid var(--c-border)',
                   borderRadius: '6px',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   gap: '1rem',
-                  backgroundColor: task.isSeriesTask ? '#eff6ff' : (task.assignment_id && selectedTaskIds.includes(task.assignment_id) ? '#eff6ff' : 'white'),
+                  backgroundColor: task.isSeriesTask ? 'var(--c-accent-soft)' : (task.assignment_id && selectedTaskIds.includes(task.assignment_id) ? 'var(--c-accent-soft)' : 'white'),
                 }}>
                   <div style={{display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1}}>
                     {task.assignment_id ? (
@@ -594,14 +594,14 @@ const TaskListModal: React.FC<TaskListModalProps> = ({ staff, tasks, onClose, on
                             marginLeft: '0.5rem',
                             fontSize: '0.7rem',
                             padding: '0.125rem 0.5rem',
-                            backgroundColor: '#dbeafe',
-                            color: '#1e40af',
+                            backgroundColor: 'var(--c-accent-soft)',
+                            color: 'var(--c-accent-text)',
                             borderRadius: '9999px',
                             fontWeight: '500',
                           }}>{task.seriesName}</span>
                         )}
                       </div>
-                      <div style={{fontSize: '0.875rem', color: '#6b7280'}}>
+                      <div style={{fontSize: '0.875rem', color: 'var(--c-text-muted)'}}>
                         {task.event_name ? `${task.event_name} #${task.instance_number} - ` : ''}Tag {task.day_number}
                         {task.isSeriesTask && <span style={{fontStyle: 'italic'}}> (Serien-Zuweisung)</span>}
                       </div>
@@ -610,7 +610,7 @@ const TaskListModal: React.FC<TaskListModalProps> = ({ staff, tasks, onClose, on
                           display: 'inline-block',
                           padding: '0.25rem 0.625rem',
                           backgroundColor: getStatusColor(task.status),
-                          color: 'white',
+                          color: 'var(--c-text-inverse)',
                           borderRadius: '9999px',
                           fontSize: '0.75rem',
                           fontWeight: '500',
@@ -625,8 +625,8 @@ const TaskListModal: React.FC<TaskListModalProps> = ({ staff, tasks, onClose, on
                       onClick={() => onUnassign(task.assignment_id!)}
                       style={{
                         padding: '0.5rem 1rem',
-                        backgroundColor: '#ef4444',
-                        color: 'white',
+                        backgroundColor: 'var(--c-danger)',
+                        color: 'var(--c-text-inverse)',
                         border: 'none',
                         borderRadius: '4px',
                         cursor: 'pointer',
@@ -642,7 +642,7 @@ const TaskListModal: React.FC<TaskListModalProps> = ({ staff, tasks, onClose, on
                     <span style={{
                       padding: '0.5rem 1rem',
                       fontSize: '0.75rem',
-                      color: '#6b7280',
+                      color: 'var(--c-text-muted)',
                       fontStyle: 'italic',
                     }}>
                       Serie
@@ -756,7 +756,7 @@ const ReplaceStaffModal: React.FC<ReplaceStaffModalProps> = ({
     <div className="app-modal-overlay" style={styles.overlay} onClick={handleOverlayClick}>
       <div className="app-modal" style={{...styles.modal, maxWidth: '500px', zIndex: 1001}}>
         <h2 style={styles.modalTitle}>Mitarbeiter austauschen</h2>
-        <p style={{marginBottom: '1rem', color: '#6b7280'}}>
+        <p style={{marginBottom: '1rem', color: 'var(--c-text-muted)'}}>
           Wählen Sie einen Mitarbeiter aus, der <strong>{currentStaffName}</strong> ersetzen soll.
           Alle Aufgaben werden automatisch neu zugewiesen.
         </p>
@@ -770,7 +770,7 @@ const ReplaceStaffModal: React.FC<ReplaceStaffModalProps> = ({
             {availableStaff.map((staff) => (
               <label key={staff.id} style={{
                 ...styles.staffCheckbox,
-                backgroundColor: selectedStaffId === staff.id ? '#eff6ff' : 'transparent',
+                backgroundColor: selectedStaffId === staff.id ? 'var(--c-accent-soft)' : 'transparent',
               }}>
                 <input
                   type="radio"
@@ -947,7 +947,7 @@ const AssignTasksModal: React.FC<AssignTasksModalProps> = ({
                   style={{
                     width: '100%',
                     padding: '0.5rem',
-                    border: '1px solid #d1d5db',
+                    border: '1px solid var(--c-border-strong)',
                     borderRadius: '4px',
                     fontSize: '1rem',
                   }}
@@ -978,7 +978,7 @@ const AssignTasksModal: React.FC<AssignTasksModalProps> = ({
                   {availableTasks.map((task) => (
                     <label key={task.id} style={{
                       ...styles.staffCheckbox,
-                      backgroundColor: selectedTaskIds.includes(task.id) ? '#eff6ff' : 'transparent',
+                      backgroundColor: selectedTaskIds.includes(task.id) ? 'var(--c-accent-soft)' : 'transparent',
                     }}>
                       <input
                         type="checkbox"
@@ -988,7 +988,7 @@ const AssignTasksModal: React.FC<AssignTasksModalProps> = ({
                       />
                       <div>
                         <div style={{fontWeight: '500'}}>{task.title}</div>
-                        <div style={{fontSize: '0.875rem', color: '#6b7280'}}>
+                        <div style={{fontSize: '0.875rem', color: 'var(--c-text-muted)'}}>
                           Tag {task.day_number}
                           {task.scheduled_time && ` - ${task.scheduled_time}`}
                         </div>
@@ -1022,10 +1022,10 @@ const AssignTasksModal: React.FC<AssignTasksModalProps> = ({
 
 const styles: { [key: string]: React.CSSProperties } = {
   container: {
-    backgroundColor: 'white',
+    backgroundColor: 'var(--c-surface)',
     borderRadius: '8px',
     padding: '1.5rem',
-    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+    boxShadow: 'var(--shadow-md)',
   },
   header: {
     display: 'flex',
@@ -1051,7 +1051,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'inline-block',
     fontSize: '1.125rem',
     lineHeight: 1,
-    color: '#94A3B8',
+    color: 'var(--c-text-subtle)',
     transition: 'transform 0.15s ease',
   },
   count: {
@@ -1062,8 +1062,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     height: '1.375rem',
     padding: '0 0.375rem',
     borderRadius: '9999px',
-    backgroundColor: '#F1F5F9',
-    color: '#64748B',
+    backgroundColor: 'var(--c-surface-muted)',
+    color: 'var(--c-text-muted)',
     fontSize: '0.75rem',
     fontWeight: '600',
   },
@@ -1074,8 +1074,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     width: '1.125rem',
     height: '1.125rem',
     borderRadius: '9999px',
-    border: '1px solid #CBD5E1',
-    color: '#94A3B8',
+    border: '1px solid var(--c-border-strong)',
+    color: 'var(--c-text-subtle)',
     fontSize: '0.6875rem',
     fontWeight: '700',
     fontStyle: 'italic',
@@ -1085,28 +1085,28 @@ const styles: { [key: string]: React.CSSProperties } = {
   infoText: {
     margin: '0 0 1rem',
     padding: '0.625rem 0.75rem',
-    backgroundColor: '#F8FAFC',
-    borderLeft: '3px solid #CBD5E1',
+    backgroundColor: 'var(--c-surface-muted)',
+    borderLeft: '3px solid var(--c-border-strong)',
     borderRadius: '0 4px 4px 0',
     fontSize: '0.8125rem',
-    color: '#64748B',
+    color: 'var(--c-text-muted)',
   },
   title: {
     fontSize: '1.0625rem',
     fontWeight: '600',
-    color: '#1E293B',
+    color: 'var(--c-text)',
     margin: 0,
   },
   subtitle: {
     fontSize: '0.875rem',
-    color: '#6b7280',
+    color: 'var(--c-text-muted)',
     margin: 0,
   },
   addButton: {
     padding: '0.4375rem 0.875rem',
     backgroundColor: 'transparent',
-    color: '#1E40AF',
-    border: '1px solid #BFDBFE',
+    color: 'var(--c-accent-text)',
+    border: '1px solid var(--c-accent-border)',
     borderRadius: '6px',
     cursor: 'pointer',
     fontSize: '0.8125rem',
@@ -1117,19 +1117,19 @@ const styles: { [key: string]: React.CSSProperties } = {
   loading: {
     padding: '2rem',
     textAlign: 'center',
-    color: '#6b7280',
+    color: 'var(--c-text-muted)',
   },
   error: {
     padding: '0.75rem',
-    backgroundColor: '#fee2e2',
-    color: '#991b1b',
+    backgroundColor: 'var(--c-danger-soft)',
+    color: 'var(--c-danger-strong)',
     borderRadius: '4px',
     marginBottom: '1rem',
   },
   emptyState: {
     textAlign: 'center',
     padding: '3rem 1rem',
-    color: '#6b7280',
+    color: 'var(--c-text-muted)',
   },
   emptyHint: {
     fontSize: '0.875rem',
@@ -1151,8 +1151,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     gap: '0.25rem',
     padding: '0.25rem 0.5rem',
-    backgroundColor: '#e0e7ff',
-    color: '#3730a3',
+    backgroundColor: 'var(--c-accent-soft)',
+    color: 'var(--c-accent-strong)',
     border: 'none',
     borderRadius: '9999px',
     position: 'relative',
@@ -1164,7 +1164,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   staffName: {
     fontWeight: '500',
-    color: '#3730a3',
+    color: 'var(--c-accent-strong)',
     fontSize: '0.75rem',
   },
   staffMeta: {
@@ -1174,11 +1174,11 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   staffBadge: {
     fontSize: '0.75rem',
-    color: '#6b7280',
+    color: 'var(--c-text-muted)',
   },
   taskCount: {
     fontSize: '0.75rem',
-    color: '#4f46e5',
+    color: 'var(--c-accent-text)',
     fontWeight: '500',
     backgroundColor: 'transparent',
     border: 'none',
@@ -1187,7 +1187,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   removeButton: {
     padding: '0.25rem 0.5rem',
     backgroundColor: 'transparent',
-    color: '#ef4444',
+    color: 'var(--c-danger-text)',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
@@ -1202,7 +1202,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'transparent',
-    color: '#ef4444',
+    color: 'var(--c-danger-text)',
     border: 'none',
     cursor: 'pointer',
     fontSize: '0.75rem',
@@ -1216,14 +1216,14 @@ const styles: { [key: string]: React.CSSProperties } = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'var(--c-overlay)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1000,
   },
   modal: {
-    backgroundColor: 'white',
+    backgroundColor: 'var(--c-surface)',
     borderRadius: '8px',
     padding: '2rem',
     maxWidth: '500px',
@@ -1235,12 +1235,12 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '1.5rem',
     fontWeight: 'bold',
     marginBottom: '1.5rem',
-    color: '#1f2937',
+    color: 'var(--c-text)',
   },
   noStaff: {
     textAlign: 'center',
     padding: '2rem',
-    color: '#6b7280',
+    color: 'var(--c-text-muted)',
   },
   staffList: {
     display: 'flex',
@@ -1272,8 +1272,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   secondaryButton: {
     padding: '0.5rem 1rem',
     backgroundColor: 'transparent',
-    color: '#1E293B',
-    border: '1px solid #CBD5E1',
+    color: 'var(--c-text)',
+    border: '1px solid var(--c-border-strong)',
     borderRadius: '4px',
     cursor: 'pointer',
     fontSize: '0.875rem',
@@ -1283,8 +1283,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   cancelButton: {
     padding: '0.625rem 1.25rem',
-    backgroundColor: '#f3f4f6',
-    color: '#374151',
+    backgroundColor: 'var(--c-surface-muted)',
+    color: 'var(--c-text)',
     border: 'none',
     borderRadius: '4px',
     fontSize: '1rem',
@@ -1293,8 +1293,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   submitButton: {
     padding: '0.625rem 1.25rem',
-    backgroundColor: '#1E40AF',
-    color: 'white',
+    backgroundColor: 'var(--c-accent)',
+    color: 'var(--c-text-inverse)',
     border: 'none',
     borderRadius: '4px',
     fontSize: '1rem',

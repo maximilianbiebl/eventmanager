@@ -6,6 +6,7 @@ import { useSSE } from '../hooks/useSSE';
 import { StaffSettings } from './StaffSettings';
 import { ChangePasswordDialog } from './admin/ChangePasswordDialog';
 import { DescriptionModal } from './DescriptionModal';
+import { ThemeSwitch } from './ThemeSwitch';
 import client from '../api/client';
 import styles from './StaffDashboard.module.css';
 
@@ -374,6 +375,7 @@ export const StaffDashboard: React.FC = () => {
                 onClick={() => setShowMobileMenu(false)}
               />
               <div className={styles.mobileMenu}>
+                <ThemeSwitch />
                 <button
                   onClick={() => {
                     setShowSettings(true);
@@ -724,15 +726,15 @@ const TaskCard: React.FC<{
 
   const getStatusColor = (status: string) => {
     // Show red if task is actually overdue (by time), regardless of status
-    if (isOverdue) return '#ef4444';
+    if (isOverdue) return 'var(--c-danger)';
 
     const colors: { [key: string]: string } = {
-      not_started: '#64748B',
-      in_progress: '#1E40AF',
-      completed: '#10b981',
-      overdue: '#ef4444',
+      not_started: 'var(--c-text-muted)',
+      in_progress: 'var(--c-accent)',
+      completed: 'var(--c-success)',
+      overdue: 'var(--c-danger)',
     };
-    return colors[status] || '#64748B';
+    return colors[status] || 'var(--c-text-muted)';
   };
 
   // Check if task is completed (either assignment-specific or global status)
@@ -741,10 +743,10 @@ const TaskCard: React.FC<{
   // Get border color based on status
   const getBorderColor = () => {
     // Show red if task is actually overdue (by time), regardless of status
-    if (isOverdue) return '#ef4444'; // red
-    if (task.status === 'in_progress') return '#1E40AF'; // blue
-    if (task.status === 'completed') return '#10b981'; // green
-    return '#1E40AF'; // default purple
+    if (isOverdue) return 'var(--c-danger)'; // red
+    if (task.status === 'in_progress') return 'var(--c-accent)'; // blue
+    if (task.status === 'completed') return 'var(--c-success)'; // green
+    return 'var(--c-accent)'; // default purple
   };
 
   return (
@@ -758,7 +760,7 @@ const TaskCard: React.FC<{
         </div>
 
         {/* Zeitinformationen */}
-        <div style={{ marginBottom: '12px', fontSize: '14px', color: '#64748B' }}>
+        <div style={{ marginBottom: '12px', fontSize: '14px', color: 'var(--c-text-muted)' }}>
           {task.scheduled_time && (
             <div>Geplante Zeit: {task.scheduled_time.slice(0, 5)} Uhr</div>
           )}
@@ -800,8 +802,8 @@ const TaskCard: React.FC<{
           <span style={{
             fontSize: '0.7rem',
             padding: '0.125rem 0.5rem',
-            backgroundColor: '#dbeafe',
-            color: '#1e40af',
+            backgroundColor: 'var(--c-accent-soft)',
+            color: 'var(--c-accent-text)',
             borderRadius: '9999px',
             fontWeight: '500'
           }}>Öffentlich</span>
@@ -814,7 +816,7 @@ const TaskCard: React.FC<{
                 className={styles.taskStatus}
                 style={{
                   backgroundColor: getStatusColor(task.status),
-                  color: 'white',
+                  color: 'var(--c-text-inverse)',
                   padding: '4px 8px',
                   borderRadius: '4px',
                   fontSize: '12px',
@@ -842,10 +844,10 @@ const TaskCard: React.FC<{
                     position: 'absolute',
                     top: '100%',
                     right: 0,
-                    backgroundColor: 'white',
-                    border: '1px solid #d1d5db',
+                    backgroundColor: 'var(--c-surface)',
+                    border: '1px solid var(--c-border-strong)',
                     borderRadius: '4px',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                    boxShadow: 'var(--shadow-md)',
                     marginTop: '4px',
                     minWidth: '180px',
                     zIndex: 9999
@@ -858,7 +860,7 @@ const TaskCard: React.FC<{
                           fontSize: '14px'
                         }}
                         onClick={() => handleStatusChange('in_progress')}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--c-surface-muted)'}
                         onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
                       >
                         In Arbeit setzen
@@ -873,7 +875,7 @@ const TaskCard: React.FC<{
                           whiteSpace: 'nowrap'
                         }}
                         onClick={() => handleStatusChange('not_started')}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--c-surface-muted)'}
                         onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
                       >
                         Nicht gestartet
@@ -889,7 +891,7 @@ const TaskCard: React.FC<{
               className={styles.taskStatus}
               style={{
                 backgroundColor: getStatusColor(task.status),
-                color: 'white',
+                color: 'var(--c-text-inverse)',
                 padding: '4px 8px',
                 borderRadius: '4px',
                 fontSize: '12px'
@@ -926,8 +928,8 @@ const TaskCard: React.FC<{
                 disabled={updatingStatus}
                 className={styles.inProgressButton}
                 style={{
-                  backgroundColor: '#1E40AF',
-                  color: 'white',
+                  backgroundColor: 'var(--c-accent)',
+                  color: 'var(--c-text-inverse)',
                   padding: '10px 12px',
                   border: 'none',
                   borderRadius: '6px',
@@ -1096,15 +1098,15 @@ const StaffTableView: React.FC<{
 
   const getStatusColor = (task: TaskAssignment) => {
     // Show red if task is actually overdue (by time), regardless of status
-    if (isTaskOverdue(task)) return '#ef4444';
+    if (isTaskOverdue(task)) return 'var(--c-danger)';
 
     const colors: { [key: string]: string } = {
-      not_started: '#64748B',
-      in_progress: '#1E40AF',
-      completed: '#10b981',
-      overdue: '#ef4444',
+      not_started: 'var(--c-text-muted)',
+      in_progress: 'var(--c-accent)',
+      completed: 'var(--c-success)',
+      overdue: 'var(--c-danger)',
     };
-    return colors[task.status] || '#64748B';
+    return colors[task.status] || 'var(--c-text-muted)';
   };
 
   const getStatusLabel = (status: string) => {
@@ -1147,7 +1149,7 @@ const StaffTableView: React.FC<{
       <div style={{
         padding: '0.75rem',
         marginBottom: '1rem',
-        backgroundColor: '#f3f4f6',
+        backgroundColor: 'var(--c-surface-muted)',
         borderRadius: '4px',
         display: 'flex',
         alignItems: 'center',
@@ -1155,7 +1157,7 @@ const StaffTableView: React.FC<{
         flexWrap: 'wrap',
         gap: '0.5rem'
       }}>
-        <span style={{ fontSize: '0.875rem', color: '#374151', fontWeight: '500' }}>
+        <span style={{ fontSize: '0.875rem', color: 'var(--c-text)', fontWeight: '500' }}>
           {sortColumn === 'manual' ? 'Standard-Sortierung aktiv' : '⚠️ Spalten-Sortierung aktiv'}
         </span>
         {sortColumn !== 'manual' && (
@@ -1164,8 +1166,8 @@ const StaffTableView: React.FC<{
             style={{
               padding: '0.25rem 0.75rem',
               fontSize: '0.75rem',
-              backgroundColor: '#1E40AF',
-              color: 'white',
+              backgroundColor: 'var(--c-accent)',
+              color: 'var(--c-text-inverse)',
               border: 'none',
               borderRadius: '4px',
               cursor: 'pointer',

@@ -144,7 +144,7 @@ export const CSVExportModal: React.FC<Props> = ({ type, items, selectedIds, onCl
             />
             <div>
               <span style={{ fontWeight: '500' }}>Mit Aufgaben exportieren</span>
-              <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8rem', color: '#6b7280' }}>
+              <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8rem', color: 'var(--c-text-muted)' }}>
                 Exportiert Events und Aufgaben als zwei separate CSV-Dateien
               </p>
             </div>
@@ -171,15 +171,15 @@ const styles: { [key: string]: React.CSSProperties } = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    backgroundColor: 'var(--c-overlay)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1000,
   },
   modal: {
-    backgroundColor: '#FFFFFF',
-    border: '1px solid #CBD5E1',
+    backgroundColor: 'var(--c-surface)',
+    border: '1px solid var(--c-border-strong)',
     borderRadius: '8px',
     padding: '2rem',
     maxWidth: '500px',
@@ -189,7 +189,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '1.5rem',
     fontWeight: 'bold',
     marginBottom: '1.5rem',
-    color: '#1E293B',
+    color: 'var(--c-text)',
   },
   options: {
     display: 'flex',
@@ -202,7 +202,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     gap: '0.75rem',
     padding: '1rem',
-    border: '1px solid #CBD5E1',
+    border: '1px solid var(--c-border-strong)',
     borderRadius: '4px',
     cursor: 'pointer',
     transition: 'background-color 0.2s',
@@ -220,8 +220,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   cancelButton: {
     padding: '0.625rem 1.25rem',
     backgroundColor: 'transparent',
-    color: '#1E293B',
-    border: '1px solid #CBD5E1',
+    color: 'var(--c-text)',
+    border: '1px solid var(--c-border-strong)',
     borderRadius: '4px',
     fontSize: '1rem',
     cursor: 'pointer',
@@ -230,8 +230,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   exportButton: {
     padding: '0.625rem 1.25rem',
-    backgroundColor: '#1E40AF',
-    color: 'white',
+    backgroundColor: 'var(--c-accent)',
+    color: 'var(--c-text-inverse)',
     border: 'none',
     borderRadius: '4px',
     fontSize: '1rem',
@@ -244,8 +244,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'flex-start',
     gap: '0.75rem',
     padding: '1rem',
-    backgroundColor: '#EFF6FF',
-    border: '1px solid #DBEAFE',
+    backgroundColor: 'var(--c-accent-soft)',
+    border: '1px solid var(--c-accent-soft)',
     borderRadius: '4px',
     marginBottom: '1.5rem',
     cursor: 'pointer',

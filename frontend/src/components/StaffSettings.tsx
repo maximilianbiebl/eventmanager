@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../hooks/useNotifications';
 import { signalApi } from '../api/signal';
 import { SignalSetup } from './settings/SignalSetup';
+import { ThemeSwitch } from './ThemeSwitch';
 
 interface Settings {
   default_reminder_minutes: number;
@@ -216,7 +217,7 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
                     Test-Nachricht senden
                   </button>
                   {testSuccess && (
-                    <p style={{ ...styles.hint, color: '#059669', marginTop: '0.5rem' }}>
+                    <p style={{ ...styles.hint, color: 'var(--c-success-text)', marginTop: '0.5rem' }}>
                       ✓ Test-Benachrichtigung gesendet!
                     </p>
                   )}
@@ -278,7 +279,7 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
               </div>
             )}
 
-            <div style={{ ...styles.formGroup, borderTop: '1px solid #e5e7eb', paddingTop: '1rem', marginTop: '1.5rem' }}>
+            <div style={{ ...styles.formGroup, borderTop: '1px solid var(--c-border)', paddingTop: '1rem', marginTop: '1.5rem' }}>
               <label style={styles.checkboxLabel}>
                 <input
                   type="checkbox"
@@ -313,6 +314,15 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
 
           <div style={styles.section}>
             <h3 style={styles.sectionTitle}>Ansicht</h3>
+
+            {/* Auch hier erreichbar, weil der User-Bereich auf dem Desktop
+                kein Menü hat - dort gibt es nur diesen Dialog. */}
+            <div style={styles.formGroup}>
+              <ThemeSwitch />
+              <p style={styles.hint}>
+                "System" folgt der Einstellung deines Geräts.
+              </p>
+            </div>
 
             <div style={styles.formGroup}>
               <label style={styles.label}>
@@ -368,7 +378,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    backgroundColor: 'var(--c-overlay)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -376,8 +386,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: '1rem',
   },
   modal: {
-    backgroundColor: '#FFFFFF',
-    border: '1px solid #CBD5E1',
+    backgroundColor: 'var(--c-surface)',
+    border: '1px solid var(--c-border-strong)',
     borderRadius: '8px',
     padding: '2rem',
     maxWidth: '500px',
@@ -389,24 +399,24 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '1.5rem',
     fontWeight: 'bold',
     marginBottom: '0.5rem',
-    color: '#1E293B',
+    color: 'var(--c-text)',
   },
   subtitle: {
     fontSize: '0.875rem',
-    color: '#64748B',
+    color: 'var(--c-text-muted)',
     marginBottom: '1.5rem',
   },
   error: {
     padding: '0.75rem',
-    backgroundColor: '#FEE2E2',
-    color: '#991B1B',
+    backgroundColor: 'var(--c-danger-soft)',
+    color: 'var(--c-danger-strong)',
     borderRadius: '4px',
     marginBottom: '1rem',
   },
   success: {
     padding: '0.75rem',
-    backgroundColor: '#D1FAE5',
-    color: '#065F46',
+    backgroundColor: 'var(--c-success-soft)',
+    color: 'var(--c-success-strong)',
     borderRadius: '4px',
     marginBottom: '1rem',
   },
@@ -417,7 +427,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '1.125rem',
     fontWeight: '600',
     marginBottom: '1rem',
-    color: '#1E293B',
+    color: 'var(--c-text)',
   },
   formGroup: {
     marginBottom: '1.5rem',
@@ -426,7 +436,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'block',
     fontWeight: '600',
     marginBottom: '0.5rem',
-    color: '#1E293B',
+    color: 'var(--c-text)',
   },
   checkboxLabel: {
     display: 'flex',
@@ -434,7 +444,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     gap: '0.75rem',
     cursor: 'pointer',
     fontWeight: '500',
-    color: '#1E293B',
+    color: 'var(--c-text)',
   },
   checkbox: {
     width: '20px',
@@ -444,26 +454,26 @@ const styles: { [key: string]: React.CSSProperties } = {
   input: {
     width: '100%',
     padding: '0.5rem',
-    border: '1px solid #CBD5E1',
+    border: '1px solid var(--c-border-strong)',
     borderRadius: '4px',
     fontSize: '1rem',
-    color: '#1E293B',
+    color: 'var(--c-text)',
   },
   hint: {
     fontSize: '0.875rem',
-    color: '#64748B',
+    color: 'var(--c-text-muted)',
     marginTop: '0.25rem',
   },
   infoBox: {
-    backgroundColor: '#EFF6FF',
-    border: '1px solid #DBEAFE',
+    backgroundColor: 'var(--c-accent-soft)',
+    border: '1px solid var(--c-accent-soft)',
     borderRadius: '4px',
     padding: '1rem',
     marginBottom: '1.5rem',
   },
   infoText: {
     fontSize: '0.875rem',
-    color: '#1E40AF',
+    color: 'var(--c-accent-text)',
     margin: '0.5rem 0 0 0',
   },
   buttons: {
@@ -474,8 +484,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   cancelButton: {
     padding: '0.625rem 1.25rem',
     backgroundColor: 'transparent',
-    color: '#1E293B',
-    border: '1px solid #CBD5E1',
+    color: 'var(--c-text)',
+    border: '1px solid var(--c-border-strong)',
     borderRadius: '4px',
     fontSize: '1rem',
     cursor: 'pointer',
@@ -484,8 +494,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   submitButton: {
     padding: '0.625rem 1.25rem',
-    backgroundColor: '#1E40AF',
-    color: 'white',
+    backgroundColor: 'var(--c-accent)',
+    color: 'var(--c-text-inverse)',
     border: 'none',
     borderRadius: '4px',
     fontSize: '1rem',
@@ -495,8 +505,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   testButton: {
     padding: '0.5rem 1rem',
-    backgroundColor: '#059669',
-    color: 'white',
+    backgroundColor: 'var(--c-success)',
+    color: 'var(--c-text-inverse)',
     border: 'none',
     borderRadius: '4px',
     fontSize: '0.875rem',
@@ -506,8 +516,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   subscribeButton: {
     padding: '0.5rem 1rem',
-    backgroundColor: '#D97706',
-    color: 'white',
+    backgroundColor: 'var(--c-warning)',
+    color: 'var(--c-text-inverse)',
     border: 'none',
     borderRadius: '4px',
     fontSize: '0.875rem',
@@ -519,7 +529,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     gap: '0.5rem',
     marginBottom: '1.5rem',
-    borderBottom: '2px solid #CBD5E1',
+    borderBottom: '2px solid var(--c-border-strong)',
   },
   tab: {
     padding: '0.75rem 1.5rem',
@@ -528,7 +538,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderBottom: '2px solid transparent',
     cursor: 'pointer',
     fontSize: '1rem',
-    color: '#64748B',
+    color: 'var(--c-text-muted)',
     fontWeight: '500',
     transition: 'color 0.2s',
   },
@@ -536,10 +546,10 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: '0.75rem 1.5rem',
     background: 'none',
     border: 'none',
-    borderBottom: '2px solid #1E40AF',
+    borderBottom: '2px solid var(--c-accent)',
     cursor: 'pointer',
     fontSize: '1rem',
-    color: '#1E40AF',
+    color: 'var(--c-accent-text)',
     fontWeight: '600',
   },
 };

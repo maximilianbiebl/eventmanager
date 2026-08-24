@@ -42,10 +42,10 @@
   position: sticky;
   bottom: calc(-1 * var(--modal-pad));
   z-index: 2;
-  background-color: #FFFFFF;
+  background-color:var(--c-surface);
   margin: 1rem calc(-1 * var(--modal-pad)) calc(-1 * var(--modal-pad));
   padding: 0.875rem var(--modal-pad) var(--modal-pad);
-  border-top: 1px solid #E2E8F0;
+  border-top:1px solid var(--c-border);
 }
 
 @media (max-width: 640px) {

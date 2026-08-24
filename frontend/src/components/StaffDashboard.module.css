@@ -2,7 +2,7 @@
 
 .container {
   min-height: 100vh;
-  background-color: #F8FAFC;
+  background-color:var(--c-surface-muted);
   padding: 1rem;
 }
 
@@ -11,10 +11,10 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
-  background-color: white;
+  background-color:var(--c-surface);
   padding: 1.5rem;
   border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  box-shadow: var(--shadow-md);
   gap: 1rem;
 }
 
@@ -52,7 +52,7 @@
 .hamburgerIcon span {
   width: 24px;
   height: 2px;
-  background-color: #1E293B;
+  background-color:var(--c-text);
   display: block;
   transition: all 0.3s;
 }
@@ -63,7 +63,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: var(--c-overlay);
   z-index: 1000;
 }
 
@@ -72,9 +72,9 @@
   top: 100%;
   right: 0;
   margin-top: 0.5rem;
-  background-color: white;
+  background-color:var(--c-surface);
   border-radius: 8px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-lg);
   min-width: 200px;
   z-index: 1001;
   overflow: hidden;
@@ -91,43 +91,43 @@
   font-size: 1rem;
   font-weight: 500;
   transition: background-color 0.2s;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom:1px solid var(--c-surface-muted);
 }
 
 .mobileMenuItem {
-  color: #1E293B;
+  color:var(--c-text);
 }
 
 .mobileMenuItem:hover {
-  background-color: #f9fafb;
+  background-color:var(--c-surface-muted);
 }
 
 .mobileMenuItemLogout {
-  color: #DC2626;
+  color:var(--c-danger-text);
   border-bottom: none;
 }
 
 .mobileMenuItemLogout:hover {
-  background-color: #fef2f2;
+  background-color:var(--c-danger-soft);
 }
 
 .title {
   font-size: 1.875rem;
   font-weight: bold;
-  color: #1E293B;
+  color:var(--c-text);
   margin: 0;
 }
 
 .subtitle {
-  color: #64748B;
+  color:var(--c-text-muted);
   margin: 0.5rem 0 0 0;
 }
 
 .settingsButton {
   padding: 0.5rem 1rem;
   background-color: transparent;
-  color: #1E293B;
-  border: 1px solid #CBD5E1;
+  color:var(--c-text);
+  border:1px solid var(--c-border-strong);
   border-radius: 4px;
   cursor: pointer;
   font-weight: 500;
@@ -137,15 +137,15 @@
 }
 
 .settingsButton:hover {
-  background-color: #F8FAFC;
-  border-color: #1E40AF;
-  color: #1E40AF;
+  background-color:var(--c-surface-muted);
+  border-color:var(--c-accent);
+  color:var(--c-accent-text);
 }
 
 .logoutButton {
   padding: 0.5rem 1rem;
-  background-color: #DC2626;
-  color: white;
+  background-color:var(--c-danger);
+  color:var(--c-text-inverse);
   border: none;
   border-radius: 4px;
   cursor: pointer;
@@ -156,11 +156,11 @@
 }
 
 .logoutButton:hover {
-  background-color: #B91C1C;
+  background-color:var(--c-danger-hover);
 }
 
 .notificationBanner {
-  background-color: #dbeafe;
+  background-color:var(--c-accent-soft);
   padding: 1rem;
   border-radius: 8px;
   margin-bottom: 1rem;
@@ -172,7 +172,7 @@
 }
 
 .notificationActive {
-  background-color: #d1fae5;
+  background-color:var(--c-success-soft);
   padding: 1rem;
   border-radius: 8px;
   margin-bottom: 1rem;
@@ -185,7 +185,7 @@
 
 .enableButton, .testButton {
   padding: 0.5rem 1rem;
-  color: white;
+  color:var(--c-text-inverse);
   border: none;
   border-radius: 4px;
   cursor: pointer;
@@ -193,11 +193,11 @@
 }
 
 .enableButton {
-  background-color: #1E40AF;
+  background-color:var(--c-accent);
 }
 
 .testButton {
-  background-color: #64748B;
+  background-color:var(--c-text-muted);
 }
 
 .controls {
@@ -215,11 +215,11 @@
 }
 
 .filterSection {
-  background-color: white;
+  background-color:var(--c-surface);
   padding: 1rem;
   border-radius: 8px;
   margin-bottom: 1rem;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  box-shadow: var(--shadow-md);
 }
 
 .filterLabel {
@@ -228,7 +228,7 @@
   gap: 0.5rem;
   cursor: pointer;
   font-size: 0.875rem;
-  color: #1E293B;
+  color:var(--c-text);
   font-weight: 500;
 }
 
@@ -240,8 +240,8 @@
 
 .filterToggleButton {
   padding: 0.5rem 1rem;
-  background-color: #1E40AF;
-  color: white;
+  background-color:var(--c-accent);
+  color:var(--c-text-inverse);
   border: none;
   border-radius: 4px;
   cursor: pointer;
@@ -251,14 +251,14 @@
 }
 
 .filterToggleButton:hover {
-  background-color: #1E3A8A;
+  background-color:var(--c-accent-hover);
 }
 
 .filterActionButton {
   padding: 0.375rem 0.75rem;
-  background-color: #F8FAFC;
-  color: #1E293B;
-  border: 1px solid #d1d5db;
+  background-color:var(--c-surface-muted);
+  color:var(--c-text);
+  border:1px solid var(--c-border-strong);
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.8125rem;
@@ -267,7 +267,7 @@
 }
 
 .filterActionButton:hover {
-  background-color: #e5e7eb;
+  background-color:var(--c-border);
 }
 
 .eventFilterList {
@@ -276,7 +276,7 @@
   gap: 0.5rem;
   margin-top: 0.5rem;
   padding-top: 0.75rem;
-  border-top: 1px solid #e5e7eb;
+  border-top:1px solid var(--c-border);
 }
 
 .dayTabsContainer {
@@ -284,17 +284,17 @@
   gap: 0.5rem;
   margin-bottom: 1rem;
   padding: 1rem;
-  background-color: white;
+  background-color:var(--c-surface);
   border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  box-shadow: var(--shadow-md);
   flex-wrap: wrap;
 }
 
 .dayTab {
   padding: 0.5rem 1rem;
-  background-color: #F8FAFC;
-  color: #1E293B;
-  border: 1px solid #d1d5db;
+  background-color:var(--c-surface-muted);
+  color:var(--c-text);
+  border:1px solid var(--c-border-strong);
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.875rem;
@@ -303,14 +303,14 @@
 }
 
 .dayTab:hover {
-  background-color: #e5e7eb;
+  background-color:var(--c-border);
 }
 
 .dayTabActive {
   padding: 0.5rem 1rem;
-  background-color: #1E40AF;
-  color: white;
-  border: 1px solid #1E40AF;
+  background-color:var(--c-accent);
+  color:var(--c-text-inverse);
+  border:1px solid var(--c-accent);
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.875rem;
@@ -318,9 +318,9 @@
 }
 
 .tableContainer {
-  background-color: white;
+  background-color:var(--c-surface);
   border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  box-shadow: var(--shadow-md);
   overflow-x: auto;
 }
 
@@ -330,8 +330,8 @@
 }
 
 .taskTable thead {
-  background-color: #f9fafb;
-  border-bottom: 2px solid #e5e7eb;
+  background-color:var(--c-surface-muted);
+  border-bottom:2px solid var(--c-border);
 }
 
 .taskTable th {
@@ -339,29 +339,29 @@
   text-align: left;
   font-size: 0.875rem;
   font-weight: 600;
-  color: #1E293B;
+  color:var(--c-text);
   white-space: nowrap;
 }
 
 .taskTable tbody tr {
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom:1px solid var(--c-border);
   transition: background-color 0.2s;
 }
 
 .taskTable tbody tr:hover {
-  background-color: #f9fafb;
+  background-color:var(--c-surface-muted);
 }
 
 .taskTable td {
   padding: 0.75rem 1rem;
   font-size: 0.875rem;
-  color: #1E293B;
+  color:var(--c-text);
   vertical-align: top;
 }
 
 .completedRow {
   opacity: 0.6;
-  background-color: #f9fafb !important;
+  background-color:var(--c-surface-muted) !important;
 }
 
 .taskTitleCell {
@@ -374,15 +374,15 @@
 
 .taskDescCell {
   font-size: 0.8125rem;
-  color: #64748B;
+  color:var(--c-text-muted);
   margin-top: 0.25rem;
 }
 
 .publicBadge {
   display: inline-block;
   padding: 0.125rem 0.5rem;
-  background-color: #dbeafe;
-  color: #1e40af;
+  background-color:var(--c-accent-soft);
+  color:var(--c-accent-text);
   border-radius: 9999px;
   font-size: 0.75rem;
   font-weight: 500;
@@ -392,11 +392,11 @@
   margin-left: 0;
   padding: 0.25rem 0.5rem;
   font-size: 0.7rem;
-  background-color: #e0e7ff;
+  background-color:var(--c-accent-soft);
   border: none;
   border-radius: 9999px;
   cursor: pointer;
-  color: #3730a3;
+  color:var(--c-accent-strong);
   font-weight: 500;
   display: inline-block;
   vertical-align: baseline;
@@ -405,7 +405,7 @@
 .statusBadge {
   display: inline-block;
   padding: 0.25rem 0.625rem;
-  color: white;
+  color:var(--c-text-inverse);
   border-radius: 9999px;
   font-size: 0.75rem;
   font-weight: 500;
@@ -414,8 +414,8 @@
 
 .tableCompleteButton {
   padding: 0.375rem 0.75rem;
-  background-color: #059669;
-  color: white;
+  background-color:var(--c-success);
+  color:var(--c-text-inverse);
   border: none;
   border-radius: 4px;
   cursor: pointer;
@@ -426,11 +426,11 @@
 }
 
 .tableCompleteButton:hover {
-  background-color: #059669;
+  background-color:var(--c-success);
 }
 
 .completedText {
-  color: #059669;
+  color:var(--c-success-text);
   font-weight: 500;
   font-size: 0.8125rem;
 }
@@ -443,7 +443,7 @@
 .statusBadgeClickable {
   display: inline-block;
   padding: 0.25rem 0.625rem;
-  color: white;
+  color:var(--c-text-inverse);
   border-radius: 9999px;
   font-size: 0.75rem;
   font-weight: 500;
@@ -461,10 +461,10 @@
   top: 100%;
   right: 0;
   margin-top: 0.25rem;
-  background-color: white;
-  border: 1px solid #d1d5db;
+  background-color:var(--c-surface);
+  border:1px solid var(--c-border-strong);
   border-radius: 4px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
   z-index: 9999;
   min-width: 140px;
   max-width: 160px;
@@ -475,12 +475,12 @@
   padding: 0.5rem 0.75rem;
   cursor: pointer;
   font-size: 0.875rem;
-  color: #1E293B;
+  color:var(--c-text);
   transition: background-color 0.2s;
 }
 
 .statusOption:hover {
-  background-color: #F8FAFC;
+  background-color:var(--c-surface-muted);
 }
 
 .hideOnMobile {
@@ -494,7 +494,7 @@
 .mobileMeta {
   margin-top: 0.5rem;
   font-size: 0.75rem;
-  color: #64748B;
+  color:var(--c-text-muted);
   line-height: 1.5;
 }
 
@@ -502,8 +502,8 @@
   position: relative;
   overflow: hidden;
   padding: 0.75rem 1.5rem;
-  background-color: white;
-  border: 1px solid #d1d5db;
+  background-color:var(--c-surface);
+  border:1px solid var(--c-border-strong);
   border-radius: 4px;
   cursor: pointer;
   font-weight: 500;
@@ -512,9 +512,9 @@
 
 .activeTab {
   padding: 0.75rem 1.5rem;
-  background-color: #1E40AF;
-  color: white;
-  border: 1px solid #1E40AF;
+  background-color:var(--c-accent);
+  color:var(--c-text-inverse);
+  border:1px solid var(--c-accent);
   border-radius: 4px;
   cursor: pointer;
   font-weight: 500;
@@ -537,12 +537,12 @@
   font-size: 0.95rem;
   font-weight: 600;
   margin-bottom: 1rem;
-  color: #64748B;
-  background-color: #f9fafb;
+  color:var(--c-text-muted);
+  background-color:var(--c-surface-muted);
   padding: 0.625rem 0.875rem;
   border-radius: 4px;
   box-shadow: none;
-  border-left: 3px solid #1E40AF;
+  border-left:3px solid var(--c-accent);
 }
 
 .taskList {
@@ -573,18 +573,18 @@
 }
 
 .taskCard, .taskCardCompleted {
-  background-color: white;
+  background-color:var(--c-surface);
   padding: 1.5rem;
   border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-  border-left: 4px solid #1E40AF;
+  box-shadow: var(--shadow-md);
+  border-left:4px solid var(--c-accent);
   width: 100%;
   box-sizing: border-box;
 }
 
 .taskCardCompleted {
-  background-color: #f9fafb;
-  border-left-color: #059669;
+  background-color:var(--c-surface-muted);
+  border-left-color:var(--c-success);
   opacity: 0.7;
 }
 
@@ -601,7 +601,7 @@
   font-size: 1.125rem;
   font-weight: 600;
   margin: 0;
-  color: #1E293B;
+  color:var(--c-text);
   word-break: break-word;
   flex: 1;
   min-width: 0;
@@ -610,15 +610,15 @@
 .taskTime {
   font-size: 0.875rem;
   font-weight: 500;
-  color: #1E40AF;
-  background-color: #eef2ff;
+  color:var(--c-accent-text);
+  background-color:var(--c-accent-soft);
   padding: 0.25rem 0.75rem;
   border-radius: 9999px;
   white-space: nowrap;
 }
 
 .taskDescription {
-  color: #64748B;
+  color:var(--c-text-muted);
   margin: 0.5rem 0;
 }
 
@@ -626,19 +626,19 @@
   display: flex;
   gap: 1rem;
   font-size: 0.875rem;
-  color: #64748B;
+  color:var(--c-text-muted);
   margin-bottom: 1rem;
   flex-wrap: wrap;
 }
 
 .taskEvent {
   font-weight: 600;
-  color: #1E293B;
+  color:var(--c-text);
 }
 
 /* Tag-/Datumsangabe in der Meta-Zeile einer Aufgabenkarte */
 .taskDay {
-  color: #64748B;
+  color:var(--c-text-muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -657,8 +657,8 @@
 
 .completeButton {
   padding: 0.5rem 1rem;
-  background-color: #059669;
-  color: white;
+  background-color:var(--c-success);
+  color:var(--c-text-inverse);
   border: none;
   border-radius: 4px;
   cursor: pointer;
@@ -669,8 +669,8 @@
 
 .completedBadge {
   padding: 0.5rem 1rem;
-  background-color: #d1fae5;
-  color: #065f46;
+  background-color:var(--c-success-soft);
+  color:var(--c-success-strong);
   border-radius: 4px;
   text-align: center;
   font-weight: 500;
@@ -682,9 +682,9 @@
 
 .reminderButton {
   padding: 0.375rem 0.75rem;
-  background-color: #F8FAFC;
-  color: #1E293B;
-  border: 1px solid #d1d5db;
+  background-color:var(--c-surface-muted);
+  color:var(--c-text);
+  border:1px solid var(--c-border-strong);
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.875rem;
@@ -694,13 +694,13 @@
 }
 
 .reminderButton:hover {
-  background-color: #e5e7eb;
+  background-color:var(--c-border);
 }
 
 .reminderEdit {
   padding: 0.75rem;
-  background-color: #f9fafb;
-  border: 1px solid #d1d5db;
+  background-color:var(--c-surface-muted);
+  border:1px solid var(--c-border-strong);
   border-radius: 4px;
 }
 
@@ -708,7 +708,7 @@
   display: block;
   font-size: 0.875rem;
   font-weight: 500;
-  color: #1E293B;
+  color:var(--c-text);
   margin-bottom: 0.5rem;
 }
 
@@ -721,15 +721,15 @@
 .reminderInput {
   flex: 1;
   padding: 0.5rem;
-  border: 1px solid #d1d5db;
+  border:1px solid var(--c-border-strong);
   border-radius: 4px;
   font-size: 1rem;
 }
 
 .reminderSave {
   padding: 0.5rem 1rem;
-  background-color: #1E40AF;
-  color: white;
+  background-color:var(--c-accent);
+  color:var(--c-text-inverse);
   border: none;
   border-radius: 4px;
   cursor: pointer;
@@ -745,8 +745,8 @@
 .reminderCancel {
   padding: 0.5rem 1rem;
   background-color: transparent;
-  color: #1E293B;
-  border: 1px solid #CBD5E1;
+  color:var(--c-text);
+  border:1px solid var(--c-border-strong);
   border-radius: 4px;
   cursor: pointer;
   font-size: 1rem;
@@ -764,9 +764,9 @@
 }
 
 .empty {
-  background-color: white;
+  background-color:var(--c-surface);
   border-radius: 8px;
-  color: #64748B;
+  color:var(--c-text-muted);
 }
 
 /* Mobile Optimizations */
@@ -836,8 +836,8 @@
     padding: 0.5rem 0.75rem;
     text-align: center;
     font-size: 0.8125rem;
-    /* Kein `flex: 1`: das presste die Buttons schmaler als ihre
-       Beschriftung, die wegen white-space:nowrap dann herauslief.
+    /* Kein `flex:1`: das presste die Buttons schmaler als ihre
+       Beschriftung, die wegen var(--c-surface)-space:nowrap dann herauslief.
        Stattdessen an den Inhalt anpassen und bei Bedarf umbrechen. */
     flex: 0 1 auto;
     min-width: 0;
@@ -1076,10 +1076,10 @@
 /* Aktualisieren-Button: Füllung läuft von links nach rechts durch den Button.
    Doppelte Klasse, damit sie das globale `button:disabled { opacity }` schlägt. */
 .segment.refreshing {
-  color: #1E40AF;
+  color:var(--c-accent-text);
   opacity: 1;
-  background-color: #EFF6FF;
-  border-color: #BFDBFE;
+  background-color:var(--c-accent-soft);
+  border-color:var(--c-accent-border);
   cursor: progress;
 }
 
@@ -1087,7 +1087,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background-color: #BFDBFE;
+  background-color:var(--c-accent-border);
   transform: scaleX(0);
   transform-origin: left center;
   animation: refreshFill 1.2s cubic-bezier(0.65, 0, 0.35, 1) infinite;
@@ -1117,10 +1117,10 @@
 /* Ansicht: verbundener Segment-Umschalter - liest sich als "entweder/oder" */
 .segmented {
   display: inline-flex;
-  border: 1px solid #CBD5E1;
+  border:1px solid var(--c-border-strong);
   border-radius: 6px;
   overflow: hidden;
-  background-color: #FFFFFF;
+  background-color:var(--c-surface);
 }
 
 .segment,
@@ -1139,22 +1139,22 @@
 .segment + .segment,
 .segment + .segmentActive,
 .segmentActive + .segment {
-  border-left: 1px solid #CBD5E1;
+  border-left:1px solid var(--c-border-strong);
 }
 
 .segment {
-  background-color: #FFFFFF;
-  color: #64748B;
+  background-color:var(--c-surface);
+  color:var(--c-text-muted);
 }
 
 .segment:hover {
-  background-color: #F1F5F9;
-  color: #1E293B;
+  background-color:var(--c-surface-muted);
+  color:var(--c-text);
 }
 
 .segmentActive {
-  background-color: #1E40AF;
-  color: #FFFFFF;
+  background-color:var(--c-accent);
+  color:var(--c-text-inverse);
 }
 
 /* Sortierung: beschriftete Pillen - deutlich leichter als der Umschalter */
@@ -1170,7 +1170,7 @@
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #94A3B8;
+  color:var(--c-text-subtle);
   margin-right: 0.125rem;
 }
 
@@ -1187,19 +1187,19 @@
 
 .sortPill {
   background-color: transparent;
-  color: #64748B;
-  border: 1px solid #E2E8F0;
+  color:var(--c-text-muted);
+  border:1px solid var(--c-border);
 }
 
 .sortPill:hover {
-  border-color: #CBD5E1;
-  color: #1E293B;
+  border-color:var(--c-border-strong);
+  color:var(--c-text);
 }
 
 .sortPillActive {
-  background-color: #EFF6FF;
-  color: #1E40AF;
-  border: 1px solid #BFDBFE;
+  background-color:var(--c-accent-soft);
+  color:var(--c-accent-text);
+  border:1px solid var(--c-accent-border);
 }
 
 
