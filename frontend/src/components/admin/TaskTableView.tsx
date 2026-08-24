@@ -686,16 +686,27 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
                         }}>Deaktiviert</span>
                       )}
                       {task.series_id && taskSeries.find(s => s.id === task.series_id) && (
+                        /*
+                         * Der Badge hatte zwei Zustaende: normal und ein
+                         * ausgegrautes "individuelle Zuweisung ueberschreibt
+                         * das Serien-Team". Beides stimmt so nicht mehr -
+                         * Serien-Mitglieder haben jetzt echte Zuweisungen,
+                         * also griff immer der graue Zustand: graue Schrift
+                         * auf grauem Grund (2.4:1) und eine Beschriftung, die
+                         * das Gegenteil des Wahren behauptete.
+                         *
+                         * Der Badge sagt jetzt schlicht, zu welcher Serie die
+                         * Aufgabe gehoert - mehr war nie seine Aufgabe.
+                         */
                         <span style={{
                           fontSize: '0.7rem',
                           padding: '0.125rem 0.5rem',
-                          backgroundColor: assignedUsers.length > 0 ? 'var(--c-border)' : 'var(--c-accent-soft)',
-                          color: assignedUsers.length > 0 ? 'var(--c-text-muted)' : 'var(--c-accent-text)',
+                          backgroundColor: 'var(--c-accent-soft)',
+                          color: 'var(--c-accent-text)',
                           borderRadius: '9999px',
                           fontWeight: '500',
-                          marginLeft: '0.5rem',
-                          opacity: assignedUsers.length > 0 ? 0.7 : 1
-                        }} title={assignedUsers.length > 0 ? 'Individuelle Zuweisung überschreibt Serien-Team' : 'Serien-Team zugewiesen'}>{taskSeries.find(s => s.id === task.series_id)?.name}</span>
+                          marginLeft: '0.5rem'
+                        }} title={`Gehört zur Serie "${taskSeries.find(s => s.id === task.series_id)?.name}"`}>{taskSeries.find(s => s.id === task.series_id)?.name}</span>
                       )}
                     </div>
                     {task.description && (
