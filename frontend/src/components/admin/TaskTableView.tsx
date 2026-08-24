@@ -754,43 +754,55 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
                   </td>
                   <td style={styles.td}>
                     {assignedUsers.length === 0 ? (
-                      // Check if task has series members to show
-                      task.series_id && seriesMembers[task.series_id]?.length > 0 ? (
-                        <div style={styles.usersList} className={responsiveStyles.usersList}>
-                          {seriesMembers[task.series_id].map((member, idx) => (
-                            <span key={idx} style={{
-                              ...styles.userBadge,
-                              backgroundColor: 'var(--c-accent-soft)',
-                              color: 'var(--c-accent-text)',
-                              border: '1px dashed var(--c-accent-border)'
-                            }} className={responsiveStyles.userBadge} title="Serien-Zuweisung">
-                              {member.name}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <span style={styles.noAssignments}>Nicht zugewiesen</span>
-                      )
+                      <span style={styles.noAssignments}>Nicht zugewiesen</span>
                     ) : (
                       <div style={styles.usersList} className={responsiveStyles.usersList}>
-                        {assignedUsers.map((user, idx) => (
-                          <span key={idx} style={styles.userBadge} className={responsiveStyles.userBadge}>
-                            {user.name}
-                            {user.completed && (
-                              <span style={styles.completedIcon}>✓</span>
-                            )}
-                            {user.assignmentId && (
-                              <button
-                                onClick={() => handleUnassign(user.assignmentId!, user.name)}
-                                style={styles.unassignButton}
-                                className={responsiveStyles.unassignButton}
-                                title="Zuweisung entfernen"
-                              >
-                                ✕
-                              </button>
-                            )}
-                          </span>
-                        ))}
+                        {assignedUsers.map((user, idx) => {
+                          /*
+                           * Gestrichelt = über die Serie zugewiesen, ohne
+                           * Rahmen = einzeln zugewiesen.
+                           *
+                           * Diese Unterscheidung hing vorher daran, dass
+                           * Serien-Mitglieder GAR KEINE Zuweisung hatten und
+                           * in einem eigenen Zweig gezeichnet wurden. Seit sie
+                           * echte Zuweisungen bekommen, lief alles über den
+                           * Zweig ohne Rahmen - die Unterscheidung war weg.
+                           * Jetzt entscheidet die Mitgliedschaft in der Serie
+                           * der Aufgabe, was der Sache auch näher kommt.
+                           */
+                          const viaSeries = !!task.series_id
+                            && !!user.userId
+                            && (seriesMembers[task.series_id] || []).some(m => m.id === user.userId);
+
+                          return (
+                            <span
+                              key={idx}
+                              style={{
+                                ...styles.userBadge,
+                                border: viaSeries
+                                  ? '1px dashed var(--c-accent-border)'
+                                  : '1px solid transparent',
+                              }}
+                              className={responsiveStyles.userBadge}
+                              title={viaSeries ? 'Über die Serie zugewiesen' : 'Einzeln zugewiesen'}
+                            >
+                              {user.name}
+                              {user.completed && (
+                                <span style={styles.completedIcon}>✓</span>
+                              )}
+                              {user.assignmentId && (
+                                <button
+                                  onClick={() => handleUnassign(user.assignmentId!, user.name)}
+                                  style={styles.unassignButton}
+                                  className={responsiveStyles.unassignButton}
+                                  title="Zuweisung entfernen"
+                                >
+                                  ✕
+                                </button>
+                              )}
+                            </span>
+                          );
+                        })}
                       </div>
                     )}
                   </td>

@@ -1138,30 +1138,37 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                   )}
                 </div>
 
-                {taskAssignments.length > 0 ? (
+                {taskAssignments.length > 0 && (
                   <div className={styles.assignmentsSection}>
                     <span className={styles.assignmentsLabel}>Zugewiesen an:</span>
                     <div className={styles.assignmentsList}>
-                      {taskAssignments.map((assignment, idx) => (
-                        <span key={idx} className={styles.assignmentBadge}>
-                          {assignment.user_name}
-                          {assignment.completed && <span className={styles.completedMark}>✓</span>}
-                        </span>
-                      ))}
+                      {taskAssignments.map((assignment, idx) => {
+                        /*
+                         * Gestrichelt = über die Serie zugewiesen, ohne Rahmen
+                         * = einzeln - wie in der Tabellenansicht.
+                         *
+                         * Der frühere Zweig "Serien-Team" griff nur, wenn es
+                         * GAR KEINE Zuweisung gab. Seit Serien-Mitglieder echte
+                         * Zuweisungen bekommen, war er tot und alle Namen sahen
+                         * gleich aus.
+                         */
+                        const viaSeries = !!task.series_id
+                          && (seriesMembers[task.series_id] || []).some(m => m.id === assignment.user_id);
+                        return (
+                          <span
+                            key={idx}
+                            className={styles.assignmentBadge}
+                            style={{ border: viaSeries ? '1px dashed var(--c-accent-border)' : '1px solid transparent' }}
+                            title={viaSeries ? 'Über die Serie zugewiesen' : 'Einzeln zugewiesen'}
+                          >
+                            {assignment.user_name}
+                            {assignment.completed && <span className={styles.completedMark}>✓</span>}
+                          </span>
+                        );
+                      })}
                     </div>
                   </div>
-                ) : task.series_id && seriesMembers[task.series_id]?.length > 0 ? (
-                  <div className={styles.assignmentsSection}>
-                    <span className={styles.assignmentsLabel}>Serien-Team:</span>
-                    <div className={styles.assignmentsList}>
-                      {seriesMembers[task.series_id].map((member, idx) => (
-                        <span key={idx} className={styles.assignmentBadge} style={{ backgroundColor: 'var(--c-accent-soft)', color: 'var(--c-accent-text)' }}>
-                          {member.name}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
+                )}
               </div>
             </div>
 
