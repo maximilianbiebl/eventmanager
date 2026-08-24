@@ -19,6 +19,7 @@ import { StatusCell } from './StatusCell';
 import { Toast } from '../Toast';
 import client from '../../api/client';
 import { toLocalDate } from '../../utils/date';
+import { roleBadgeColors, assignmentTitle } from '../../utils/roleBadge';
 import { DaySelection, resolveInitialDayForEvent, storeDay } from '../../utils/dayPreference';
 import styles from './EventDetail.module.css';
 
@@ -1160,8 +1161,11 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                           <span
                             key={idx}
                             className={styles.assignmentBadge}
-                            style={{ border: viaSeries ? '1px dashed var(--c-accent-border)' : '1px solid transparent' }}
-                            title={viaSeries ? 'Über die Serie zugewiesen' : 'Einzeln zugewiesen'}
+                            style={{
+                              ...roleBadgeColors(assignment.user_role),
+                              border: viaSeries ? '1px dashed var(--c-accent-border)' : '1px solid transparent',
+                            }}
+                            title={assignmentTitle(assignment.user_role, viaSeries)}
                           >
                             {assignment.user_name}
                             {assignment.completed && <span className={styles.completedMark}>✓</span>}

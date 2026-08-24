@@ -316,14 +316,21 @@ export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvent }) =
           {sortedUsers.map((user) => (
             <tr key={user.id} style={selectedIds.includes(user.id) ? styles.selectedRow : undefined}>
               <td style={styles.td}>
-                {canDelete(user) && (
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.includes(user.id)}
-                    onChange={() => handleToggleSelect(user.id)}
-                    style={styles.checkbox}
-                  />
-                )}
+                {/*
+                  Nicht auswaehlbare Zeilen bekommen eine deaktivierte
+                  Checkbox statt gar keiner. Sonst fehlt in einzelnen Zeilen
+                  das Kaestchen und die Spalte wird loechrig - man sieht dann
+                  nicht, ob da etwas fehlt oder nichts hingehoert.
+                */}
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(user.id)}
+                  onChange={() => handleToggleSelect(user.id)}
+                  disabled={!canDelete(user)}
+                  style={canDelete(user) ? styles.checkbox : styles.checkboxDisabled}
+                  title={canDelete(user) ? undefined : 'Teamleiter können nur Mitarbeiter löschen'}
+                  aria-label={`${user.name} auswählen`}
+                />
               </td>
               <td style={styles.td}>{user.id}</td>
               <td style={styles.td}>{user.name}</td>
@@ -386,6 +393,12 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   noPermission: {
     color: 'var(--c-text-subtle)',
+  },
+  checkboxDisabled: {
+    width: '18px',
+    height: '18px',
+    cursor: 'not-allowed',
+    opacity: 0.35,
   },
   topBar: {
     marginBottom: '1rem',

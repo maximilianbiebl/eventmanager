@@ -2,6 +2,7 @@ import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'rea
 import client from '../../api/client';
 import { tasksApi } from '../../api/tasks';
 import { taskSeriesApi, TaskSeries } from '../../api/taskSeries';
+import { roleBadgeColors, assignmentTitle } from '../../utils/roleBadge';
 import { useSSE } from '../../hooks/useSSE';
 import responsiveStyles from './TaskTableView.module.css';
 import { Toast } from '../Toast';
@@ -23,6 +24,8 @@ interface TaskAssignment {
   assignment_id?: number;
   user_id?: number;
   user_name?: string;
+  /** Rolle des zugewiesenen Nutzers (u.role aus der Abfrage) */
+  user_role?: string;
   completed?: boolean;
   is_active?: boolean;
   sort_order?: number;
@@ -319,10 +322,11 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
         completed: assignment.completed || false,
         assignmentId: assignment.assignment_id,
         userId: assignment.user_id,
+        role: assignment.user_role,
       });
     }
     return acc;
-  }, {} as { [key: number]: { task: TaskAssignment; assignedUsers: { name: string; completed: boolean; assignmentId?: number; userId?: number }[] } });
+  }, {} as { [key: number]: { task: TaskAssignment; assignedUsers: { name: string; completed: boolean; assignmentId?: number; userId?: number; role?: string }[] } });
 
   const tasks = Object.values(groupedTasks);
 
@@ -779,12 +783,13 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
                               key={idx}
                               style={{
                                 ...styles.userBadge,
+                                ...roleBadgeColors(user.role),
                                 border: viaSeries
                                   ? '1px dashed var(--c-accent-border)'
                                   : '1px solid transparent',
                               }}
                               className={responsiveStyles.userBadge}
-                              title={viaSeries ? 'Über die Serie zugewiesen' : 'Einzeln zugewiesen'}
+                              title={assignmentTitle(user.role, viaSeries)}
                             >
                               {user.name}
                               {user.completed && (

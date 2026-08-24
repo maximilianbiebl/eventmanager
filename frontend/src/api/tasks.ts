@@ -28,6 +28,8 @@ export interface TaskAssignment extends Task {
   instance_number?: number;
   event_instance_id?: number;
   user_name?: string;
+  /** Rolle des zugewiesenen Nutzers - der Server liefert sie als user_role mit */
+  user_role?: string;
 }
 
 export interface CreateTaskData {
