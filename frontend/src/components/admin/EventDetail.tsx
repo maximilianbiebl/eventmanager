@@ -1063,15 +1063,17 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                       }}>Deaktiviert</span>
                     )}
                     {task.series_id && taskSeries.find(s => s.id === task.series_id) && (
+                      /* Gleicher Badge wie in der Tabellenansicht: ein
+                         Zustand, lesbar, und er sagt nur, zu welcher Serie
+                         die Aufgabe gehört. */
                       <span style={{
                         fontSize: '0.7rem',
                         padding: '0.125rem 0.5rem',
-                        backgroundColor: taskAssignments.length > 0 ? 'var(--c-border)' : 'var(--c-accent-soft)',
-                        color: taskAssignments.length > 0 ? 'var(--c-text-muted)' : 'var(--c-accent-text)',
+                        backgroundColor: 'var(--c-accent-soft)',
+                        color: 'var(--c-accent-text)',
                         borderRadius: '9999px',
-                        fontWeight: '500',
-                        opacity: taskAssignments.length > 0 ? 0.7 : 1
-                      }} title={taskAssignments.length > 0 ? 'Individuelle Zuweisung überschreibt Serien-Team' : 'Serien-Team zugewiesen'}>
+                        fontWeight: '500'
+                      }} title={`Gehört zur Serie "${taskSeries.find(s => s.id === task.series_id)?.name}"`}>
                         {taskSeries.find(s => s.id === task.series_id)?.name}
                       </span>
                     )}
