@@ -3,6 +3,7 @@ import { usersApi, User } from '../../api/users';
 import { useSSE } from '../../hooks/useSSE';
 import client from '../../api/client';
 import { taskSeriesApi } from '../../api/taskSeries';
+import { toLocalDate } from '../../utils/date';
 
 interface Props {
   eventId: number;
@@ -954,7 +955,7 @@ const AssignTasksModal: React.FC<AssignTasksModalProps> = ({
                 >
                   {eventInstances.map((instance) => (
                     <option key={instance.id} value={instance.id}>
-                      Instanz #{instance.instance_number} - {new Date(instance.start_date).toLocaleDateString('de-DE')}
+                      Instanz #{instance.instance_number} - {toLocalDate(instance.start_date)!.toLocaleDateString('de-DE')}
                     </option>
                   ))}
                 </select>

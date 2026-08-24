@@ -9,6 +9,7 @@ import { DescriptionModal } from './DescriptionModal';
 import { ThemeSwitch } from './ThemeSwitch';
 import client from '../api/client';
 import styles from './StaffDashboard.module.css';
+import { toLocalDate } from '../utils/date';
 
 export const StaffDashboard: React.FC = () => {
   const [tasks, setTasks] = useState<TaskAssignment[]>([]);
@@ -75,7 +76,8 @@ export const StaffDashboard: React.FC = () => {
     if (!task.end_time || !task.instance_start_date || task.status === 'completed') return false;
 
     const now = new Date();
-    const taskDate = new Date(task.instance_start_date);
+    const taskDate = toLocalDate(task.instance_start_date);
+    if (!taskDate) return false;
     taskDate.setDate(taskDate.getDate() + task.day_number - 1);
 
     // Parse end time (format: "HH:MM")
@@ -674,7 +676,7 @@ const TaskCard: React.FC<{
   }, [task.reminder_minutes]);
 
   const getEventDate = () => {
-    const startDate = new Date(task.instance_start_date);
+    const startDate = toLocalDate(task.instance_start_date) ?? new Date();
     startDate.setDate(startDate.getDate() + task.day_number - 1);
     return startDate.toLocaleDateString('de-DE');
   };
@@ -1062,9 +1064,9 @@ const StaffTableView: React.FC<{
         compareResult = a.day_number - b.day_number;
         break;
       case 'date':
-        const dateA = new Date(a.instance_start_date);
+        const dateA = toLocalDate(a.instance_start_date) ?? new Date(0);
         dateA.setDate(dateA.getDate() + a.day_number - 1);
-        const dateB = new Date(b.instance_start_date);
+        const dateB = toLocalDate(b.instance_start_date) ?? new Date(0);
         dateB.setDate(dateB.getDate() + b.day_number - 1);
         compareResult = dateA.getTime() - dateB.getTime();
         break;
@@ -1120,7 +1122,7 @@ const StaffTableView: React.FC<{
   };
 
   const getEventDate = (task: TaskAssignment) => {
-    const startDate = new Date(task.instance_start_date);
+    const startDate = toLocalDate(task.instance_start_date) ?? new Date();
     startDate.setDate(startDate.getDate() + task.day_number - 1);
     return startDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
   };
@@ -1460,7 +1462,7 @@ function groupTasksByDate(tasks: TaskAssignment[]): { [key: string]: TaskAssignm
       if (!task.instance_start_date) {
         throw new Error('Kein Startdatum');
       }
-      const startDate = new Date(task.instance_start_date);
+      const startDate = toLocalDate(task.instance_start_date) ?? new Date();
       if (isNaN(startDate.getTime())) {
         throw new Error('Ungültiges Datum');
       }
@@ -1501,10 +1503,10 @@ function groupTasksByDate(tasks: TaskAssignment[]): { [key: string]: TaskAssignm
       const taskB = grouped[b][0];
 
       try {
-        const dateA = new Date(taskA.instance_start_date || Date.now());
+        const dateA = toLocalDate(taskA.instance_start_date) ?? new Date();
         dateA.setDate(dateA.getDate() + (taskA.day_number ?? 1) - 1);
 
-        const dateB = new Date(taskB.instance_start_date || Date.now());
+        const dateB = toLocalDate(taskB.instance_start_date) ?? new Date();
         dateB.setDate(dateB.getDate() + (taskB.day_number ?? 1) - 1);
 
         return dateA.getTime() - dateB.getTime();

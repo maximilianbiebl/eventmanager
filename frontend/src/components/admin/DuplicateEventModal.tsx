@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { eventsApi, Event } from '../../api/events';
+import { toDateInputValue } from '../../utils/date';
 
 interface Props {
   event: Event;
@@ -9,11 +10,7 @@ interface Props {
 
 export const DuplicateEventModal: React.FC<Props> = ({ event, onClose, onSuccess }) => {
   const [name, setName] = useState(`${event.name} (Kopie)`);
-  // Wie im Bearbeiten-Dialog: Postgres liefert einen ISO-Zeitstempel,
-  // <input type="date"> braucht "YYYY-MM-DD".
-  const [startDate, setStartDate] = useState(
-    event.start_date ? String(event.start_date).slice(0, 10) : ''
-  );
+  const [startDate, setStartDate] = useState(toDateInputValue(event.start_date));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 

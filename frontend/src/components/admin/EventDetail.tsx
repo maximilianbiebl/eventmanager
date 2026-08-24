@@ -17,6 +17,7 @@ import { EventStaffPool } from './EventStaffPool';
 import { StatusFilter } from './StatusFilter';
 import { StatusCell } from './StatusCell';
 import { Toast } from '../Toast';
+import { toLocalDate } from '../../utils/date';
 import styles from './EventDetail.module.css';
 
 const STATUS_LABELS: { [key: string]: string } = {
@@ -192,7 +193,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
   // Quelle, damit die Anzeige zu den Aufgabenterminen passt.
   const currentInstance = event?.instances?.find((i: any) => i.id === selectedInstance)
     ?? event?.instances?.[0];
-  const rangeStart = currentInstance?.start_date ? new Date(currentInstance.start_date) : null;
+  const rangeStart = toLocalDate(currentInstance?.start_date);
   const rangeValid = rangeStart && !isNaN(rangeStart.getTime()) && rangeStart.getFullYear() >= 2000;
   const rangeEnd = rangeValid ? new Date(rangeStart) : null;
   if (rangeEnd) rangeEnd.setDate(rangeEnd.getDate() + Number(event.days) - 1);
@@ -331,7 +332,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
           <h3>Durchführungen</h3>
           <div className={styles.instances}>
             {(event as any).instances.map((instance: any) => {
-              const date = instance.start_date ? new Date(instance.start_date) : null;
+              const date = toLocalDate(instance.start_date);
               const isValidDate = date && !isNaN(date.getTime()) && date.getFullYear() >= 2000;
               return (
                 <button
@@ -654,7 +655,8 @@ const TaskListView: React.FC<TaskListViewProps> = ({
 
     // Vorlagen oder Events ohne Startdatum sind nie überfällig
     if (!instance.start_date) return false;
-    const taskDate = new Date(instance.start_date);
+    const taskDate = toLocalDate(instance.start_date);
+    if (!taskDate) return false;
     if (isNaN(taskDate.getTime()) || taskDate.getFullYear() < 2000) return false;
 
     const now = new Date();
@@ -693,17 +695,16 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   };
 
   /*
-   * Der tatsächliche Zustand: eine nicht gestartete Aufgabe, deren Endzeit
-   * vorbei ist, IST überfällig. Vorher zeigte das nur die Farbe, während der
-   * Filter sie weiter unter "Nicht gestartet" führte. Farbe, Beschriftung und
-   * Filter leiten sich jetzt aus derselben Funktion ab.
+   * "Überfällig" ist KEIN eigener Status, sondern eine zusätzliche
+   * Eigenschaft - eine Aufgabe kann gleichzeitig "Nicht gestartet" UND
+   * überfällig sein. Die Beschriftung bleibt der echte Status, nur die
+   * Farbe wird rot.
    */
-  const effectiveStatus = (task: any): string => {
+  const isOverdue = (task: any): boolean => {
     const currentInstance = event && (event as any).instances
       ? (event as any).instances.find((i: any) => i.id === selectedInstance)
       : null;
-    if (currentInstance && isTaskOverdue(task, currentInstance)) return 'overdue';
-    return task.status;
+    return !!currentInstance && isTaskOverdue(task, currentInstance);
   };
 
   const getStatusColor = (task: any) => {
@@ -713,7 +714,8 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       completed: 'var(--c-success)',
       overdue: 'var(--c-danger)',
     };
-    return colors[effectiveStatus(task)] || 'var(--c-text-muted)';
+    if (isOverdue(task)) return colors.overdue;
+    return colors[task.status] || 'var(--c-text-muted)';
   };
 
   const handleStatusChange = async (taskId: number, newStatus: string) => {
@@ -834,7 +836,9 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       ? uniqueTasks
       : uniqueTasks.filter(t => t.day_number === selectedDay);
     if (statusFilter === 'all') return byDay;
-    return byDay.filter(t => effectiveStatus(t) === statusFilter);
+    // "Überfällig" greift quer über alle Status
+    if (statusFilter === 'overdue') return byDay.filter(t => isOverdue(t));
+    return byDay.filter(t => t.status === statusFilter);
   }, [uniqueTasks, selectedDay, statusFilter]);
 
   const sortedTasks = React.useMemo(() => {
@@ -1026,7 +1030,8 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                     der native Pfeil und es sah aus wie ein Badge. */}
                 <StatusCell
                   value={task.status}
-                  label={STATUS_LABELS[effectiveStatus(task)] || task.status}
+                  label={STATUS_LABELS[task.status] || task.status}
+                  overdue={isOverdue(task)}
                   color={getStatusColor(task)}
                   disabled={readOnly}
                   onChange={(v) => handleStatusChange(task.id, v)}

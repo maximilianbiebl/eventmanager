@@ -10,6 +10,7 @@ import { CSVImportModal } from './CSVImportModal';
 import { useAuth } from '../../context/AuthContext';
 import { useSSE } from '../../hooks/useSSE';
 import responsiveStyles from './EventsList.module.css';
+import { toLocalDate } from '../../utils/date';
 
 type TabType = 'own' | 'templates' | 'other-teamleiters';
 
@@ -295,7 +296,7 @@ export const EventsList: React.FC = () => {
         {event.description && <p style={styles.eventDescription}>{event.description}</p>}
         {event.start_date && (
           <div style={styles.eventMeta}>
-            <span>Start: {new Date(event.start_date).toLocaleDateString('de-DE')}</span>
+            <span>Start: {toLocalDate(event.start_date)!.toLocaleDateString('de-DE')}</span>
             <span>{event.days} Tage</span>
           </div>
         )}

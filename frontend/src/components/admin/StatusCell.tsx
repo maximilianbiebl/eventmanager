@@ -24,16 +24,20 @@ interface Props {
   value: string;
   label: string;
   color: string;
+  /** Zeitlich überfällig - kommt zum Status hinzu, ersetzt ihn nicht. */
+  overdue?: boolean;
   disabled?: boolean;
   onChange: (value: string) => void;
 }
 
-export const StatusCell: React.FC<Props> = ({ value, label, color, disabled, onChange }) => {
+export const StatusCell: React.FC<Props> = ({ value, label, color, overdue, disabled, onChange }) => {
   const [open, setOpen] = useState(false);
+
+  const title = overdue ? `${label} - Endzeit überschritten` : undefined;
 
   if (disabled) {
     return (
-      <span className="status-pill" style={{ backgroundColor: color }}>
+      <span className="status-pill" style={{ backgroundColor: color }} title={title}>
         {label}
       </span>
     );
@@ -48,6 +52,7 @@ export const StatusCell: React.FC<Props> = ({ value, label, color, disabled, onC
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="listbox"
         aria-expanded={open}
+        title={title}
       >
         {label}
         <span className="status-caret" aria-hidden="true">▾</span>
