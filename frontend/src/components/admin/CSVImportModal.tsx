@@ -11,6 +11,41 @@ interface Props {
   eventId?: number; // For tasks import
 }
 
+/*
+ * Dieselbe Trennlogik wie im Server: an Kommas trennen, aber
+ * Anfuehrungszeichen beachten. Sonst zeigt die Vorschau etwas anderes an,
+ * als beim Import tatsaechlich ankommt.
+ */
+const parseCsvLine = (line: string): string[] => {
+  const out: string[] = [];
+  let cur = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (line[i + 1] === '"') { cur += '"'; i++; }
+        else inQuotes = false;
+      } else cur += c;
+    } else if (c === '"') {
+      inQuotes = true;
+    } else if (c === ',') {
+      out.push(cur.trim());
+      cur = '';
+    } else {
+      cur += c;
+    }
+  }
+  out.push(cur.trim());
+  return out;
+};
+
+interface Credential {
+  name: string;
+  password: string;
+  generated: boolean;
+}
+
 interface ImportPreview {
   total: number;
   items: any[];
@@ -25,6 +60,9 @@ export const CSVImportModal: React.FC<Props> = ({ type, onClose, onSuccess, even
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
   const [importAsTemplate, setImportAsTemplate] = useState(false);
+  // Wird nach dem Import EINMAL gezeigt und nirgends gespeichert
+  const [credentials, setCredentials] = useState<Credential[] | null>(null);
+  const [importSummary, setImportSummary] = useState<any>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -34,16 +72,16 @@ export const CSVImportModal: React.FC<Props> = ({ type, onClose, onSuccess, even
 
     // Parse CSV for preview
     try {
-      const text = await selectedFile.text();
-      const lines = text.split('\n').filter(line => line.trim());
+      const text = (await selectedFile.text()).replace(/^\uFEFF/, '');
+      const lines = text.split(/\r?\n/).filter(line => line.trim());
       if (lines.length === 0) {
         alert('CSV-Datei ist leer');
         return;
       }
 
-      const headers = lines[0].split(',').map(h => h.trim());
+      const headers = parseCsvLine(lines[0]).map(h => h.toLowerCase());
       const items = lines.slice(1).map((line, idx) => {
-        const values = line.split(',').map(v => v.trim());
+        const values = parseCsvLine(line);
         const item: any = { _index: idx };
         headers.forEach((header, i) => {
           item[header] = values[i];
@@ -92,8 +130,8 @@ export const CSVImportModal: React.FC<Props> = ({ type, onClose, onSuccess, even
       setLoading(true);
 
       // Create filtered CSV with only selected items
-      const text = await file.text();
-      const lines = text.split('\n').filter(line => line.trim());
+      const text = (await file.text()).replace(/^\uFEFF/, '');
+      const lines = text.split(/\r?\n/).filter(line => line.trim());
       const headerLine = lines[0];
       const selectedLines = [headerLine];
 
@@ -116,6 +154,14 @@ export const CSVImportModal: React.FC<Props> = ({ type, onClose, onSuccess, even
         result = await tasksApi.importCSV(eventId, filteredFile);
       } else {
         throw new Error('Invalid import type');
+      }
+
+      if (type === 'users' && result.credentials?.length) {
+        // Zugangsdaten stehen nur in dieser Antwort - erst schliessen, wenn
+        // sie abgeholt sind. Deshalb kein alert und kein sofortiges onSuccess.
+        setCredentials(result.credentials);
+        setImportSummary(result);
+        return;
       }
 
       const message = result.imported
@@ -144,6 +190,96 @@ export const CSVImportModal: React.FC<Props> = ({ type, onClose, onSuccess, even
     return 'Importieren';
   };
 
+  const copyCredentials = async () => {
+    if (!credentials) return;
+    const text = credentials.map(c => `${c.name}\t${c.password}`).join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
+      alert('Zugangsdaten in die Zwischenablage kopiert');
+    } catch {
+      alert('Kopieren nicht möglich - bitte die Liste von Hand übernehmen');
+    }
+  };
+
+  const downloadCredentials = () => {
+    if (!credentials) return;
+    const csvField = (v: string) => (/[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+    const csv = ['name,password', ...credentials.map(c => `${csvField(c.name)},${csvField(c.password)}`)].join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'zugangsdaten.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  /*
+   * Nach dem Import: die Zugangsdaten stehen NUR hier. Wird dieser Dialog
+   * geschlossen, sind die zufaellig erzeugten Passwoerter nicht wieder
+   * herstellbar - gespeichert ist nur der Hash. Deshalb ein eigener Schritt
+   * mit ausdruecklichem Schliessen statt einer beilaeufigen Meldung.
+   */
+  if (credentials) {
+    const erzeugt = credentials.filter(c => c.generated).length;
+    return (
+      <div className="app-modal-overlay" style={styles.overlay}>
+        <div className="app-modal" style={styles.modal}>
+          <h2 style={styles.title}>Zugangsdaten</h2>
+
+          <p style={styles.credHint}>
+            {credentials.length === 1
+              ? '1 Konto wurde angelegt.'
+              : `${credentials.length} Konten wurden angelegt.`}
+            {erzeugt > 0 && ' Die erzeugten Passwörter sind nur hier zu sehen - danach nicht mehr.'}
+          </p>
+
+          <div style={styles.credList}>
+            {credentials.map((c, idx) => (
+              <div key={idx} style={styles.credRow}>
+                <span style={styles.credName}>{c.name}</span>
+                <code style={styles.credPassword}>{c.password}</code>
+                {!c.generated && <span style={styles.credOwn}>aus der Datei</span>}
+              </div>
+            ))}
+          </div>
+
+          {importSummary?.skipped > 0 && (
+            <p style={styles.credNote}>
+              {importSummary.skipped} bereits vorhandene {importSummary.skipped === 1 ? 'Person wurde' : 'Personen wurden'} übersprungen -
+              deren Passwörter bleiben unverändert.
+            </p>
+          )}
+
+          {importSummary?.rejected?.length > 0 && (
+            <div style={styles.credNote}>
+              <strong>Nicht angelegt:</strong>
+              <ul style={styles.credRejected}>
+                {importSummary.rejected.map((r: any, idx: number) => (
+                  <li key={idx}>{r.name} - {r.reason}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className="app-modal-actions" style={styles.buttons}>
+            <button onClick={copyCredentials} style={styles.cancelButton}>
+              Kopieren
+            </button>
+            <button onClick={downloadCredentials} style={styles.cancelButton}>
+              Als CSV speichern
+            </button>
+            <button
+              onClick={() => { onSuccess(importSummary); }}
+              style={styles.importButton}
+            >
+              Fertig
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="app-modal-overlay" style={styles.overlay} onClick={handleOverlayClick}>
       <div className="app-modal" style={styles.modal}>
@@ -160,6 +296,14 @@ export const CSVImportModal: React.FC<Props> = ({ type, onClose, onSuccess, even
             style={styles.fileInput}
           />
           {file && <p style={styles.fileName}>{file.name}</p>}
+          {type === 'users' && (
+            <p style={styles.helperText}>
+              Spalten: <code>name</code>, <code>role</code> (optional), <code>password</code> (optional,
+              mindestens 6 Zeichen). Ohne Passwort-Spalte wird pro Person ein zufälliges
+              Passwort erzeugt und nach dem Import einmalig angezeigt.
+              Bereits vorhandene Namen werden übersprungen.
+            </p>
+          )}
         </div>
 
         {type === 'events' && (
@@ -241,6 +385,50 @@ export const CSVImportModal: React.FC<Props> = ({ type, onClose, onSuccess, even
 };
 
 const styles: { [key: string]: React.CSSProperties } = {
+  credHint: {
+    marginBottom: '1rem',
+    color: 'var(--c-text-muted)',
+  },
+  credList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.25rem',
+    padding: '0.75rem',
+    marginBottom: '1rem',
+    maxHeight: '16rem',
+    overflowY: 'auto',
+    backgroundColor: 'var(--c-surface-muted)',
+    borderRadius: '6px',
+  },
+  credRow: {
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: '0.75rem',
+    fontSize: '0.875rem',
+  },
+  credName: {
+    flex: '1 1 auto',
+    minWidth: 0,
+    overflowWrap: 'anywhere',
+  },
+  credPassword: {
+    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+    fontWeight: 600,
+    color: 'var(--c-text)',
+  },
+  credOwn: {
+    fontSize: '0.75rem',
+    color: 'var(--c-text-subtle)',
+  },
+  credNote: {
+    marginBottom: '1rem',
+    fontSize: '0.8125rem',
+    color: 'var(--c-text-muted)',
+  },
+  credRejected: {
+    margin: '0.25rem 0 0 1rem',
+    padding: 0,
+  },
   overlay: {
     position: 'fixed',
     top: 0,

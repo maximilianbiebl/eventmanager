@@ -3,6 +3,7 @@ import { query } from '../database/connection';
 import { authMiddleware, adminMiddleware, teamleiterOrAdminMiddleware, AuthRequest } from '../middleware/auth';
 import { broadcastUpdate } from './sse';
 import bcrypt from 'bcrypt';
+import { randomBytes } from 'crypto';
 import multer from 'multer';
 
 const router = Router();
@@ -426,9 +427,19 @@ router.post('/export-csv', authMiddleware, teamleiterOrAdminMiddleware, async (r
       result = await query('SELECT id, name, role FROM users ORDER BY name');
     }
 
-    // Create CSV
+    /*
+     * Felder mit Komma, Anfuehrungszeichen oder Zeilenumbruch muessen
+     * gequotet werden - sonst zerlegt ein Name wie "Mustermann, Max" beim
+     * naechsten Import die Zeile. Passwoerter kommen hier nie vor,
+     * gespeichert sind nur Hashes.
+     */
+    const csvField = (value: any): string => {
+      const s = String(value ?? '');
+      return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+
     const headers = ['id', 'name', 'role'];
-    const rows = result.rows.map(row => `${row.id},${row.name},${row.role}`);
+    const rows = result.rows.map(row => [row.id, row.name, row.role].map(csvField).join(','));
     const csv = [headers.join(','), ...rows].join('\n');
 
     res.setHeader('Content-Type', 'text/csv');
@@ -440,6 +451,51 @@ router.post('/export-csv', authMiddleware, teamleiterOrAdminMiddleware, async (r
   }
 });
 
+/*
+ * CSV-Parser fuer eine Zeile - beachtet Anfuehrungszeichen.
+ *
+ * Vorher wurde stumpf an jedem Komma getrennt. Ein Name wie
+ * "Mustermann, Max" hat die Zeile damit still zerlegt und die Rolle in die
+ * Namensspalte geschoben. Namen mit Leerzeichen ("Max Mustermann") waren
+ * nie ein Problem, Namen mit Komma schon.
+ */
+const parseCsvLine = (line: string): string[] => {
+  const out: string[] = [];
+  let cur = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (line[i + 1] === '"') { cur += '"'; i++; }  // "" = ein Anfuehrungszeichen
+        else inQuotes = false;
+      } else cur += c;
+    } else if (c === '"') {
+      inQuotes = true;
+    } else if (c === ',') {
+      out.push(cur.trim());
+      cur = '';
+    } else {
+      cur += c;
+    }
+  }
+  out.push(cur.trim());
+  return out;
+};
+
+/*
+ * Zufaelliges Startpasswort. Ohne mehrdeutige Zeichen (0/O, 1/l/I), damit
+ * es sich vorlesen und abtippen laesst.
+ */
+const generatePassword = (): string => {
+  const alphabet = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const bytes = randomBytes(10);
+  return Array.from(bytes, b => alphabet[b % alphabet.length]).join('');
+};
+
+const MIN_PASSWORD_LENGTH = 6;
+
 // CSV Import
 router.post('/import-csv', authMiddleware, teamleiterOrAdminMiddleware, upload.single('file'), async (req: AuthRequest, res) => {
   try {
@@ -447,44 +503,73 @@ router.post('/import-csv', authMiddleware, teamleiterOrAdminMiddleware, upload.s
       return res.status(400).json({ error: 'Keine Datei hochgeladen' });
     }
 
-    const csvText = req.file.buffer.toString('utf-8');
-    const lines = csvText.split('\n').filter(line => line.trim());
+    // BOM entfernen (Excel schreibt eines) und CRLF wie LF behandeln
+    const csvText = req.file.buffer.toString('utf-8').replace(/^\uFEFF/, '');
+    const lines = csvText.split(/\r?\n/).filter(line => line.trim());
 
     if (lines.length < 2) {
       return res.status(400).json({ error: 'CSV ist leer oder ungültig' });
     }
 
-    const headers = lines[0].split(',').map(h => h.trim());
+    const headers = parseCsvLine(lines[0]).map(h => h.toLowerCase());
     let imported = 0;
+    let skipped = 0;
+    const rejected: { name: string; reason: string }[] = [];
+    // Einmalige Ausgabe an den Aufrufer - wird nirgends gespeichert
+    const credentials: { name: string; password: string; generated: boolean }[] = [];
 
     for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(',').map(v => v.trim());
+      const values = parseCsvLine(lines[i]);
       const user: any = {};
       headers.forEach((header, idx) => {
         user[header] = values[idx];
       });
 
-      // Teamleiter dürfen keine Admins erstellen
+      const name = (user.name || '').trim();
+      if (!name) {
+        rejected.push({ name: `Zeile ${i + 1}`, reason: 'Kein Name angegeben' });
+        continue;
+      }
+
       // Wie beim Anlegen ueber die Oberflaeche: Teamleiter nur Mitarbeiter
       if (req.user!.role === 'teamleiter' && user.role && user.role !== 'staff') {
-        continue; // Skip admin users
+        rejected.push({ name, reason: 'Teamleiter können nur Mitarbeiter anlegen' });
+        continue;
       }
 
-      // Check if user already exists by name
-      const existing = await query('SELECT id FROM users WHERE name = $1', [user.name]);
-
-      if (existing.rows.length === 0) {
-        // Create new user with default password
-        const defaultPassword = await bcrypt.hash('1234', 10);
-        await query(
-          'INSERT INTO users (name, role, password_hash) VALUES ($1, $2, $3)',
-          [user.name, user.role || 'staff', defaultPassword]
-        );
-        imported++;
+      // Bestehende Namen bleiben unberuehrt - ein Import darf niemandem das
+      // Passwort ueberschreiben und damit den Zugang entziehen.
+      const existing = await query('SELECT id FROM users WHERE name = $1', [name]);
+      if (existing.rows.length > 0) {
+        skipped++;
+        continue;
       }
+
+      const given = (user.password || '').trim();
+      if (given && given.length < MIN_PASSWORD_LENGTH) {
+        rejected.push({ name, reason: `Passwort zu kurz (mindestens ${MIN_PASSWORD_LENGTH} Zeichen)` });
+        continue;
+      }
+
+      const password = given || generatePassword();
+      const passwordHash = await bcrypt.hash(password, 10);
+
+      await query(
+        'INSERT INTO users (name, role, password_hash) VALUES ($1, $2, $3)',
+        [name, user.role || 'staff', passwordHash]
+      );
+
+      credentials.push({ name, password, generated: !given });
+      imported++;
     }
 
-    res.json({ message: `${imported} Benutzer importiert`, imported });
+    res.json({
+      message: `${imported} Benutzer importiert`,
+      imported,
+      skipped,
+      rejected,
+      credentials,
+    });
   } catch (error) {
     console.error('Import CSV error:', error);
     res.status(500).json({ error: 'Server Fehler' });
