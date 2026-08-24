@@ -206,6 +206,32 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req: Auth
       [name, description, start_date, days, templateValue, id]
     );
 
+    // Die Termine der Aufgaben leiten sich NICHT vom Event ab, sondern von
+    // event_instances.start_date (Instanz-Startdatum + day_number). Wurde hier
+    // nur die events-Tabelle geschrieben, zeigte die Übersicht das neue Datum,
+    // die Aufgaben rechneten aber weiter mit dem alten - inklusive falscher
+    // Überfällig-Markierung. Deshalb die Instanzen mitziehen, nach derselben
+    // Regel wie beim Anlegen: Instanz i beginnt start_date + (i-1) * days.
+    if (start_date && !templateValue) {
+      const instances = await query(
+        'SELECT id, instance_number FROM event_instances WHERE event_id = $1 ORDER BY instance_number',
+        [id]
+      );
+
+      for (const inst of instances.rows) {
+        const d = new Date(start_date);
+        d.setDate(d.getDate() + (inst.instance_number - 1) * Number(days));
+        await query('UPDATE event_instances SET start_date = $1 WHERE id = $2', [
+          d.toISOString().split('T')[0],
+          inst.id,
+        ]);
+      }
+    }
+
+    // Clients neu laden lassen, damit die Aufgaben die neuen Termine bekommen
+    broadcastUpdate('event', { action: 'event_updated', eventId: Number(id) });
+    broadcastUpdate('task', { action: 'event_dates_changed', eventId: Number(id) });
+
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Update event error:', error);

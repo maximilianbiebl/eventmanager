@@ -157,6 +157,16 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
     return now > taskDate;
   };
 
+  /*
+   * Der tatsächliche Zustand einer Aufgabe. Eine nicht gestartete Aufgabe,
+   * deren Endzeit vorbei ist, IST überfällig - vorher hat nur die Farbe das
+   * gezeigt, während der Filter sie weiter unter "Nicht gestartet" führte.
+   * Beides leitet sich jetzt aus derselben Funktion ab.
+   */
+  const effectiveStatus = (task: TaskAssignment): string =>
+    isTaskOverdue(task) ? 'overdue' : task.status;
+
+
   const loadAssignments = async (showLoading = true) => {
     try {
       if (showLoading) {
@@ -321,7 +331,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
   // Filter nach Status und Tag
   let filteredTasks = statusFilter === 'all'
     ? tasks
-    : tasks.filter(t => t.task.status === statusFilter);
+    : tasks.filter(t => effectiveStatus(t.task) === statusFilter);
 
   // Filter nach Tag
   if (selectedDay !== 'all') {
@@ -426,15 +436,8 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
     return startDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
   };
 
-  const getTaskStatusColor = (task: TaskAssignment): string => {
-    // Show red if task is actually overdue (by time), regardless of status
-    if (isTaskOverdue(task)) {
-      return 'var(--c-danger)'; // Red for overdue
-    }
-
-    // Otherwise use actual status color
-    return STATUS_COLORS[task.status] || 'var(--c-text-muted)';
-  };
+  const getTaskStatusColor = (task: TaskAssignment): string =>
+    STATUS_COLORS[effectiveStatus(task)] || 'var(--c-text-muted)';
 
   const getSortIcon = (column: string) => {
     if (sortColumn !== column) return ' ↕';
@@ -728,7 +731,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
                   <td style={styles.td}>
                     <StatusCell
                       value={task.status}
-                      label={STATUS_LABELS[task.status] || task.status}
+                      label={STATUS_LABELS[effectiveStatus(task)] || task.status}
                       color={getTaskStatusColor(task)}
                       disabled={readOnly}
                       onChange={(v) => handleStatusChange(task.id, v)}

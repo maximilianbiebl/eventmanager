@@ -9,7 +9,11 @@ interface Props {
 
 export const DuplicateEventModal: React.FC<Props> = ({ event, onClose, onSuccess }) => {
   const [name, setName] = useState(`${event.name} (Kopie)`);
-  const [startDate, setStartDate] = useState(event.start_date);
+  // Wie im Bearbeiten-Dialog: Postgres liefert einen ISO-Zeitstempel,
+  // <input type="date"> braucht "YYYY-MM-DD".
+  const [startDate, setStartDate] = useState(
+    event.start_date ? String(event.start_date).slice(0, 10) : ''
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 

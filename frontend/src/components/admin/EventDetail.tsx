@@ -187,6 +187,20 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
     // erzwungener Sprung auf Tag 1 mehr.
   };
 
+  // Zeitraum der gewählten Durchführung. Die Aufgaben rechnen mit dem
+  // Startdatum der INSTANZ, nicht dem des Events - deshalb hier dieselbe
+  // Quelle, damit die Anzeige zu den Aufgabenterminen passt.
+  const currentInstance = event?.instances?.find((i: any) => i.id === selectedInstance)
+    ?? event?.instances?.[0];
+  const rangeStart = currentInstance?.start_date ? new Date(currentInstance.start_date) : null;
+  const rangeValid = rangeStart && !isNaN(rangeStart.getTime()) && rangeStart.getFullYear() >= 2000;
+  const rangeEnd = rangeValid ? new Date(rangeStart) : null;
+  if (rangeEnd) rangeEnd.setDate(rangeEnd.getDate() + Number(event.days) - 1);
+  const fmt = (d: Date) => d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const eventRange = rangeValid && rangeEnd
+    ? (Number(event.days) === 1 ? fmt(rangeStart) : `${fmt(rangeStart)} – ${fmt(rangeEnd)}`)
+    : null;
+
   if (loading) {
     return <div>Lade Details...</div>;
   }
@@ -202,7 +216,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
         </button>
         <h2 className={styles.title}>{event.name}</h2>
 
-        {event.description && (
+        {(
           <button
             onClick={() => setShowDescription(v => !v)}
             className={showDescription ? styles.infoButtonActive : styles.infoButton}
@@ -294,8 +308,20 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
         </div>
       </div>
 
-      {showDescription && event.description && (
-        <p className={styles.description}>{event.description}</p>
+      {showDescription && (
+        <div className={styles.description}>
+          <dl className={styles.factList}>
+            <dt>Dauer</dt>
+            <dd>{event.days} {event.days === 1 ? 'Tag' : 'Tage'}</dd>
+            {eventRange && (
+              <>
+                <dt>Zeitraum</dt>
+                <dd>{eventRange}</dd>
+              </>
+            )}
+          </dl>
+          {event.description && <p className={styles.descriptionText}>{event.description}</p>}
+        </div>
       )}
 
       {/* Durchführungen nur zeigen, wenn es wirklich mehrere gibt - bei
@@ -666,25 +692,28 @@ const TaskListView: React.FC<TaskListViewProps> = ({
     return assignments.filter(a => a.id === taskId && a.user_name);
   };
 
-  const getStatusColor = (task: any) => {
-    // Get current instance for overdue calculation
+  /*
+   * Der tatsächliche Zustand: eine nicht gestartete Aufgabe, deren Endzeit
+   * vorbei ist, IST überfällig. Vorher zeigte das nur die Farbe, während der
+   * Filter sie weiter unter "Nicht gestartet" führte. Farbe, Beschriftung und
+   * Filter leiten sich jetzt aus derselben Funktion ab.
+   */
+  const effectiveStatus = (task: any): string => {
     const currentInstance = event && (event as any).instances
       ? (event as any).instances.find((i: any) => i.id === selectedInstance)
       : null;
+    if (currentInstance && isTaskOverdue(task, currentInstance)) return 'overdue';
+    return task.status;
+  };
 
-    // Show red if task is actually overdue (by time), regardless of status
-    if (currentInstance && isTaskOverdue(task, currentInstance)) {
-      return 'var(--c-danger)'; // Red for overdue
-    }
-
-    // Otherwise use actual status color
+  const getStatusColor = (task: any) => {
     const colors: { [key: string]: string } = {
       not_started: 'var(--c-text-muted)',
       in_progress: 'var(--c-accent)',
       completed: 'var(--c-success)',
       overdue: 'var(--c-danger)',
     };
-    return colors[task.status] || 'var(--c-text-muted)';
+    return colors[effectiveStatus(task)] || 'var(--c-text-muted)';
   };
 
   const handleStatusChange = async (taskId: number, newStatus: string) => {
@@ -805,7 +834,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       ? uniqueTasks
       : uniqueTasks.filter(t => t.day_number === selectedDay);
     if (statusFilter === 'all') return byDay;
-    return byDay.filter(t => t.status === statusFilter);
+    return byDay.filter(t => effectiveStatus(t) === statusFilter);
   }, [uniqueTasks, selectedDay, statusFilter]);
 
   const sortedTasks = React.useMemo(() => {
@@ -952,6 +981,9 @@ const TaskListView: React.FC<TaskListViewProps> = ({
               <div className={styles.taskHeader}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', flexDirection: 'column', gap: '0.5rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    {/* Bei "Alle Tage" war auf der Karte nicht zu erkennen,
+                        zu welchem Tag eine Aufgabe gehört. */}
+                    <span className={styles.dayBadge}>Tag {task.day_number}</span>
                     <strong className={styles.taskTitle}>{task.title}</strong>
                     {task.is_public && (
                       <span style={{
@@ -994,7 +1026,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                     der native Pfeil und es sah aus wie ein Badge. */}
                 <StatusCell
                   value={task.status}
-                  label={STATUS_LABELS[task.status] || task.status}
+                  label={STATUS_LABELS[effectiveStatus(task)] || task.status}
                   color={getStatusColor(task)}
                   disabled={readOnly}
                   onChange={(v) => handleStatusChange(task.id, v)}

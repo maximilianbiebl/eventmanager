@@ -15,7 +15,11 @@ export const EventEditModal: React.FC<Props> = ({ event, onClose, onSuccess, onD
     name: event.name,
     description: event.description || '',
     days: event.days,
-    start_date: event.start_date || '',
+    // Postgres liefert das date-Feld als ISO-Zeitstempel
+    // ("2025-11-14T00:00:00.000Z"). <input type="date"> akzeptiert aber nur
+    // "YYYY-MM-DD" und zeigt sonst gar nichts an - deshalb sah man das
+    // gespeicherte Datum in der Übersicht, aber nicht mehr im Formular.
+    start_date: event.start_date ? String(event.start_date).slice(0, 10) : '',
   });
   const [loading, setLoading] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
