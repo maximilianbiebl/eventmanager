@@ -10,6 +10,7 @@ import { ThemeSwitch } from './ThemeSwitch';
 import client from '../api/client';
 import styles from './StaffDashboard.module.css';
 import { toLocalDate } from '../utils/date';
+import { DaySelection, resolveInitialDay, storeDay } from '../utils/dayPreference';
 
 export const StaffDashboard: React.FC = () => {
   const [tasks, setTasks] = useState<TaskAssignment[]>([]);
@@ -21,12 +22,15 @@ export const StaffDashboard: React.FC = () => {
   const [hideCompleted, setHideCompleted] = useState(false);
   const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set());
   const [showEventFilter, setShowEventFilter] = useState(false);
-  const [selectedDay, setSelectedDay] = useState<number | 'all'>('all');
+  const [selectedDay, setSelectedDay] = useState<DaySelection>('all');
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [filtersInitialized, setFiltersInitialized] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const { user, logout } = useAuth();
   const notifications = useNotifications();
+  // Tagesauswahl nur beim ersten Laden setzen - sonst würde jede
+  // SSE-Aktualisierung die gerade getroffene Wahl überschreiben.
+  const dayInitRef = React.useRef(false);
 
   // SSE for real-time updates
   useSSE({
@@ -70,6 +74,38 @@ export const StaffDashboard: React.FC = () => {
     } catch (error) {
       console.error('Load user settings error:', error);
     }
+  };
+
+  // Schlüssel für die gemerkte Tagesauswahl - pro Konto, damit ein
+  // Kontowechsel im selben Browser nicht den fremden Tag erbt.
+  const dayScope = `staff:${user?.id ?? 'anon'}`;
+
+  /*
+   * Welcher Veranstaltungstag ist heute? Im Mitarbeiterbereich gibt es kein
+   * einzelnes Event - der Tag ergibt sich aus den Aufgaben selbst: fällt das
+   * Datum einer Aufgabe (Startdatum der Durchführung + Tagnummer - 1) auf
+   * heute, ist das der aktuelle Tag. Bei parallelen Veranstaltungen gewinnt
+   * die kleinste Tagnummer.
+   */
+  const todayDayNumber = (list: TaskAssignment[]): number | null => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    let match: number | null = null;
+
+    for (const task of list) {
+      const start = toLocalDate(task.instance_start_date);
+      if (!start) continue;
+      start.setDate(start.getDate() + task.day_number - 1);
+      if (start.getTime() !== today) continue;
+      if (match === null || task.day_number < match) match = task.day_number;
+    }
+
+    return match;
+  };
+
+  const handleDayChange = (day: DaySelection) => {
+    setSelectedDay(day);
+    storeDay(dayScope, day);
   };
 
   const isTaskOverdue = (task: TaskAssignment): boolean => {
@@ -133,6 +169,12 @@ export const StaffDashboard: React.FC = () => {
           console.log('Initialized filters with all events');
         }
         setFiltersInitialized(true);
+      }
+
+      // Zuletzt angesehener Tag bzw. der heutige Veranstaltungstag.
+      if (!dayInitRef.current && data.length > 0) {
+        dayInitRef.current = true;
+        setSelectedDay(resolveInitialDay(dayScope, todayDayNumber(data)));
       }
     } catch (error) {
       console.error('Load tasks error:', error);
@@ -488,7 +530,7 @@ export const StaffDashboard: React.FC = () => {
       {viewMode === 'table' && filteredTasks.length > 0 && (
         <div className={styles.dayTabsContainer}>
           <button
-            onClick={() => setSelectedDay('all')}
+            onClick={() => handleDayChange('all')}
             className={selectedDay === 'all' ? styles.dayTabActive : styles.dayTab}
           >
             Alle Tage
@@ -496,7 +538,7 @@ export const StaffDashboard: React.FC = () => {
           {Array.from(new Set(filteredTasks.map(t => t.day_number))).sort((a, b) => a - b).map(day => (
             <button
               key={day}
-              onClick={() => setSelectedDay(day)}
+              onClick={() => handleDayChange(day)}
               className={selectedDay === day ? styles.dayTabActive : styles.dayTab}
             >
               Tag {day}

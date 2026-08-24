@@ -40,3 +40,23 @@ export const toLocalDate = (value: unknown): Date | null => {
   if (isNaN(d.getTime())) return null;
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 };
+
+/**
+ * Welcher Veranstaltungstag ist heute? 1-basiert, oder null wenn heute
+ * ausserhalb der Veranstaltung liegt (oder kein Startdatum gesetzt ist).
+ */
+export const currentDayNumber = (
+  startDate: unknown,
+  days: number | undefined
+): number | null => {
+  const start = toLocalDate(startDate);
+  if (!start || !days || days < 1) return null;
+  if (start.getFullYear() < 2000) return null;
+
+  const today = new Date();
+  const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const diffMs = todayMidnight.getTime() - start.getTime();
+  const day = Math.floor(diffMs / 86400000) + 1;
+
+  return day >= 1 && day <= days ? day : null;
+};

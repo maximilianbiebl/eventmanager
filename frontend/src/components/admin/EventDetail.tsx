@@ -17,7 +17,9 @@ import { EventStaffPool } from './EventStaffPool';
 import { StatusFilter } from './StatusFilter';
 import { StatusCell } from './StatusCell';
 import { Toast } from '../Toast';
+import client from '../../api/client';
 import { toLocalDate } from '../../utils/date';
+import { DaySelection, resolveInitialDayForEvent, storeDay } from '../../utils/dayPreference';
 import styles from './EventDetail.module.css';
 
 const STATUS_LABELS: { [key: string]: string } = {
@@ -44,11 +46,14 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assignTaskId, setAssignTaskId] = useState<number | null>(null);
-  const [viewMode, setViewMode] = useState<'list' | 'table'>('table'); // Table ist jetzt Standard
+  // "cards" statt "list" - dieselbe Benennung wie in den Einstellungen und
+  // im Mitarbeiterbereich, damit die gespeicherte Standardansicht überhaupt
+  // zugeordnet werden kann. Der Startwert wird in loadData überschrieben.
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
-  const [selectedDay, setSelectedDay] = useState<number | 'all'>('all');
+  const [selectedDay, setSelectedDay] = useState<DaySelection>('all');
   const [manualRefreshTrigger, setManualRefreshTrigger] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [showSeriesModal, setShowSeriesModal] = useState(false);
@@ -58,13 +63,42 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
   const [showDescription, setShowDescription] = useState(false);
   const scrollPositionRef = useRef<number>(0);
   const tableRef = useRef<TaskTableViewHandle>(null);
+  // Standardansicht und Tagesauswahl nur beim ersten Laden setzen - sonst
+  // würde jedes Hintergrund-Reload eine gerade getroffene Wahl überschreiben.
+  const viewInitRef = useRef(false);
+  const dayInitRef = useRef<string>('');
 
   useEffect(() => {
+    viewInitRef.current = false;
+    dayInitRef.current = '';
     loadData();
 
     // SSE handles live updates, no need for polling fallback
     // The 30-second interval was causing unnecessary reloads
   }, [eventId]);
+
+  /*
+   * Standardansicht aus den Einstellungen. Der Admin-Bereich hat diese
+   * Einstellung bisher schlicht ignoriert und immer die Tabelle gezeigt.
+   * Gespeichert wird "cards" oder "table" - dieselben Werte wie im
+   * Mitarbeiterbereich.
+   */
+  const loadDefaultView = async () => {
+    try {
+      const response = await client.get('/users/me/settings');
+      const value = response.data?.default_view;
+      if (value === 'cards' || value === 'table') {
+        setViewMode(value);
+      }
+    } catch (error) {
+      console.error('Load default view error:', error);
+    }
+  };
+
+  const handleDayChange = (day: DaySelection) => {
+    setSelectedDay(day);
+    if (dayInitRef.current) storeDay(dayInitRef.current, day);
+  };
 
   const loadData = async (showLoading = true) => {
     try {
@@ -82,8 +116,27 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
       setTasks(tasksData);
       setProgram(programData);
       setUsers(usersData);
+
+      const instance = eventData.instances.find((i: any) => i.id === selectedInstance)
+        ?? eventData.instances[0];
       if (eventData.instances.length > 0 && !selectedInstance) {
         setSelectedInstance(eventData.instances[0].id);
+      }
+
+      // Zuletzt angesehener Tag bzw. der heutige Veranstaltungstag.
+      // Der Schlüssel hängt an der Durchführung, weil deren Startdatum die
+      // Tagesnummern bestimmt.
+      if (instance) {
+        const scope = `event:${eventId}:${instance.id}`;
+        if (dayInitRef.current !== scope) {
+          dayInitRef.current = scope;
+          setSelectedDay(resolveInitialDayForEvent(scope, instance.start_date, Number(eventData.days)));
+        }
+      }
+
+      if (!viewInitRef.current) {
+        viewInitRef.current = true;
+        loadDefaultView();
       }
     } catch (error) {
       console.error('Load event detail error:', error);
@@ -172,7 +225,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
     }
   };
 
-  const handleViewModeChange = (newMode: 'list' | 'table') => {
+  const handleViewModeChange = (newMode: 'cards' | 'table') => {
     // Save current scroll position
     scrollPositionRef.current = window.scrollY;
 
@@ -380,11 +433,11 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
           <div className={styles.headerActions}>
             <div className={styles.viewToggle}>
               <button
-                onClick={() => handleViewModeChange('list')}
-                className={viewMode === 'list' ? styles.viewButtonActive : styles.viewButton}
+                onClick={() => handleViewModeChange('cards')}
+                className={viewMode === 'cards' ? styles.viewButtonActive : styles.viewButton}
                 type="button"
               >
-                Liste
+                Karten
               </button>
               <button
                 onClick={() => handleViewModeChange('table')}
@@ -432,11 +485,11 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
           </div>
         </div>
 
-        <div style={{ display: viewMode === 'list' ? 'block' : 'none' }}>
+        <div style={{ display: viewMode === 'cards' ? 'block' : 'none' }}>
           <TaskListView
             selectedDay={selectedDay}
             eventDays={event?.days}
-            onDayChange={setSelectedDay}
+            onDayChange={handleDayChange}
             selectedInstance={selectedInstance}
             onEditTask={handleEditTask}
             onAssignTask={handleAssignTask}
@@ -454,7 +507,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
               onAssignTask={handleAssignTask}
               eventDays={event?.days}
               selectedDay={selectedDay}
-              onSelectedDayChange={setSelectedDay}
+              onSelectedDayChange={handleDayChange}
               instanceStartDate={(event as any)?.instances.find((i: any) => i.id === selectedInstance)?.start_date}
               manualRefreshTrigger={manualRefreshTrigger}
               readOnly={isTeamleiter && event.is_template}
