@@ -1,17 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { usersApi, User } from '../../api/users';
 import { useAuth } from '../../context/AuthContext';
+import { ROLE_NAMES } from '../../utils/roleBadge';
 import { authApi } from '../../api/auth';
 import { CreateUserModal } from './CreateUserModal';
 import { CSVExportModal } from './CSVExportModal';
 import { CSVImportModal } from './CSVImportModal';
 import responsiveStyles from './UsersList.module.css';
-
-const ROLE_LABELS: { [key: string]: string } = {
-  admin: 'Admin',
-  teamleiter: 'Teamleiter',
-  staff: 'Mitarbeiter',
-};
 
 interface Props {
   previousEventId: number | null;
@@ -302,7 +297,6 @@ export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvent }) =
                 style={styles.checkbox}
               />
             </th>
-            <th style={styles.th}>ID</th>
             <th style={{...styles.th, cursor: 'pointer', userSelect: 'none'}} onClick={() => handleSort('name')}>
               Name{getSortIcon('name')}
             </th>
@@ -332,7 +326,6 @@ export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvent }) =
                   aria-label={`${user.name} auswählen`}
                 />
               </td>
-              <td style={styles.td}>{user.id}</td>
               <td style={styles.td}>{user.name}</td>
               <td style={styles.td}>
                 <span style={
@@ -342,7 +335,7 @@ export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvent }) =
                     ? styles.badgeTeamleiter
                     : styles.badgeStaff
                 }>
-                  {ROLE_LABELS[user.role] || user.role}
+                  {ROLE_NAMES[user.role] || user.role}
                 </span>
               </td>
               <td style={styles.td}>

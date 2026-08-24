@@ -75,13 +75,13 @@ export const CreateUserModal: React.FC<Props> = ({ onClose, onSuccess }) => {
             >
               {isAdmin ? (
                 <>
-                  <option value="staff">Staff</option>
+                  <option value="staff">Mitarbeiter</option>
                   <option value="teamleiter">Teamleiter</option>
                   <option value="admin">Admin</option>
                 </>
               ) : (
                 <>
-                  <option value="staff">Staff</option>
+                  <option value="staff">Mitarbeiter</option>
                   <option value="teamleiter">Teamleiter</option>
                 </>
               )}

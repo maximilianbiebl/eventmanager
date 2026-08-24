@@ -505,6 +505,25 @@ const generatePassword = (): string => {
 
 const MIN_PASSWORD_LENGTH = 6;
 
+/*
+ * Rollen aus der CSV. Die Oberflaeche ist durchgehend deutsch, also nimmt
+ * der Import auch die deutschen Bezeichnungen an.
+ *
+ * Wichtig ist die Pruefung an sich: users.role ist nur ein VARCHAR ohne
+ * Einschraenkung. Ein "Mitarbeiter" in der Spalte haette bisher ein Konto
+ * mit der Rolle "Mitarbeiter" angelegt - die passt zu keiner Rechtepruefung,
+ * das Konto waere weder Admin noch Teamleiter noch Mitarbeiter gewesen.
+ */
+const ROLE_ALIASES: { [key: string]: string } = {
+  '': 'staff',
+  staff: 'staff',
+  mitarbeiter: 'staff',
+  teamleiter: 'teamleiter',
+  teamleader: 'teamleiter',
+  admin: 'admin',
+  administrator: 'admin',
+};
+
 // CSV Import
 router.post('/import-csv', authMiddleware, teamleiterOrAdminMiddleware, upload.single('file'), async (req: AuthRequest, res) => {
   try {
@@ -540,8 +559,15 @@ router.post('/import-csv', authMiddleware, teamleiterOrAdminMiddleware, upload.s
         continue;
       }
 
+      const rawRole = (user.role || '').trim().toLowerCase();
+      const role = ROLE_ALIASES[rawRole];
+      if (!role) {
+        rejected.push({ name, reason: `Unbekannte Rolle "${user.role}"` });
+        continue;
+      }
+
       // Wie beim Anlegen ueber die Oberflaeche: Teamleiter nur Mitarbeiter
-      if (req.user!.role === 'teamleiter' && user.role && user.role !== 'staff') {
+      if (req.user!.role === 'teamleiter' && role !== 'staff') {
         rejected.push({ name, reason: 'Teamleiter können nur Mitarbeiter anlegen' });
         continue;
       }
@@ -565,7 +591,7 @@ router.post('/import-csv', authMiddleware, teamleiterOrAdminMiddleware, upload.s
 
       await query(
         'INSERT INTO users (name, role, password_hash) VALUES ($1, $2, $3)',
-        [name, user.role || 'staff', passwordHash]
+        [name, role, passwordHash]
       );
 
       credentials.push({ name, password, generated: !given });

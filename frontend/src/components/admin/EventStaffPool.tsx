@@ -4,6 +4,7 @@ import { useSSE } from '../../hooks/useSSE';
 import client from '../../api/client';
 import { taskSeriesApi } from '../../api/taskSeries';
 import { toLocalDate } from '../../utils/date';
+import { roleBadgeColors, ROLE_NAMES } from '../../utils/roleBadge';
 
 interface Props {
   eventId: number;
@@ -315,7 +316,10 @@ export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
         <div style={styles.staffGrid}>
           {eventStaff.map((staff) => (
             <div key={staff.id} style={styles.staffCard}>
-              <div style={styles.staffEllipse}>
+              {/* Rollenfarbe wie in den Aufgabenansichten - ein Teamleiter
+                  oder Admin im Pool soll auffallen. */}
+              <div style={{ ...styles.staffEllipse, ...roleBadgeColors(staff.role) }}
+                   title={ROLE_NAMES[staff.role] || undefined}>
                 <span style={styles.staffName}>{staff.name}</span>
                 <button
                   onClick={() => handleRemoveStaff(staff)}
@@ -1383,7 +1387,9 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   staffName: {
     fontWeight: '500',
-    color: 'var(--c-accent-strong)',
+    // Farbe kommt vom Badge (Rollenfarbe) - eine feste Farbe hier wuerde
+    // sie ueberschreiben und alle Rollen wieder gleich aussehen lassen.
+    color: 'inherit',
     fontSize: '0.75rem',
   },
   staffMeta: {

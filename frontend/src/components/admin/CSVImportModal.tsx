@@ -55,7 +55,7 @@ const FORMATS: {
     header: 'name,role,password',
     columns: [
       { name: 'name', required: true, hint: 'Anmeldename, auch mit Leerzeichen ("Max Mustermann")' },
-      { name: 'role', required: false, hint: 'admin, teamleiter oder staff - leer bedeutet staff' },
+      { name: 'role', required: false, hint: 'Admin, Teamleiter oder Mitarbeiter - leer bedeutet Mitarbeiter' },
       { name: 'password', required: false, hint: 'mindestens 6 Zeichen; leer = wird zufällig erzeugt' },
     ],
     note: 'Bereits vorhandene Namen werden übersprungen, deren Passwörter bleiben unverändert. Die Zugangsdaten werden nach dem Import einmalig angezeigt.',
