@@ -175,8 +175,18 @@ export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
     setRemoveCandidate({ staff, openTasks });
   };
 
-  const removeStaff = async (userId: number, reassignTo: number | null) => {
+  const removeStaff = async (
+    userId: number,
+    reassignTo: number | null,
+    droppedAssignmentIds: number[] = []
+  ) => {
     try {
+      // Abgewählte Aufgaben zuerst loswerden - danach überträgt das Entfernen
+      // nur noch, was übrig ist. Zwei bestehende Endpunkte statt eines neuen.
+      if (droppedAssignmentIds.length > 0) {
+        await client.post('/tasks/bulk-remove-assignments', { assignment_ids: droppedAssignmentIds });
+      }
+
       const url = reassignTo === null
         ? `/users/event/${eventId}/staff/${userId}`
         : `/users/event/${eventId}/staff/${userId}?reassign_to=${reassignTo}`;
@@ -324,9 +334,12 @@ export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
                 }}
                 title="Aufgaben anzeigen"
               >
-                {(staff.taskCount || 0) + (staff.seriesTaskCount || 0)} Aufgabe{((staff.taskCount || 0) + (staff.seriesTaskCount || 0)) !== 1 ? 'n' : ''}
+                {/* Serien-Aufgaben sind jetzt echte Zuweisungen und damit in
+                    taskCount enthalten - vorher wurden sie hier addiert, das
+                    würde nun doppelt zählen. Der Hinweis bleibt als Herkunft. */}
+                {staff.taskCount || 0} Aufgabe{(staff.taskCount || 0) !== 1 ? 'n' : ''}
                 {(staff.seriesTaskCount || 0) > 0 && (
-                  <span style={{ fontSize: '0.7rem', color: 'var(--c-text-muted)' }}> ({staff.seriesTaskCount} Serie)</span>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--c-text-muted)' }}> (davon {staff.seriesTaskCount} aus Serie)</span>
                 )}
               </button>
             </div>
@@ -370,7 +383,7 @@ export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
           openTasks={removeCandidate.openTasks}
           candidates={eventStaff.filter(s => s.id !== removeCandidate.staff.id)}
           onClose={() => setRemoveCandidate(null)}
-          onConfirm={(reassignTo) => removeStaff(removeCandidate.staff.id, reassignTo)}
+          onConfirm={(reassignTo, dropped) => removeStaff(removeCandidate.staff.id, reassignTo, dropped)}
         />
       )}
     </div>
@@ -387,7 +400,7 @@ interface RemoveStaffModalProps {
   openTasks: StaffTask[];
   candidates: EventStaff[];
   onClose: () => void;
-  onConfirm: (reassignTo: number | null) => void;
+  onConfirm: (reassignTo: number | null, droppedAssignmentIds: number[]) => void | Promise<void>;
 }
 
 const RemoveStaffModal: React.FC<RemoveStaffModalProps> = ({
@@ -399,11 +412,29 @@ const RemoveStaffModal: React.FC<RemoveStaffModalProps> = ({
 }) => {
   const [selectedId, setSelectedId] = React.useState<number | null>(null);
   const [busy, setBusy] = React.useState(false);
+  // Bei vielen Aufgaben würde der Dialog sonst über den Bildschirm hinaus
+  // wachsen - die Liste startet deshalb zugeklappt.
+  const [listOpen, setListOpen] = React.useState(false);
+  // Welche Aufgaben sollen mitgehen? Standard: alle.
+  const [transferIds, setTransferIds] = React.useState<number[]>(
+    () => openTasks.map(t => t.assignment_id).filter((id): id is number => typeof id === 'number')
+  );
+
+  const assignable = openTasks.filter(t => typeof t.assignment_id === 'number');
+  const total = assignable.length;
+  const chosen = transferIds.length;
+
+  const toggle = (id: number) =>
+    setTransferIds(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]));
 
   const run = async (reassignTo: number | null) => {
     setBusy(true);
     try {
-      await onConfirm(reassignTo);
+      // Abgewählte Aufgaben gehen nicht mit - ihre Zuweisung fällt weg.
+      const dropped = reassignTo === null
+        ? []
+        : assignable.map(t => t.assignment_id as number).filter(id => !transferIds.includes(id));
+      await onConfirm(reassignTo, dropped);
     } finally {
       setBusy(false);
     }
@@ -413,36 +444,69 @@ const RemoveStaffModal: React.FC<RemoveStaffModalProps> = ({
     if (e.target === e.currentTarget) onClose();
   };
 
-  const count = openTasks.length;
-
   return (
     <div className="app-modal-overlay" style={styles.overlay} onClick={handleOverlayClick}>
-      <div className="app-modal" style={{ ...styles.modal, maxWidth: '520px' }}>
+      <div className="app-modal" style={{ ...styles.modal, maxWidth: '580px' }}>
         <h2 style={styles.modalTitle}>{staff.name} entfernen</h2>
 
         <p style={{ marginBottom: '1rem', color: 'var(--c-text-muted)' }}>
-          {count === 1
+          {total === 1
             ? 'Es ist noch eine offene Aufgabe zugewiesen.'
-            : `Es sind noch ${count} offene Aufgaben zugewiesen.`}{' '}
+            : `Es sind noch ${total} offene Aufgaben zugewiesen.`}{' '}
           Soll jemand anderes sie übernehmen?
         </p>
 
-        <ul style={styles.removeTaskList}>
-          {openTasks.slice(0, 6).map(t => (
-            <li key={`${t.assignment_id ?? t.id}`} style={styles.removeTaskItem}>
-              <span style={styles.removeTaskDay}>Tag {t.day_number}</span>
-              {t.title}
-            </li>
-          ))}
-          {count > 6 && (
-            <li style={{ ...styles.removeTaskItem, color: 'var(--c-text-muted)' }}>
-              … und {count - 6} weitere
-            </li>
+        <div style={styles.taskDisclosure}>
+          <button
+            type="button"
+            onClick={() => setListOpen(v => !v)}
+            style={styles.taskDisclosureHeader}
+            aria-expanded={listOpen}
+          >
+            <span style={styles.disclosureCaret} aria-hidden="true">{listOpen ? '▾' : '▸'}</span>
+            <span>
+              {chosen === total
+                ? `Alle ${total} Aufgaben übertragen`
+                : chosen === 0
+                  ? `Keine der ${total} Aufgaben übertragen`
+                  : `${chosen} von ${total} Aufgaben übertragen`}
+            </span>
+          </button>
+
+          {listOpen && (
+            <>
+              <div style={styles.taskDisclosureActions}>
+                <button
+                  type="button"
+                  style={styles.miniButton}
+                  onClick={() => setTransferIds(assignable.map(t => t.assignment_id as number))}
+                >
+                  Alle
+                </button>
+                <button type="button" style={styles.miniButton} onClick={() => setTransferIds([])}>
+                  Keine
+                </button>
+              </div>
+              <div style={styles.taskDisclosureList}>
+                {assignable.map(t => (
+                  <label key={t.assignment_id} style={styles.removeTaskItem}>
+                    <input
+                      type="checkbox"
+                      checked={transferIds.includes(t.assignment_id as number)}
+                      onChange={() => toggle(t.assignment_id as number)}
+                      style={styles.checkbox}
+                    />
+                    <span style={styles.removeTaskDay}>Tag {t.day_number}</span>
+                    <span>{t.title}</span>
+                  </label>
+                ))}
+              </div>
+            </>
           )}
-        </ul>
+        </div>
 
         {candidates.length === 0 ? (
-          <p style={styles.noStaff}>Kein anderer Mitarbeiter im Pool - die Aufgaben können nur entfernt werden.</p>
+          <p style={styles.noStaff}>Kein anderer Mitarbeiter im Pool - die Zuweisungen können nur aufgehoben werden.</p>
         ) : (
           <div style={styles.staffList}>
             {candidates.map(c => (
@@ -476,7 +540,8 @@ const RemoveStaffModal: React.FC<RemoveStaffModalProps> = ({
           <button
             onClick={() => run(selectedId)}
             style={styles.submitButton}
-            disabled={busy || selectedId === null}
+            disabled={busy || selectedId === null || chosen === 0}
+            title={chosen === 0 ? 'Keine Aufgabe zum Übertragen ausgewählt' : undefined}
           >
             Übertragen
           </button>
@@ -748,7 +813,9 @@ const TaskListModal: React.FC<TaskListModalProps> = ({ staff, tasks, onClose, on
                         )}
                       </div>
                       <div style={{fontSize: '0.875rem', color: 'var(--c-text-muted)'}}>
-                        {task.event_name ? `${task.event_name} #${task.instance_number} - ` : ''}Tag {task.day_number}
+                        {/* Die Durchführungsnummer ("#1") stand hier noch aus der Zeit
+                            der mehrfachen Durchführungen - sie sagt nichts mehr aus. */}
+                        {task.event_name ? `${task.event_name} - ` : ''}Tag {task.day_number}
                         {task.isSeriesTask && <span style={{fontStyle: 'italic'}}> (Serien-Zuweisung)</span>}
                       </div>
                       <div style={{marginTop: '0.5rem'}}>
@@ -1428,7 +1495,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     transition: 'all 0.15s ease',
   },
   cancelButton: {
-    padding: '0.625rem 1.25rem',
+    padding: '0.625rem 1rem',
     backgroundColor: 'var(--c-surface-muted)',
     color: 'var(--c-text)',
     border: 'none',
@@ -1438,17 +1505,18 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: '500',
   },
   submitButton: {
-    padding: '0.625rem 1.25rem',
+    padding: '0.625rem 1rem',
     backgroundColor: 'var(--c-accent)',
     color: 'var(--c-text-inverse)',
     border: 'none',
     borderRadius: '4px',
-    fontSize: '1rem',
+    fontSize: '0.9375rem',
     cursor: 'pointer',
     fontWeight: '500',
+    whiteSpace: 'nowrap',
   },
   dangerButton: {
-    padding: '0.625rem 1.25rem',
+    padding: '0.625rem 1rem',
     backgroundColor: 'transparent',
     color: 'var(--c-danger-text)',
     border: '1px solid var(--c-danger)',
@@ -1457,23 +1525,68 @@ const styles: { [key: string]: React.CSSProperties } = {
     cursor: 'pointer',
     fontWeight: '500',
   },
-  removeTaskList: {
-    listStyle: 'none',
-    margin: '0 0 1.25rem',
-    padding: '0.75rem',
+  taskDisclosure: {
+    marginBottom: '1.25rem',
+    border: '1px solid var(--c-border)',
+    borderRadius: '6px',
+    overflow: 'hidden',
+  },
+  taskDisclosureHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    /* die globale Regel `button { justify-content: center }` würde die
+       Beschriftung sonst mittig setzen */
+    justifyContent: 'flex-start',
+    gap: '0.5rem',
+    width: '100%',
+    padding: '0.625rem 0.75rem',
+    backgroundColor: 'var(--c-surface-muted)',
+    color: 'var(--c-text)',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
+    fontWeight: '500',
+    fontFamily: 'inherit',
+    textAlign: 'left',
+  },
+  disclosureCaret: {
+    fontSize: '0.75rem',
+    color: 'var(--c-text-subtle)',
+  },
+  taskDisclosureActions: {
+    display: 'flex',
+    gap: '0.5rem',
+    padding: '0.5rem 0.75rem',
+    borderTop: '1px solid var(--c-border)',
+  },
+  taskDisclosureList: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.375rem',
-    backgroundColor: 'var(--c-surface-muted)',
-    borderRadius: '6px',
-    maxHeight: '11rem',
+    gap: '0.125rem',
+    padding: '0.25rem 0.75rem 0.75rem',
+    /* Deckel gegen lange Listen - der Dialog bleibt gleich hoch, egal ob
+       3 oder 60 Aufgaben zugewiesen sind. */
+    maxHeight: '13rem',
     overflowY: 'auto',
+  },
+  miniButton: {
+    padding: '0.25rem 0.625rem',
+    backgroundColor: 'var(--c-surface)',
+    color: 'var(--c-text)',
+    border: '1px solid var(--c-border-strong)',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '0.75rem',
+    fontWeight: '500',
+    fontFamily: 'inherit',
   },
   removeTaskItem: {
     display: 'flex',
-    alignItems: 'baseline',
+    alignItems: 'center',
     gap: '0.5rem',
+    padding: '0.3125rem 0',
     fontSize: '0.875rem',
+    cursor: 'pointer',
   },
   removeTaskDay: {
     flex: '0 0 auto',

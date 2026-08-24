@@ -11,7 +11,8 @@
     "migrate:extend": "ts-node src/database/runMigration.ts",
     "migrate:010": "ts-node src/database/run-migration-010.ts",
     "migrate:011": "ts-node src/database/run-migration-011.ts",
-    "migrate:012": "ts-node src/database/run-migration-012.ts"
+    "migrate:012": "ts-node src/database/run-migration-012.ts",
+    "migrate:015": "ts-node src/database/run-migration-015.ts"
   },
   "dependencies": {
     "@types/multer": "^2.0.0",

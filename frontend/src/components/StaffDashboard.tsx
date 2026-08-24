@@ -549,35 +549,36 @@ export const StaffDashboard: React.FC = () => {
 
       </div>
 
-      {/* Tag-Tabs - gelten für Karten- und Tabellenansicht */}
-      {filteredTasks.length > 0 && (
-        <div className={styles.dayTabsContainer}>
-          <span className={styles.groupLabel}>Tage</span>
-          <button
-            onClick={() => handleDayChange('all')}
-            className={selectedDay === 'all' ? styles.dayTabActive : styles.dayTab}
-          >
-            Alle Tage
-          </button>
-          {Array.from(new Set(filteredTasks.map(t => t.day_number))).sort((a, b) => a - b).map(day => (
-            <button
-              key={day}
-              onClick={() => handleDayChange(day)}
-              className={selectedDay === day ? styles.dayTabActive : styles.dayTab}
-            >
-              Tag {day}
-            </button>
-          ))}
-        </div>
-      )}
-
       {/*
-        Beide Filter in einer Zeile. Vorher waren es zwei volle Karten
-        untereinander, plus eine dritte, wenn die Veranstaltungsliste
-        aufgeklappt war - fuer zwei Schalter zu viel Platz. Die Liste liegt
-        jetzt in einem Menue, das sich bei Klick ins Leere schliesst.
+        Tage und Filter bilden EINE Leiste - vorher standen sie in drei
+        Zeilen mit drei verschiedenen Erscheinungen untereinander (Karte mit
+        Schatten, nackte Pillen, nackter Chip).
       */}
       <div className={styles.filterBar}>
+        {filteredTasks.length > 0 && (
+          <>
+            <span className={styles.groupLabel}>Tage</span>
+            <div className={styles.dayTabsContainer}>
+              <button
+                onClick={() => handleDayChange('all')}
+                className={selectedDay === 'all' ? styles.dayTabActive : styles.dayTab}
+              >
+                Alle
+              </button>
+              {Array.from(new Set(filteredTasks.map(t => t.day_number))).sort((a, b) => a - b).map(day => (
+                <button
+                  key={day}
+                  onClick={() => handleDayChange(day)}
+                  className={selectedDay === day ? styles.dayTabActive : styles.dayTab}
+                >
+                  {day}
+                </button>
+              ))}
+            </div>
+            <span className={styles.barDivider} aria-hidden="true" />
+          </>
+        )}
+
         <button
           type="button"
           onClick={() => setHideCompleted(!hideCompleted)}

@@ -355,6 +355,11 @@ router.post('/', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) =
       }
     }
 
+    // Gehört die neue Aufgabe zu einer Serie, bekommen deren Mitglieder sie
+    if (series_id) {
+      await syncSeriesAssignments(series_id);
+    }
+
     // Broadcast update for live sync
     broadcastUpdate('task', { action: 'create', task: result.rows[0] });
 
@@ -1311,6 +1316,13 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req: Auth
       ]
     );
 
+    // Serie neu gesetzt oder gewechselt: die Mitglieder der neuen Serie
+    // bekommen die Aufgabe. Fällt sie aus einer Serie heraus, bleiben ihre
+    // bisherigen Zuweisungen als normale Einzelzuweisungen bestehen.
+    if (series_id && series_id !== currentTask.series_id) {
+      await syncSeriesAssignments(series_id);
+    }
+
     // Wenn Status von completed weg geändert wird, alle Assignments zurücksetzen
     if (currentTask.status === 'completed' && status !== 'completed') {
       await query(
@@ -2025,6 +2037,9 @@ router.post('/task-series', authMiddleware, teamleiterOrAdminMiddleware, async (
     }
     console.log('Total members added:', membersAdded);
 
+    // Mitgliedschaft sofort in Zuweisungen uebersetzen
+    await syncSeriesAssignments(series.id);
+
     broadcastUpdate('task', { action: 'series_created', seriesId: series.id, eventId: event_id });
 
     res.status(201).json(series);
@@ -2135,9 +2150,11 @@ router.post('/task-series/:seriesId/members', authMiddleware, teamleiterOrAdminM
       }
     }
 
+    const assignmentsCreated = await syncSeriesAssignments(seriesId);
+
     broadcastUpdate('task', { action: 'series_members_added', seriesId: parseInt(seriesId), added });
 
-    res.json({ message: `${added} Mitglieder hinzugefügt`, added });
+    res.json({ message: `${added} Mitglieder hinzugefügt`, added, assignmentsCreated });
   } catch (error) {
     console.error('Add series members error:', error);
     res.status(500).json({ error: 'Server Fehler' });
@@ -2153,6 +2170,9 @@ router.delete('/task-series/:seriesId/members/:userId', authMiddleware, teamleit
       'DELETE FROM task_series_members WHERE series_id = $1 AND user_id = $2',
       [seriesId, userId]
     );
+
+    // Zuweisungen, die nur aus der Mitgliedschaft entstanden sind, mitnehmen
+    await removeSeriesAssignments(seriesId, userId);
 
     broadcastUpdate('task', { action: 'series_member_removed', seriesId: parseInt(seriesId), userId: parseInt(userId) });
 
@@ -2223,5 +2243,70 @@ router.post('/task-series/:seriesId/assign-to-instance', authMiddleware, teamlei
     res.status(500).json({ error: 'Server Fehler' });
   }
 });
+
+/*
+ * Serien-Mitgliedschaft in echte Zuweisungen uebersetzen.
+ *
+ * Eine Serie hielt ihre Mitglieder nur in task_series_members. In
+ * /my-tasks wird aber ueber task_assignments gelesen - wer nur ueber eine
+ * Serie zugewiesen war, sah seine Aufgaben deshalb gar nicht. Es gab zwar
+ * "assign-to-instance", das musste man aber von Hand ausloesen.
+ *
+ * Deshalb: bei jeder Aenderung an Mitgliedern oder Aufgaben einer Serie die
+ * Zuweisungen nachziehen. Erst dadurch bekommen die Aufgaben eine
+ * assignment_id - ohne die koennte der Mitarbeiter sie auch nicht als
+ * erledigt melden (complete-public lehnt nicht-oeffentliche Aufgaben ab).
+ */
+const syncSeriesAssignments = async (seriesId: number | string): Promise<number> => {
+  const members = await query(
+    'SELECT user_id FROM task_series_members WHERE series_id = $1',
+    [seriesId]
+  );
+  if (members.rows.length === 0) return 0;
+
+  const tasks = await query(
+    'SELECT id, event_id, reminder_minutes FROM tasks WHERE series_id = $1',
+    [seriesId]
+  );
+  if (tasks.rows.length === 0) return 0;
+
+  // Alle Durchfuehrungen der zugehoerigen Veranstaltung
+  const instances = await query(
+    'SELECT id FROM event_instances WHERE event_id = $1',
+    [tasks.rows[0].event_id]
+  );
+
+  let created = 0;
+
+  for (const task of tasks.rows) {
+    for (const instance of instances.rows) {
+      for (const { user_id } of members.rows) {
+        const existing = await query(
+          'SELECT id FROM task_assignments WHERE task_id = $1 AND event_instance_id = $2 AND user_id = $3',
+          [task.id, instance.id, user_id]
+        );
+        if (existing.rows.length === 0) {
+          await query(
+            'INSERT INTO task_assignments (task_id, event_instance_id, user_id, reminder_minutes) VALUES ($1, $2, $3, $4)',
+            [task.id, instance.id, user_id, task.reminder_minutes ?? 15]
+          );
+          created++;
+        }
+      }
+    }
+  }
+
+  return created;
+};
+
+/** Zuweisungen eines Mitglieds fuer alle Aufgaben einer Serie entfernen. */
+const removeSeriesAssignments = async (seriesId: number | string, userId: number | string) => {
+  await query(
+    `DELETE FROM task_assignments
+     WHERE user_id = $1
+       AND task_id IN (SELECT id FROM tasks WHERE series_id = $2)`,
+    [userId, seriesId]
+  );
+};
 
 export default router;
