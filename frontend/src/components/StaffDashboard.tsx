@@ -324,54 +324,64 @@ export const StaffDashboard: React.FC = () => {
     });
   }, [tasks, hideCompleted, selectedEvents]);
 
+  /*
+   * Die Tagesauswahl gilt für beide Ansichten. Die Tag-Leiste selbst wird
+   * weiterhin aus `filteredTasks` gebaut - sonst bliebe nach dem Filtern nur
+   * noch der gewählte Tag als Reiter übrig und man käme nicht mehr zurück.
+   */
+  const dayFilteredTasks = React.useMemo(() => {
+    if (selectedDay === 'all') return filteredTasks;
+    return filteredTasks.filter(t => t.day_number === selectedDay);
+  }, [filteredTasks, selectedDay]);
+
   // Gruppierungs-Funktionen - arbeiten mit gefilterten Tasks
   const groupedTasks = React.useMemo(() => {
-    const result = groupTasksByEventDay(filteredTasks);
+    const result = groupTasksByEventDay(dayFilteredTasks);
     const tasksInGroups = Object.values(result).flat().length;
-    if (tasksInGroups !== filteredTasks.length) {
+    if (tasksInGroups !== dayFilteredTasks.length) {
       console.warn('Event-Day Gruppierung: Fehlende Tasks!', {
-        filtered: filteredTasks.length,
+        filtered: dayFilteredTasks.length,
         inGroups: tasksInGroups,
         groups: Object.keys(result)
       });
     }
     return result;
-  }, [filteredTasks]);
+  }, [dayFilteredTasks]);
 
   const eventGroups = React.useMemo(() => {
-    const result = groupTasksByEvent(filteredTasks);
+    const result = groupTasksByEvent(dayFilteredTasks);
     const tasksInGroups = Object.values(result).flat().length;
-    if (tasksInGroups !== filteredTasks.length) {
+    if (tasksInGroups !== dayFilteredTasks.length) {
       console.warn('Event Gruppierung: Fehlende Tasks!', {
-        filtered: filteredTasks.length,
+        filtered: dayFilteredTasks.length,
         inGroups: tasksInGroups,
         groups: Object.keys(result)
       });
     }
     return result;
-  }, [filteredTasks]);
+  }, [dayFilteredTasks]);
 
   const dateGroups = React.useMemo(() => {
-    const result = groupTasksByDate(filteredTasks);
+    const result = groupTasksByDate(dayFilteredTasks);
     const tasksInGroups = Object.values(result).flat().length;
-    if (tasksInGroups !== filteredTasks.length) {
+    if (tasksInGroups !== dayFilteredTasks.length) {
       console.warn('Datum Gruppierung: Fehlende Tasks!', {
-        filtered: filteredTasks.length,
+        filtered: dayFilteredTasks.length,
         inGroups: tasksInGroups,
         groups: Object.keys(result)
       });
     }
     return result;
-  }, [filteredTasks]);
+  }, [dayFilteredTasks]);
 
   // Standard-Ansicht: einfach sortierte Liste
   const sortedTasks = React.useMemo(() => {
-    return [...filteredTasks].sort((a, b) => {
+    return [...dayFilteredTasks].sort((a, b) => {
       const orderA = a.sort_order ?? 999999;
       const orderB = b.sort_order ?? 999999;
       return orderA - orderB;
     });
-  }, [filteredTasks]);
+  }, [dayFilteredTasks]);
 
   if (loading) {
     return <div className={styles.loading}>Lade Aufgaben...</div>;
@@ -526,9 +536,10 @@ export const StaffDashboard: React.FC = () => {
 
       </div>
 
-      {/* Tag-Tabs - nur für Tabellen-Ansicht */}
-      {viewMode === 'table' && filteredTasks.length > 0 && (
+      {/* Tag-Tabs - gelten für Karten- und Tabellenansicht */}
+      {filteredTasks.length > 0 && (
         <div className={styles.dayTabsContainer}>
+          <span className={styles.groupLabel}>Tage</span>
           <button
             onClick={() => handleDayChange('all')}
             className={selectedDay === 'all' ? styles.dayTabActive : styles.dayTab}
@@ -601,6 +612,14 @@ export const StaffDashboard: React.FC = () => {
       {/* Aufgabenliste */}
       {tasks.length === 0 ? (
         <div className={styles.empty}>Keine Aufgaben vorhanden</div>
+      ) : viewMode === 'cards' && dayFilteredTasks.length === 0 ? (
+        /* Die Tag-Leiste oben bleibt sichtbar - sonst käme man aus dem
+           leeren Tag nicht mehr heraus. */
+        <div className={styles.empty}>
+          {selectedDay === 'all'
+            ? 'Keine Aufgaben für die aktuelle Auswahl'
+            : `Keine Aufgaben für Tag ${selectedDay}`}
+        </div>
       ) : viewMode === 'table' ? (
         <StaffTableView
           tasks={filteredTasks}
