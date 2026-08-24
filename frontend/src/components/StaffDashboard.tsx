@@ -20,7 +20,15 @@ export const StaffDashboard: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [hideCompleted, setHideCompleted] = useState(false);
-  const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set());
+  /*
+   * Gespeichert werden die AUSGEBLENDETEN Veranstaltungen, nicht die
+   * ausgewaehlten. Vorher hielt der Speicher die Auswahl - dabei zaehlte der
+   * Zaehler auch laengst verschwundene Veranstaltungen mit, und eine neu
+   * hinzugekommene Veranstaltung war unsichtbar, weil sie nicht in der alten
+   * Auswahl stand. Mit der umgekehrten Logik ist der Zaehler immer stimmig
+   * und Neues ist standardmaessig sichtbar.
+   */
+  const [hiddenEvents, setHiddenEvents] = useState<Set<string>>(new Set());
   const [showEventFilter, setShowEventFilter] = useState(false);
   const [selectedDay, setSelectedDay] = useState<DaySelection>('all');
   const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -56,12 +64,36 @@ export const StaffDashboard: React.FC = () => {
     // selectedEvents are loaded inside loadTasks on first load only
   }, []);
 
-  const saveSelectedEventsToStorage = (events: Set<string>) => {
+  /*
+   * Liest die ausgeblendeten Veranstaltungen. Wer den Filter noch im alten
+   * Format ("selectedEvents") gespeichert hat, behält seine Einstellung:
+   * ausgeblendet ist dann alles, was damals nicht ausgewählt war.
+   */
+  const readHiddenEvents = (list: TaskAssignment[]): Set<string> => {
     try {
-      const eventsArray = Array.from(events);
-      localStorage.setItem('selectedEvents', JSON.stringify(eventsArray));
+      const stored = localStorage.getItem('hiddenEvents');
+      if (stored) return new Set<string>(JSON.parse(stored));
+
+      const legacy = localStorage.getItem('selectedEvents');
+      if (legacy) {
+        const selected = new Set<string>(JSON.parse(legacy));
+        const all = list.map(t => `${t.event_name}#${t.instance_start_date}`);
+        const hidden = new Set(all.filter(k => !selected.has(k)));
+        localStorage.setItem('hiddenEvents', JSON.stringify(Array.from(hidden)));
+        localStorage.removeItem('selectedEvents');
+        return hidden;
+      }
     } catch (error) {
-      console.error('Save selected events to storage error:', error);
+      console.error('Load event filter error:', error);
+    }
+    return new Set<string>();
+  };
+
+  const saveHiddenEventsToStorage = (events: Set<string>) => {
+    try {
+      localStorage.setItem('hiddenEvents', JSON.stringify(Array.from(events)));
+    } catch (error) {
+      console.error('Save hidden events to storage error:', error);
     }
   };
 
@@ -145,29 +177,10 @@ export const StaffDashboard: React.FC = () => {
         return prevTasks;
       });
 
-      // Only initialize selectedEvents on first load (when not yet initialized)
-      // This prevents SSE updates from resetting user filter selections
+      // Nur beim ersten Laden - sonst würde jede SSE-Aktualisierung den
+      // gerade gesetzten Filter zurücksetzen.
       if (!filtersInitialized && data.length > 0) {
-        const stored = localStorage.getItem('selectedEvents');
-        if (stored) {
-          try {
-            const storedEvents = JSON.parse(stored);
-            setSelectedEvents(new Set(storedEvents));
-            console.log('Loaded filters from localStorage:', storedEvents);
-          } catch (error) {
-            console.error('Load selected events from storage error:', error);
-            // Fallback: select all events
-            const allEvents = new Set(data.map(t => `${t.event_name}#${t.instance_start_date}`));
-            setSelectedEvents(allEvents);
-            saveSelectedEventsToStorage(allEvents);
-          }
-        } else {
-          // No stored value: select all events
-          const allEvents = new Set(data.map(t => `${t.event_name}#${t.instance_start_date}`));
-          setSelectedEvents(allEvents);
-          saveSelectedEventsToStorage(allEvents);
-          console.log('Initialized filters with all events');
-        }
+        setHiddenEvents(readHiddenEvents(data));
         setFiltersInitialized(true);
       }
 
@@ -257,28 +270,25 @@ export const StaffDashboard: React.FC = () => {
     }
   };
 
+  const applyHidden = (next: Set<string>) => {
+    setHiddenEvents(next);
+    saveHiddenEventsToStorage(next);
+  };
+
   const handleToggleEvent = (eventKey: string) => {
-    const newSelected = new Set(selectedEvents);
-    if (newSelected.has(eventKey)) {
-      newSelected.delete(eventKey);
+    const next = new Set(hiddenEvents);
+    if (next.has(eventKey)) {
+      next.delete(eventKey);
     } else {
-      newSelected.add(eventKey);
+      next.add(eventKey);
     }
-    setSelectedEvents(newSelected);
-    saveSelectedEventsToStorage(newSelected);
+    applyHidden(next);
   };
 
-  const handleSelectAllEvents = () => {
-    const allEvents = new Set(tasks.map(t => `${t.event_name}#${t.instance_start_date}`));
-    setSelectedEvents(allEvents);
-    saveSelectedEventsToStorage(allEvents);
-  };
+  const handleSelectAllEvents = () => applyHidden(new Set<string>());
 
-  const handleDeselectAllEvents = () => {
-    const emptySet = new Set<string>();
-    setSelectedEvents(emptySet);
-    saveSelectedEventsToStorage(emptySet);
-  };
+  const handleDeselectAllEvents = () =>
+    applyHidden(new Set(tasks.map(t => `${t.event_name}#${t.instance_start_date}`)));
 
   // Get unique events for the filter
   const uniqueEvents = Array.from(new Set(tasks.map(t => `${t.event_name}#${t.instance_start_date}`))).sort();
@@ -306,7 +316,9 @@ export const StaffDashboard: React.FC = () => {
     }
   });
 
-  // Filter tasks based on hideCompleted and selectedEvents
+  const visibleEvents = uniqueEvents.filter(k => !hiddenEvents.has(k));
+
+  // Filter tasks based on hideCompleted and hiddenEvents
   const filteredTasks = React.useMemo(() => {
     return tasks.filter(t => {
       // Filter by completed status - check both status field and completed flag
@@ -314,15 +326,16 @@ export const StaffDashboard: React.FC = () => {
         return false;
       }
 
-      // Filter by selected events
-      const eventKey = `${t.event_name}#${t.instance_start_date}`;
-      if (selectedEvents.size > 0 && !selectedEvents.has(eventKey)) {
+      // Ausgeblendete Veranstaltungen. Vorher stand hier eine Bedingung auf
+      // die Größe der Auswahl - war nichts ausgewählt, wurde der Filter
+      // übersprungen und es kam wieder alles durch.
+      if (hiddenEvents.has(`${t.event_name}#${t.instance_start_date}`)) {
         return false;
       }
 
       return true;
     });
-  }, [tasks, hideCompleted, selectedEvents]);
+  }, [tasks, hideCompleted, hiddenEvents]);
 
   /*
    * Die Tagesauswahl gilt für beide Ansichten. Die Tag-Leiste selbst wird
@@ -558,67 +571,77 @@ export const StaffDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Filter für erledigte Aufgaben */}
-      <div className={styles.filterSection}>
-        <label className={styles.filterLabel}>
-          <input
-            type="checkbox"
-            checked={hideCompleted}
-            onChange={(e) => setHideCompleted(e.target.checked)}
-            className={styles.filterCheckbox}
-          />
-          <span>Erledigte Aufgaben ausblenden</span>
-        </label>
-      </div>
+      {/*
+        Beide Filter in einer Zeile. Vorher waren es zwei volle Karten
+        untereinander, plus eine dritte, wenn die Veranstaltungsliste
+        aufgeklappt war - fuer zwei Schalter zu viel Platz. Die Liste liegt
+        jetzt in einem Menue, das sich bei Klick ins Leere schliesst.
+      */}
+      <div className={styles.filterBar}>
+        <button
+          type="button"
+          onClick={() => setHideCompleted(!hideCompleted)}
+          className={hideCompleted ? styles.filterChipActive : styles.filterChip}
+          aria-pressed={hideCompleted}
+        >
+          Erledigte ausblenden
+        </button>
 
-      {/* Filter für Veranstaltungen */}
-      {uniqueEvents.length > 1 && (
-        <div className={styles.filterSection}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+        {uniqueEvents.length > 1 && (
+          <div className="tv-dropdown">
             <button
+              type="button"
               onClick={() => setShowEventFilter(!showEventFilter)}
-              className={styles.filterToggleButton}
+              className={hiddenEvents.size > 0 ? styles.filterChipActive : styles.filterChip}
+              aria-haspopup="true"
+              aria-expanded={showEventFilter}
             >
-              Veranstaltungen filtern ({selectedEvents.size}/{uniqueEvents.length})
+              Veranstaltungen {visibleEvents.length}/{uniqueEvents.length}
+              <span className="status-caret" aria-hidden="true">▾</span>
             </button>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button onClick={handleSelectAllEvents} className={styles.filterActionButton}>
-                Alle
-              </button>
-              <button onClick={handleDeselectAllEvents} className={styles.filterActionButton}>
-                Keine
-              </button>
-            </div>
-          </div>
 
-          {showEventFilter && (
-            <div className={styles.eventFilterList}>
-              {uniqueEvents.map(eventKey => (
-                <label key={eventKey} className={styles.filterLabel}>
-                  <input
-                    type="checkbox"
-                    checked={selectedEvents.has(eventKey)}
-                    onChange={() => handleToggleEvent(eventKey)}
-                    className={styles.filterCheckbox}
-                  />
-                  <span>{eventDisplayNames[eventKey]}</span>
-                </label>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+            {showEventFilter && (
+              <>
+                <div className="tv-backdrop" onClick={() => setShowEventFilter(false)} />
+                <div className={styles.eventFilterMenu}>
+                  <div className={styles.eventFilterActions}>
+                    <button onClick={handleSelectAllEvents} className={styles.filterActionButton}>
+                      Alle
+                    </button>
+                    <button onClick={handleDeselectAllEvents} className={styles.filterActionButton}>
+                      Keine
+                    </button>
+                  </div>
+                  {uniqueEvents.map(eventKey => (
+                    <label key={eventKey} className={styles.filterLabel}>
+                      <input
+                        type="checkbox"
+                        checked={!hiddenEvents.has(eventKey)}
+                        onChange={() => handleToggleEvent(eventKey)}
+                        className={styles.filterCheckbox}
+                      />
+                      <span>{eventDisplayNames[eventKey]}</span>
+                    </label>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Aufgabenliste */}
       {tasks.length === 0 ? (
         <div className={styles.empty}>Keine Aufgaben vorhanden</div>
-      ) : viewMode === 'cards' && dayFilteredTasks.length === 0 ? (
-        /* Die Tag-Leiste oben bleibt sichtbar - sonst käme man aus dem
-           leeren Tag nicht mehr heraus. */
+      ) : dayFilteredTasks.length === 0 ? (
+        /* Tag- und Filterleiste oben bleiben sichtbar - sonst käme man aus
+           der leeren Auswahl nicht mehr heraus. */
         <div className={styles.empty}>
-          {selectedDay === 'all'
-            ? 'Keine Aufgaben für die aktuelle Auswahl'
-            : `Keine Aufgaben für Tag ${selectedDay}`}
+          {hiddenEvents.size >= uniqueEvents.length && uniqueEvents.length > 0
+            ? 'Alle Veranstaltungen ausgeblendet'
+            : selectedDay === 'all'
+              ? 'Keine Aufgaben für die aktuelle Auswahl'
+              : `Keine Aufgaben für Tag ${selectedDay}`}
         </div>
       ) : viewMode === 'table' ? (
         <StaffTableView
@@ -970,16 +993,17 @@ const TaskCard: React.FC<{
 
       {!isCompleted ? (
         <>
-          <div className={styles.taskActions} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'nowrap' }}>
+          {/* Umbruch erlaubt: bei nowrap wurden die Knöpfe auf gleiche Breite
+              gequetscht, "Als erledigt markieren" hatte dann kaum noch Rand. */}
+          <div className={styles.taskActions} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             {task.assignment_id && !showReminderEdit && task.status !== 'in_progress' && (
               <button
                 onClick={() => setShowReminderEdit(true)}
                 className={styles.reminderButton}
                 style={{
-                  flex: '1',
-                  minWidth: 0,
+                  flex: '1 1 auto',
                   fontSize: '0.875rem',
-                  padding: '10px 12px'
+                  padding: '10px 16px'
                 }}
               >
                 Erinnerung
@@ -998,8 +1022,7 @@ const TaskCard: React.FC<{
                   borderRadius: '6px',
                   cursor: updatingStatus ? 'not-allowed' : 'pointer',
                   opacity: updatingStatus ? 0.6 : 1,
-                  flex: '1',
-                  minWidth: 0,
+                  flex: '1 1 auto',
                   fontSize: '0.875rem'
                 }}
               >
@@ -1011,10 +1034,9 @@ const TaskCard: React.FC<{
                 onClick={() => onComplete(task.assignment_id)}
                 className={styles.completeButton}
                 style={{
-                  flex: '1',
-                  minWidth: 0,
+                  flex: '1 1 auto',
                   fontSize: '0.875rem',
-                  padding: '10px 12px'
+                  padding: '10px 16px'
                 }}
               >
                 Als erledigt markieren
@@ -1024,10 +1046,9 @@ const TaskCard: React.FC<{
                 onClick={() => onCompletePublic(task.id)}
                 className={styles.completeButton}
                 style={{
-                  flex: '1',
-                  minWidth: 0,
+                  flex: '1 1 auto',
                   fontSize: '0.875rem',
-                  padding: '10px 12px'
+                  padding: '10px 16px'
                 }}
               >
                 Als erledigt markieren

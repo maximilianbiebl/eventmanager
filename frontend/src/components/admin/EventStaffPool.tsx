@@ -53,6 +53,7 @@ export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
   }, [expanded]);
   const [selectedStaffForTasks, setSelectedStaffForTasks] = useState<EventStaff | null>(null);
   const [staffTasks, setStaffTasks] = useState<StaffTask[]>([]);
+  const [removeCandidate, setRemoveCandidate] = useState<{ staff: EventStaff; openTasks: StaffTask[] } | null>(null);
 
   // SSE for real-time updates
   useSSE({
@@ -149,13 +150,38 @@ export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
     }
   };
 
-  const handleRemoveStaff = async (userId: number) => {
-    if (!confirm('Mitarbeiter aus dem Event-Pool entfernen?')) {
+  /*
+   * Entfernen aus dem Pool nimmt dem Mitarbeiter auch seine Aufgaben - sonst
+   * stünde die Veranstaltung weiter in seiner Ansicht. Hat er noch offene
+   * Aufgaben, wird vorher gefragt, ob jemand anderes sie übernehmen soll.
+   */
+  const handleRemoveStaff = async (staff: EventStaff) => {
+    let openTasks: StaffTask[] = [];
+    try {
+      const response = await client.get(`/tasks/event/${eventId}/user/${staff.id}/assignments`);
+      openTasks = (response.data as StaffTask[]).filter(t => t.status !== 'completed');
+    } catch (error) {
+      console.error('Load staff assignments error:', error);
+      setError('Offene Aufgaben konnten nicht geprüft werden');
       return;
     }
 
+    if (openTasks.length === 0) {
+      if (!confirm(`${staff.name} aus dem Mitarbeiter-Pool entfernen?`)) return;
+      await removeStaff(staff.id, null);
+      return;
+    }
+
+    setRemoveCandidate({ staff, openTasks });
+  };
+
+  const removeStaff = async (userId: number, reassignTo: number | null) => {
     try {
-      await client.delete(`/users/event/${eventId}/staff/${userId}`);
+      const url = reassignTo === null
+        ? `/users/event/${eventId}/staff/${userId}`
+        : `/users/event/${eventId}/staff/${userId}?reassign_to=${reassignTo}`;
+      await client.delete(url);
+      setRemoveCandidate(null);
       await loadData();
     } catch (error: any) {
       console.error('Remove staff error:', error);
@@ -282,7 +308,7 @@ export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
               <div style={styles.staffEllipse}>
                 <span style={styles.staffName}>{staff.name}</span>
                 <button
-                  onClick={() => handleRemoveStaff(staff.id)}
+                  onClick={() => handleRemoveStaff(staff)}
                   style={styles.removeButtonEllipse}
                   title="Aus Pool entfernen"
                 >
@@ -337,6 +363,125 @@ export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
           }}
         />
       )}
+
+      {removeCandidate && (
+        <RemoveStaffModal
+          staff={removeCandidate.staff}
+          openTasks={removeCandidate.openTasks}
+          candidates={eventStaff.filter(s => s.id !== removeCandidate.staff.id)}
+          onClose={() => setRemoveCandidate(null)}
+          onConfirm={(reassignTo) => removeStaff(removeCandidate.staff.id, reassignTo)}
+        />
+      )}
+    </div>
+  );
+};
+
+/*
+ * Nachfrage beim Entfernen eines Mitarbeiters mit offenen Aufgaben.
+ * Ein Dialog statt zweier Schritte: die Auswahl des Nachfolgers und die
+ * Entscheidung "übertragen oder verwerfen" gehören zusammen.
+ */
+interface RemoveStaffModalProps {
+  staff: EventStaff;
+  openTasks: StaffTask[];
+  candidates: EventStaff[];
+  onClose: () => void;
+  onConfirm: (reassignTo: number | null) => void;
+}
+
+const RemoveStaffModal: React.FC<RemoveStaffModalProps> = ({
+  staff,
+  openTasks,
+  candidates,
+  onClose,
+  onConfirm,
+}) => {
+  const [selectedId, setSelectedId] = React.useState<number | null>(null);
+  const [busy, setBusy] = React.useState(false);
+
+  const run = async (reassignTo: number | null) => {
+    setBusy(true);
+    try {
+      await onConfirm(reassignTo);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleOverlayClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) onClose();
+  };
+
+  const count = openTasks.length;
+
+  return (
+    <div className="app-modal-overlay" style={styles.overlay} onClick={handleOverlayClick}>
+      <div className="app-modal" style={{ ...styles.modal, maxWidth: '520px' }}>
+        <h2 style={styles.modalTitle}>{staff.name} entfernen</h2>
+
+        <p style={{ marginBottom: '1rem', color: 'var(--c-text-muted)' }}>
+          {count === 1
+            ? 'Es ist noch eine offene Aufgabe zugewiesen.'
+            : `Es sind noch ${count} offene Aufgaben zugewiesen.`}{' '}
+          Soll jemand anderes sie übernehmen?
+        </p>
+
+        <ul style={styles.removeTaskList}>
+          {openTasks.slice(0, 6).map(t => (
+            <li key={`${t.assignment_id ?? t.id}`} style={styles.removeTaskItem}>
+              <span style={styles.removeTaskDay}>Tag {t.day_number}</span>
+              {t.title}
+            </li>
+          ))}
+          {count > 6 && (
+            <li style={{ ...styles.removeTaskItem, color: 'var(--c-text-muted)' }}>
+              … und {count - 6} weitere
+            </li>
+          )}
+        </ul>
+
+        {candidates.length === 0 ? (
+          <p style={styles.noStaff}>Kein anderer Mitarbeiter im Pool - die Aufgaben können nur entfernt werden.</p>
+        ) : (
+          <div style={styles.staffList}>
+            {candidates.map(c => (
+              <label
+                key={c.id}
+                style={{
+                  ...styles.staffCheckbox,
+                  backgroundColor: selectedId === c.id ? 'var(--c-accent-soft)' : 'transparent',
+                }}
+              >
+                <input
+                  type="radio"
+                  name="remove-reassign"
+                  checked={selectedId === c.id}
+                  onChange={() => setSelectedId(c.id)}
+                  style={styles.checkbox}
+                />
+                <span style={{ fontWeight: selectedId === c.id ? 600 : 400 }}>{c.name}</span>
+              </label>
+            ))}
+          </div>
+        )}
+
+        <div className="app-modal-actions" style={styles.modalButtons}>
+          <button onClick={onClose} style={styles.cancelButton} disabled={busy}>
+            Abbrechen
+          </button>
+          <button onClick={() => run(null)} style={styles.dangerButton} disabled={busy}>
+            Aufgaben entfernen
+          </button>
+          <button
+            onClick={() => run(selectedId)}
+            style={styles.submitButton}
+            disabled={busy || selectedId === null}
+          >
+            Übertragen
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
@@ -1301,5 +1446,39 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '1rem',
     cursor: 'pointer',
     fontWeight: '500',
+  },
+  dangerButton: {
+    padding: '0.625rem 1.25rem',
+    backgroundColor: 'transparent',
+    color: 'var(--c-danger-text)',
+    border: '1px solid var(--c-danger)',
+    borderRadius: '4px',
+    fontSize: '1rem',
+    cursor: 'pointer',
+    fontWeight: '500',
+  },
+  removeTaskList: {
+    listStyle: 'none',
+    margin: '0 0 1.25rem',
+    padding: '0.75rem',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.375rem',
+    backgroundColor: 'var(--c-surface-muted)',
+    borderRadius: '6px',
+    maxHeight: '11rem',
+    overflowY: 'auto',
+  },
+  removeTaskItem: {
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: '0.5rem',
+    fontSize: '0.875rem',
+  },
+  removeTaskDay: {
+    flex: '0 0 auto',
+    fontSize: '0.75rem',
+    fontWeight: '600',
+    color: 'var(--c-text-subtle)',
   },
 };

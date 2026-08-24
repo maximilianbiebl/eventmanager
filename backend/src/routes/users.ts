@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query } from '../database/connection';
 import { authMiddleware, adminMiddleware, teamleiterOrAdminMiddleware, AuthRequest } from '../middleware/auth';
+import { broadcastUpdate } from './sse';
 import bcrypt from 'bcrypt';
 import multer from 'multer';
 
@@ -142,9 +143,26 @@ router.get('/event/:eventId/staff', authMiddleware, async (req, res) => {
 });
 
 // Mitarbeiter aus Event-Pool entfernen
+/*
+ * Mitarbeiter aus dem Event-Pool entfernen.
+ *
+ * Bisher wurde nur die Zeile in event_staff geloescht. Die Aufgaben des
+ * Mitarbeiters haengen aber an task_assignments - die blieben stehen, und
+ * damit sah der Mitarbeiter die Veranstaltung samt Aufgaben weiter in
+ * seiner Ansicht. Aus dem Pool entfernt zu sein und die Aufgaben trotzdem
+ * zu behalten ist kein sinnvoller Zustand.
+ *
+ * Optional kann per ?reassign_to=<userId> ein Nachfolger benannt werden -
+ * dann wandern die Zuweisungen dorthin, statt geloescht zu werden.
+ */
 router.delete('/event/:eventId/staff/:userId', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
   try {
     const { eventId, userId } = req.params;
+    const reassignTo = req.query.reassign_to ? Number(req.query.reassign_to) : null;
+
+    if (reassignTo !== null && (!Number.isInteger(reassignTo) || reassignTo === Number(userId))) {
+      return res.status(400).json({ error: 'Ungültiger Nachfolger' });
+    }
 
     const result = await query(
       'DELETE FROM event_staff WHERE event_id = $1 AND user_id = $2 RETURNING *',
@@ -155,7 +173,71 @@ router.delete('/event/:eventId/staff/:userId', authMiddleware, teamleiterOrAdmin
       return res.status(404).json({ error: 'Zuweisung nicht gefunden' });
     }
 
-    res.json({ message: 'Mitarbeiter entfernt' });
+    // Zuweisungen dieses Mitarbeiters in dieser Veranstaltung
+    const assignments = await query(
+      `SELECT ta.id, ta.task_id, ta.event_instance_id, ta.reminder_minutes
+       FROM task_assignments ta
+       JOIN tasks t ON ta.task_id = t.id
+       WHERE t.event_id = $1 AND ta.user_id = $2`,
+      [eventId, userId]
+    );
+
+    let moved = 0;
+
+    if (reassignTo !== null) {
+      for (const a of assignments.rows) {
+        // Doppelte Zuweisung vermeiden, falls der Nachfolger die Aufgabe schon hat
+        const existing = await query(
+          'SELECT id FROM task_assignments WHERE task_id = $1 AND event_instance_id = $2 AND user_id = $3',
+          [a.task_id, a.event_instance_id, reassignTo]
+        );
+
+        if (existing.rows.length === 0) {
+          await query(
+            'INSERT INTO task_assignments (task_id, event_instance_id, user_id, reminder_minutes) VALUES ($1, $2, $3, $4)',
+            [a.task_id, a.event_instance_id, reassignTo, a.reminder_minutes]
+          );
+          moved++;
+        }
+
+        await query('DELETE FROM task_assignments WHERE id = $1', [a.id]);
+      }
+
+      // Der Nachfolger muss im Pool sein, sonst sieht er oeffentliche
+      // Aufgaben der Veranstaltung nicht.
+      await query(
+        `INSERT INTO event_staff (event_id, user_id) VALUES ($1, $2)
+         ON CONFLICT DO NOTHING`,
+        [eventId, reassignTo]
+      );
+    } else if (assignments.rows.length > 0) {
+      await query(
+        'DELETE FROM task_assignments WHERE id = ANY($1)',
+        [assignments.rows.map((a: any) => a.id)]
+      );
+    }
+
+    // Auch aus den Durchfuehrungs-Pools nehmen
+    await query(
+      `DELETE FROM event_instance_staff
+       WHERE user_id = $1
+         AND event_instance_id IN (SELECT id FROM event_instances WHERE event_id = $2)`,
+      [userId, eventId]
+    );
+
+    // Damit die Ansicht des betroffenen Mitarbeiters sofort nachzieht
+    broadcastUpdate('task', {
+      action: 'staff_removed',
+      eventId: Number(eventId),
+      userId: Number(userId),
+      reassignedTo: reassignTo,
+    });
+
+    res.json({
+      message: 'Mitarbeiter entfernt',
+      removedAssignments: reassignTo === null ? assignments.rows.length : 0,
+      reassignedAssignments: moved,
+    });
   } catch (error) {
     console.error('Remove event staff error:', error);
     res.status(500).json({ error: 'Server Fehler' });
