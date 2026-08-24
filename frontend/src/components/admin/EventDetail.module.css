@@ -1003,3 +1003,15 @@
     max-width: 12rem;
   }
 }
+
+/* Hinweis an der Stelle der Liste - die Werkzeugleiste darüber bleibt
+   bedienbar, damit ein Filter ohne Treffer nicht in eine Sackgasse führt. */
+.emptyHint {
+  margin: 0;
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--c-text-muted);
+  background-color: var(--c-surface-muted);
+  border: 1px dashed var(--c-border);
+  border-radius: 8px;
+}

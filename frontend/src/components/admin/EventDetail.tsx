@@ -841,33 +841,21 @@ const TaskListView: React.FC<TaskListViewProps> = ({
     });
   }, [filteredTasks, sortBy, sortDirection]);
 
-  if (uniqueTasks.length === 0 && !loading) {
-    return (
-      <div className={styles.tasksList}>
-        <p>Keine Aufgaben vorhanden</p>
-      </div>
-    );
-  }
-
-  if (filteredTasks.length === 0 && !loading && uniqueTasks.length > 0) {
-    return (
-      <div className={styles.tasksList}>
-        <p>
-          {statusFilter === 'all'
-            ? (selectedDay === 'all' ? 'Keine Aufgaben vorhanden' : `Keine Aufgaben für Tag ${selectedDay} vorhanden`)
-            : 'Keine Aufgaben mit diesem Status'}
-        </p>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className={styles.tasksList}>
-        <p>Lade Zuweisungen...</p>
-      </div>
-    );
-  }
+  // Bewusst KEIN vorzeitiges return mehr: die Abbrüche standen vor der
+  // Werkzeugleiste, dadurch verschwand sie mitsamt Filter, sobald ein Filter
+  // nichts traf - und man kam nicht mehr an ihn heran, um ihn zurückzusetzen.
+  // Der Hinweis steht jetzt nur an der Stelle der Liste.
+  const leerHinweis = loading
+    ? 'Lade Zuweisungen...'
+    : uniqueTasks.length === 0
+      ? 'Keine Aufgaben vorhanden'
+      : filteredTasks.length === 0
+        ? (statusFilter !== 'all'
+            ? 'Keine Aufgaben mit diesem Status'
+            : selectedDay === 'all'
+              ? 'Keine Aufgaben vorhanden'
+              : `Keine Aufgaben für Tag ${selectedDay} vorhanden`)
+        : null;
 
   return (
     <div className={styles.tasksList}>
@@ -933,6 +921,8 @@ const TaskListView: React.FC<TaskListViewProps> = ({
           ))}
         </div>
       </div>
+
+      {leerHinweis && <p className={styles.emptyHint}>{leerHinweis}</p>}
 
       {sortedTasks.map((task) => {
         const taskAssignments = getAssignmentsForTask(task.id);
