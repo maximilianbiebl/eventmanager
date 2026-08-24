@@ -12,7 +12,9 @@
     "migrate:010": "ts-node src/database/run-migration-010.ts",
     "migrate:011": "ts-node src/database/run-migration-011.ts",
     "migrate:012": "ts-node src/database/run-migration-012.ts",
-    "migrate:015": "ts-node src/database/run-migration-015.ts"
+    "migrate:015": "ts-node src/database/run-migration-015.ts",
+    "_kommentar_prod": "Im Produktions-Image gibt es kein ts-node - dort die :prod-Variante nutzen",
+    "migrate:015:prod": "node dist/database/run-migration-015.js"
   },
   "dependencies": {
     "@types/multer": "^2.0.0",

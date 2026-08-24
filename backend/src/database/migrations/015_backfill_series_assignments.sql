@@ -9,8 +9,21 @@
 -- Serie automatisch nach. Diese Migration holt das einmalig fuer den
 -- bestehenden Datenbestand nach.
 --
--- ON CONFLICT / NOT EXISTS: bereits vorhandene Zuweisungen bleiben unberuehrt,
--- die Migration ist damit mehrfach ausfuehrbar.
+-- NOT EXISTS: bereits vorhandene Zuweisungen bleiben unberuehrt, die
+-- Migration ist damit gefahrlos mehrfach ausfuehrbar.
+--
+-- AUSFUEHREN
+--   Im Docker-Betrieb gibt es im Backend-Image kein ts-node (nur die
+--   kompilierten JS-Dateien, devDependencies sind entfernt). Deshalb aus dem
+--   Projektverzeichnis heraus direkt in die Datenbank leiten:
+--
+--     docker-compose exec -T postgres psql -U eventmanager -d eventmanager \
+--       < backend/src/database/migrations/015_backfill_series_assignments.sql
+--
+--   Ab dem naechsten Image-Neubau geht auch:
+--     docker-compose exec backend npm run migrate:015:prod
+--
+--   Lokal mit ts-node:  npm run migrate:015
 
 INSERT INTO task_assignments (task_id, event_instance_id, user_id, reminder_minutes)
 SELECT
