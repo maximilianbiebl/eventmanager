@@ -993,8 +993,12 @@ const TaskCard: React.FC<{
 
       {!isCompleted ? (
         <>
-          {/* Umbruch erlaubt: bei nowrap wurden die Knöpfe auf gleiche Breite
-              gequetscht, "Als erledigt markieren" hatte dann kaum noch Rand. */}
+          {/*
+            Die drei Knöpfe gehören in EINE Zeile. Damit das ohne Quetschen
+            aufgeht, sind die Beschriftungen kurz - "Erledigt" heisst der
+            Knopf in der Tabellenansicht ohnehin schon. Umbruch bleibt als
+            Notausgang erlaubt, greift aber erst bei sehr schmalen Geräten.
+          */}
           <div className={styles.taskActions} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             {task.assignment_id && !showReminderEdit && task.status !== 'in_progress' && (
               <button
@@ -1026,7 +1030,7 @@ const TaskCard: React.FC<{
                   fontSize: '0.875rem'
                 }}
               >
-                {updatingStatus ? 'Wird aktualisiert...' : 'In Arbeit setzen'}
+                {updatingStatus ? '…' : 'In Arbeit'}
               </button>
             )}
             {task.assignment_id ? (
@@ -1039,7 +1043,7 @@ const TaskCard: React.FC<{
                   padding: '10px 16px'
                 }}
               >
-                Als erledigt markieren
+                Erledigt
               </button>
             ) : (
               <button
@@ -1051,7 +1055,7 @@ const TaskCard: React.FC<{
                   padding: '10px 16px'
                 }}
               >
-                Als erledigt markieren
+                Erledigt
               </button>
             )}
           </div>

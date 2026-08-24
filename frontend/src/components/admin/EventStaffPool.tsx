@@ -471,7 +471,7 @@ const RemoveStaffModal: React.FC<RemoveStaffModalProps> = ({
             Abbrechen
           </button>
           <button onClick={() => run(null)} style={styles.dangerButton} disabled={busy}>
-            Aufgaben entfernen
+            Zuweisungen aufheben
           </button>
           <button
             onClick={() => run(selectedId)}
