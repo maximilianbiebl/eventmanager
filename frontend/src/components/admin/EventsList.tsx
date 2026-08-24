@@ -463,21 +463,29 @@ export const EventsList: React.FC = () => {
       {currentEvents.length === 0 ? (
         <div style={styles.empty}>Keine Veranstaltungen in dieser Kategorie</div>
       ) : activeTab === 'other-teamleiters' ? (
-        // Grouped by Teamleiter
+        /*
+         * Nach Ersteller gruppiert - und zwar anhand der Veranstaltungen
+         * selbst, nicht anhand der Teamleiter-Liste. Vorher zaehlte der
+         * Reiter ALLE fremden Veranstaltungen, gezeigt wurden aber nur die
+         * von Leuten mit der Rolle "teamleiter". Veranstaltungen eines
+         * zweiten Admins wurden also mitgezaehlt und dann nirgends
+         * angezeigt - daher die falsche Zahl.
+         */
         <div>
-          {teamleiters
-            .filter(tl => currentEvents.some(e => e.created_by === tl.id))
-            .map(teamleiter => {
-              const teamleiterEvents = currentEvents.filter(e => e.created_by === teamleiter.id);
-              return (
-                <div key={teamleiter.id} style={styles.teamleiterGroup}>
-                  <h3 style={styles.teamleiterHeader}>{teamleiter.name}</h3>
-                  <div style={styles.grid} className={responsiveStyles.grid}>
-                    {teamleiterEvents.map(renderEventCard)}
-                  </div>
+          {Array.from(new Set(currentEvents.map(e => e.created_by))).map(creatorId => {
+            const creatorEvents = currentEvents.filter(e => e.created_by === creatorId);
+            const name = creatorEvents[0]?.creator_name
+              || teamleiters.find(tl => tl.id === creatorId)?.name
+              || 'Unbekannt';
+            return (
+              <div key={creatorId} style={styles.teamleiterGroup}>
+                <h3 style={styles.teamleiterHeader}>{name}</h3>
+                <div style={styles.grid} className={responsiveStyles.grid}>
+                  {creatorEvents.map(renderEventCard)}
                 </div>
-              );
-            })}
+              </div>
+            );
+          })}
         </div>
       ) : activeTab === 'templates' && isAdmin ? (
         // Templates: separate actual templates and suggestions from other teamleiters

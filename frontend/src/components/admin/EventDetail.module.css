@@ -35,21 +35,6 @@
   color:var(--c-text);
 }
 
-.editButton {
-  /* Kontext-Aktionen: leise gehalten, damit sie nicht mit dem
-     Veranstaltungsnamen und den Aufgaben konkurrieren. */
-  padding: 0.375rem 0.75rem;
-  background-color: transparent;
-  color:var(--c-text-muted);
-  border:1px solid var(--c-border);
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  white-space: nowrap;
-  transition: border-color 0.15s ease, color 0.15s ease;
-}
-
 .templateUseButton {
   /* Kontext-Aktionen: leise gehalten, damit sie nicht mit dem
      Veranstaltungsnamen und den Aufgaben konkurrieren. */
@@ -511,26 +496,40 @@
   flex-shrink: 0;
 }
 
+/*
+ * Dieselben beiden Knoepfe wie in der Tabellenansicht - dort sind sie
+ * Umriss-Knoepfe. In den Karten waren sie gefuellt (Bearbeiten sogar in
+ * Warnfarbe), was dieselbe Aktion in beiden Ansichten verschieden
+ * aussehen liess und "Bearbeiten" wie eine Warnung wirken.
+ */
 .editButton {
-  padding: 0.5rem 1rem;
-  background-color:var(--c-warning);
-  color:var(--c-text-inverse);
-  border: none;
-  border-radius: 4px;
+  padding: 0.375rem 0.75rem;
+  background-color: transparent;
+  color:var(--c-text-muted);
+  border:1px solid var(--c-border);
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
   white-space: nowrap;
+  transition: border-color 0.15s ease, color 0.15s ease;
 }
 
 .assignButton {
-  padding: 0.5rem 1rem;
-  background-color:var(--c-accent);
-  color:var(--c-text-inverse);
-  border: none;
-  border-radius: 4px;
+  padding: 0.375rem 0.75rem;
+  background-color: transparent;
+  color:var(--c-accent-text);
+  border:1px solid var(--c-accent-border);
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
   white-space: nowrap;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.assignButton:hover {
+  background-color:var(--c-accent-soft);
 }
 
 /* Mobile Optimizations */

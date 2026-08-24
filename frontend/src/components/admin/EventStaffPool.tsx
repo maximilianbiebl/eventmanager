@@ -337,9 +337,15 @@ export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
                 {/* Serien-Aufgaben sind jetzt echte Zuweisungen und damit in
                     taskCount enthalten - vorher wurden sie hier addiert, das
                     würde nun doppelt zählen. Der Hinweis bleibt als Herkunft. */}
+                {/* Kurz halten - die Karten stehen nebeneinander und wurden
+                    durch "(davon x aus Serie)" sehr breit. Der ganze Satz
+                    steht im Tooltip. */}
                 {staff.taskCount || 0} Aufgabe{(staff.taskCount || 0) !== 1 ? 'n' : ''}
                 {(staff.seriesTaskCount || 0) > 0 && (
-                  <span style={{ fontSize: '0.7rem', color: 'var(--c-text-muted)' }}> (davon {staff.seriesTaskCount} aus Serie)</span>
+                  <span
+                    style={{ fontSize: '0.7rem', color: 'var(--c-text-muted)' }}
+                    title={`davon ${staff.seriesTaskCount} über eine Serie`}
+                  > · {staff.seriesTaskCount} Serie</span>
                 )}
               </button>
             </div>

@@ -57,9 +57,12 @@ router.post('/register', authMiddleware, teamleiterOrAdminMiddleware, async (req
   try {
     const { name, password, role = 'staff' } = req.body;
 
-    // Teamleiter dürfen keine Admins erstellen
-    if (req.user!.role === 'teamleiter' && role === 'admin') {
-      return res.status(403).json({ error: 'Teamleiter können keine Admins erstellen' });
+    // Teamleiter duerfen nur Mitarbeiter anlegen. Vorher war nur "admin"
+    // gesperrt - ein Teamleiter konnte sich also weitere Teamleiter-Konten
+    // samt Passwort anlegen, obwohl er solche Konten weder bearbeiten noch
+    // loeschen darf.
+    if (req.user!.role === 'teamleiter' && role !== 'staff') {
+      return res.status(403).json({ error: 'Teamleiter können nur Mitarbeiter anlegen' });
     }
 
     // Prüfen ob Benutzer schon existiert

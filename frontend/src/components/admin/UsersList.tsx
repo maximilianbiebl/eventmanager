@@ -1,10 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { usersApi, User } from '../../api/users';
+import { useAuth } from '../../context/AuthContext';
 import { authApi } from '../../api/auth';
 import { CreateUserModal } from './CreateUserModal';
 import { CSVExportModal } from './CSVExportModal';
 import { CSVImportModal } from './CSVImportModal';
 import responsiveStyles from './UsersList.module.css';
+
+const ROLE_LABELS: { [key: string]: string } = {
+  admin: 'Admin',
+  teamleiter: 'Teamleiter',
+  staff: 'Mitarbeiter',
+};
 
 interface Props {
   previousEventId: number | null;
@@ -20,6 +27,22 @@ export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvent }) =
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [showExportModal, setShowExportModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'teamleiter' | 'staff'>('all');
+  const [search, setSearch] = useState('');
+  const { user: me, isAdmin } = useAuth();
+
+  /*
+   * Teamleiter duerfen nur Mitarbeiter verwalten - keine Admins und keine
+   * anderen Teamleiter. Der Server weist solche Anfragen ab; ohne diese
+   * Pruefung stuenden die Knoepfe aber weiter da und liefen ins Leere.
+   * Die eigene Zeile bleibt bedienbar.
+   */
+  const canEdit = (u: User) =>
+    isAdmin || u.role === 'staff' || u.id === me?.id;
+
+  // Loeschen ist enger als Bearbeiten: die eigene Zeile darf ein Teamleiter
+  // bearbeiten, aber nicht loeschen - der Server lehnt das ohnehin ab.
+  const canDelete = (u: User) => isAdmin || (u.role === 'staff' && u.id !== me?.id);
 
   useEffect(() => {
     loadUsers();
@@ -83,10 +106,11 @@ export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvent }) =
   };
 
   const handleSelectAll = () => {
-    if (selectedIds.length === sortedUsers.length) {
+    const selectable = visibleUsers.filter(canDelete);
+    if (selectedIds.length === selectable.length) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(sortedUsers.map(u => u.id));
+      setSelectedIds(selectable.map(u => u.id));
     }
   };
 
@@ -131,8 +155,15 @@ export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvent }) =
     await loadUsers(false);
   };
 
+  // Filter: Rolle und Namenssuche
+  const filteredUsers = users.filter(u => {
+    if (roleFilter !== 'all' && u.role !== roleFilter) return false;
+    if (search.trim() && !u.name.toLowerCase().includes(search.trim().toLowerCase())) return false;
+    return true;
+  });
+
   // Sort users
-  const sortedUsers = [...users].sort((a, b) => {
+  const sortedUsers = [...filteredUsers].sort((a, b) => {
     if (!sortColumn) return 0;
 
     let compareResult = 0;
@@ -144,6 +175,14 @@ export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvent }) =
 
     return sortDirection === 'asc' ? compareResult : -compareResult;
   });
+
+  const visibleUsers = sortedUsers;
+  const roleCounts = {
+    all: users.length,
+    admin: users.filter(u => u.role === 'admin').length,
+    teamleiter: users.filter(u => u.role === 'teamleiter').length,
+    staff: users.filter(u => u.role === 'staff').length,
+  };
 
   if (loading) {
     return <div>Lade Mitarbeiter...</div>;
@@ -179,6 +218,36 @@ export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvent }) =
             Neuer Mitarbeiter
           </button>
         </div>
+      </div>
+
+      {/* Filterleiste - dieselben Pillen wie im Mitarbeiterbereich */}
+      <div className="tv-toolbar" style={styles.filterBar}>
+        <span className="tv-label">Rolle</span>
+        {([
+          ['all', 'Alle'],
+          ['admin', 'Admin'],
+          ['teamleiter', 'Teamleiter'],
+          ['staff', 'Mitarbeiter'],
+        ] as const).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setRoleFilter(key)}
+            className={roleFilter === key ? 'tv-chip-active' : 'tv-chip'}
+            aria-pressed={roleFilter === key}
+          >
+            {label} {roleCounts[key]}
+          </button>
+        ))}
+        <span style={styles.filterSpacer} />
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Name suchen"
+          style={styles.searchInput}
+          aria-label="Nach Name suchen"
+        />
       </div>
 
       {selectedIds.length > 0 && (
@@ -228,7 +297,7 @@ export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvent }) =
             <th style={styles.th}>
               <input
                 type="checkbox"
-                checked={selectedIds.length === sortedUsers.length && sortedUsers.length > 0}
+                checked={selectedIds.length === visibleUsers.filter(canDelete).length && selectedIds.length > 0}
                 onChange={handleSelectAll}
                 style={styles.checkbox}
               />
@@ -247,12 +316,14 @@ export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvent }) =
           {sortedUsers.map((user) => (
             <tr key={user.id} style={selectedIds.includes(user.id) ? styles.selectedRow : undefined}>
               <td style={styles.td}>
-                <input
-                  type="checkbox"
-                  checked={selectedIds.includes(user.id)}
-                  onChange={() => handleToggleSelect(user.id)}
-                  style={styles.checkbox}
-                />
+                {canDelete(user) && (
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(user.id)}
+                    onChange={() => handleToggleSelect(user.id)}
+                    style={styles.checkbox}
+                  />
+                )}
               </td>
               <td style={styles.td}>{user.id}</td>
               <td style={styles.td}>{user.name}</td>
@@ -264,18 +335,28 @@ export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvent }) =
                     ? styles.badgeTeamleiter
                     : styles.badgeStaff
                 }>
-                  {user.role}
+                  {ROLE_LABELS[user.role] || user.role}
                 </span>
               </td>
               <td style={styles.td}>
-                <div className={responsiveStyles.userActions}>
-                  <button onClick={() => handleResetPassword(user.id, user.name)} style={styles.resetButton}>
-                    Passwort ändern
-                  </button>
-                  <button onClick={() => handleDelete(user.id)} style={styles.deleteButton}>
-                    Löschen
-                  </button>
-                </div>
+                {canEdit(user) || canDelete(user) ? (
+                  <div className={responsiveStyles.userActions}>
+                    {canEdit(user) && (
+                      <button onClick={() => handleResetPassword(user.id, user.name)} style={styles.resetButton}>
+                        Passwort ändern
+                      </button>
+                    )}
+                    {canDelete(user) && (
+                      <button onClick={() => handleDelete(user.id)} style={styles.deleteButton}>
+                        Löschen
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <span style={styles.noPermission} title="Teamleiter können nur Mitarbeiter verwalten">
+                    –
+                  </span>
+                )}
               </td>
             </tr>
           ))}
@@ -287,6 +368,25 @@ export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvent }) =
 };
 
 const styles: { [key: string]: React.CSSProperties } = {
+  filterBar: {
+    marginBottom: '1rem',
+  },
+  filterSpacer: {
+    flex: '1 1 auto',
+  },
+  searchInput: {
+    padding: '0.3125rem 0.75rem',
+    minWidth: '10rem',
+    borderRadius: '9999px',
+    border: '1px solid var(--c-border-strong)',
+    backgroundColor: 'var(--c-surface)',
+    color: 'var(--c-text)',
+    fontSize: '0.8125rem',
+    fontFamily: 'inherit',
+  },
+  noPermission: {
+    color: 'var(--c-text-subtle)',
+  },
   topBar: {
     marginBottom: '1rem',
   },

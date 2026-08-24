@@ -26,15 +26,34 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req: Auth
     const { id } = req.params;
     const { name, password, role } = req.body;
 
-    // Teamleiter dürfen keine Admins erstellen oder bearbeiten
-    if (req.user!.role === 'teamleiter' && role === 'admin') {
-      return res.status(403).json({ error: 'Teamleiter können keine Admins erstellen oder bearbeiten' });
-    }
-
-    // Prüfen ob der zu bearbeitende User ein Admin ist
+    /*
+     * Teamleiter duerfen nur Mitarbeiter verwalten - weder Admins noch andere
+     * Teamleiter. Beim Loeschen war das schon so, beim Bearbeiten fehlte die
+     * Sperre fuer andere Teamleiter: darueber liess sich deren Passwort
+     * aendern und damit ihr Konto uebernehmen.
+     *
+     * Die eigene Zeile bleibt erlaubt, damit ein Teamleiter seinen eigenen
+     * Namen aendern kann.
+     */
     const userCheck = await query('SELECT role FROM users WHERE id = $1', [id]);
-    if (userCheck.rows.length > 0 && userCheck.rows[0].role === 'admin' && req.user!.role === 'teamleiter') {
-      return res.status(403).json({ error: 'Teamleiter können keine Admins bearbeiten' });
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    }
+    const targetRole = userCheck.rows[0].role;
+
+    if (req.user!.role === 'teamleiter') {
+      const isSelf = Number(id) === req.user!.id;
+
+      if (!isSelf && targetRole !== 'staff') {
+        return res.status(403).json({ error: 'Teamleiter können nur Mitarbeiter bearbeiten' });
+      }
+      if (!isSelf && role !== 'staff') {
+        return res.status(403).json({ error: 'Teamleiter können niemanden zum Admin oder Teamleiter machen' });
+      }
+      // Die eigene Zeile darf bearbeitet werden, die eigene Rolle nicht
+      if (isSelf && role !== targetRole) {
+        return res.status(403).json({ error: 'Die eigene Rolle kann nicht geändert werden' });
+      }
     }
 
     let updateQuery = 'UPDATE users SET name = $1, role = $2';
@@ -446,7 +465,8 @@ router.post('/import-csv', authMiddleware, teamleiterOrAdminMiddleware, upload.s
       });
 
       // Teamleiter dürfen keine Admins erstellen
-      if (req.user!.role === 'teamleiter' && user.role === 'admin') {
+      // Wie beim Anlegen ueber die Oberflaeche: Teamleiter nur Mitarbeiter
+      if (req.user!.role === 'teamleiter' && user.role && user.role !== 'staff') {
         continue; // Skip admin users
       }
 
