@@ -12,6 +12,10 @@ const router = Router();
 router.post('/login', async (req, res) => {
   try {
     const { name, password } = req.body as LoginRequest;
+    // "Eingeloggt bleiben": laengere Gueltigkeit. Ohne den Haken gilt die
+    // Anmeldung nur kurz, damit ein geteiltes Geraet nicht tagelang offen
+    // bleibt. Der Standard entspricht dem bisherigen Verhalten.
+    const remember = req.body?.remember !== false;
 
     // Benutzer finden
     const result = await query('SELECT * FROM users WHERE name = $1', [name]);
@@ -33,7 +37,7 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign(
       { id: user.id, name: user.name, role: user.role },
       config.jwt.secret,
-      { expiresIn: config.jwt.expiresIn }
+      { expiresIn: remember ? (config.jwt.expiresIn || '30d') : '12h' }
     );
 
     const response: LoginResponse = {

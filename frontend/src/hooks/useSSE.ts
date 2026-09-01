@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
+import { getToken } from '../utils/authStorage';
 
 interface SSEMessage {
   type: string;
@@ -41,7 +42,7 @@ export function useSSE(options: UseSSEOptions = {}) {
       eventSourceRef.current.close();
     }
 
-    const token = localStorage.getItem('token');
+    const token = getToken();
     if (!token) {
       console.log('SSE: No token found, skipping connection');
       return;

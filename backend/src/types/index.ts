@@ -71,6 +71,8 @@ export interface PushSubscription {
 export interface LoginRequest {
   name: string;
   password: string;
+  /** "Eingeloggt bleiben" - laengere Gueltigkeit des Tokens */
+  remember?: boolean;
 }
 
 export interface LoginResponse {

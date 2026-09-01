@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../api/auth';
+import { getToken, getStoredUser, storeAuth, clearAuth } from '../utils/authStorage';
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  login: (user: User, token: string) => void;
+  login: (user: User, token: string, remember?: boolean) => void;
   logout: () => void;
   isAdmin: boolean;
   isTeamleiter: boolean;
@@ -18,28 +19,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [token, setToken] = useState<string | null>(null);
 
   useEffect(() => {
-    // Beim Start aus localStorage laden
-    const savedToken = localStorage.getItem('token');
-    const savedUser = localStorage.getItem('user');
+    // Beim Start aus dem jeweiligen Speicher laden
+    const savedToken = getToken();
+    const savedUser = getStoredUser();
 
     if (savedToken && savedUser) {
-      setToken(savedToken);
-      setUser(JSON.parse(savedUser));
+      try {
+        setToken(savedToken);
+        setUser(JSON.parse(savedUser));
+      } catch {
+        // Kaputter Eintrag - lieber abgemeldet als in einem halben Zustand
+        clearAuth();
+      }
     }
   }, []);
 
-  const login = (user: User, token: string) => {
+  const login = (user: User, token: string, remember = true) => {
     setUser(user);
     setToken(token);
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(user));
+    storeAuth(token, user, remember);
   };
 
   const logout = () => {
     setUser(null);
     setToken(null);
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    clearAuth();
   };
 
   const isAdmin = user?.role === 'admin';

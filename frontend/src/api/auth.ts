@@ -3,6 +3,8 @@ import client from './client';
 export interface LoginData {
   name: string;
   password: string;
+  /** "Eingeloggt bleiben" - laengere Gueltigkeit des Tokens */
+  remember?: boolean;
 }
 
 export interface User {
