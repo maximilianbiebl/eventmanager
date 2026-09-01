@@ -69,13 +69,13 @@ export const tasksApi = {
     return response.data;
   },
 
-  complete: async (assignmentId: number) => {
-    const response = await client.put(`/tasks/complete/${assignmentId}`);
+  complete: async (assignmentId: number, ageMs = 0) => {
+    const response = await client.put(`/tasks/complete/${assignmentId}`, { age_ms: ageMs });
     return response.data;
   },
 
-  completePublic: async (taskId: number) => {
-    const response = await client.put(`/tasks/${taskId}/complete-public`);
+  completePublic: async (taskId: number, ageMs = 0) => {
+    const response = await client.put(`/tasks/${taskId}/complete-public`, { age_ms: ageMs });
     return response.data;
   },
 
@@ -99,8 +99,15 @@ export const tasksApi = {
     return response.data;
   },
 
-  updateStatus: async (taskId: number, status: string) => {
-    const response = await client.put(`/tasks/${taskId}/status`, { status });
+  /**
+   * @param ageMs Wie lange die Änderung her ist. Offline getroffene
+   *   Änderungen kommen verspätet an; der Server erkennt daran, ob
+   *   inzwischen jemand anders einen neueren Stand gesetzt hat. Bewusst die
+   *   Dauer und nicht die Uhrzeit - so spielt eine falsch gehende Uhr auf
+   *   dem Gerät keine Rolle.
+   */
+  updateStatus: async (taskId: number, status: string, ageMs = 0) => {
+    const response = await client.put(`/tasks/${taskId}/status`, { status, age_ms: ageMs });
     return response.data;
   },
 

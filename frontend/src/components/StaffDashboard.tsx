@@ -238,6 +238,17 @@ export const StaffDashboard: React.FC = () => {
    * Stand (die Handler haben schon optimistisch gesetzt), die Karte bekommt
    * zusätzlich den Hinweis "wird gesendet".
    */
+  const offlineTitel = [
+    offline && standVon
+      ? `Keine Verbindung. Angezeigt wird der Stand von ${new Date(standVon).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr.`
+      : offline
+        ? 'Keine Verbindung.'
+        : '',
+    ausstehend.size > 0
+      ? `${ausstehend.size} Änderung${ausstehend.size === 1 ? '' : 'en'} ${ausstehend.size === 1 ? 'wird' : 'werden'} gesendet, sobald wieder Empfang besteht.`
+      : '',
+  ].filter(Boolean).join(' ');
+
   const merkeVor = (action: Parameters<typeof enqueue>[0]) => {
     enqueue(action);
     setAusstehend(pendingTaskIds());
@@ -253,17 +264,39 @@ export const StaffDashboard: React.FC = () => {
     if (queueLength() === 0) return;
 
     const { gesendet, verworfen } = await flushQueue({
-      complete: (id) => tasksApi.complete(id),
-      completePublic: (id) => tasksApi.completePublic(id),
-      status: (id, status) => tasksApi.updateStatus(id, status),
+      complete: (id, ageMs) => tasksApi.complete(id, ageMs),
+      completePublic: (id, ageMs) => tasksApi.completePublic(id, ageMs),
+      status: (id, status, ageMs) => tasksApi.updateStatus(id, status, ageMs),
     });
 
     setAusstehend(pendingTaskIds());
-    if (gesendet > 0 || verworfen > 0) {
+    if (gesendet > 0 || verworfen.length > 0) {
       await loadTasks(false);
     }
-    if (verworfen > 0) {
-      alert(`${verworfen} Änderung${verworfen === 1 ? '' : 'en'} konnte${verworfen === 1 ? '' : 'n'} nicht übernommen werden - die Aufgabe gibt es nicht mehr oder sie ist nicht mehr dir zugewiesen.`);
+
+    /*
+     * Nur melden, wenn es der Person etwas nützt.
+     *
+     * Wurde eine Aufgabe gelöscht oder inzwischen von jemand anderem
+     * erledigt, ist nichts zu tun - eine Meldung dazu wäre nur Lärm; die
+     * Aufgabe verschwindet ohnehin aus der Liste.
+     *
+     * Anders, wenn jemand sie auf "In Arbeit" gesetzt hatte und die
+     * Zuweisung inzwischen weg ist: dann arbeitet er sonst weiter an etwas,
+     * das nicht mehr seine Sache ist. Und das Entziehen einer Zuweisung
+     * schickt keine Push-Nachricht, nur ein SSE-Ereignis - wer offline war,
+     * hat davon nichts mitbekommen. Hier ist die Meldung das einzige Signal.
+     */
+    const wichtig = verworfen.filter(a => a.kind === 'status' && a.status === 'in_progress');
+    if (wichtig.length > 0) {
+      // Titel kommt aus dem Warteschlangen-Eintrag: dieser Code läuft aus
+      // einem Effekt, der den Aufgabenstand vom Startzeitpunkt sieht.
+      const titel = wichtig.map(a => a.title).filter(Boolean);
+      alert(
+        wichtig.length === 1
+          ? `Die Aufgabe${titel[0] ? ` „${titel[0]}"` : ''} ist nicht mehr dir zugewiesen - du musst nicht weitermachen.`
+          : `${wichtig.length} Aufgaben, die du begonnen hattest, sind nicht mehr dir zugewiesen - du musst dort nicht weitermachen.`
+      );
     }
   };
 
@@ -305,7 +338,7 @@ export const StaffDashboard: React.FC = () => {
       if (istNetzfehler(error) && task) {
         // Ohne Netz nicht zurücknehmen, sondern vormerken - die Änderung
         // geht raus, sobald wieder Verbindung besteht.
-        merkeVor({ kind: 'complete', assignmentId, taskId: task.id, queuedAt: Date.now() });
+        merkeVor({ kind: 'complete', assignmentId, taskId: task.id, title: task.title, queuedAt: Date.now() });
         return;
       }
       loadTasks(false);
@@ -329,7 +362,7 @@ export const StaffDashboard: React.FC = () => {
     } catch (error) {
       console.error('Complete public task error:', error);
       if (istNetzfehler(error)) {
-        merkeVor({ kind: 'completePublic', taskId, queuedAt: Date.now() });
+        merkeVor({ kind: 'completePublic', taskId, title: tasks.find(t => t.id === taskId)?.title, queuedAt: Date.now() });
         return;
       }
       loadTasks(false);
@@ -353,7 +386,7 @@ export const StaffDashboard: React.FC = () => {
     } catch (error) {
       console.error('Update status error:', error);
       if (istNetzfehler(error)) {
-        merkeVor({ kind: 'status', taskId, status: newStatus, queuedAt: Date.now() });
+        merkeVor({ kind: 'status', taskId, status: newStatus, title: tasks.find(t => t.id === taskId)?.title, queuedAt: Date.now() });
         return;
       }
       loadTasks(false);
@@ -508,6 +541,30 @@ export const StaffDashboard: React.FC = () => {
           <p className={styles.subtitle}>Willkommen, {user?.name}!</p>
         </div>
 
+        {/*
+          Offline-Zustand als Badge in der Kopfzeile statt als eigener
+          Balken - der nahm eine ganze Zeile für zwei Wörter. Die Uhrzeit
+          bleibt drin: "offline" allein sagt nicht, ob die Daten von vor
+          fünf Minuten oder von gestern sind.
+        */}
+        {(offline || ausstehend.size > 0) && (
+          <div className={styles.offlineBadge} role="status" title={offlineTitel}>
+            {offline && (
+              <span className={styles.offlineDot} aria-hidden="true" />
+            )}
+            <span>
+              {offline
+                ? standVon
+                  ? `Offline · Stand ${new Date(standVon).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`
+                  : 'Offline'
+                : `${ausstehend.size} wird gesendet`}
+            </span>
+            {offline && ausstehend.size > 0 && (
+              <span className={styles.offlineCount}>{ausstehend.size}</span>
+            )}
+          </div>
+        )}
+
         {/* Desktop buttons */}
         <div className={styles.headerButtons}>
           <button onClick={() => setShowSettings(true)} className={styles.settingsButton}>
@@ -648,31 +705,6 @@ export const StaffDashboard: React.FC = () => {
         )}
 
       </div>
-
-      {/*
-        Offline-Hinweis. Nennt den Stand, damit klar ist, wie alt die
-        Anzeige ist - "offline" allein sagt nicht, ob die Daten von vor
-        fünf Minuten oder von gestern sind.
-      */}
-      {(offline || ausstehend.size > 0) && (
-        <div className={styles.offlineBar} role="status">
-          {offline && (
-            <span>
-              <strong>Offline.</strong>{' '}
-              {standVon
-                ? `Angezeigt wird der Stand von ${new Date(standVon).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr.`
-                : 'Es liegt noch kein gespeicherter Stand vor.'}
-            </span>
-          )}
-          {ausstehend.size > 0 && (
-            <span>
-              {ausstehend.size === 1
-                ? '1 Änderung wird gesendet, sobald du wieder Empfang hast.'
-                : `${ausstehend.size} Änderungen werden gesendet, sobald du wieder Empfang hast.`}
-            </span>
-          )}
-        </div>
-      )}
 
       {/*
         Tage und Filter bilden EINE Leiste - vorher standen sie in drei

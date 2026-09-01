@@ -7,6 +7,7 @@
 }
 
 .header {
+  /* Badge sitzt zwischen Titel und Knoepfen - deshalb Platz dazwischen */
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -218,17 +219,39 @@
  * Offline-Hinweis. Gelb statt rot: es ist kein Fehler, sondern ein Zustand
  * - die App funktioniert weiter, nur die Daten sind nicht frisch.
  */
-.offlineBar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem 0.75rem;
-  padding: 0.625rem 0.875rem;
-  margin-bottom: 1rem;
+/*
+ * Offline-Zustand als Badge in der Kopfzeile. Vorher ein eigener Balken -
+ * der nahm eine ganze Zeile fuer zwei Woerter.
+ */
+.offlineBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.3125rem 0.75rem;
   background-color:var(--c-warning-soft);
   color:var(--c-warning-strong);
   border:1px solid var(--c-warning);
-  border-radius: 6px;
-  font-size: 0.8125rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.offlineDot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background-color:var(--c-warning);
+  flex: 0 0 auto;
+}
+
+.offlineCount {
+  padding: 0 0.375rem;
+  background-color:var(--c-warning);
+  color:var(--c-text-inverse);
+  border-radius: 9999px;
+  font-size: 0.6875rem;
 }
 
 .pendingBadge {

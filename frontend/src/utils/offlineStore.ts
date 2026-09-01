@@ -53,10 +53,17 @@ export const clearCachedTasks = (): void => {
 
 // ------------------------------------------------------------ Warteschlange
 
+/*
+ * Der Titel wandert mit in die Warteschlange, statt ihn beim Senden im
+ * aktuellen Aufgabenstand zu suchen: das Senden laeuft aus einem Effekt,
+ * der den Stand vom Startzeitpunkt sieht - und der ist leer. Ausserdem
+ * kann die Aufgabe bis dahin aus der Liste verschwunden sein, gerade in
+ * dem Fall, in dem wir sie benennen wollen.
+ */
 export type QueuedAction =
-  | { kind: 'complete'; assignmentId: number; taskId: number; queuedAt: number }
-  | { kind: 'completePublic'; taskId: number; queuedAt: number }
-  | { kind: 'status'; taskId: number; status: string; queuedAt: number };
+  | { kind: 'complete'; assignmentId: number; taskId: number; title?: string; queuedAt: number }
+  | { kind: 'completePublic'; taskId: number; title?: string; queuedAt: number }
+  | { kind: 'status'; taskId: number; status: string; title?: string; queuedAt: number };
 
 export const readQueue = (): QueuedAction[] =>
   safe(() => {
@@ -94,27 +101,30 @@ export const pendingTaskIds = (): Set<number> => new Set(readQueue().map(a => a.
  * blockiert er alles Nachfolgende dauerhaft.
  */
 export const flushQueue = async (senders: {
-  complete: (assignmentId: number) => Promise<unknown>;
-  completePublic: (taskId: number) => Promise<unknown>;
-  status: (taskId: number, status: string) => Promise<unknown>;
-}): Promise<{ gesendet: number; verworfen: number }> => {
+  complete: (assignmentId: number, ageMs: number) => Promise<unknown>;
+  completePublic: (taskId: number, ageMs: number) => Promise<unknown>;
+  status: (taskId: number, status: string, ageMs: number) => Promise<unknown>;
+}): Promise<{ gesendet: number; verworfen: QueuedAction[] }> => {
   let queue = readQueue();
   let gesendet = 0;
-  let verworfen = 0;
+  const verworfen: QueuedAction[] = [];
 
   while (queue.length > 0) {
     const action = queue[0];
+    // Wie lange die Aenderung her ist - der Server entscheidet damit, ob
+    // inzwischen ein neuerer Stand gesetzt wurde.
+    const ageMs = Math.max(0, Date.now() - action.queuedAt);
     try {
-      if (action.kind === 'complete') await senders.complete(action.assignmentId);
-      else if (action.kind === 'completePublic') await senders.completePublic(action.taskId);
-      else await senders.status(action.taskId, action.status);
+      if (action.kind === 'complete') await senders.complete(action.assignmentId, ageMs);
+      else if (action.kind === 'completePublic') await senders.completePublic(action.taskId, ageMs);
+      else await senders.status(action.taskId, action.status, ageMs);
       gesendet++;
     } catch (error: any) {
       // Ohne Antwort ist das Netz weg - dann spaeter erneut versuchen und
       // die Warteschlange unangetastet lassen.
       if (!error?.response) break;
       console.warn('Offline-Änderung verworfen:', action, error.response.status);
-      verworfen++;
+      verworfen.push(action);
     }
     queue = queue.slice(1);
     writeQueue(queue);

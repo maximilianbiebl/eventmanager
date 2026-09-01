@@ -471,7 +471,7 @@ router.put('/complete/:assignmentId', authMiddleware, async (req: AuthRequest, r
 
     // Task selbst als "completed" markieren (global für alle Mitarbeiter)
     await query(
-      'UPDATE tasks SET status = $1 WHERE id = $2',
+      'UPDATE tasks SET status = $1, status_changed_at = NOW() WHERE id = $2',
       ['completed', assignment.rows[0].task_id]
     );
 
@@ -635,7 +635,7 @@ router.put('/:taskId/complete-public', authMiddleware, async (req: AuthRequest, 
     }
 
     // Task als completed markieren
-    await query('UPDATE tasks SET status = $1 WHERE id = $2', ['completed', taskId]);
+    await query('UPDATE tasks SET status = $1, status_changed_at = NOW() WHERE id = $2', ['completed', taskId]);
 
     // Benachrichtige Teamleiter über Fertigstellung (nur wenn staff)
     if (req.user!.role === 'staff') {
@@ -910,8 +910,21 @@ router.put('/assignment/:assignmentId/reminder', authMiddleware, async (req: Aut
 router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, age_ms } = req.body;
     const userId = req.user!.id;
+
+    /*
+     * Wann wurde die Aenderung getroffen?
+     *
+     * Offline gesetzte Aenderungen kommen verspaetet an - moeglicherweise
+     * Stunden spaeter. Der Client schickt deshalb NICHT seine Uhrzeit,
+     * sondern wie lange die Aenderung her ist (age_ms). Damit spielt es
+     * keine Rolle, ob die Uhr des Handys richtig geht.
+     */
+    const alter = Number(age_ms);
+    const gewaehltAm = Number.isFinite(alter) && alter >= 0 && alter < 30 * 24 * 3600 * 1000
+      ? new Date(Date.now() - alter)
+      : new Date();
 
     // Prüfen ob der Benutzer Admin ist oder der Task zugewiesen ist
     const isAdmin = req.user!.role === 'admin';
@@ -966,10 +979,25 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
 
     const currentTask = current.rows[0];
 
+    /*
+     * Verspaetete Aenderung? Dann gewinnt der neuere Stand.
+     *
+     * Ohne diese Pruefung wuerde eine morgens offline gesetzte Aenderung ein
+     * "Erledigt" ueberschreiben, das jemand anders um elf gesetzt hat - der
+     * zuletzt ANKOMMENDE Stand statt dem zuletzt GEWOLLTEN.
+     */
+    if (currentTask.status_changed_at && gewaehltAm < new Date(currentTask.status_changed_at)) {
+      return res.json({
+        ...currentTask,
+        superseded: true,
+        message: 'Der Status wurde inzwischen von anderer Seite geändert - die ältere Änderung wurde verworfen.',
+      });
+    }
+
     // Status aktualisieren
     const result = await query(
-      'UPDATE tasks SET status = $1 WHERE id = $2 RETURNING *',
-      [status, id]
+      'UPDATE tasks SET status = $1, status_changed_at = $2 WHERE id = $3 RETURNING *',
+      [status, gewaehltAm, id]
     );
 
     // Wenn Status von completed weg geändert wird, alle Assignments zurücksetzen
@@ -1298,6 +1326,10 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req: Auth
         end_time = $6,
         reminder_minutes = $7,
         is_public = $8,
+        -- Zeitstempel nur setzen, wenn sich der Status wirklich aendert -
+        -- sonst wuerde eine reine Titelaenderung eine spaetere Offline-
+        -- Aenderung faelschlich als "veraltet" abweisen.
+        status_changed_at = CASE WHEN status IS DISTINCT FROM $9 THEN NOW() ELSE status_changed_at END,
         status = $9,
         series_id = $10
        WHERE id = $11 RETURNING *`,
