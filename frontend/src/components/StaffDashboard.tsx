@@ -11,6 +11,10 @@ import client from '../api/client';
 import styles from './StaffDashboard.module.css';
 import { toLocalDate } from '../utils/date';
 import { DaySelection, resolveInitialDay, storeDay } from '../utils/dayPreference';
+import {
+  cacheTasks, readCachedTasks, enqueue, flushQueue, pendingTaskIds,
+  queueLength, istNetzfehler,
+} from '../utils/offlineStore';
 
 export const StaffDashboard: React.FC = () => {
   const [tasks, setTasks] = useState<TaskAssignment[]>([]);
@@ -34,6 +38,11 @@ export const StaffDashboard: React.FC = () => {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [filtersInitialized, setFiltersInitialized] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  // Offline-Zustand: Stand des letzten erfolgreichen Ladens und die Zahl
+  // der noch nicht gesendeten Änderungen.
+  const [offline, setOffline] = useState(() => typeof navigator !== 'undefined' && !navigator.onLine);
+  const [standVon, setStandVon] = useState<number | null>(null);
+  const [ausstehend, setAusstehend] = useState<Set<number>>(() => pendingTaskIds());
   const { user, logout } = useAuth();
   const notifications = useNotifications();
   // Tagesauswahl nur beim ersten Laden setzen - sonst würde jede
@@ -161,6 +170,10 @@ export const StaffDashboard: React.FC = () => {
         setLoading(true);
       }
       const data = await tasksApi.getMyTasks();
+      // Erfolgreich geladen: Stand für den Offline-Fall sichern
+      cacheTasks(data);
+      setStandVon(Date.now());
+      setOffline(false);
 
       // Only update state if data has actually changed (prevent flicker)
       setTasks(prevTasks => {
@@ -191,12 +204,87 @@ export const StaffDashboard: React.FC = () => {
       }
     } catch (error) {
       console.error('Load tasks error:', error);
+
+      /*
+       * Kein Netz: den zuletzt gesicherten Stand zeigen statt einer leeren
+       * Seite. Genau der Fall auf einer Freizeit ohne Empfang - man will
+       * wenigstens sehen, was zu tun ist.
+       */
+      if (istNetzfehler(error)) {
+        setOffline(true);
+        const gesichert = readCachedTasks();
+        if (gesichert) {
+          setTasks(prev => (prev.length === 0 ? gesichert.tasks : prev));
+          setStandVon(gesichert.savedAt);
+          if (!filtersInitialized && gesichert.tasks.length > 0) {
+            setHiddenEvents(readHiddenEvents(gesichert.tasks));
+            setFiltersInitialized(true);
+          }
+          if (!dayInitRef.current && gesichert.tasks.length > 0) {
+            dayInitRef.current = true;
+            setSelectedDay(resolveInitialDay(dayScope, todayDayNumber(gesichert.tasks)));
+          }
+        }
+      }
     } finally {
       if (showLoading) {
         setLoading(false);
       }
     }
   };
+
+  /*
+   * Ohne Netz getätigte Änderung vormerken. Die Anzeige bleibt auf dem neuen
+   * Stand (die Handler haben schon optimistisch gesetzt), die Karte bekommt
+   * zusätzlich den Hinweis "wird gesendet".
+   */
+  const merkeVor = (action: Parameters<typeof enqueue>[0]) => {
+    enqueue(action);
+    setAusstehend(pendingTaskIds());
+    setOffline(true);
+  };
+
+  /*
+   * Warteschlange abarbeiten, sobald wieder Verbindung besteht. Läuft auch
+   * beim Start, denn die App wird oft erst wieder geöffnet, wenn man zurück
+   * im Empfangsbereich ist.
+   */
+  const sendeAusstehende = async () => {
+    if (queueLength() === 0) return;
+
+    const { gesendet, verworfen } = await flushQueue({
+      complete: (id) => tasksApi.complete(id),
+      completePublic: (id) => tasksApi.completePublic(id),
+      status: (id, status) => tasksApi.updateStatus(id, status),
+    });
+
+    setAusstehend(pendingTaskIds());
+    if (gesendet > 0 || verworfen > 0) {
+      await loadTasks(false);
+    }
+    if (verworfen > 0) {
+      alert(`${verworfen} Änderung${verworfen === 1 ? '' : 'en'} konnte${verworfen === 1 ? '' : 'n'} nicht übernommen werden - die Aufgabe gibt es nicht mehr oder sie ist nicht mehr dir zugewiesen.`);
+    }
+  };
+
+  useEffect(() => {
+    const wiederOnline = () => {
+      setOffline(false);
+      sendeAusstehende();
+    };
+    const jetztOffline = () => setOffline(true);
+
+    window.addEventListener('online', wiederOnline);
+    window.addEventListener('offline', jetztOffline);
+    // Beim Start einmal versuchen - der Browser meldet "online" nicht, wenn
+    // die App im Empfangsbereich frisch geöffnet wird.
+    sendeAusstehende();
+
+    return () => {
+      window.removeEventListener('online', wiederOnline);
+      window.removeEventListener('offline', jetztOffline);
+    };
+  }, []);
 
   const handleComplete = async (assignmentId: number) => {
     try {
@@ -213,7 +301,13 @@ export const StaffDashboard: React.FC = () => {
       loadTasks(false);
     } catch (error) {
       console.error('Complete task error:', error);
-      // Reload on error to revert optimistic update
+      const task = tasks.find(t => t.assignment_id === assignmentId);
+      if (istNetzfehler(error) && task) {
+        // Ohne Netz nicht zurücknehmen, sondern vormerken - die Änderung
+        // geht raus, sobald wieder Verbindung besteht.
+        merkeVor({ kind: 'complete', assignmentId, taskId: task.id, queuedAt: Date.now() });
+        return;
+      }
       loadTasks(false);
       alert('Fehler beim Markieren der Aufgabe');
     }
@@ -234,7 +328,10 @@ export const StaffDashboard: React.FC = () => {
       loadTasks(false);
     } catch (error) {
       console.error('Complete public task error:', error);
-      // Reload on error to revert optimistic update
+      if (istNetzfehler(error)) {
+        merkeVor({ kind: 'completePublic', taskId, queuedAt: Date.now() });
+        return;
+      }
       loadTasks(false);
       alert('Fehler beim Markieren der öffentlichen Aufgabe');
     }
@@ -255,7 +352,10 @@ export const StaffDashboard: React.FC = () => {
       loadTasks(false);
     } catch (error) {
       console.error('Update status error:', error);
-      // Reload on error to revert optimistic update
+      if (istNetzfehler(error)) {
+        merkeVor({ kind: 'status', taskId, status: newStatus, queuedAt: Date.now() });
+        return;
+      }
       loadTasks(false);
       alert('Fehler beim Aktualisieren des Status');
     }
@@ -550,6 +650,31 @@ export const StaffDashboard: React.FC = () => {
       </div>
 
       {/*
+        Offline-Hinweis. Nennt den Stand, damit klar ist, wie alt die
+        Anzeige ist - "offline" allein sagt nicht, ob die Daten von vor
+        fünf Minuten oder von gestern sind.
+      */}
+      {(offline || ausstehend.size > 0) && (
+        <div className={styles.offlineBar} role="status">
+          {offline && (
+            <span>
+              <strong>Offline.</strong>{' '}
+              {standVon
+                ? `Angezeigt wird der Stand von ${new Date(standVon).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr.`
+                : 'Es liegt noch kein gespeicherter Stand vor.'}
+            </span>
+          )}
+          {ausstehend.size > 0 && (
+            <span>
+              {ausstehend.size === 1
+                ? '1 Änderung wird gesendet, sobald du wieder Empfang hast.'
+                : `${ausstehend.size} Änderungen werden gesendet, sobald du wieder Empfang hast.`}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/*
         Tage und Filter bilden EINE Leiste - vorher standen sie in drei
         Zeilen mit drei verschiedenen Erscheinungen untereinander (Karte mit
         Schatten, nackte Pillen, nackter Chip).
@@ -666,6 +791,7 @@ export const StaffDashboard: React.FC = () => {
               onStatusUpdate={handleStatusUpdate}
               onReminderUpdate={() => loadTasks(false)}
               isOverdue={isTaskOverdue(task)}
+              pending={ausstehend.has(task.id)}
             />
           ))}
         </div>
@@ -684,6 +810,7 @@ export const StaffDashboard: React.FC = () => {
                     onStatusUpdate={handleStatusUpdate}
                     onReminderUpdate={() => loadTasks(false)}
                     isOverdue={isTaskOverdue(task)}
+                    pending={ausstehend.has(task.id)}
                   />
                 ))}
               </div>
@@ -705,6 +832,7 @@ export const StaffDashboard: React.FC = () => {
                     onStatusUpdate={handleStatusUpdate}
                     onReminderUpdate={() => loadTasks(false)}
                     isOverdue={isTaskOverdue(task)}
+                    pending={ausstehend.has(task.id)}
                   />
                 ))}
               </div>
@@ -726,6 +854,7 @@ export const StaffDashboard: React.FC = () => {
                     onStatusUpdate={handleStatusUpdate}
                     onReminderUpdate={() => loadTasks(false)}
                     isOverdue={isTaskOverdue(task)}
+                    pending={ausstehend.has(task.id)}
                   />
                 ))}
               </div>
@@ -747,7 +876,9 @@ const TaskCard: React.FC<{
   onStatusUpdate: (taskId: number, newStatus: string) => void;
   onReminderUpdate: () => void;
   isOverdue: boolean;
-}> = ({ task, onComplete, onCompletePublic, onStatusUpdate, onReminderUpdate, isOverdue }) => {
+  /** Änderung liegt in der Warteschlange und ist noch nicht beim Server */
+  pending?: boolean;
+}> = ({ task, onComplete, onCompletePublic, onStatusUpdate, onReminderUpdate, isOverdue, pending }) => {
   const [showReminderEdit, setShowReminderEdit] = React.useState(false);
   const [reminderMinutes, setReminderMinutes] = React.useState(task.reminder_minutes || 15);
   const [saving, setSaving] = React.useState(false);
@@ -881,6 +1012,11 @@ const TaskCard: React.FC<{
         )}
 
         <div className={styles.taskMeta} style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
+          {pending && (
+            <span className={styles.pendingBadge} title="Die Änderung wird gesendet, sobald wieder Empfang besteht">
+              wird gesendet
+            </span>
+          )}
         <span className={styles.taskEvent}>{task.event_name}</span>
         <span className={styles.taskDay}>
           Tag {task.day_number} · {getEventDate()}

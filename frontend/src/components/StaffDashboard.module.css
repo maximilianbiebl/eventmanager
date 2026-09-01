@@ -214,6 +214,33 @@
   flex-wrap: wrap;
 }
 
+/*
+ * Offline-Hinweis. Gelb statt rot: es ist kein Fehler, sondern ein Zustand
+ * - die App funktioniert weiter, nur die Daten sind nicht frisch.
+ */
+.offlineBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  padding: 0.625rem 0.875rem;
+  margin-bottom: 1rem;
+  background-color:var(--c-warning-soft);
+  color:var(--c-warning-strong);
+  border:1px solid var(--c-warning);
+  border-radius: 6px;
+  font-size: 0.8125rem;
+}
+
+.pendingBadge {
+  padding: 0.125rem 0.5rem;
+  background-color:var(--c-warning-soft);
+  color:var(--c-warning-strong);
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 /* Eine Zeile fuer beide Filter statt zwei volle Karten untereinander. */
 .filterBar {
   display: flex;
