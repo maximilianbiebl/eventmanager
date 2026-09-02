@@ -42,6 +42,13 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
   const [_program, setProgram] = useState<ProgramItem[]>([]);
   const [_users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  /*
+   * Ohne diesen Zustand rannte die Ansicht nach einem fehlgeschlagenen Laden
+   * in "event.name" - und riss mit "Cannot read properties of null" die
+   * ganze Seite mit. Genau das passiert einer Teamleitung, die in einer
+   * fremden Veranstaltung nur mithilft: der Server antwortet mit 403.
+   */
+  const [ladeFehler, setLadeFehler] = useState<'keine-berechtigung' | 'weg' | 'fehler' | null>(null);
   const [selectedInstance, setSelectedInstance] = useState<number | null>(null);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [editTask, setEditTask] = useState<Task | null>(null);
@@ -106,6 +113,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
       if (showLoading) {
         setLoading(true);
       }
+      setLadeFehler(null);
       const [eventData, tasksData, programData, usersData] = await Promise.all([
         eventsApi.getById(eventId),
         tasksApi.getByEvent(eventId),
@@ -139,8 +147,19 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
         viewInitRef.current = true;
         loadDefaultView();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Load event detail error:', error);
+      const status = error?.response?.status;
+      setLadeFehler(status === 403 ? 'keine-berechtigung' : status === 404 ? 'weg' : 'fehler');
+
+      /*
+       * Die zuletzt geoeffnete Veranstaltung wird gemerkt und beim naechsten
+       * Start wieder geoeffnet. Wenn man sie nicht (mehr) oeffnen darf, muss
+       * die Merkung weg - sonst landet man bei jedem Start wieder hier.
+       */
+      if (status === 403 || status === 404) {
+        try { localStorage.removeItem('adminSelectedEventId'); } catch { /* egal */ }
+      }
     } finally {
       if (showLoading) {
         setLoading(false);
@@ -258,6 +277,30 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
 
   if (loading) {
     return <div>Lade Details...</div>;
+  }
+
+  if (ladeFehler || !event) {
+    const text = ladeFehler === 'keine-berechtigung'
+      ? 'Diese Veranstaltung wird von jemand anderem geleitet. Du kannst sie deshalb nicht öffnen - deine Aufgaben darin findest du unter "Meine Aufgaben".'
+      : ladeFehler === 'weg'
+        ? 'Diese Veranstaltung gibt es nicht mehr.'
+        : 'Die Veranstaltung konnte nicht geladen werden. Prüfe deine Verbindung und versuche es erneut.';
+
+    return (
+      <div className={styles.ladeFehler} role="alert">
+        <p className={styles.ladeFehlerText}>{text}</p>
+        <div className={styles.ladeFehlerAktionen}>
+          <button onClick={onBack} className={styles.backButton} type="button">
+            Zurück zur Übersicht
+          </button>
+          {ladeFehler === 'fehler' && (
+            <button onClick={() => { setLadeFehler(null); loadData(); }} className={styles.secondaryButton} type="button">
+              Erneut versuchen
+            </button>
+          )}
+        </div>
+      </div>
+    );
   }
 
   return (

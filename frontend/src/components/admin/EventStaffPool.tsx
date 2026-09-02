@@ -1055,6 +1055,16 @@ const AssignTasksModal: React.FC<AssignTasksModalProps> = ({
   const [selectedTaskIds, setSelectedTaskIds] = React.useState<number[]>([]);
   const [loading, setLoading] = React.useState(true);
 
+  /*
+   * Wer ist auf welcher Aufgabe? Ohne diese Angabe verteilt man hier blind -
+   * man sieht nicht, was schon vergeben ist und was noch niemand hat. Die
+   * Badges sind dieselben wie in der Tabellen- und Kartenansicht, damit man
+   * nicht zwei Darstellungen im Kopf halten muss.
+   */
+  const [zuweisungen, setZuweisungen] = React.useState<{ [taskId: number]: { name: string; role?: string; viaSeries: boolean }[] }>({});
+  const [filter, setFilter] = React.useState<'alle' | 'offen'>('alle');
+  const [tagFilter, setTagFilter] = React.useState<number | 'alle'>('alle');
+
   React.useEffect(() => {
     loadEventInstances();
   }, [eventId]);
@@ -1095,6 +1105,30 @@ const AssignTasksModal: React.FC<AssignTasksModalProps> = ({
       // Filter out already assigned tasks
       const available = allTasks.filter((task: any) => !assignedTaskIds.has(task.id));
       setAvailableTasks(available);
+
+      // Bestehende Zuweisungen der Durchführung - für die Badges
+      const [alleZuw, serien] = await Promise.all([
+        client.get(`/tasks/instance/${selectedInstanceId}/assignments`).then(r => r.data).catch(() => []),
+        taskSeriesApi.getByEvent(eventId).catch(() => []),
+      ]);
+
+      const serienMitglieder: { [seriesId: number]: Set<number> } = {};
+      for (const serie of serien) {
+        try {
+          const details = await taskSeriesApi.getById(serie.id);
+          serienMitglieder[serie.id] = new Set((details.members || []).map(m => m.id));
+        } catch {
+          /* Serie nicht ladbar - dann eben ohne Herkunft */
+        }
+      }
+
+      const karte: { [taskId: number]: { name: string; role?: string; viaSeries: boolean }[] } = {};
+      for (const zeile of alleZuw) {
+        if (!zeile.user_name) continue;
+        const viaSeries = !!zeile.series_id && !!serienMitglieder[zeile.series_id]?.has(zeile.user_id);
+        (karte[zeile.id] ||= []).push({ name: zeile.user_name, role: zeile.user_role, viaSeries });
+      }
+      setZuweisungen(karte);
     } catch (error) {
       console.error('Load available tasks error:', error);
       alert('Fehler beim Laden der verfügbaren Aufgaben');
@@ -1103,6 +1137,12 @@ const AssignTasksModal: React.FC<AssignTasksModalProps> = ({
     }
   };
 
+  const sichtbareTasks = availableTasks.filter((t: any) => {
+    if (filter === 'offen' && (zuweisungen[t.id]?.length || 0) > 0) return false;
+    if (tagFilter !== 'alle' && t.day_number !== tagFilter) return false;
+    return true;
+  });
+
   const handleToggleTask = (taskId: number) => {
     setSelectedTaskIds(prev =>
       prev.includes(taskId) ? prev.filter(id => id !== taskId) : [...prev, taskId]
@@ -1110,10 +1150,14 @@ const AssignTasksModal: React.FC<AssignTasksModalProps> = ({
   };
 
   const handleSelectAll = () => {
-    if (selectedTaskIds.length === availableTasks.length) {
-      setSelectedTaskIds([]);
+    // Bezieht sich auf das, was der Filter gerade zeigt - sonst waehlt man
+    // unsichtbare Aufgaben mit aus.
+    const alleSichtbarGewaehlt = sichtbareTasks.length > 0
+      && sichtbareTasks.every(t => selectedTaskIds.includes(t.id));
+    if (alleSichtbarGewaehlt) {
+      setSelectedTaskIds(prev => prev.filter(id => !sichtbareTasks.some(t => t.id === id)));
     } else {
-      setSelectedTaskIds(availableTasks.map(t => t.id));
+      setSelectedTaskIds(prev => [...new Set([...prev, ...sichtbareTasks.map(t => t.id)])]);
     }
   };
 
@@ -1195,32 +1239,84 @@ const AssignTasksModal: React.FC<AssignTasksModalProps> = ({
               <p style={styles.noStaff}>Keine verfügbaren Aufgaben für diese Instanz.</p>
             ) : (
               <>
+                {/*
+                  Filter. "Ohne Zuweisung" ist der wichtigste Fall: beim
+                  Verteilen sucht man die Lücken, nicht das schon Vergebene.
+                */}
+                <div className="tv-toolbar" style={{ marginBottom: '0.75rem' }}>
+                  <button type="button" onClick={() => setFilter('alle')}
+                    className={filter === 'alle' ? 'tv-chip-active' : 'tv-chip'}>
+                    Alle {availableTasks.length}
+                  </button>
+                  <button type="button" onClick={() => setFilter('offen')}
+                    className={filter === 'offen' ? 'tv-chip-active' : 'tv-chip'}>
+                    Ohne Zuweisung {availableTasks.filter(t => !(zuweisungen[t.id]?.length)).length}
+                  </button>
+                  <span className="tv-label" style={{ marginLeft: '0.5rem' }}>Tage</span>
+                  <button type="button" onClick={() => setTagFilter('alle')}
+                    className={tagFilter === 'alle' ? 'tv-chip-active' : 'tv-chip'}>
+                    Alle
+                  </button>
+                  {Array.from(new Set(availableTasks.map(t => t.day_number))).sort((a: any, b: any) => a - b).map((tag: any) => (
+                    <button key={tag} type="button" onClick={() => setTagFilter(tag)}
+                      className={tagFilter === tag ? 'tv-chip-active' : 'tv-chip'}>
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+
                 <div style={{marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
                   <input
                     type="checkbox"
-                    checked={selectedTaskIds.length === availableTasks.length && availableTasks.length > 0}
+                    checked={sichtbareTasks.length > 0 && sichtbareTasks.every(t => selectedTaskIds.includes(t.id))}
                     onChange={handleSelectAll}
                     style={styles.checkbox}
                   />
                   <span style={{fontSize: '0.875rem', fontWeight: '500'}}>Alle auswählen</span>
                 </div>
                 <div style={{...styles.staffList, maxHeight: '300px'}}>
-                  {availableTasks.map((task) => (
+                  {sichtbareTasks.length === 0 && (
+                    <p style={styles.noStaff}>Keine Aufgabe passt zum Filter.</p>
+                  )}
+                  {sichtbareTasks.map((task) => (
                     <label key={task.id} style={{
                       ...styles.staffCheckbox,
+                      alignItems: 'flex-start',
                       backgroundColor: selectedTaskIds.includes(task.id) ? 'var(--c-accent-soft)' : 'transparent',
                     }}>
                       <input
                         type="checkbox"
                         checked={selectedTaskIds.includes(task.id)}
                         onChange={() => handleToggleTask(task.id)}
-                        style={styles.checkbox}
+                        style={{ ...styles.checkbox, marginTop: '0.125rem' }}
                       />
-                      <div>
+                      <div style={{ minWidth: 0 }}>
                         <div style={{fontWeight: '500'}}>{task.title}</div>
                         <div style={{fontSize: '0.875rem', color: 'var(--c-text-muted)'}}>
                           Tag {task.day_number}
                           {task.scheduled_time && ` - ${task.scheduled_time}`}
+                        </div>
+                        {/* Dieselben Badges wie in Tabellen- und Kartenansicht */}
+                        <div style={styles.zuweisungsZeile}>
+                          {(zuweisungen[task.id] || []).length === 0 ? (
+                            <span style={styles.nochNiemand}>noch niemand</span>
+                          ) : (
+                            zuweisungen[task.id].map((z, i) => (
+                              <span
+                                key={i}
+                                style={{
+                                  ...styles.zuweisungsBadge,
+                                  ...roleBadgeColors(z.role),
+                                  border: z.viaSeries
+                                    ? '1px dashed var(--c-accent-border)'
+                                    : '1px solid transparent',
+                                }}
+                                title={z.viaSeries ? 'Über die Serie zugewiesen' : 'Einzeln zugewiesen'}
+                              >
+                                {z.name}
+                              </span>
+                            ))
+                          )}
                         </div>
                       </div>
                     </label>
@@ -1543,6 +1639,23 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '1rem',
     cursor: 'pointer',
     fontWeight: '500',
+  },
+  zuweisungsZeile: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '0.25rem',
+    marginTop: '0.375rem',
+  },
+  zuweisungsBadge: {
+    padding: '0.125rem 0.5rem',
+    borderRadius: '9999px',
+    fontSize: '0.6875rem',
+    fontWeight: '500',
+  },
+  nochNiemand: {
+    fontSize: '0.6875rem',
+    fontStyle: 'italic',
+    color: 'var(--c-text-subtle)',
   },
   taskDisclosure: {
     marginBottom: '1.25rem',

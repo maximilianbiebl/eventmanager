@@ -76,6 +76,35 @@ export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvent }) =
     }
   };
 
+  /*
+   * Rollenwechsel. Zwei Rueckfragen, weil beide Richtungen weh tun koennen:
+   * eine Hochstufung gibt jemandem Zugriff auf alles, eine Herabstufung
+   * nimmt ihn womoeglich mitten in der Freizeit weg.
+   *
+   * Die eigene Rolle ist gesperrt - wer sich selbst herabstuft, sperrt sich
+   * aus der Verwaltung aus und kann es nicht rueckgaengig machen.
+   */
+  const handleRoleChange = async (u: User, neu: string) => {
+    if (neu === u.role) return;
+
+    if (u.id === me?.id) {
+      alert('Die eigene Rolle lässt sich nicht ändern - sonst sperrst du dich womöglich selbst aus.');
+      return;
+    }
+
+    const von = ROLE_NAMES[u.role] || u.role;
+    const nach = ROLE_NAMES[neu] || neu;
+    if (!confirm(`${u.name}: Rolle von "${von}" auf "${nach}" ändern?`)) return;
+
+    try {
+      await usersApi.update(u.id, { name: u.name, role: neu });
+      await loadUsers(false);
+    } catch (error: any) {
+      console.error('Change role error:', error);
+      alert(error.response?.data?.error || 'Fehler beim Ändern der Rolle');
+    }
+  };
+
   const handleResetPassword = async (userId: number, userName: string) => {
     const newPassword = prompt(`Neues Passwort für ${userName}:`);
     if (!newPassword) return;
@@ -328,6 +357,30 @@ export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvent }) =
               </td>
               <td style={styles.td}>{user.name}</td>
               <td style={styles.td}>
+                {/*
+                  Nur Admins duerfen Rollen vergeben - ein Teamleiter koennte
+                  sich sonst selbst hochstufen. Der Server lehnt das ohnehin
+                  ab, hier steht deshalb gar kein Auswahlfeld.
+                */}
+                {isAdmin ? (
+                  <select
+                    value={user.role}
+                    onChange={(e) => handleRoleChange(user, e.target.value)}
+                    style={{
+                      ...styles.roleSelect,
+                      ...(user.role === 'admin'
+                        ? styles.badgeAdmin
+                        : user.role === 'teamleiter'
+                        ? styles.badgeTeamleiter
+                        : styles.badgeStaff),
+                    }}
+                    aria-label={`Rolle von ${user.name}`}
+                  >
+                    <option value="staff">Mitarbeiter</option>
+                    <option value="teamleiter">Teamleiter</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                ) : (
                 <span style={
                   user.role === 'admin'
                     ? styles.badgeAdmin
@@ -337,6 +390,7 @@ export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvent }) =
                 }>
                   {ROLE_NAMES[user.role] || user.role}
                 </span>
+                )}
               </td>
               <td style={styles.td}>
                 {canEdit(user) || canDelete(user) ? (
@@ -383,6 +437,13 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: 'var(--c-text)',
     fontSize: '0.8125rem',
     fontFamily: 'inherit',
+  },
+  roleSelect: {
+    border: '1px solid transparent',
+    fontFamily: 'inherit',
+    cursor: 'pointer',
+    // Die Rollenfarbe kommt aus dem jeweiligen Badge-Stil daneben
+    appearance: 'auto',
   },
   noPermission: {
     color: 'var(--c-text-subtle)',

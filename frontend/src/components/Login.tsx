@@ -17,7 +17,7 @@ const loginFehler = (err: any): { text: string; hilfe?: string } => {
     if (status === 401) {
       return {
         text: 'Name oder Passwort stimmt nicht.',
-        hilfe: 'Achte auf Gross- und Kleinschreibung. Der Name ist der, den die Leitung angelegt hat.',
+        hilfe: 'Achte auf Gross- und Kleinschreibung.',
       };
     }
     if (status === 429) {

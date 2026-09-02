@@ -1054,3 +1054,33 @@
   font-weight: 600;
   white-space: nowrap;
 }
+
+/*
+ * Fehlerzustand der Detailansicht. Vorher gab es keinen: nach einem
+ * fehlgeschlagenen Laden rannte der Code in event.name und riss die Seite
+ * mit einem "Cannot read properties of null" komplett ab.
+ */
+.ladeFehler {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: flex-start;
+  padding: 1.5rem;
+  background-color:var(--c-surface);
+  border:1px solid var(--c-border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-md);
+}
+
+.ladeFehlerText {
+  margin: 0;
+  color:var(--c-text);
+  max-width: 46ch;
+  line-height: 1.5;
+}
+
+.ladeFehlerAktionen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}

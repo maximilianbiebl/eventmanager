@@ -311,12 +311,18 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: 700,
   },
   tabs: {
+    // Bei drei Reitern lief die Leiste an schmalen Geraeten seitlich raus -
+    // die Seite liess sich dann waagerecht schieben. Jetzt bricht sie um.
+    flexWrap: 'wrap',
     display: 'flex',
     gap: '0.5rem',
     marginBottom: '1.5rem',
   },
   tab: {
-    padding: '0.75rem 1.5rem',
+    padding: '0.75rem 1rem',
+    flex: '0 1 auto',
+    minWidth: 0,
+    whiteSpace: 'nowrap',
     backgroundColor: 'var(--c-surface)',
     border: '1px solid var(--c-border-strong)',
     borderRadius: '4px',
@@ -325,7 +331,10 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: 'var(--c-text)',
   },
   activeTab: {
-    padding: '0.75rem 1.5rem',
+    padding: '0.75rem 1rem',
+    flex: '0 1 auto',
+    minWidth: 0,
+    whiteSpace: 'nowrap',
     backgroundColor: 'var(--c-accent)',
     color: 'var(--c-text-inverse)',
     border: '1px solid var(--c-accent)',
