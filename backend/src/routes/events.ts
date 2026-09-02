@@ -77,11 +77,23 @@ router.get('/:id', authMiddleware, async (req, res) => {
       [id]
     );
 
+    // Teamleitung mitliefern - der Bearbeiten-Dialog muss wissen, wer schon
+    // eingetragen ist, um die Auswahl vorzubelegen.
+    const teamleiterResult = await query(
+      `SELECT u.id, u.name, u.role, et.is_primary
+       FROM event_teamleiter et
+       JOIN users u ON u.id = et.user_id
+       WHERE et.event_id = $1
+       ORDER BY et.is_primary DESC, u.name`,
+      [id]
+    );
+
     res.json({
       ...event,
       instances: instancesResult.rows,
       program_items: programResult.rows,
       tasks: tasksResult.rows,
+      teamleiter: teamleiterResult.rows,
     });
   } catch (error) {
     console.error('Get event error:', error);
@@ -182,7 +194,7 @@ router.post('/', authMiddleware, teamleiterOrAdminMiddleware, async (req: AuthRe
 router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
-    const { name, description, start_date, days, is_template } = req.body;
+    const { name, description, start_date, days, is_template, co_teamleiter_ids } = req.body;
 
     // Event prüfen
     const eventCheck = await query('SELECT * FROM events WHERE id = $1', [id]);
@@ -229,6 +241,50 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req: Auth
     }
 
     // Clients neu laden lassen, damit die Aufgaben die neuen Termine bekommen
+    /*
+     * Co-Teamleitung angleichen. Bisher liess sie sich nur beim Anlegen
+     * setzen - wer jemanden nachtragen wollte, musste die Veranstaltung neu
+     * erstellen.
+     *
+     * Die primaere Teamleitung (der Ersteller) wird dabei nie angetastet:
+     * sonst koennte sich jemand selbst die Zustaendigkeit entziehen und die
+     * Veranstaltung waere fuehrungslos.
+     */
+    if (Array.isArray(co_teamleiter_ids)) {
+      const gewuenscht = co_teamleiter_ids.map(Number).filter(Number.isInteger);
+
+      const bisher = await query(
+        'SELECT user_id FROM event_teamleiter WHERE event_id = $1 AND is_primary = false',
+        [id]
+      );
+      const bisherIds = bisher.rows.map((r: any) => r.user_id);
+
+      for (const userId of gewuenscht.filter(u => !bisherIds.includes(u))) {
+        await query(
+          `INSERT INTO event_teamleiter (event_id, user_id, is_primary) VALUES ($1, $2, false)
+           ON CONFLICT (event_id, user_id) DO NOTHING`,
+          [id, userId]
+        );
+        // Wie beim Anlegen: Co-Teamleitung gehoert auch in den Pool
+        await query(
+          `INSERT INTO event_staff (event_id, user_id) VALUES ($1, $2)
+           ON CONFLICT (event_id, user_id) DO NOTHING`,
+          [id, userId]
+        );
+      }
+
+      const entfernt = bisherIds.filter((u: number) => !gewuenscht.includes(u));
+      if (entfernt.length > 0) {
+        // Nur die Leitungsrolle nehmen - im Mitarbeiter-Pool und bei den
+        // Aufgaben bleibt die Person, sonst verschwinden stillschweigend
+        // Zuweisungen.
+        await query(
+          'DELETE FROM event_teamleiter WHERE event_id = $1 AND user_id = ANY($2) AND is_primary = false',
+          [id, entfernt]
+        );
+      }
+    }
+
     broadcastUpdate('event', { action: 'event_updated', eventId: Number(id) });
     broadcastUpdate('task', { action: 'event_dates_changed', eventId: Number(id) });
 

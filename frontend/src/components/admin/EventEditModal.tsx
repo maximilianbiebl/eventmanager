@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { eventsApi, Event } from '../../api/events';
+import { usersApi, User } from '../../api/users';
 import { useAuth } from '../../context/AuthContext';
 import { toDateInputValue } from '../../utils/date';
 
@@ -21,12 +22,48 @@ export const EventEditModal: React.FC<Props> = ({ event, onClose, onSuccess, onD
   const [loading, setLoading] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  /*
+   * Co-Teamleitung liess sich bisher nur beim Anlegen setzen - wer jemanden
+   * nachtragen wollte, musste die Veranstaltung neu erstellen. Gleiche
+   * Auswahl wie im Anlegen-Dialog, nur mit dem vorhandenen Stand vorbelegt.
+   */
+  const [teamleiter, setTeamleiter] = useState<User[]>([]);
+  const [coIds, setCoIds] = useState<number[]>([]);
+  const [primaryId, setPrimaryId] = useState<number | null>(null);
+
+  useEffect(() => {
+    const laden = async () => {
+      try {
+        const [alle, detail] = await Promise.all([
+          usersApi.getAll(),
+          eventsApi.getById(event.id),
+        ]);
+        const eingetragen: any[] = detail?.teamleiter || [];
+        const primary = eingetragen.find(t => t.is_primary);
+        setPrimaryId(primary ? primary.id : null);
+        setCoIds(eingetragen.filter(t => !t.is_primary).map(t => t.id));
+        // Zur Auswahl stehen Teamleitung und Admins - ausser der primären,
+        // die lässt sich hier nicht abwählen.
+        setTeamleiter(alle.filter(u =>
+          (u.role === 'teamleiter' || u.role === 'admin') && u.id !== (primary ? primary.id : null)
+        ));
+      } catch (error) {
+        console.error('Load teamleiter error:', error);
+      }
+    };
+    laden();
+  }, [event.id]);
+
+  const toggleCo = (id: number) => {
+    setCoIds(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      await eventsApi.update(event.id, formData);
+      await eventsApi.update(event.id, { ...formData, co_teamleiter_ids: coIds } as any);
       onSuccess();
     } catch (error) {
       console.error('Update event error:', error);
@@ -118,6 +155,30 @@ export const EventEditModal: React.FC<Props> = ({ event, onClose, onSuccess, onD
             </div>
           )}
 
+          {teamleiter.length > 0 && (
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Co-Teamleitung</label>
+              <div style={styles.checkboxGroup}>
+                {teamleiter.map(tl => (
+                  <label key={tl.id} style={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={coIds.includes(tl.id)}
+                      onChange={() => toggleCo(tl.id)}
+                      style={styles.checkbox}
+                    />
+                    <span>{tl.name} ({tl.role === 'admin' ? 'Admin' : 'Teamleiter'})</span>
+                  </label>
+                ))}
+              </div>
+              <p style={styles.hint}>
+                Wer den Haken verliert, bleibt im Mitarbeiter-Pool und behält seine
+                Aufgaben - nur die Leitungsrolle fällt weg.
+                {primaryId !== null && ' Die verantwortliche Teamleitung lässt sich hier nicht ändern.'}
+              </p>
+            </div>
+          )}
+
           {showDeleteConfirm ? (
             <div style={styles.deleteConfirmBox}>
               <p style={styles.deleteWarning}>
@@ -178,6 +239,35 @@ export const EventEditModal: React.FC<Props> = ({ event, onClose, onSuccess, onD
 };
 
 const styles: { [key: string]: React.CSSProperties } = {
+  checkboxGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.375rem',
+    maxHeight: '10rem',
+    overflowY: 'auto',
+    padding: '0.5rem 0.625rem',
+    border: '1px solid var(--c-border)',
+    borderRadius: '6px',
+    backgroundColor: 'var(--c-surface-muted)',
+  },
+  checkboxLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    fontSize: '0.875rem',
+    cursor: 'pointer',
+  },
+  checkbox: {
+    width: '16px',
+    height: '16px',
+    cursor: 'pointer',
+  },
+  hint: {
+    marginTop: '0.375rem',
+    fontSize: '0.75rem',
+    color: 'var(--c-text-muted)',
+    lineHeight: 1.4,
+  },
   overlay: {
     position: 'fixed',
     top: 0,

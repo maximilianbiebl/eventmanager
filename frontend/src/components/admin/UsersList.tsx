@@ -188,7 +188,7 @@ export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvent }) =
       {previousEventId && (
         <div style={styles.topBar}>
           <button onClick={() => onBackToEvent(previousEventId)} style={styles.backButton}>
-            ← Zurück zur Veranstaltung
+            Zurück zur Veranstaltung
           </button>
         </div>
       )}

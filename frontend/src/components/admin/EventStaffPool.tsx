@@ -109,8 +109,15 @@ export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
         }
       }
 
-      // Nur Mitarbeiter anzeigen
-      const staffOnly = allUsers.filter(u => u.role === 'staff');
+      /*
+       * Alle Rollen zur Auswahl, nicht nur "staff".
+       *
+       * Teamleitung und Admins packen auf einer Freizeit genauso mit an -
+       * sie liessen sich aber gar nicht in den Pool aufnehmen und konnten
+       * damit auch keine Aufgaben bekommen. Die Rollenfarbe des Badges
+       * zeigt, wer wer ist.
+       */
+      const staffOnly = allUsers;
 
       // Markiere welche bereits im Pool sind und füge Task-Count hinzu
       const eventStaffIds = new Set(eventUsers.map((u: User) => u.id));
