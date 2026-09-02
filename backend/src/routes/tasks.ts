@@ -3,6 +3,10 @@ import { query } from '../database/connection';
 import { authMiddleware, teamleiterOrAdminMiddleware, AuthRequest } from '../middleware/auth';
 import { CreateTaskRequest, AssignTaskRequest } from '../types';
 import { broadcastUpdate } from './sse';
+import {
+  eventZugriff, eventIdVonTask, eventIdVonInstanz, eventIdVonZuweisung, eventIdVonSerie,
+  darfEventVerwalten,
+} from '../middleware/eventAccess';
 import multer from 'multer';
 
 const router = Router();
@@ -16,7 +20,7 @@ function formatTime(time: string | null): string {
 }
 
 // Alle Aufgaben für ein Event abrufen
-router.get('/event/:eventId', authMiddleware, async (req, res) => {
+router.get('/event/:eventId', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req => req.params.eventId), async (req, res) => {
   try {
     const { eventId } = req.params;
     const { includeInactive } = req.query;
@@ -43,7 +47,7 @@ router.get('/event/:eventId', authMiddleware, async (req, res) => {
 });
 
 // Aufgaben mit Zuordnungen für Event-Instanz (für Admin-Tabelle)
-router.get('/instance/:instanceId/assignments', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+router.get('/instance/:instanceId/assignments', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req => eventIdVonInstanz(req.params.instanceId)), async (req, res) => {
   try {
     const { instanceId } = req.params;
 
@@ -79,7 +83,7 @@ router.get('/instance/:instanceId/assignments', authMiddleware, teamleiterOrAdmi
 });
 
 // Alle Assignments für ein Event abrufen (für Admin)
-router.get('/event/:eventId/all-assignments', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+router.get('/event/:eventId/all-assignments', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req => req.params.eventId), async (req, res) => {
   try {
     const { eventId } = req.params;
 
@@ -211,7 +215,7 @@ router.get('/my-tasks', authMiddleware, async (req: AuthRequest, res) => {
 });
 
 // Alle Aufgaben-Zuweisungen für einen User in einem Event (für Admin)
-router.get('/event/:eventId/user/:userId/assignments', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+router.get('/event/:eventId/user/:userId/assignments', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req => req.params.eventId), async (req, res) => {
   try {
     const { eventId, userId } = req.params;
 
@@ -241,7 +245,7 @@ router.get('/event/:eventId/user/:userId/assignments', authMiddleware, teamleite
 });
 
 // Aufgabe erstellen
-router.post('/', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+router.post('/', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req => req.body.event_id), async (req, res) => {
   try {
     const {
       event_id,
@@ -371,7 +375,7 @@ router.post('/', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) =
 });
 
 // Aufgabe zuweisen
-router.post('/assign', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+router.post('/assign', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req => eventIdVonTask(req.body.task_id)), async (req, res) => {
   try {
     const { task_id, event_instance_id, user_ids, reminder_minutes } = req.body;
 
@@ -423,7 +427,7 @@ router.post('/assign', authMiddleware, teamleiterOrAdminMiddleware, async (req, 
 });
 
 // Einzelne Zuweisung entfernen
-router.delete('/assignment/:assignmentId', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+router.delete('/assignment/:assignmentId', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req => eventIdVonZuweisung(req.params.assignmentId)), async (req, res) => {
   try {
     const { assignmentId } = req.params;
 
@@ -1286,7 +1290,7 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
 });
 
 // Aufgabe aktualisieren
-router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req: AuthRequest, res) => {
+router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req => eventIdVonTask(req.params.id)), async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
 
@@ -1540,7 +1544,7 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req: Auth
 });
 
 // Aufgabe löschen
-router.delete('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+router.delete('/:id', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req => eventIdVonTask(req.params.id)), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -1562,7 +1566,7 @@ router.delete('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req, r
 });
 
 // Aufgabenstatus für Event-Instanz abrufen (für Admin)
-router.get('/status/:instanceId', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+router.get('/status/:instanceId', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req => eventIdVonInstanz(req.params.instanceId)), async (req, res) => {
   try {
     const { instanceId } = req.params;
 
@@ -1590,7 +1594,7 @@ router.get('/status/:instanceId', authMiddleware, teamleiterOrAdminMiddleware, a
 });
 
 // Aufgabe deaktivieren (Admin only)
-router.put('/:id/deactivate', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+router.put('/:id/deactivate', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req => eventIdVonTask(req.params.id)), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -1614,7 +1618,7 @@ router.put('/:id/deactivate', authMiddleware, teamleiterOrAdminMiddleware, async
 });
 
 // Aufgabe aktivieren (Admin only)
-router.put('/:id/activate', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+router.put('/:id/activate', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req => eventIdVonTask(req.params.id)), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -1638,7 +1642,7 @@ router.put('/:id/activate', authMiddleware, teamleiterOrAdminMiddleware, async (
 });
 
 // Aufgabe nach oben verschieben (Admin only)
-router.put('/:id/move-up', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+router.put('/:id/move-up', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req => eventIdVonTask(req.params.id)), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -1678,7 +1682,7 @@ router.put('/:id/move-up', authMiddleware, teamleiterOrAdminMiddleware, async (r
 });
 
 // Aufgabe nach unten verschieben (Admin only)
-router.put('/:id/move-down', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+router.put('/:id/move-down', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req => eventIdVonTask(req.params.id)), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -1718,7 +1722,7 @@ router.put('/:id/move-down', authMiddleware, teamleiterOrAdminMiddleware, async 
 });
 
 // Bulk Delete Tasks
-router.post('/event/:eventId/bulk-delete', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+router.post('/event/:eventId/bulk-delete', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req => req.params.eventId), async (req, res) => {
   try {
     const { eventId } = req.params;
     const { task_ids } = req.body;
@@ -1740,7 +1744,7 @@ router.post('/event/:eventId/bulk-delete', authMiddleware, teamleiterOrAdminMidd
 });
 
 // Bulk Assign Tasks
-router.post('/instance/:instanceId/bulk-assign', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+router.post('/instance/:instanceId/bulk-assign', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req => eventIdVonInstanz(req.params.instanceId)), async (req, res) => {
   try {
     const { instanceId } = req.params;
     const { task_ids, user_ids } = req.body;
@@ -1783,7 +1787,7 @@ router.post('/instance/:instanceId/bulk-assign', authMiddleware, teamleiterOrAdm
 });
 
 // CSV Export Tasks
-router.post('/event/:eventId/export-csv', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+router.post('/event/:eventId/export-csv', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req => req.params.eventId), async (req, res) => {
   try {
     const { eventId } = req.params;
     const { task_ids } = req.body;
@@ -1818,7 +1822,7 @@ router.post('/event/:eventId/export-csv', authMiddleware, teamleiterOrAdminMiddl
 });
 
 // CSV Import Tasks
-router.post('/event/:eventId/import-csv', authMiddleware, teamleiterOrAdminMiddleware, upload.single('file'), async (req, res) => {
+router.post('/event/:eventId/import-csv', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req => req.params.eventId), upload.single('file'), async (req, res) => {
   try {
     const { eventId } = req.params;
 
@@ -1920,7 +1924,7 @@ router.post('/bulk-remove-assignments', authMiddleware, teamleiterOrAdminMiddlew
 });
 
 // Replace Staff Member (reassign all tasks)
-router.post('/replace-staff/:eventId', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+router.post('/replace-staff/:eventId', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req => req.params.eventId), async (req, res) => {
   try {
     const { eventId } = req.params;
     const { old_user_id, new_user_id } = req.body;
@@ -1978,7 +1982,7 @@ router.post('/replace-staff/:eventId', authMiddleware, teamleiterOrAdminMiddlewa
 // ===== TASK SERIES ROUTES =====
 
 // Get all task series for an event
-router.get('/task-series/event/:eventId', authMiddleware, async (req, res) => {
+router.get('/task-series/event/:eventId', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req => req.params.eventId), async (req, res) => {
   try {
     const { eventId } = req.params;
 
@@ -2000,7 +2004,7 @@ router.get('/task-series/event/:eventId', authMiddleware, async (req, res) => {
 });
 
 // Get a single task series with details
-router.get('/task-series/:seriesId', authMiddleware, async (req, res) => {
+router.get('/task-series/:seriesId', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req => eventIdVonSerie(req.params.seriesId)), async (req, res) => {
   try {
     const { seriesId } = req.params;
     console.log('Getting task series details for seriesId:', seriesId);
@@ -2051,7 +2055,7 @@ router.get('/task-series/:seriesId', authMiddleware, async (req, res) => {
 });
 
 // Create a new task series
-router.post('/task-series', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+router.post('/task-series', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req => req.body.event_id), async (req, res) => {
   try {
     const { event_id, name, description, member_ids } = req.body;
     console.log('Creating task series:', { event_id, name, description, member_ids });
@@ -2098,7 +2102,7 @@ router.post('/task-series', authMiddleware, teamleiterOrAdminMiddleware, async (
 });
 
 // Update a task series
-router.put('/task-series/:seriesId', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+router.put('/task-series/:seriesId', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req => eventIdVonSerie(req.params.seriesId)), async (req, res) => {
   try {
     const { seriesId } = req.params;
     const { name, description } = req.body;
@@ -2122,7 +2126,7 @@ router.put('/task-series/:seriesId', authMiddleware, teamleiterOrAdminMiddleware
 });
 
 // Delete a task series
-router.delete('/task-series/:seriesId', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+router.delete('/task-series/:seriesId', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req => eventIdVonSerie(req.params.seriesId)), async (req, res) => {
   try {
     const { seriesId } = req.params;
 
@@ -2191,7 +2195,7 @@ router.delete('/task-series/:seriesId', authMiddleware, teamleiterOrAdminMiddlew
 });
 
 // Get members of a task series
-router.get('/task-series/:seriesId/members', authMiddleware, async (req, res) => {
+router.get('/task-series/:seriesId/members', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req => eventIdVonSerie(req.params.seriesId)), async (req, res) => {
   try {
     const { seriesId } = req.params;
 
@@ -2220,7 +2224,7 @@ router.get('/task-series/:seriesId/members', authMiddleware, async (req, res) =>
 });
 
 // Add members to a task series
-router.post('/task-series/:seriesId/members', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+router.post('/task-series/:seriesId/members', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req => eventIdVonSerie(req.params.seriesId)), async (req, res) => {
   try {
     const { seriesId } = req.params;
     const { user_ids } = req.body;
@@ -2253,7 +2257,7 @@ router.post('/task-series/:seriesId/members', authMiddleware, teamleiterOrAdminM
 });
 
 // Remove a member from a task series
-router.delete('/task-series/:seriesId/members/:userId', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+router.delete('/task-series/:seriesId/members/:userId', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req => eventIdVonSerie(req.params.seriesId)), async (req, res) => {
   try {
     const { seriesId, userId } = req.params;
 
@@ -2275,7 +2279,7 @@ router.delete('/task-series/:seriesId/members/:userId', authMiddleware, teamleit
 });
 
 // Update series members for all tasks in the series (bulk assign)
-router.post('/task-series/:seriesId/assign-to-instance', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+router.post('/task-series/:seriesId/assign-to-instance', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req => eventIdVonSerie(req.params.seriesId)), async (req, res) => {
   try {
     const { seriesId } = req.params;
     const { event_instance_id } = req.body;

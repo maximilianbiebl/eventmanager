@@ -3,6 +3,7 @@ import { query } from '../database/connection';
 import { authMiddleware, adminMiddleware, teamleiterOrAdminMiddleware, AuthRequest } from '../middleware/auth';
 import { CreateEventRequest } from '../types';
 import { broadcastUpdate } from './sse';
+import { darfEventVerwalten } from '../middleware/eventAccess';
 import multer from 'multer';
 
 const router = Router();
@@ -25,12 +26,19 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
         ORDER BY e.is_template DESC, e.start_date DESC
       `);
     } else if (userRole === 'teamleiter') {
-      // Teamleiter sieht nur Vorlagen und eigene Events
+      /*
+       * Vorlagen, eigene Veranstaltungen - und die, bei denen man als
+       * Co-Teamleitung eingetragen ist. Letztere fehlten: man konnte
+       * jemanden zur Mitleitung machen, bei ihm tauchte die Veranstaltung
+       * aber nirgends auf. Die Rolle war damit ein reiner
+       * Benachrichtigungs-Verteiler.
+       */
       result = await query(`
-        SELECT e.*, u.name as creator_name
+        SELECT DISTINCT e.*, u.name as creator_name
         FROM events e
         LEFT JOIN users u ON e.created_by = u.id
-        WHERE e.is_template = true OR e.created_by = $1
+        LEFT JOIN event_teamleiter et ON et.event_id = e.id AND et.user_id = $1
+        WHERE e.is_template = true OR e.created_by = $1 OR et.user_id IS NOT NULL
         ORDER BY e.is_template DESC, e.start_date DESC
       `, [userId]);
     } else {
@@ -46,7 +54,13 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
 });
 
 // Event mit Details abrufen
-router.get('/:id', authMiddleware, async (req, res) => {
+/*
+ * Detailabruf war fuer JEDEN Angemeldeten offen - auch fuer Mitarbeiter und
+ * fremde Teamleitungen, samt aller Aufgaben und Programmpunkte. Jetzt nur
+ * noch fuer Zustaendige; der Mitarbeiterbereich braucht diese Route nicht,
+ * er laeuft ueber /tasks/my-tasks.
+ */
+router.get('/:id', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
 
@@ -55,6 +69,10 @@ router.get('/:id', authMiddleware, async (req, res) => {
 
     if (eventResult.rows.length === 0) {
       return res.status(404).json({ error: 'Event nicht gefunden' });
+    }
+
+    if (!(await darfEventVerwalten(req.user!, id))) {
+      return res.status(403).json({ error: 'Keine Berechtigung für diese Veranstaltung' });
     }
 
     const event = eventResult.rows[0];
