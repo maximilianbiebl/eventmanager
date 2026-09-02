@@ -16,7 +16,16 @@ import {
   queueLength, istNetzfehler,
 } from '../utils/offlineStore';
 
-export const StaffDashboard: React.FC = () => {
+interface Props {
+  /*
+   * Eingebettet im Admin-Bereich: dort gibt es Kopfzeile, Menü und
+   * Abmelden schon - die eigene Kopfzeile würde sie doppeln. Der
+   * Offline-Hinweis bleibt trotzdem sichtbar, er gehört zum Inhalt.
+   */
+  embedded?: boolean;
+}
+
+export const StaffDashboard: React.FC<Props> = ({ embedded = false }) => {
   const [tasks, setTasks] = useState<TaskAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
@@ -533,37 +542,38 @@ export const StaffDashboard: React.FC = () => {
     return <div className={styles.loading}>Lade Aufgaben...</div>;
   }
 
+  /*
+   * Offline-Zustand als Badge. Die Uhrzeit bleibt drin: "offline" allein
+   * sagt nicht, ob die Daten von vor fünf Minuten oder von gestern sind.
+   */
+  const offlineBadge = (offline || ausstehend.size > 0) ? (
+    <div className={styles.offlineBadge} role="status" title={offlineTitel}>
+      {offline && <span className={styles.offlineDot} aria-hidden="true" />}
+      <span>
+        {offline
+          ? standVon
+            ? `Offline · Stand ${new Date(standVon).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`
+            : 'Offline'
+          : `${ausstehend.size} wird gesendet`}
+      </span>
+      {offline && ausstehend.size > 0 && (
+        <span className={styles.offlineCount}>{ausstehend.size}</span>
+      )}
+    </div>
+  ) : null;
+
   return (
-    <div className={styles.container}>
+    <div className={embedded ? styles.embeddedContainer : styles.container}>
+      {embedded ? (
+        offlineBadge && <div className={styles.offlineRow}>{offlineBadge}</div>
+      ) : (
       <div className={styles.header}>
         <div className={styles.headerContent}>
           <h1 className={styles.title}>Meine Aufgaben</h1>
           <p className={styles.subtitle}>Willkommen, {user?.name}!</p>
         </div>
 
-        {/*
-          Offline-Zustand als Badge in der Kopfzeile statt als eigener
-          Balken - der nahm eine ganze Zeile für zwei Wörter. Die Uhrzeit
-          bleibt drin: "offline" allein sagt nicht, ob die Daten von vor
-          fünf Minuten oder von gestern sind.
-        */}
-        {(offline || ausstehend.size > 0) && (
-          <div className={styles.offlineBadge} role="status" title={offlineTitel}>
-            {offline && (
-              <span className={styles.offlineDot} aria-hidden="true" />
-            )}
-            <span>
-              {offline
-                ? standVon
-                  ? `Offline · Stand ${new Date(standVon).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`
-                  : 'Offline'
-                : `${ausstehend.size} wird gesendet`}
-            </span>
-            {offline && ausstehend.size > 0 && (
-              <span className={styles.offlineCount}>{ausstehend.size}</span>
-            )}
-          </div>
-        )}
+        {offlineBadge}
 
         {/* Desktop buttons */}
         <div className={styles.headerButtons}>
@@ -632,6 +642,7 @@ export const StaffDashboard: React.FC = () => {
           )}
         </div>
       </div>
+      )}
 
       {/* Benachrichtigungen - Banner nur wenn nicht aktiviert */}
       {notifications.isSupported && !notifications.isSubscribed && (

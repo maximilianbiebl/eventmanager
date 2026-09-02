@@ -4,16 +4,18 @@ import { EventsList } from './EventsList';
 import { UsersList } from './UsersList';
 import { ChangePasswordDialog } from './ChangePasswordDialog';
 import { StaffSettings } from '../StaffSettings';
+import { StaffDashboard } from '../StaffDashboard';
+import { tasksApi } from '../../api/tasks';
 import { ThemeSwitch } from '../ThemeSwitch';
 import responsiveStyles from './AdminDashboard.module.css';
 
-type Tab = 'events' | 'users';
+type Tab = 'events' | 'users' | 'mytasks';
 
 export const AdminDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     // Load last active tab from localStorage
     const saved = localStorage.getItem('adminActiveTab');
-    return (saved === 'events' || saved === 'users') ? saved : 'events';
+    return (saved === 'events' || saved === 'users' || saved === 'mytasks') ? saved : 'events';
   });
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -21,6 +23,33 @@ export const AdminDashboard: React.FC = () => {
   const [refreshKey, setRefreshKey] = useState(0); // Zum Zurücksetzen der Listen
   const [previousEventId, setPreviousEventId] = useState<number | null>(null);
   const { user, logout } = useAuth();
+
+  /*
+   * Auch Teamleitung und Admins koennen einer Veranstaltung zugewiesen sein
+   * und Aufgaben bekommen - Teamleitung teilt sich ja selbst mit ein. Ihre
+   * eigenen Aufgaben sahen sie bisher nirgends: "Meine Aufgaben" gibt es nur
+   * im Mitarbeiterbereich, und dorthin fuehrt die Rolle nicht.
+   *
+   * Der Reiter erscheint nur, wenn es tatsaechlich eigene Aufgaben gibt -
+   * wer nie zugewiesen wird, soll keinen leeren Reiter mitschleppen. Beim
+   * Wechsel auf 0 bleibt er stehen, solange er offen ist, sonst wuerde die
+   * Ansicht unter den Fuessen verschwinden.
+   */
+  const [eigeneAufgaben, setEigeneAufgaben] = useState(0);
+
+  React.useEffect(() => {
+    let abgebrochen = false;
+    tasksApi.getMyTasks()
+      .then(tasks => {
+        if (!abgebrochen) {
+          setEigeneAufgaben(tasks.filter(t => t.status !== 'completed').length);
+        }
+      })
+      .catch(() => undefined);
+    return () => { abgebrochen = true; };
+  }, [refreshKey]);
+
+  const zeigeEigene = eigeneAufgaben > 0 || activeTab === 'mytasks';
 
   const handleTabClick = (tab: Tab) => {
     // Wenn zu Mitarbeiter gewechselt wird, Event-ID merken (falls vorhanden)
@@ -162,6 +191,15 @@ export const AdminDashboard: React.FC = () => {
         >
           Mitarbeiter
         </button>
+        {zeigeEigene && (
+          <button
+            onClick={() => handleTabClick('mytasks')}
+            style={activeTab === 'mytasks' ? styles.activeTab : styles.tab}
+          >
+            Meine Aufgaben
+            {eigeneAufgaben > 0 && <span style={styles.tabCount}>{eigeneAufgaben}</span>}
+          </button>
+        )}
       </div>
 
       <div style={styles.content}>
@@ -173,6 +211,7 @@ export const AdminDashboard: React.FC = () => {
             onBackToEvent={handleBackToEvent}
           />
         )}
+        {activeTab === 'mytasks' && <StaffDashboard embedded />}
       </div>
 
       {showChangePassword && <ChangePasswordDialog onClose={() => setShowChangePassword(false)} />}
@@ -261,6 +300,15 @@ const styles: { [key: string]: React.CSSProperties } = {
     cursor: 'pointer',
     fontSize: '1rem',
     color: 'var(--c-danger-text)',
+  },
+  tabCount: {
+    marginLeft: '0.4375rem',
+    padding: '0.0625rem 0.375rem',
+    borderRadius: '9999px',
+    backgroundColor: 'var(--c-accent-soft)',
+    color: 'var(--c-accent-text)',
+    fontSize: '0.75rem',
+    fontWeight: 700,
   },
   tabs: {
     display: 'flex',

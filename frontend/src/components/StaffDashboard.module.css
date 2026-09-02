@@ -223,6 +223,17 @@
  * Offline-Zustand als Badge in der Kopfzeile. Vorher ein eigener Balken -
  * der nahm eine ganze Zeile fuer zwei Woerter.
  */
+/* Eingebettet im Admin-Bereich: die Kopfzeile stellt der Rahmen. */
+.embeddedContainer {
+  display: block;
+}
+
+.offlineRow {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.75rem;
+}
+
 .offlineBadge {
   display: inline-flex;
   align-items: center;
