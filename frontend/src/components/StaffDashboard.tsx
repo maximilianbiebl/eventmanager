@@ -818,29 +818,21 @@ export const StaffDashboard: React.FC<Props> = ({ embedded = false }) => {
       <div className={styles.filterBar}>
         {filteredTasks.length > 0 && (
           <>
-            {/*
-              Mit Anzahl. Ohne sie war nicht zu sehen, dass hinter den
-              anderen Tagen noch etwas liegt - wer heute nichts mehr offen
-              hat, hielt seine erledigten Aufgaben von gestern fuer
-              verschwunden. Die Zahl macht sichtbar, dass nur der Tag
-              gewaehlt ist.
-            */}
             <span className={styles.groupLabel}>Tage</span>
             <div className={styles.dayTabsContainer}>
               <button
                 onClick={() => handleDayChange('all')}
                 className={selectedDay === 'all' ? styles.dayTabActive : styles.dayTab}
               >
-                Alle <span className={styles.dayCount}>{filteredTasks.length}</span>
+                Alle
               </button>
               {Array.from(new Set(filteredTasks.map(t => t.day_number))).sort((a, b) => a - b).map(day => (
                 <button
                   key={day}
                   onClick={() => handleDayChange(day)}
                   className={selectedDay === day ? styles.dayTabActive : styles.dayTab}
-                  title={`Tag ${day}`}
                 >
-                  {day} <span className={styles.dayCount}>{filteredTasks.filter(t => t.day_number === day).length}</span>
+                  {day}
                 </button>
               ))}
             </div>

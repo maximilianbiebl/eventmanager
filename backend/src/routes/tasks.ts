@@ -161,6 +161,24 @@ const MITARBEITER_DER_AUFGABE = (instanzSpalte: string) => `(
     AND ta2.user_id <> $1
 )`;
 
+/*
+ * Wie lange eine beendete Veranstaltung noch unter "Meine Aufgaben" steht.
+ *
+ * Vorher galten zwei verschiedene Regeln in derselben Liste: oeffentliche
+ * Aufgaben verschwanden sieben Tage nach dem Start, zugewiesene NIE. Wer
+ * seit Jahren dabei ist, schleppte jede alte Freizeit mit sich herum.
+ *
+ * Gerechnet wird ab dem ENDE (Startdatum + Dauer), nicht ab dem Start -
+ * sonst wuerde eine zweiwoechige Freizeit schon waehrend ihrer letzten Tage
+ * ausgeblendet. Instanzen ohne Datum bleiben stehen: bei ihnen laesst sich
+ * nichts entscheiden, und Wegnehmen waere der schlimmere Fehler.
+ */
+const NACHLAUF_TAGE = 30;
+const NOCH_AKTUELL = `(
+  ei.start_date IS NULL
+  OR ei.start_date + (GREATEST(COALESCE(e.days, 1), 1) - 1) >= CURRENT_DATE - ${NACHLAUF_TAGE}
+)`;
+
 // Alle eigenen Aufgaben abrufen (zugewiesene + öffentliche)
 router.get('/my-tasks', authMiddleware, async (req: AuthRequest, res) => {
   try {
@@ -188,6 +206,7 @@ router.get('/my-tasks', authMiddleware, async (req: AuthRequest, res) => {
        LEFT JOIN program_items pi ON t.program_item_id = pi.id
        WHERE ta.user_id = $1
          AND (t.is_active IS NULL OR t.is_active = true)
+         AND ${NOCH_AKTUELL}
        ORDER BY ei.start_date, t.day_number, t.scheduled_time`,
       [userId]
     );
@@ -214,7 +233,7 @@ router.get('/my-tasks', authMiddleware, async (req: AuthRequest, res) => {
        WHERE es.user_id = $1
          AND t.is_public = true
          AND (t.is_active IS NULL OR t.is_active = true)
-         AND ei.start_date >= CURRENT_DATE - INTERVAL '7 days'
+         AND ${NOCH_AKTUELL}
          AND NOT EXISTS (
            SELECT 1 FROM task_assignments ta2
            WHERE ta2.task_id = t.id AND ta2.user_id = $1 AND ta2.event_instance_id = ei.id

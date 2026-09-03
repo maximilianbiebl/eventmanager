@@ -408,29 +408,6 @@
   transition: all 0.15s ease;
 }
 
-/*
- * Anzahl der Aufgaben am Tag - als kleine Plakette wie beim Reiter "Meine
- * Aufgaben". Als blosse Ziffer stand hinter der Tagesnummer eine zweite
- * Zahl ("2 2"), und niemand haette gewusst, welche was bedeutet.
- */
-.dayCount {
-  display: inline-block;
-  margin-left: 0.375rem;
-  padding: 0 0.3125rem;
-  border-radius: 9999px;
-  background-color:var(--c-accent-soft);
-  color:var(--c-accent-text);
-  font-size: 0.6875rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Auf dem gefuellten Chip braucht die Plakette einen eigenen Untergrund. */
-.dayTabActive .dayCount {
-  background-color: rgba(255, 255, 255, 0.28);
-  color: inherit;
-}
-
 .dayTab {
   background-color: transparent;
   color:var(--c-text-muted);
