@@ -146,9 +146,14 @@ router.get('/my-tasks/:instanceId', authMiddleware, async (req: AuthRequest, res
  * Name waere nur eine Zeile Laerm.
  *
  * $1 ist in beiden Abfragen die eigene Benutzer-ID.
+ *
+ * jsonb, nicht json: die Abfrage der oeffentlichen Aufgaben benutzt
+ * SELECT DISTINCT, und fuer json kennt Postgres keinen Vergleich
+ * ("could not identify an equality operator for type json") - die ganze
+ * Abfrage bricht dann ab. jsonb hat einen.
  */
 const MITARBEITER_DER_AUFGABE = (instanzSpalte: string) => `(
-  SELECT COALESCE(json_agg(u2.name ORDER BY u2.name), '[]'::json)
+  SELECT COALESCE(jsonb_agg(u2.name ORDER BY u2.name), '[]'::jsonb)
   FROM task_assignments ta2
   JOIN users u2 ON u2.id = ta2.user_id
   WHERE ta2.task_id = t.id

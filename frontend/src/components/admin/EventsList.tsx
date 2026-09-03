@@ -310,7 +310,7 @@ export const EventsList: React.FC = () => {
       if (mitleitung.length > 0) {
         tabs.push({
           id: 'co-lead',
-          label: 'Mitleitung',
+          label: 'Co-Leitung',
           count: mitleitung.length,
         });
       }

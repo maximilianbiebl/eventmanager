@@ -295,3 +295,17 @@ button:focus:not(:focus-visible) {
     scroll-behavior: auto !important;
   }
 }
+
+/* --- Mitarbeiter-Pool ----------------------------------------------------- */
+
+/*
+ * Auf schmalen Geraeten bleibt vom Knopf nur das Pluszeichen. Sonst passt
+ * er nicht neben "Mitarbeiter-Pool", Anzahl und Fragezeichen und rutscht in
+ * eine zweite Zeile. Der Klartext bleibt als Titel und fuer Vorleseprogramme
+ * erhalten.
+ */
+@media (max-width: 480px) {
+  .pool-add-label {
+    display: none;
+  }
+}

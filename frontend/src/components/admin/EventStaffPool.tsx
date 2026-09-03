@@ -327,8 +327,19 @@ export const EventStaffPool: React.FC<Props> = ({ eventId, leitung }) => {
           </span>
         </button>
         {expanded && (
-          <button onClick={() => setShowAddModal(true)} style={styles.addButton}>
-            Mitarbeiter hinzufügen
+          /*
+            Kurz beschriftet: "Mitarbeiter hinzufügen" passte neben
+            "Mitarbeiter-Pool", Anzahl und Fragezeichen nicht mehr in die
+            Zeile und rutschte darunter. Ueber der Ueberschrift steht
+            ohnehin, worum es geht.
+          */
+          <button
+            onClick={() => setShowAddModal(true)}
+            style={styles.addButton}
+            title="Mitarbeiter zum Pool hinzufügen"
+            aria-label="Mitarbeiter zum Pool hinzufügen"
+          >
+            +<span className="pool-add-label"> Hinzufügen</span>
           </button>
         )}
       </div>

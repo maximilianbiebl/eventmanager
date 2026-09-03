@@ -247,9 +247,29 @@ export const StaffDashboard: React.FC<Props> = ({ embedded = false }) => {
    * Stand (die Handler haben schon optimistisch gesetzt), die Karte bekommt
    * zusätzlich den Hinweis "wird gesendet".
    */
+  /*
+   * "Stand 18:42" allein ist irrefuehrend, sobald der Stand vom Vortag ist -
+   * auf einer Freizeit sind die Aufgaben von gestern die falschen. Ist der
+   * Zeitpunkt nicht von heute, steht der Tag mit dabei.
+   */
+  const standText = (ms: number): string => {
+    const d = new Date(ms);
+    const uhr = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+
+    const tag = new Date(d);
+    tag.setHours(0, 0, 0, 0);
+    const heute = new Date();
+    heute.setHours(0, 0, 0, 0);
+    const tageHer = Math.round((heute.getTime() - tag.getTime()) / 86400000);
+
+    if (tageHer <= 0) return uhr;
+    if (tageHer === 1) return `gestern ${uhr}`;
+    return `${d.toLocaleDateString('de-DE', { day: 'numeric', month: 'numeric' })} ${uhr}`;
+  };
+
   const offlineTitel = [
     offline && standVon
-      ? `Keine Verbindung. Angezeigt wird der Stand von ${new Date(standVon).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr.`
+      ? `Keine Verbindung. Angezeigt wird der Stand von ${standText(standVon)} Uhr.`
       : offline
         ? 'Keine Verbindung.'
         : '',
@@ -597,7 +617,7 @@ export const StaffDashboard: React.FC<Props> = ({ embedded = false }) => {
               {/* "· Stand" faellt auf schmalen Geraeten weg, damit der Badge
                   in der Kopfzeile bleibt, ohne den Titel zu quetschen. */}
               <span className={styles.offlineStand}> · Stand</span>{' '}
-              {new Date(standVon).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
+              {standText(standVon)}
             </>
           ) : (
             'Offline'
