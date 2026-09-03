@@ -18,7 +18,7 @@ async function runMigration() {
 
 
     const migrationSQL = fs.readFileSync(
-      path.join(__dirname, 'migrations', '018_status_changed_at.sql'),
+      path.join(__dirname, 'migrations', '018_task_staffing.sql'),
       'utf8'
     );
 
