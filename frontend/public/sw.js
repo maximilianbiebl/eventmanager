@@ -11,17 +11,49 @@
  * zwei Speicher mit womoeglich verschiedenen Staenden.
  */
 
-const CACHE = 'eventmanager-app-v1';
+const CACHE = 'eventmanager-app-v2';
 
-// Der Rahmen, ohne den gar nichts geht. Die gehashten Dateien unter
-// /assets/ kommen beim ersten Besuch von selbst dazu (siehe fetch).
-const SHELL = ['/', '/index.html', '/manifest.json', '/icon-192.png', '/icon-512.png'];
+// Der Rahmen, ohne den gar nichts geht.
+const SHELL = ['/', '/index.html', '/manifest.json', '/icon.svg', '/icon-192.png', '/icon-512.png'];
+
+/*
+ * Die gebauten Dateien unter /assets/ tragen einen Hash im Namen, der sich
+ * mit jedem Build aendert - eine fest eingetragene Liste waere nach dem
+ * naechsten Build falsch. Deshalb wird beim Installieren die index.html
+ * gelesen und daraus geholt, was sie tatsaechlich laedt.
+ *
+ * Sie erst beim Abruf einzusammeln reicht nicht: der Service Worker
+ * uebernimmt die Kontrolle erst NACH dem ersten Laden der Seite. Die
+ * Dateien des ersten Besuchs laufen also nie durch den fetch-Handler und
+ * landen nie im Cache. Beim naechsten Aufruf ohne Empfang kaeme dann zwar
+ * die index.html aus dem Cache - die Seite bliebe aber leer, weil das
+ * Skript dazu fehlt.
+ */
+const appDateien = async () => {
+  try {
+    const res = await fetch('/index.html', { cache: 'reload' });
+    const html = await res.text();
+    return [...html.matchAll(/(?:src|href)="(\/[^"]+)"/g)]
+      .map((m) => m[1])
+      .filter((pfad) => pfad.startsWith('/assets/'));
+  } catch {
+    return [];
+  }
+};
+
+// Einzeln statt addAll: sonst faellt die ganze Liste aus, wenn eine
+// Datei fehlt - und die App startet ohne Netz gar nicht mehr.
+const cacheEinzeln = (cache, urls) =>
+  Promise.all(urls.map((url) => cache.add(url).catch(() => undefined)));
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE)
-      .then((cache) => cache.addAll(SHELL).catch(() => undefined))
-      .then(() => self.skipWaiting())
+    (async () => {
+      const cache = await caches.open(CACHE);
+      await cacheEinzeln(cache, SHELL);
+      await cacheEinzeln(cache, await appDateien());
+      await self.skipWaiting();
+    })()
   );
 });
 
