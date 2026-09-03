@@ -2,7 +2,7 @@ import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'rea
 import client from '../../api/client';
 import { tasksApi } from '../../api/tasks';
 import { taskSeriesApi, TaskSeries } from '../../api/taskSeries';
-import { roleBadgeColors, assignmentTitle } from '../../utils/roleBadge';
+import { Leitung, eventBadgeColors, eventRolleVon, eventAssignmentTitle } from '../../utils/roleBadge';
 import { useSSE } from '../../hooks/useSSE';
 import responsiveStyles from './TaskTableView.module.css';
 import { Toast } from '../Toast';
@@ -43,6 +43,12 @@ interface Props {
   manualRefreshTrigger?: number;
   readOnly?: boolean;
   eventId?: number; // Needed for CSV export/import
+  /**
+   * Leitung der Veranstaltung. Bestimmt die Farbe der Zuweisungs-Badges:
+   * innerhalb einer Veranstaltung zaehlt die Zustaendigkeit hier, nicht die
+   * Rolle des Kontos.
+   */
+  leitung?: Leitung[];
 }
 
 const STATUS_COLORS: { [key: string]: string } = {
@@ -75,6 +81,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
   manualRefreshTrigger,
   readOnly = false,
   eventId,
+  leitung,
 }, ref) => {
   const [assignments, setAssignments] = useState<TaskAssignment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -783,13 +790,13 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
                               key={idx}
                               style={{
                                 ...styles.userBadge,
-                                ...roleBadgeColors(user.role),
+                                ...eventBadgeColors(eventRolleVon(user.userId, leitung)),
                                 border: viaSeries
                                   ? '1px dashed var(--c-accent-border)'
                                   : '1px solid transparent',
                               }}
                               className={responsiveStyles.userBadge}
-                              title={assignmentTitle(user.role, viaSeries)}
+                              title={eventAssignmentTitle(eventRolleVon(user.userId, leitung), user.role, viaSeries)}
                             >
                               {user.name}
                               {user.completed && (

@@ -363,23 +363,33 @@ export const UsersList: React.FC<Props> = ({ previousEventId, onBackToEvent }) =
                   ab, hier steht deshalb gar kein Auswahlfeld.
                 */}
                 {isAdmin ? (
-                  <select
-                    value={user.role}
-                    onChange={(e) => handleRoleChange(user, e.target.value)}
-                    style={{
-                      ...styles.roleSelect,
-                      ...(user.role === 'admin'
-                        ? styles.badgeAdmin
-                        : user.role === 'teamleiter'
-                        ? styles.badgeTeamleiter
-                        : styles.badgeStaff),
-                    }}
-                    aria-label={`Rolle von ${user.name}`}
-                  >
-                    <option value="staff">Mitarbeiter</option>
-                    <option value="teamleiter">Teamleiter</option>
-                    <option value="admin">Admin</option>
-                  </select>
+                  /*
+                    Das Auswahlfeld sieht aus wie der Badig daneben, damit die
+                    Liste nicht je nach angemeldeter Rolle anders aussieht.
+                    Mit der Darstellung des Betriebssystems war es hoeher und
+                    breiter als der Badge fuer dieselbe Rolle - deshalb ohne,
+                    und das Zeichen fuer "aufklappbar" kommt daneben.
+                  */
+                  <span style={styles.roleSelectWrap}>
+                    <select
+                      value={user.role}
+                      onChange={(e) => handleRoleChange(user, e.target.value)}
+                      style={{
+                        ...(user.role === 'admin'
+                          ? styles.badgeAdmin
+                          : user.role === 'teamleiter'
+                          ? styles.badgeTeamleiter
+                          : styles.badgeStaff),
+                        ...styles.roleSelect,
+                      }}
+                      aria-label={`Rolle von ${user.name}`}
+                    >
+                      <option value="staff">Mitarbeiter</option>
+                      <option value="teamleiter">Teamleiter</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                    <span style={styles.roleCaret} aria-hidden="true">▾</span>
+                  </span>
                 ) : (
                 <span style={
                   user.role === 'admin'
@@ -438,12 +448,37 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '0.8125rem',
     fontFamily: 'inherit',
   },
+  roleSelectWrap: {
+    position: 'relative',
+    display: 'inline-flex',
+    alignItems: 'center',
+  },
   roleSelect: {
+    // Farbe kommt vom Badge-Stil, der davor gesetzt wird. Alles, was die
+    // Groesse bestimmt, steht hier - und zwar genau wie beim Badge.
+    appearance: 'none',
+    WebkitAppearance: 'none',
+    MozAppearance: 'none',
     border: '1px solid transparent',
+    borderRadius: '9999px',
+    padding: '0.25rem 1.5rem 0.25rem 0.75rem',
     fontFamily: 'inherit',
+    fontSize: '0.875rem',
+    fontWeight: '500',
+    lineHeight: '1.25rem',
+    // Global gilt select { min-height: 44px } als Touch-Ziel. Hier waere der
+    // Badge dadurch anderthalbmal so hoch wie derselbe Badge ohne
+    // Auswahlfeld - in einer Tabelle voller kleiner Bedienelemente faellt
+    // das aus dem Rahmen.
+    minHeight: 0,
     cursor: 'pointer',
-    // Die Rollenfarbe kommt aus dem jeweiligen Badge-Stil daneben
-    appearance: 'auto',
+  },
+  roleCaret: {
+    position: 'absolute',
+    right: '0.5625rem',
+    fontSize: '0.625rem',
+    pointerEvents: 'none',
+    opacity: 0.75,
   },
   noPermission: {
     color: 'var(--c-text-subtle)',
@@ -610,6 +645,11 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: 'var(--c-text)',
   },
   badgeAdmin: {
+    display: 'inline-block',
+    lineHeight: '1.25rem',
+    // Unsichtbarer Rahmen wie beim Auswahlfeld - sonst sind die beiden
+    // Darstellungen zwei Pixel verschieden hoch.
+    border: '1px solid transparent',
     padding: '0.25rem 0.75rem',
     backgroundColor: 'var(--c-warning-soft)',
     color: 'var(--c-warning-strong)',
@@ -618,6 +658,11 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: '500',
   },
   badgeTeamleiter: {
+    display: 'inline-block',
+    lineHeight: '1.25rem',
+    // Unsichtbarer Rahmen wie beim Auswahlfeld - sonst sind die beiden
+    // Darstellungen zwei Pixel verschieden hoch.
+    border: '1px solid transparent',
     padding: '0.25rem 0.75rem',
     backgroundColor: 'var(--c-success-soft)',
     color: 'var(--c-success-strong)',
@@ -626,6 +671,11 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: '500',
   },
   badgeStaff: {
+    display: 'inline-block',
+    lineHeight: '1.25rem',
+    // Unsichtbarer Rahmen wie beim Auswahlfeld - sonst sind die beiden
+    // Darstellungen zwei Pixel verschieden hoch.
+    border: '1px solid transparent',
     padding: '0.25rem 0.75rem',
     backgroundColor: 'var(--c-accent-soft)',
     color: 'var(--c-accent-text)',

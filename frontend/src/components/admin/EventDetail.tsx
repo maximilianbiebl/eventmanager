@@ -19,7 +19,7 @@ import { StatusCell } from './StatusCell';
 import { Toast } from '../Toast';
 import client from '../../api/client';
 import { toLocalDate } from '../../utils/date';
-import { roleBadgeColors, assignmentTitle } from '../../utils/roleBadge';
+import { eventBadgeColors, eventRolleVon, eventAssignmentTitle } from '../../utils/roleBadge';
 import { DaySelection, resolveInitialDayForEvent, storeDay } from '../../utils/dayPreference';
 import styles from './EventDetail.module.css';
 
@@ -545,6 +545,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
         {selectedInstance && (
           <div style={{ display: viewMode === 'table' ? 'block' : 'none' }}>
             <TaskTableView
+              leitung={event?.teamleiter}
               ref={tableRef}
               eventInstanceId={selectedInstance}
               onEditTask={handleEditTask}
@@ -1205,10 +1206,14 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                             key={idx}
                             className={styles.assignmentBadge}
                             style={{
-                              ...roleBadgeColors(assignment.user_role),
+                              ...eventBadgeColors(eventRolleVon(assignment.user_id, event?.teamleiter)),
                               border: viaSeries ? '1px dashed var(--c-accent-border)' : '1px solid transparent',
                             }}
-                            title={assignmentTitle(assignment.user_role, viaSeries)}
+                            title={eventAssignmentTitle(
+                              eventRolleVon(assignment.user_id, event?.teamleiter),
+                              assignment.user_role,
+                              viaSeries
+                            )}
                           >
                             {assignment.user_name}
                             {assignment.completed && <span className={styles.completedMark}>✓</span>}

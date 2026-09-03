@@ -4,7 +4,10 @@ import { useSSE } from '../../hooks/useSSE';
 import client from '../../api/client';
 import { taskSeriesApi } from '../../api/taskSeries';
 import { toLocalDate } from '../../utils/date';
-import { roleBadgeColors, ROLE_NAMES } from '../../utils/roleBadge';
+import {
+  Leitung, eventRolleVon, eventBadgeColors, eventBadgeTitle,
+  eventAssignmentTitle,
+} from '../../utils/roleBadge';
 
 interface Props {
   eventId: number;
@@ -12,24 +15,8 @@ interface Props {
    * Wer leitet diese Veranstaltung - Ersteller und Co-Teamleitung.
    * Kommt aus GET /events/:id mit.
    */
-  leitung?: { id: number; is_primary?: boolean }[];
+  leitung?: Leitung[];
 }
-
-/*
- * Farbe im Pool nach der Rolle IN DIESER VERANSTALTUNG, nicht nach der
- * Konto-Rolle.
- *
- * Im Pool stehen alle als "einteilbar" - das ist der Zweck der Liste. Was
- * man beim Draufschauen wissen will, ist, wer hier die Leitung hat. Die
- * Konto-Rolle sagt das nicht: ein Admin kann in dieser Veranstaltung
- * einfacher Mitarbeiter sein, und eine Teamleitung leitet nur ihre eigenen.
- * Als Farbe statt als Text, weil ein zusaetzliches Wort jede Zeile wieder
- * breiter macht; der Klartext steht im Tooltip.
- */
-const leitungsFarben = (rolleImEvent: 'leitung' | 'co-leitung' | null) =>
-  rolleImEvent
-    ? { backgroundColor: 'var(--c-success-soft)', color: 'var(--c-success-strong)' }
-    : { backgroundColor: 'var(--c-accent-soft)', color: 'var(--c-accent-strong)' };
 
 interface EventStaff extends User {
   isInPool?: boolean;
@@ -50,11 +37,6 @@ interface StaffTask {
 }
 
 export const EventStaffPool: React.FC<Props> = ({ eventId, leitung }) => {
-  const rolleImEvent = (userId: number): 'leitung' | 'co-leitung' | null => {
-    const eintrag = leitung?.find(l => l.id === userId);
-    if (!eintrag) return null;
-    return eintrag.is_primary ? 'leitung' : 'co-leitung';
-  };
 
   const [allStaff, setAllStaff] = useState<EventStaff[]>([]);
   const [eventStaff, setEventStaff] = useState<EventStaff[]>([]);
@@ -367,16 +349,13 @@ export const EventStaffPool: React.FC<Props> = ({ eventId, leitung }) => {
       ) : (
         <div style={styles.staffGrid}>
           {eventStaff.map((staff) => {
-            const imEvent = rolleImEvent(staff.id);
-            const rolleText = ROLE_NAMES[staff.role] ? ` · ${ROLE_NAMES[staff.role]}` : '';
-            const titel = imEvent === 'leitung'
-              ? `Leitung dieser Veranstaltung${rolleText}`
-              : imEvent === 'co-leitung'
-                ? `Co-Leitung dieser Veranstaltung${rolleText}`
-                : ROLE_NAMES[staff.role] || undefined;
+            const imEvent = eventRolleVon(staff.id, leitung);
             return (
             <div key={staff.id} style={styles.staffCard}>
-              <div style={{ ...styles.staffEllipse, ...leitungsFarben(imEvent) }} title={titel}>
+              <div
+                style={{ ...styles.staffEllipse, ...eventBadgeColors(imEvent) }}
+                title={eventBadgeTitle(imEvent, staff.role)}
+              >
                 <span style={styles.staffName}>{staff.name}</span>
                 <button
                   onClick={() => handleRemoveStaff(staff)}
@@ -436,6 +415,7 @@ export const EventStaffPool: React.FC<Props> = ({ eventId, leitung }) => {
           }}
           onUnassign={handleUnassignTask}
           eventId={eventId}
+          leitung={leitung}
           onReload={() => {
             loadData(false);
             if (selectedStaffForTasks) {
@@ -696,10 +676,12 @@ interface TaskListModalProps {
   onClose: () => void;
   onUnassign: (assignmentId: number) => void;
   eventId: number;
+  /** Leitung der Veranstaltung - wird an den Zuweisen-Dialog durchgereicht. */
+  leitung?: Leitung[];
   onReload: () => void;
 }
 
-const TaskListModal: React.FC<TaskListModalProps> = ({ staff, tasks, onClose, onUnassign, eventId, onReload }) => {
+const TaskListModal: React.FC<TaskListModalProps> = ({ staff, tasks, onClose, onUnassign, eventId, leitung, onReload }) => {
   const [selectedTaskIds, setSelectedTaskIds] = React.useState<number[]>([]);
   const [showReplaceModal, setShowReplaceModal] = React.useState(false);
   const [showAssignModal, setShowAssignModal] = React.useState(false);
@@ -967,6 +949,7 @@ const TaskListModal: React.FC<TaskListModalProps> = ({ staff, tasks, onClose, on
             eventId={eventId}
             staffId={staff.id}
             staffName={staff.name}
+            leitung={leitung}
             onClose={() => setShowAssignModal(false)}
             onSuccess={() => {
               setShowAssignModal(false);
@@ -1085,10 +1068,19 @@ const ReplaceStaffModal: React.FC<ReplaceStaffModalProps> = ({
   );
 };
 
+interface Zuweisung {
+  userId?: number;
+  name: string;
+  role?: string;
+  viaSeries: boolean;
+}
+
 interface AssignTasksModalProps {
   eventId: number;
   staffId: number;
   staffName: string;
+  /** Leitung der Veranstaltung - fuer die Farbe der Zuweisungs-Badges. */
+  leitung?: Leitung[];
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -1097,6 +1089,7 @@ const AssignTasksModal: React.FC<AssignTasksModalProps> = ({
   eventId,
   staffId,
   staffName,
+  leitung,
   onClose,
   onSuccess
 }) => {
@@ -1112,7 +1105,7 @@ const AssignTasksModal: React.FC<AssignTasksModalProps> = ({
    * Badges sind dieselben wie in der Tabellen- und Kartenansicht, damit man
    * nicht zwei Darstellungen im Kopf halten muss.
    */
-  const [zuweisungen, setZuweisungen] = React.useState<{ [taskId: number]: { name: string; role?: string; viaSeries: boolean }[] }>({});
+  const [zuweisungen, setZuweisungen] = React.useState<{ [taskId: number]: Zuweisung[] }>({});
   const [filter, setFilter] = React.useState<'alle' | 'offen'>('alle');
   const [tagFilter, setTagFilter] = React.useState<number | 'alle'>('alle');
 
@@ -1173,11 +1166,13 @@ const AssignTasksModal: React.FC<AssignTasksModalProps> = ({
         }
       }
 
-      const karte: { [taskId: number]: { name: string; role?: string; viaSeries: boolean }[] } = {};
+      const karte: { [taskId: number]: Zuweisung[] } = {};
       for (const zeile of alleZuw) {
         if (!zeile.user_name) continue;
         const viaSeries = !!zeile.series_id && !!serienMitglieder[zeile.series_id]?.has(zeile.user_id);
-        (karte[zeile.id] ||= []).push({ name: zeile.user_name, role: zeile.user_role, viaSeries });
+        (karte[zeile.id] ||= []).push({
+          userId: zeile.user_id, name: zeile.user_name, role: zeile.user_role, viaSeries,
+        });
       }
       setZuweisungen(karte);
     } catch (error) {
@@ -1357,12 +1352,12 @@ const AssignTasksModal: React.FC<AssignTasksModalProps> = ({
                                 key={i}
                                 style={{
                                   ...styles.zuweisungsBadge,
-                                  ...roleBadgeColors(z.role),
+                                  ...eventBadgeColors(eventRolleVon(z.userId, leitung)),
                                   border: z.viaSeries
                                     ? '1px dashed var(--c-accent-border)'
                                     : '1px solid transparent',
                                 }}
-                                title={z.viaSeries ? 'Über die Serie zugewiesen' : 'Einzeln zugewiesen'}
+                                title={eventAssignmentTitle(eventRolleVon(z.userId, leitung), z.role, z.viaSeries)}
                               >
                                 {z.name}
                               </span>
