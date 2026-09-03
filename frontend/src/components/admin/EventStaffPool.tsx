@@ -4,6 +4,7 @@ import { useSSE } from '../../hooks/useSSE';
 import client from '../../api/client';
 import { taskSeriesApi } from '../../api/taskSeries';
 import { toLocalDate } from '../../utils/date';
+import { BedarfBadge } from './BedarfBadge';
 import {
   Leitung, eventRolleVon, eventBadgeColors, eventBadgeTitle,
   eventAssignmentTitle,
@@ -1344,6 +1345,9 @@ const AssignTasksModal: React.FC<AssignTasksModalProps> = ({
                         </div>
                         {/* Dieselben Badges wie in Tabellen- und Kartenansicht */}
                         <div style={styles.zuweisungsZeile}>
+                          {/* Hier ist der Bedarf am wichtigsten: man teilt
+                              gerade ein und will wissen, wo noch jemand fehlt. */}
+                          <BedarfBadge task={task} zugewiesen={(zuweisungen[task.id] || []).length} klein />
                           {(zuweisungen[task.id] || []).length === 0 ? (
                             <span style={styles.nochNiemand}>noch niemand</span>
                           ) : (

@@ -20,6 +20,7 @@ import { Toast } from '../Toast';
 import client from '../../api/client';
 import { toLocalDate } from '../../utils/date';
 import { eventBadgeColors, eventRolleVon, eventAssignmentTitle } from '../../utils/roleBadge';
+import { BedarfBadge, hatBedarf } from './BedarfBadge';
 import { DaySelection, resolveInitialDayForEvent, storeDay } from '../../utils/dayPreference';
 import styles from './EventDetail.module.css';
 
@@ -1185,9 +1186,11 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                   )}
                 </div>
 
-                {taskAssignments.length > 0 && (
+                {(taskAssignments.length > 0 || hatBedarf(task)) && (
                   <div className={styles.assignmentsSection}>
                     <span className={styles.assignmentsLabel}>Zugewiesen an:</span>
+                    {/* Bedarf gleich hinter der Beschriftung - wie in der Tabelle. */}
+                    <BedarfBadge task={task} zugewiesen={taskAssignments.length} klein />
                     <div className={styles.assignmentsList}>
                       {taskAssignments.map((assignment, idx) => {
                         /*

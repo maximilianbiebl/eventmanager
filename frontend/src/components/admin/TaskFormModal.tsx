@@ -31,7 +31,31 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
     is_public: task?.is_public || false,
     status: task?.status || 'not_started',
     series_id: task?.series_id || null,
+    /*
+     * Personalbedarf. Leerer String statt 0 - "keine Angabe" ist etwas
+     * anderes als "null Personen noetig", und ein Feld, in dem schon eine 0
+     * steht, laedt zum Uebersehen ein.
+     */
+    needed_staff: task?.needed_staff ?? '',
+    needed_female: task?.needed_female ?? '',
+    needed_male: task?.needed_male ?? '',
   });
+
+  /*
+   * Sanfter Hinweis, kein Riegel: wenn die Aufteilung nicht zur Gesamtzahl
+   * passt, ist das oft Absicht ("4 Leute, davon mindestens 2 weiblich").
+   * Gesagt wird es trotzdem, weil es genauso gut ein Tippfehler sein kann.
+   */
+  const bedarfWarnung = (() => {
+    const zahl = (v: string | number) => (v === '' || v === null ? null : Number(v));
+    const gesamt = zahl(formData.needed_staff);
+    const w = zahl(formData.needed_female) ?? 0;
+    const m = zahl(formData.needed_male) ?? 0;
+    if (gesamt === null || (w === 0 && m === 0)) return '';
+    if (w + m > gesamt) return `Aufteilung ergibt ${w + m} - mehr als die angegebene Anzahl ${gesamt}.`;
+    if (w + m < gesamt) return `Aufteilung ergibt ${w + m} von ${gesamt} - der Rest ist beliebig.`;
+    return '';
+  })();
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -323,6 +347,61 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
             </label>
           </div>
 
+          {/*
+            Personalbedarf. Reine Planungshilfe: beim Einteilen sieht man,
+            wie viele es braucht. Nichts davon wird erzwungen - mehr oder
+            weniger Leute sind in Ordnung.
+
+            Die Aufteilung steht an der AUFGABE. In den Profilen wird kein
+            Geschlecht gefuehrt, die App kann also nicht nachrechnen, ob sie
+            aufgeht - sie ist ein Hinweis fuer den, der einteilt.
+          */}
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Benötigte Mitarbeiter (optional)</label>
+            <div style={styles.bedarfZeile}>
+              <label style={styles.bedarfFeld}>
+                <span style={styles.bedarfLabel}>Anzahl</span>
+                <input
+                  type="number"
+                  min="0"
+                  inputMode="numeric"
+                  placeholder="–"
+                  value={formData.needed_staff}
+                  onChange={(e) => setFormData({ ...formData, needed_staff: e.target.value })}
+                  style={styles.bedarfInput}
+                />
+              </label>
+              <label style={styles.bedarfFeld}>
+                <span style={styles.bedarfLabel}>davon weiblich</span>
+                <input
+                  type="number"
+                  min="0"
+                  inputMode="numeric"
+                  placeholder="–"
+                  value={formData.needed_female}
+                  onChange={(e) => setFormData({ ...formData, needed_female: e.target.value })}
+                  style={styles.bedarfInput}
+                />
+              </label>
+              <label style={styles.bedarfFeld}>
+                <span style={styles.bedarfLabel}>davon männlich</span>
+                <input
+                  type="number"
+                  min="0"
+                  inputMode="numeric"
+                  placeholder="–"
+                  value={formData.needed_male}
+                  onChange={(e) => setFormData({ ...formData, needed_male: e.target.value })}
+                  style={styles.bedarfInput}
+                />
+              </label>
+            </div>
+            <p style={styles.bedarfHinweis}>
+              Nur ein Anhaltspunkt beim Einteilen – mehr oder weniger sind in Ordnung.
+              {bedarfWarnung && <><br /><span style={styles.bedarfWarnung}>{bedarfWarnung}</span></>}
+            </p>
+          </div>
+
           {/* Mitarbeiter-Auswahl */}
           {staffUsers.length > 0 && (
             <div style={styles.formGroup}>
@@ -447,6 +526,39 @@ const styles: { [key: string]: React.CSSProperties } = {
   row: {
     display: 'flex',
     gap: '1rem',
+  },
+  bedarfZeile: {
+    display: 'flex',
+    gap: '0.75rem',
+    flexWrap: 'wrap',
+    marginTop: '0.375rem',
+  },
+  bedarfFeld: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.25rem',
+    flex: '1 1 6rem',
+    minWidth: '5.5rem',
+  },
+  bedarfLabel: {
+    fontSize: '0.75rem',
+    color: 'var(--c-text-muted)',
+  },
+  bedarfInput: {
+    width: '100%',
+    padding: '0.5rem',
+    border: '1px solid var(--c-border-strong)',
+    borderRadius: '4px',
+    fontSize: '0.9375rem',
+    fontFamily: 'inherit',
+  },
+  bedarfHinweis: {
+    margin: '0.5rem 0 0 0',
+    fontSize: '0.75rem',
+    color: 'var(--c-text-muted)',
+  },
+  bedarfWarnung: {
+    color: 'var(--c-warning-strong)',
   },
   label: {
     display: 'block',

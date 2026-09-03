@@ -179,6 +179,21 @@ const NOCH_AKTUELL = `(
   OR ei.start_date + (GREATEST(COALESCE(e.days, 1), 1) - 1) >= CURRENT_DATE - ${NACHLAUF_TAGE}
 )`;
 
+/*
+ * Bedarfsangabe an einer Aufgabe: leer bleibt leer.
+ *
+ * Aus dem Formular kommt fuer ein leeres Feld ein leerer String; daraus darf
+ * keine 0 werden - "kein Bedarf hinterlegt" ist etwas anderes als "null
+ * Personen noetig". Negatives wird auf 0 gehoben, damit die Pruefung in der
+ * Datenbank nicht ueber einen Tippfehler stolpert.
+ */
+const bedarfsZahl = (wert: unknown): number | null => {
+  if (wert === null || wert === undefined || wert === '') return null;
+  const n = Number(wert);
+  if (!Number.isFinite(n)) return null;
+  return Math.max(0, Math.round(n));
+};
+
 // Alle eigenen Aufgaben abrufen (zugewiesene + öffentliche)
 router.get('/my-tasks', authMiddleware, async (req: AuthRequest, res) => {
   try {
@@ -304,7 +319,10 @@ router.post('/', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req =
       reminder_minutes,
       is_public,
       status,
-      series_id
+      series_id,
+      needed_staff,
+      needed_female,
+      needed_male
     } = req.body;
 
     // Get all existing tasks for this event, sorted by day and time
@@ -365,9 +383,10 @@ router.post('/', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req =
     const result = await query(
       `INSERT INTO tasks (
         event_id, program_item_id, day_number, title, description,
-        scheduled_time, start_time, end_time, reminder_minutes, is_public, status, sort_order, series_id
+        scheduled_time, start_time, end_time, reminder_minutes, is_public, status, sort_order, series_id,
+        needed_staff, needed_female, needed_male
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *`,
       [
         event_id,
         program_item_id,
@@ -381,7 +400,10 @@ router.post('/', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req =
         is_public || false,
         status || 'not_started',
         newSortOrder,
-        series_id || null
+        series_id || null,
+        bedarfsZahl(needed_staff),
+        bedarfsZahl(needed_female),
+        bedarfsZahl(needed_male)
       ]
     );
 
@@ -1362,7 +1384,10 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req
       reminder_minutes = currentTask.reminder_minutes,
       is_public = currentTask.is_public,
       status = currentTask.status,
-      series_id = currentTask.series_id
+      series_id = currentTask.series_id,
+      needed_staff = currentTask.needed_staff,
+      needed_female = currentTask.needed_female,
+      needed_male = currentTask.needed_male
     } = req.body;
 
     const result = await query(
@@ -1380,7 +1405,10 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req
         -- Aenderung faelschlich als "veraltet" abweisen.
         status_changed_at = CASE WHEN status IS DISTINCT FROM $9 THEN NOW() ELSE status_changed_at END,
         status = $9,
-        series_id = $10
+        series_id = $10,
+        needed_staff = $12,
+        needed_female = $13,
+        needed_male = $14
        WHERE id = $11 RETURNING *`,
       [
         title,
@@ -1393,7 +1421,10 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req
         is_public,
         status,
         series_id || null,
-        id
+        id,
+        bedarfsZahl(needed_staff),
+        bedarfsZahl(needed_female),
+        bedarfsZahl(needed_male)
       ]
     );
 
@@ -1845,15 +1876,19 @@ router.post('/event/:eventId/export-csv', authMiddleware, teamleiterOrAdminMiddl
       );
     } else {
       result = await query(
-        'SELECT id, title, description, day_number, scheduled_time, start_time, end_time, is_public, status FROM tasks WHERE event_id = $1 ORDER BY day_number, scheduled_time',
+        `SELECT id, title, description, day_number, scheduled_time, start_time, end_time, is_public, status,
+                needed_staff, needed_female, needed_male
+         FROM tasks WHERE event_id = $1 ORDER BY day_number, scheduled_time`,
         [eventId]
       );
     }
 
     // Create CSV
-    const headers = ['id', 'title', 'description', 'day_number', 'scheduled_time', 'start_time', 'end_time', 'is_public', 'status'];
+    // Der Personalbedarf gehoert mit in die Datei - sonst geht er beim
+    // Weg ueber Export/Import verloren. Leer bleibt leer, nicht 0.
+    const headers = ['id', 'title', 'description', 'day_number', 'scheduled_time', 'start_time', 'end_time', 'is_public', 'status', 'needed_staff', 'needed_female', 'needed_male'];
     const rows = result.rows.map(row =>
-      `${row.id},"${row.title}","${row.description || ''}",${row.day_number},${row.scheduled_time || ''},${row.start_time || ''},${row.end_time || ''},${row.is_public},${row.status}`
+      `${row.id},"${row.title}","${row.description || ''}",${row.day_number},${row.scheduled_time || ''},${row.start_time || ''},${row.end_time || ''},${row.is_public},${row.status},${row.needed_staff ?? ''},${row.needed_female ?? ''},${row.needed_male ?? ''}`
     );
     const csv = [headers.join(','), ...rows].join('\n');
 
@@ -1917,8 +1952,9 @@ router.post('/event/:eventId/import-csv', authMiddleware, teamleiterOrAdminMiddl
       await query(
         `INSERT INTO tasks (
           event_id, day_number, title, description, scheduled_time, start_time, end_time,
-          reminder_minutes, is_public, status, sort_order
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+          reminder_minutes, is_public, status, sort_order,
+          needed_staff, needed_female, needed_male
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
         [
           eventId,
           parseInt(task.day_number) || 1,
@@ -1930,7 +1966,11 @@ router.post('/event/:eventId/import-csv', authMiddleware, teamleiterOrAdminMiddl
           15,
           task.is_public === 'true',
           'not_started', // Always reset status on import
-          nextSortOrder
+          nextSortOrder,
+          // Spalten duerfen fehlen - aeltere Dateien kennen sie noch nicht.
+          bedarfsZahl(task.needed_staff),
+          bedarfsZahl(task.needed_female),
+          bedarfsZahl(task.needed_male)
         ]
       );
 

@@ -16,6 +16,20 @@ export interface Task {
   is_active?: boolean;
   sort_order?: number;
   series_id?: number;
+  /*
+   * Personalbedarf - wie viele Leute es fuer diese Aufgabe braucht.
+   *
+   * Unverbindlich: mehr oder weniger sind erlaubt, nichts wird geprueft
+   * oder blockiert. NULL/undefined heisst "keine Angabe" und ist etwas
+   * anderes als 0.
+   *
+   * Die Aufteilung nach weiblich/maennlich haengt an der AUFGABE, nicht an
+   * Personen - in den Profilen wird kein Geschlecht gefuehrt. Sie ist ein
+   * Hinweis fuer den, der einteilt.
+   */
+  needed_staff?: number | null;
+  needed_female?: number | null;
+  needed_male?: number | null;
 }
 
 export interface TaskAssignment extends Task {
@@ -50,6 +64,9 @@ export interface CreateTaskData {
   is_public?: boolean;
   status?: string;
   series_id?: number;
+  needed_staff?: number | null;
+  needed_female?: number | null;
+  needed_male?: number | null;
 }
 
 export const tasksApi = {

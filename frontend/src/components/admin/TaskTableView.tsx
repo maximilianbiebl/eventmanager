@@ -3,6 +3,7 @@ import client from '../../api/client';
 import { tasksApi } from '../../api/tasks';
 import { taskSeriesApi, TaskSeries } from '../../api/taskSeries';
 import { Leitung, eventBadgeColors, eventRolleVon, eventAssignmentTitle } from '../../utils/roleBadge';
+import { BedarfBadge } from './BedarfBadge';
 import { useSSE } from '../../hooks/useSSE';
 import responsiveStyles from './TaskTableView.module.css';
 import { Toast } from '../Toast';
@@ -30,6 +31,10 @@ interface TaskAssignment {
   is_active?: boolean;
   sort_order?: number;
   series_id?: number;
+  // Personalbedarf - siehe BedarfBadge
+  needed_staff?: number | null;
+  needed_female?: number | null;
+  needed_male?: number | null;
 }
 
 interface Props {
@@ -764,6 +769,9 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
                     />
                   </td>
                   <td style={styles.td}>
+                    {/* Wie viele gebraucht werden - vor den Namen, damit man
+                        beim Ueberfliegen sieht, wo noch jemand fehlt. */}
+                    <BedarfBadge task={task} zugewiesen={assignedUsers.length} klein />
                     {assignedUsers.length === 0 ? (
                       <span style={styles.noAssignments}>Nicht zugewiesen</span>
                     ) : (
