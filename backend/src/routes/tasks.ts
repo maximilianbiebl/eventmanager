@@ -137,6 +137,25 @@ router.get('/my-tasks/:instanceId', authMiddleware, async (req: AuthRequest, res
   }
 });
 
+/*
+ * Wer ist sonst noch auf diese Aufgabe eingeteilt?
+ *
+ * Der Mitarbeiterbereich zeigt das als Namensschilder auf der Karte - man
+ * soll sehen, mit wem man zusammen dran ist. Die eigene Person bleibt
+ * draussen: die Aufgabe steht ohnehin unter "Meine Aufgaben", der eigene
+ * Name waere nur eine Zeile Laerm.
+ *
+ * $1 ist in beiden Abfragen die eigene Benutzer-ID.
+ */
+const MITARBEITER_DER_AUFGABE = (instanzSpalte: string) => `(
+  SELECT COALESCE(json_agg(u2.name ORDER BY u2.name), '[]'::json)
+  FROM task_assignments ta2
+  JOIN users u2 ON u2.id = ta2.user_id
+  WHERE ta2.task_id = t.id
+    AND ta2.event_instance_id = ${instanzSpalte}
+    AND ta2.user_id <> $1
+)`;
+
 // Alle eigenen Aufgaben abrufen (zugewiesene + öffentliche)
 router.get('/my-tasks', authMiddleware, async (req: AuthRequest, res) => {
   try {
@@ -155,7 +174,8 @@ router.get('/my-tasks', authMiddleware, async (req: AuthRequest, res) => {
         e.name as event_name,
         ei.start_date as instance_start_date,
         ei.instance_number,
-        pi.title as program_item_title
+        pi.title as program_item_title,
+        ${MITARBEITER_DER_AUFGABE('ta.event_instance_id')} as mitarbeiter
        FROM task_assignments ta
        JOIN tasks t ON ta.task_id = t.id
        JOIN events e ON t.event_id = e.id
@@ -179,7 +199,8 @@ router.get('/my-tasks', authMiddleware, async (req: AuthRequest, res) => {
         e.name as event_name,
         ei.start_date as instance_start_date,
         ei.instance_number,
-        pi.title as program_item_title
+        pi.title as program_item_title,
+        ${MITARBEITER_DER_AUFGABE('ei.id')} as mitarbeiter
        FROM tasks t
        JOIN events e ON t.event_id = e.id
        JOIN event_instances ei ON ei.event_id = e.id

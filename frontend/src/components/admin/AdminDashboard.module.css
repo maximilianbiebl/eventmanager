@@ -120,4 +120,37 @@
   .mobileMenuContainer {
     display: block;
   }
+
+  /*
+   * Die drei Reiter gehoeren in EINE Zeile. Vorher rutschte "Meine Aufgaben"
+   * auf eine zweite - der Umbruch war nur der Notausgang dagegen, dass die
+   * Leiste seitlich aus dem Bild lief. Jetzt teilen sie sich die Breite und
+   * kuerzen im Notfall die Beschriftung, statt umzubrechen.
+   */
+  .tabs {
+    flex-wrap: nowrap !important;
+    gap: 0.375rem !important;
+    margin-bottom: 0.75rem !important;
+  }
+
+  .tab {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    padding: 0.625rem 0.375rem !important;
+    font-size: 0.8125rem !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Der Inhaltsrahmen sass mit vollen 1,5rem sehr weit vom Reiter weg. */
+  .content {
+    padding: 0.875rem !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .tab {
+    font-size: 0.75rem !important;
+    padding: 0.625rem 0.25rem !important;
+  }
 }

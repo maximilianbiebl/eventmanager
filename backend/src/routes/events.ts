@@ -34,7 +34,8 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
        * Benachrichtigungs-Verteiler.
        */
       result = await query(`
-        SELECT DISTINCT e.*, u.name as creator_name
+        SELECT DISTINCT e.*, u.name as creator_name,
+               (et.user_id IS NOT NULL) as ist_mitleitung
         FROM events e
         LEFT JOIN users u ON e.created_by = u.id
         LEFT JOIN event_teamleiter et ON et.event_id = e.id AND et.user_id = $1

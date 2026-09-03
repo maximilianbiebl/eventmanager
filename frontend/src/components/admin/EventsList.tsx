@@ -12,7 +12,64 @@ import { useSSE } from '../../hooks/useSSE';
 import responsiveStyles from './EventsList.module.css';
 import { toLocalDate } from '../../utils/date';
 
-type TabType = 'own' | 'templates' | 'other-teamleiters';
+type TabType = 'own' | 'co-lead' | 'templates' | 'other-teamleiters';
+
+/*
+ * In welcher Phase steckt eine Veranstaltung?
+ *
+ * Die Liste kam bisher in der Reihenfolge des Servers - nach Startdatum
+ * absteigend. Damit stand eine Freizeit im naechsten Sommer ueber der, die
+ * gerade laeuft. Was man sucht, ist aber fast immer die laufende oder die
+ * naechste; Vergangenes soll nicht im Weg stehen.
+ */
+type Phase = 'laufend' | 'bevorstehend' | 'vergangen' | 'ohne-datum';
+
+const phaseVon = (event: Event): Phase => {
+  const start = toLocalDate(event.start_date);
+  if (!start) return 'ohne-datum';
+
+  const heute = new Date();
+  heute.setHours(0, 0, 0, 0);
+
+  // Der letzte Tag zaehlt noch dazu: eine dreitaegige Freizeit ab Montag
+  // laeuft bis einschliesslich Mittwoch.
+  const ende = new Date(start);
+  ende.setDate(ende.getDate() + Math.max(1, event.days || 1) - 1);
+
+  if (ende < heute) return 'vergangen';
+  if (start > heute) return 'bevorstehend';
+  return 'laufend';
+};
+
+const PHASEN_LABEL: Record<Phase, string> = {
+  laufend: 'Laufend',
+  bevorstehend: 'Bevorstehend',
+  vergangen: 'Vergangen',
+  'ohne-datum': 'Ohne Datum',
+};
+
+const PHASEN_RANG: Record<Phase, number> = {
+  laufend: 0,
+  bevorstehend: 1,
+  'ohne-datum': 2,
+  vergangen: 3,
+};
+
+/*
+ * Laufende zuerst, dann die naechsten (die naeheste oben), dann die ohne
+ * Datum, ganz unten das Vergangene (das zuletzt gewesene oben).
+ */
+const nachPhaseSortiert = (events: Event[]): Event[] =>
+  [...events].sort((a, b) => {
+    const pa = phaseVon(a);
+    const pb = phaseVon(b);
+    if (PHASEN_RANG[pa] !== PHASEN_RANG[pb]) return PHASEN_RANG[pa] - PHASEN_RANG[pb];
+
+    const za = toLocalDate(a.start_date)?.getTime() ?? 0;
+    const zb = toLocalDate(b.start_date)?.getTime() ?? 0;
+    // Vergangenes rueckwaerts: das zuletzt Gewesene ist das interessantere.
+    return pa === 'vergangen' ? zb - za : za - zb;
+  });
 
 export const EventsList: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);
@@ -30,7 +87,20 @@ export const EventsList: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  // Gewählte Phase überdauert Reloads - wer auf "Laufend" steht, will das
+  // beim nächsten Öffnen meist wieder.
+  const [phasenFilter, setPhasenFilter] = useState<Phase | 'alle'>(() => {
+    const gespeichert = localStorage.getItem('eventsPhaseFilter');
+    return gespeichert === 'laufend' || gespeichert === 'bevorstehend'
+      || gespeichert === 'vergangen' || gespeichert === 'ohne-datum'
+      ? gespeichert
+      : 'alle';
+  });
   const { user, isAdmin, isTeamleiter } = useAuth();
+
+  useEffect(() => {
+    localStorage.setItem('eventsPhaseFilter', phasenFilter);
+  }, [phasenFilter]);
 
   // SSE für Event-Updates
   useSSE({
@@ -230,6 +300,21 @@ export const EventsList: React.FC = () => {
         count: ownEvents.length,
       });
 
+      /*
+       * Veranstaltungen, die man mitleitet, ohne sie angelegt zu haben.
+       * Die fehlten hier komplett: der Server liefert sie zwar, die
+       * Reiter filterten aber nur auf created_by - eine Co-Teamleitung sah
+       * ihre Veranstaltung also nirgends, obwohl sie sie verwalten darf.
+       */
+      const mitleitung = events.filter(e => !e.is_template && e.created_by !== user?.id);
+      if (mitleitung.length > 0) {
+        tabs.push({
+          id: 'co-lead',
+          label: 'Mitleitung',
+          count: mitleitung.length,
+        });
+      }
+
       // Teamleiter: Vorlagen
       const templates = events.filter(e => e.is_template);
       if (templates.length > 0) {
@@ -258,6 +343,10 @@ export const EventsList: React.FC = () => {
         // Admin sieht Vorlagen und Vorschläge von anderen Teamleitern
         return events.filter(e => e.is_template || (e.is_template_suggestion && e.created_by !== user?.id));
       }
+    }
+
+    if (tabId === 'co-lead') {
+      return events.filter(e => !e.is_template && e.created_by !== user?.id);
     }
 
     if (tabId === 'other-teamleiters') {
@@ -354,7 +443,22 @@ export const EventsList: React.FC = () => {
   }
 
   const tabs = getTabs();
-  const currentEvents = getEventsForTab(activeTab);
+  const tabEvents = getEventsForTab(activeTab);
+
+  // Vorlagen haben kein Datum - dort waere der Filter sinnlos.
+  const zeigePhasenFilter = activeTab !== 'templates';
+
+  const phasenZahlen = tabEvents.reduce((acc, e) => {
+    const p = phaseVon(e);
+    acc[p] = (acc[p] || 0) + 1;
+    return acc;
+  }, {} as Record<Phase, number>);
+
+  const currentEvents = nachPhaseSortiert(
+    zeigePhasenFilter && phasenFilter !== 'alle'
+      ? tabEvents.filter(e => phaseVon(e) === phasenFilter)
+      : tabEvents
+  );
 
   return (
     <div>
@@ -459,9 +563,44 @@ export const EventsList: React.FC = () => {
         </select>
       </div>
 
+      {/*
+        Phasenfilter. Die Reihenfolge ist ohnehin laufend -> bevorstehend ->
+        vergangen; wer nur eines davon sehen will, blendet den Rest hier aus.
+      */}
+      {zeigePhasenFilter && tabEvents.length > 0 && (
+        <div style={styles.phaseBar}>
+          <span style={styles.phaseLabel}>Zeitraum</span>
+          <button
+            type="button"
+            onClick={() => setPhasenFilter('alle')}
+            style={phasenFilter === 'alle' ? styles.phaseChipActive : styles.phaseChip}
+            aria-pressed={phasenFilter === 'alle'}
+          >
+            Alle <span style={styles.phaseCount}>{tabEvents.length}</span>
+          </button>
+          {(['laufend', 'bevorstehend', 'vergangen', 'ohne-datum'] as Phase[])
+            .filter(p => (phasenZahlen[p] || 0) > 0)
+            .map(p => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setPhasenFilter(p)}
+                style={phasenFilter === p ? styles.phaseChipActive : styles.phaseChip}
+                aria-pressed={phasenFilter === p}
+              >
+                {PHASEN_LABEL[p]} <span style={styles.phaseCount}>{phasenZahlen[p]}</span>
+              </button>
+            ))}
+        </div>
+      )}
+
       {/* Events Grid or Grouped List */}
       {currentEvents.length === 0 ? (
-        <div style={styles.empty}>Keine Veranstaltungen in dieser Kategorie</div>
+        <div style={styles.empty}>
+          {zeigePhasenFilter && phasenFilter !== 'alle' && tabEvents.length > 0
+            ? `Keine Veranstaltung im Zeitraum „${PHASEN_LABEL[phasenFilter as Phase]}".`
+            : 'Keine Veranstaltungen in dieser Kategorie'}
+        </div>
       ) : activeTab === 'other-teamleiters' ? (
         /*
          * Nach Ersteller gruppiert - und zwar anhand der Veranstaltungen
@@ -743,6 +882,53 @@ const styles: { [key: string]: React.CSSProperties } = {
     textAlign: 'center',
     padding: '3rem',
     color: 'var(--c-text-muted)',
+  },
+  phaseBar: {
+    display: 'flex',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: '0.5rem',
+    marginBottom: '1rem',
+  },
+  phaseLabel: {
+    fontSize: '0.6875rem',
+    fontWeight: 600,
+    letterSpacing: '0.04em',
+    textTransform: 'uppercase',
+    color: 'var(--c-text-muted)',
+  },
+  phaseChip: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.375rem',
+    padding: '0.375rem 0.75rem',
+    borderRadius: '999px',
+    border: '1px solid var(--c-border-strong)',
+    backgroundColor: 'transparent',
+    color: 'var(--c-text)',
+    fontSize: '0.8125rem',
+    fontWeight: 500,
+    fontFamily: 'inherit',
+    cursor: 'pointer',
+  },
+  phaseChipActive: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.375rem',
+    padding: '0.375rem 0.75rem',
+    borderRadius: '999px',
+    border: '1px solid var(--c-accent)',
+    backgroundColor: 'var(--c-accent-soft)',
+    color: 'var(--c-accent-text)',
+    fontSize: '0.8125rem',
+    fontWeight: 600,
+    fontFamily: 'inherit',
+    cursor: 'pointer',
+  },
+  phaseCount: {
+    fontSize: '0.75rem',
+    opacity: 0.75,
+    fontVariantNumeric: 'tabular-nums',
   },
   grid: {
     display: 'grid',

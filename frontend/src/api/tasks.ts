@@ -30,6 +30,11 @@ export interface TaskAssignment extends Task {
   user_name?: string;
   /** Rolle des zugewiesenen Nutzers - der Server liefert sie als user_role mit */
   user_role?: string;
+  /**
+   * Namen der ANDEREN auf diese Aufgabe eingeteilten Personen - ohne die
+   * eigene. Zeigt im Mitarbeiterbereich, mit wem man zusammen dran ist.
+   */
+  mitarbeiter?: string[];
 }
 
 export interface CreateTaskData {

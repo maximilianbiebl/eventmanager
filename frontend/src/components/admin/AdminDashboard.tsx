@@ -178,16 +178,18 @@ export const AdminDashboard: React.FC = () => {
         </div>
       </div>
 
-      <div style={styles.tabs}>
+      <div style={styles.tabs} className={responsiveStyles.tabs}>
         <button
           onClick={() => handleTabClick('events')}
           style={activeTab === 'events' ? styles.activeTab : styles.tab}
+          className={responsiveStyles.tab}
         >
           Veranstaltungen
         </button>
         <button
           onClick={() => handleTabClick('users')}
           style={activeTab === 'users' ? styles.activeTab : styles.tab}
+          className={responsiveStyles.tab}
         >
           Mitarbeiter
         </button>
@@ -195,6 +197,7 @@ export const AdminDashboard: React.FC = () => {
           <button
             onClick={() => handleTabClick('mytasks')}
             style={activeTab === 'mytasks' ? styles.activeTab : styles.tab}
+            className={responsiveStyles.tab}
           >
             Meine Aufgaben
             {eigeneAufgaben > 0 && <span style={styles.tabCount}>{eigeneAufgaben}</span>}
@@ -202,7 +205,7 @@ export const AdminDashboard: React.FC = () => {
         )}
       </div>
 
-      <div style={styles.content}>
+      <div style={styles.content} className={responsiveStyles.content}>
         {activeTab === 'events' && <EventsList key={`events-${refreshKey}`} />}
         {activeTab === 'users' && (
           <UsersList

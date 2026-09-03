@@ -274,8 +274,12 @@ export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
   }
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
+    /*
+     * Zugeklappt bleibt nur die eine Zeile mit dem Titel - dann braucht der
+     * Rahmen auch nicht die Polsterung fuer eine ganze Mitarbeiterliste.
+     */
+    <div style={expanded ? styles.container : { ...styles.container, padding: '0.75rem 1rem' }}>
+      <div style={expanded ? styles.header : { ...styles.header, marginBottom: 0 }}>
         <button
           onClick={() => setExpanded(!expanded)}
           style={styles.headerToggle}
@@ -323,11 +327,24 @@ export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
         <div style={styles.staffGrid}>
           {eventStaff.map((staff) => (
             <div key={staff.id} style={styles.staffCard}>
-              {/* Rollenfarbe wie in den Aufgabenansichten - ein Teamleiter
-                  oder Admin im Pool soll auffallen. */}
-              <div style={{ ...styles.staffEllipse, ...roleBadgeColors(staff.role) }}
-                   title={ROLE_NAMES[staff.role] || undefined}>
+              {/*
+                Im Pool sind alle dasselbe: Leute, die hier Aufgaben bekommen
+                koennen. Deshalb ist der Badge fuer alle gleich - faerbte man
+                ihn nach Konto-Rolle, schrie ein Admin in einer Liste lauter
+                als der Rest, obwohl er hier genau dieselbe Rolle hat.
+                Die Konto-Rolle steht daneben als kleines Zeichen, damit man
+                sie trotzdem sieht.
+              */}
+              <div style={styles.staffEllipse}>
                 <span style={styles.staffName}>{staff.name}</span>
+                {(staff.role === 'admin' || staff.role === 'teamleiter') && (
+                  <span
+                    style={{ ...styles.rolePill, ...roleBadgeColors(staff.role) }}
+                    title={`${ROLE_NAMES[staff.role]} · im Pool wie alle anderen einteilbar`}
+                  >
+                    {ROLE_NAMES[staff.role]}
+                  </span>
+                )}
                 <button
                   onClick={() => handleRemoveStaff(staff)}
                   style={styles.removeButtonEllipse}
@@ -1490,10 +1507,18 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   staffName: {
     fontWeight: '500',
-    // Farbe kommt vom Badge (Rollenfarbe) - eine feste Farbe hier wuerde
-    // sie ueberschreiben und alle Rollen wieder gleich aussehen lassen.
     color: 'inherit',
     fontSize: '0.75rem',
+  },
+  // Konto-Rolle als kleines Zeichen im Badge - nur fuer Admin und
+  // Teamleitung, Mitarbeiter sind der Normalfall und brauchen keine Marke.
+  rolePill: {
+    padding: '0 0.3125rem',
+    borderRadius: '9999px',
+    fontSize: '0.625rem',
+    fontWeight: 700,
+    lineHeight: '1.15rem',
+    whiteSpace: 'nowrap',
   },
   staffMeta: {
     display: 'flex',

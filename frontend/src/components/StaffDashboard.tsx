@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { tasksApi, TaskAssignment } from '../api/tasks';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../hooks/useNotifications';
@@ -309,22 +309,62 @@ export const StaffDashboard: React.FC<Props> = ({ embedded = false }) => {
     }
   };
 
+  /*
+   * Der Effekt unten läuft nur einmal und würde sonst dauerhaft die
+   * Funktion vom ersten Rendern aufrufen - mit dem Aufgabenstand von damals.
+   */
+  const sendeRef = useRef(sendeAusstehende);
+  sendeRef.current = sendeAusstehende;
+  const sendetGerade = useRef(false);
+
+  /*
+   * Warteschlange abarbeiten, sobald wieder Verbindung besteht.
+   *
+   * Auf das "online"-Ereignis allein war kein Verlass: auf dem Handy friert
+   * der Browser die Seite im Hintergrund ein, das Ereignis fällt dann aus.
+   * Der Hinweis "wird gesendet" blieb dadurch stehen, bis man die Seite von
+   * Hand neu lud. Deshalb zusätzlich beim Zurückkehren zur App, beim
+   * Fokussieren des Fensters und regelmässig, solange etwas aussteht.
+   */
   useEffect(() => {
+    const versuche = async () => {
+      if (sendetGerade.current) return;
+      sendetGerade.current = true;
+      try {
+        await sendeRef.current();
+      } finally {
+        sendetGerade.current = false;
+      }
+    };
+
     const wiederOnline = () => {
       setOffline(false);
-      sendeAusstehende();
+      versuche();
     };
     const jetztOffline = () => setOffline(true);
+    const beiSichtbar = () => {
+      if (document.visibilityState === 'visible') versuche();
+    };
 
     window.addEventListener('online', wiederOnline);
     window.addEventListener('offline', jetztOffline);
+    window.addEventListener('focus', versuche);
+    document.addEventListener('visibilitychange', beiSichtbar);
+
     // Beim Start einmal versuchen - der Browser meldet "online" nicht, wenn
     // die App im Empfangsbereich frisch geöffnet wird.
-    sendeAusstehende();
+    versuche();
+
+    const takt = window.setInterval(() => {
+      if (queueLength() > 0) versuche();
+    }, 30000);
 
     return () => {
       window.removeEventListener('online', wiederOnline);
       window.removeEventListener('offline', jetztOffline);
+      window.removeEventListener('focus', versuche);
+      document.removeEventListener('visibilitychange', beiSichtbar);
+      window.clearInterval(takt);
     };
   }, []);
 
@@ -912,6 +952,32 @@ export const StaffDashboard: React.FC<Props> = ({ embedded = false }) => {
   );
 };
 
+/*
+ * Wer ist noch auf die Aufgabe eingeteilt.
+ *
+ * Alle Namen gleich aussehend - ohne Rollenfarbe und ohne den gestrichelten
+ * Rahmen der Verwaltung. Hier zaehlt nur: mit wem bin ich zusammen dran.
+ * Wer im Admin-Bereich wissen muss, ob jemand ueber eine Serie kam, schaut
+ * dort nach; auf der eigenen Karte waere das nur Beiwerk.
+ *
+ * Der eigene Name fehlt bewusst - die Aufgabe steht ohnehin unter "Meine
+ * Aufgaben" (der Server laesst ihn weg).
+ */
+const MitEingeteilte: React.FC<{ namen?: string[] }> = ({ namen }) => {
+  if (!namen || namen.length === 0) return null;
+  return (
+    <div className={styles.zusammenMit}>
+      <span className={styles.zusammenMitLabel}>Mit</span>
+      {namen.map(name => (
+        <span key={name} className={styles.personBadge}>{name}</span>
+      ))}
+    </div>
+  );
+};
+
+/** Breite des Status-Klappfelds - fuer die Positionsrechnung gebraucht. */
+const MENU_BREITE = 180;
+
 const TaskCard: React.FC<{
   task: TaskAssignment;
   onComplete: (id: number) => void;
@@ -928,6 +994,31 @@ const TaskCard: React.FC<{
   const [updatingStatus, setUpdatingStatus] = React.useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = React.useState(false);
   const [showFullDescription, setShowFullDescription] = React.useState(false);
+
+  /*
+   * Das Status-Klappfeld haengt nicht mehr am Elternelement, sondern wird
+   * beim Oeffnen ausgemessen und am Bildschirm festgesetzt.
+   *
+   * Vorher war es fest an einer Seite ausgerichtet - und je nachdem, wo das
+   * Feld in der umbrechenden Zeile gerade landet, ragte es links oder rechts
+   * aus dem Bild und war nicht mehr bedienbar. Ausrechnen ist der einzige
+   * Weg, der in beiden Faellen stimmt.
+   */
+  const statusRef = React.useRef<HTMLSpanElement>(null);
+  const [menuPos, setMenuPos] = React.useState({ top: 0, left: 0 });
+
+  const oeffneStatusMenu = () => {
+    if (!showStatusDropdown && statusRef.current) {
+      const r = statusRef.current.getBoundingClientRect();
+      const rand = 8;
+      const maxLinks = window.innerWidth - MENU_BREITE - rand;
+      setMenuPos({
+        top: r.bottom + 4,
+        left: Math.max(rand, Math.min(r.left, maxLinks)),
+      });
+    }
+    setShowStatusDropdown(!showStatusDropdown);
+  };
 
   // Update reminder state when task prop changes
   React.useEffect(() => {
@@ -1018,6 +1109,15 @@ const TaskCard: React.FC<{
       <div className={styles.taskContent}>
         <div className={styles.taskHeader}>
           <h3 className={styles.taskTitle}>{task.title}</h3>
+          {/*
+            Der Hinweis steht beim Titel, nicht in der Zeile mit Status und
+            Datum: dort schob er das Status-Klappfeld in eine zweite Zeile.
+          */}
+          {pending && (
+            <span className={styles.pendingBadge} title="Die Änderung wird gesendet, sobald wieder Empfang besteht">
+              wird gesendet
+            </span>
+          )}
         </div>
 
         {/* Zeitinformationen */}
@@ -1055,11 +1155,6 @@ const TaskCard: React.FC<{
         )}
 
         <div className={styles.taskMeta} style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
-          {pending && (
-            <span className={styles.pendingBadge} title="Die Änderung wird gesendet, sobald wieder Empfang besteht">
-              wird gesendet
-            </span>
-          )}
         <span className={styles.taskEvent}>{task.event_name}</span>
         <span className={styles.taskDay}>
           Tag {task.day_number} · {getEventDate()}
@@ -1079,6 +1174,7 @@ const TaskCard: React.FC<{
           {task.status === 'not_started' || task.status === 'in_progress' ? (
             <>
               <span
+                ref={statusRef}
                 className={styles.taskStatus}
                 style={{
                   backgroundColor: getStatusColor(task.status),
@@ -1089,7 +1185,7 @@ const TaskCard: React.FC<{
                   cursor: 'pointer',
                   userSelect: 'none'
                 }}
-                onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+                onClick={oeffneStatusMenu}
               >
                 {getStatusLabel(task.status)} ▼
               </span>
@@ -1107,15 +1203,14 @@ const TaskCard: React.FC<{
                     onClick={() => setShowStatusDropdown(false)}
                   />
                   <div style={{
-                    position: 'absolute',
-                    top: '100%',
-                    right: 0,
+                    position: 'fixed',
+                    top: menuPos.top,
+                    left: menuPos.left,
                     backgroundColor: 'var(--c-surface)',
                     border: '1px solid var(--c-border-strong)',
                     borderRadius: '4px',
                     boxShadow: 'var(--shadow-md)',
-                    marginTop: '4px',
-                    minWidth: '180px',
+                    width: MENU_BREITE,
                     zIndex: 9999
                   }}>
                     {task.status === 'not_started' && (
@@ -1127,7 +1222,7 @@ const TaskCard: React.FC<{
                         }}
                         onClick={() => handleStatusChange('in_progress')}
                         onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--c-surface-muted)'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                       >
                         In Arbeit setzen
                       </div>
@@ -1142,7 +1237,7 @@ const TaskCard: React.FC<{
                         }}
                         onClick={() => handleStatusChange('not_started')}
                         onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--c-surface-muted)'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                       >
                         Nicht gestartet
                       </div>
@@ -1168,6 +1263,10 @@ const TaskCard: React.FC<{
           )}
         </div>
       </div>
+
+      {/* Eigene Zeile, damit die Namen die Status-Zeile nicht auseinander-
+          schieben - genau daran ist der Hinweis "wird gesendet" gescheitert. */}
+      <MitEingeteilte namen={task.mitarbeiter} />
 
       </div>
 
@@ -1522,6 +1621,7 @@ const StaffTableView: React.FC<{
                     <strong>{task.title}</strong>
                     {task.is_public && <span className={styles.publicBadge}>Öffentlich</span>}
                   </div>
+                  <MitEingeteilte namen={task.mitarbeiter} />
                   {task.description && (
                     <>
                       <div className={styles.taskDescCell}>

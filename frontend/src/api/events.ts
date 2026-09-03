@@ -11,6 +11,11 @@ export interface Event {
   is_template_suggestion: boolean;
   created_at: string;
   creator_name?: string;
+  /**
+   * Man ist als Co-Teamleitung eingetragen, hat die Veranstaltung aber nicht
+   * angelegt. Nur in der Liste der Teamleitung gesetzt.
+   */
+  ist_mitleitung?: boolean;
 }
 
 export interface EventInstance {
