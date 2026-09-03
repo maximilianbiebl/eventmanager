@@ -133,10 +133,15 @@
     margin-bottom: 0.75rem !important;
   }
 
+  /*
+   * Jeder Reiter so breit wie seine Beschriftung. Gleich breit gemacht
+   * bekam "Mitarbeiter" viel Luft und "Veranstaltungen" fast keinen Rand -
+   * das sah verkniffen aus. Schrumpfen duerfen sie, wenn es eng wird.
+   */
   .tab {
-    flex: 1 1 0 !important;
+    flex: 0 1 auto !important;
     min-width: 0 !important;
-    padding: 0.625rem 0.375rem !important;
+    padding: 0.625rem 0.75rem !important;
     font-size: 0.8125rem !important;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -151,6 +156,6 @@
 @media (max-width: 380px) {
   .tab {
     font-size: 0.75rem !important;
-    padding: 0.625rem 0.25rem !important;
+    padding: 0.625rem 0.5rem !important;
   }
 }

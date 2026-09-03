@@ -18,15 +18,22 @@ interface UseSSEOptions {
 }
 
 export function useSSE(options: UseSSEOptions = {}) {
-  const {
-    onMessage,
-    onTaskUpdate,
-    onAssignmentUpdate,
-    onEventUpdate,
-    onConnected,
-    onError,
-    enabled = true
-  } = options;
+  const { enabled = true } = options;
+
+  /*
+   * Die Rueckrufe liegen in einer Referenz, nicht in den Abhaengigkeiten.
+   *
+   * Aufrufer uebergeben sie als Pfeilfunktionen direkt im Aufruf - die sind
+   * bei jedem Rendern neu. Standen sie in den Abhaengigkeiten, wurde bei
+   * JEDEM Rendern die Verbindung geschlossen und neu aufgebaut. Im Protokoll
+   * sah man endloses "Disconnecting / Connecting", und der Server legte
+   * dabei jedes Mal einen neuen Client an.
+   *
+   * Die Referenz zeigt immer auf die zuletzt uebergebenen Funktionen, die
+   * Verbindung bleibt trotzdem stehen.
+   */
+  const optionenRef = useRef(options);
+  optionenRef.current = options;
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
@@ -59,25 +66,22 @@ export function useSSE(options: UseSSEOptions = {}) {
     eventSource.onopen = () => {
       console.log('SSE: Connected');
       reconnectAttempts.current = 0;
-      if (onConnected) onConnected();
+      optionenRef.current.onConnected?.();
     };
 
     eventSource.onmessage = (event) => {
       try {
         const message: SSEMessage = JSON.parse(event.data);
-        console.log('SSE: Message received', message);
-
-        if (onMessage) {
-          onMessage(message);
-        }
+        const o = optionenRef.current;
+        o.onMessage?.(message);
 
         // Route to specific handlers
-        if (message.type === 'task' && onTaskUpdate) {
-          onTaskUpdate(message.data);
-        } else if (message.type === 'assignment' && onAssignmentUpdate) {
-          onAssignmentUpdate(message.data);
-        } else if (message.type === 'event' && onEventUpdate) {
-          onEventUpdate(message.data);
+        if (message.type === 'task') {
+          o.onTaskUpdate?.(message.data);
+        } else if (message.type === 'assignment') {
+          o.onAssignmentUpdate?.(message.data);
+        } else if (message.type === 'event') {
+          o.onEventUpdate?.(message.data);
         }
       } catch (error) {
         console.error('SSE: Error parsing message', error);
@@ -88,9 +92,7 @@ export function useSSE(options: UseSSEOptions = {}) {
       console.error('SSE: Connection error', error);
       eventSource.close();
 
-      if (onError) {
-        onError(error);
-      }
+      optionenRef.current.onError?.(error);
 
       // Exponential backoff reconnection
       reconnectAttempts.current++;
@@ -107,7 +109,7 @@ export function useSSE(options: UseSSEOptions = {}) {
     };
 
     eventSourceRef.current = eventSource;
-  }, [enabled, onMessage, onTaskUpdate, onAssignmentUpdate, onEventUpdate, onConnected, onError]);
+  }, [enabled]);
 
   useEffect(() => {
     if (enabled) {

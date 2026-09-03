@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { tasksApi, TaskAssignment } from '../api/tasks';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../hooks/useNotifications';
@@ -16,11 +17,14 @@ import {
   queueLength, istNetzfehler,
 } from '../utils/offlineStore';
 
+/** Platzhalter in der Kopfzeile des Adminbereichs fuer den Offline-Badge. */
+export const ADMIN_BADGE_PLATZ = 'admin-offline-badge';
+
 interface Props {
   /*
    * Eingebettet im Admin-Bereich: dort gibt es Kopfzeile, Menü und
    * Abmelden schon - die eigene Kopfzeile würde sie doppeln. Der
-   * Offline-Hinweis bleibt trotzdem sichtbar, er gehört zum Inhalt.
+   * Offline-Hinweis wandert in die Kopfzeile des Adminbereichs.
    */
   embedded?: boolean;
 }
@@ -333,6 +337,15 @@ export const StaffDashboard: React.FC<Props> = ({ embedded = false }) => {
    * Der Effekt unten läuft nur einmal und würde sonst dauerhaft die
    * Funktion vom ersten Rendern aufrufen - mit dem Aufgabenstand von damals.
    */
+  /*
+   * Der Platz fuer den Offline-Badge in der Kopfzeile des Adminbereichs.
+   * Beim ersten Rendern gibt es ihn noch nicht, deshalb im Effekt gesucht.
+   */
+  const [badgePlatz, setBadgePlatz] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    if (embedded) setBadgePlatz(document.getElementById(ADMIN_BADGE_PLATZ));
+  }, [embedded]);
+
   const sendeRef = useRef(sendeAusstehende);
   sendeRef.current = sendeAusstehende;
   const sendetGerade = useRef(false);
@@ -635,7 +648,17 @@ export const StaffDashboard: React.FC<Props> = ({ embedded = false }) => {
   return (
     <div className={embedded ? styles.embeddedContainer : styles.container}>
       {embedded ? (
-        offlineBadge && <div className={styles.offlineRow}>{offlineBadge}</div>
+        /*
+         * Im Adminbereich gehoert der Badge in dessen Kopfzeile, nicht ueber
+         * die Aufgabenliste. Der Zustand liegt aber hier - deshalb wird der
+         * Badge per Portal in den dafuer vorgesehenen Platz gehaengt. Fehlt
+         * der Platz (andere Einbettung), bleibt die eigene Zeile als Rueckfall.
+         */
+        offlineBadge && (
+          badgePlatz
+            ? createPortal(offlineBadge, badgePlatz)
+            : <div className={styles.offlineRow}>{offlineBadge}</div>
+        )
       ) : (
       <div className={styles.header}>
         <div className={styles.headerContent}>
@@ -795,21 +818,29 @@ export const StaffDashboard: React.FC<Props> = ({ embedded = false }) => {
       <div className={styles.filterBar}>
         {filteredTasks.length > 0 && (
           <>
+            {/*
+              Mit Anzahl. Ohne sie war nicht zu sehen, dass hinter den
+              anderen Tagen noch etwas liegt - wer heute nichts mehr offen
+              hat, hielt seine erledigten Aufgaben von gestern fuer
+              verschwunden. Die Zahl macht sichtbar, dass nur der Tag
+              gewaehlt ist.
+            */}
             <span className={styles.groupLabel}>Tage</span>
             <div className={styles.dayTabsContainer}>
               <button
                 onClick={() => handleDayChange('all')}
                 className={selectedDay === 'all' ? styles.dayTabActive : styles.dayTab}
               >
-                Alle
+                Alle <span className={styles.dayCount}>{filteredTasks.length}</span>
               </button>
               {Array.from(new Set(filteredTasks.map(t => t.day_number))).sort((a, b) => a - b).map(day => (
                 <button
                   key={day}
                   onClick={() => handleDayChange(day)}
                   className={selectedDay === day ? styles.dayTabActive : styles.dayTab}
+                  title={`Tag ${day}`}
                 >
-                  {day}
+                  {day} <span className={styles.dayCount}>{filteredTasks.filter(t => t.day_number === day).length}</span>
                 </button>
               ))}
             </div>

@@ -306,18 +306,21 @@ export const EventStaffPool: React.FC<Props> = ({ eventId, leitung }) => {
      * Rahmen auch nicht die Polsterung fuer eine ganze Mitarbeiterliste.
      */
     <div style={expanded ? styles.container : { ...styles.container, padding: '0.75rem 1rem' }}>
-      <div style={expanded ? styles.header : { ...styles.header, marginBottom: 0 }}>
+      <div style={expanded ? styles.header : { ...styles.header, marginBottom: 0 }} className="pool-header">
         <button
           onClick={() => setExpanded(!expanded)}
           style={styles.headerToggle}
+          className="pool-toggle"
           aria-expanded={expanded}
+          title="Nur diese Mitarbeiter können Aufgaben für dieses Event zugewiesen bekommen." 
         >
           <span style={{ ...styles.caret, transform: expanded ? 'rotate(90deg)' : 'none' }} aria-hidden="true">›</span>
-          <h3 style={styles.title}>Mitarbeiter-Pool</h3>
+          <h3 style={styles.title} className="pool-title">Mitarbeiter-Pool</h3>
           <span style={styles.count}>{eventStaff.length}</span>
           {/* Erklärung nur auf Nachfrage, statt dauerhaft Platz zu belegen */}
           <span
             style={styles.infoIcon}
+            className="pool-info"
             title="Nur diese Mitarbeiter können Aufgaben für dieses Event zugewiesen bekommen."
             onClick={(e) => { e.stopPropagation(); setShowInfo(!showInfo); }}
             role="button"
@@ -336,10 +339,10 @@ export const EventStaffPool: React.FC<Props> = ({ eventId, leitung }) => {
           <button
             onClick={() => setShowAddModal(true)}
             style={styles.addButton}
+            className="pool-add"
             title="Mitarbeiter zum Pool hinzufügen"
-            aria-label="Mitarbeiter zum Pool hinzufügen"
           >
-            +<span className="pool-add-label"> Hinzufügen</span>
+            + Hinzufügen
           </button>
         )}
       </div>

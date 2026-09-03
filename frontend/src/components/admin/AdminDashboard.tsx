@@ -4,7 +4,7 @@ import { EventsList } from './EventsList';
 import { UsersList } from './UsersList';
 import { ChangePasswordDialog } from './ChangePasswordDialog';
 import { StaffSettings } from '../StaffSettings';
-import { StaffDashboard } from '../StaffDashboard';
+import { StaffDashboard, ADMIN_BADGE_PLATZ } from '../StaffDashboard';
 import { tasksApi } from '../../api/tasks';
 import { ThemeSwitch } from '../ThemeSwitch';
 import responsiveStyles from './AdminDashboard.module.css';
@@ -36,6 +36,7 @@ export const AdminDashboard: React.FC = () => {
    * Ansicht unter den Fuessen verschwinden.
    */
   const [eigeneAufgaben, setEigeneAufgaben] = useState(0);
+  const [eigeneGesamt, setEigeneGesamt] = useState(0);
 
   React.useEffect(() => {
     let abgebrochen = false;
@@ -43,13 +44,20 @@ export const AdminDashboard: React.FC = () => {
       .then(tasks => {
         if (!abgebrochen) {
           setEigeneAufgaben(tasks.filter(t => t.status !== 'completed').length);
+          setEigeneGesamt(tasks.length);
         }
       })
       .catch(() => undefined);
     return () => { abgebrochen = true; };
   }, [refreshKey]);
 
-  const zeigeEigene = eigeneAufgaben > 0 || activeTab === 'mytasks';
+  /*
+   * Der Reiter haengt an ALLEN eigenen Aufgaben, die Zahl daran nur an den
+   * offenen. Vorher zaehlte beides die offenen: wer alles erledigt hatte,
+   * bei dem verschwand der Reiter - und mit ihm der Blick auf das, was man
+   * geschafft hat.
+   */
+  const zeigeEigene = eigeneGesamt > 0 || activeTab === 'mytasks';
 
   const handleTabClick = (tab: Tab) => {
     // Wenn zu Mitarbeiter gewechselt wird, Event-ID merken (falls vorhanden)
@@ -83,10 +91,17 @@ export const AdminDashboard: React.FC = () => {
   return (
     <div style={styles.container} className={responsiveStyles.container}>
       <div style={styles.header} className={responsiveStyles.header}>
-        <div>
+        <div style={styles.headerText}>
           <h1 style={styles.title} className={responsiveStyles.title}>Event Manager</h1>
           <p style={styles.subtitle}>Willkommen, {user?.name}!</p>
         </div>
+
+        {/*
+          Platz fuer den Offline-Badge. Er gehoert in die Kopfzeile, der
+          Zustand dazu liegt aber im Mitarbeiter-Dashboard - das haengt ihn
+          per Portal hier ein.
+        */}
+        <div id={ADMIN_BADGE_PLATZ} style={styles.badgePlatz} />
 
         {/* Desktop Menu */}
         <div style={styles.headerActions} className={responsiveStyles.headerButtons}>
@@ -239,11 +254,23 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: '8px',
     boxShadow: 'var(--shadow-md)',
   },
+  headerText: {
+    minWidth: 0,
+    flex: 1,
+  },
+  // Nimmt keinen Platz weg, solange kein Badge darin steckt.
+  badgePlatz: {
+    display: 'flex',
+    alignItems: 'center',
+  },
   title: {
     fontSize: '1.875rem',
     fontWeight: 'bold',
     color: 'var(--c-text)',
     margin: 0,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   },
   subtitle: {
     color: 'var(--c-text-muted)',
