@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { tasksApi } from '../../api/tasks';
 import { User } from '../../api/users';
 import client from '../../api/client';
+import { BedarfBadge, Bedarf } from './BedarfBadge';
 
 interface Props {
   taskId: number;
@@ -17,6 +18,12 @@ export const TaskAssignmentModal: React.FC<Props> = ({ taskId, eventId, eventIns
   const [reminderMinutes, setReminderMinutes] = useState<number>(15);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  /*
+   * Die Aufgabe selbst - fuer den Personalbedarf in der Ueberschrift. Sie
+   * kommt aus derselben Antwort wie die Zuweisungen, ein zweiter Aufruf
+   * waere unnoetig.
+   */
+  const [task, setTask] = useState<Bedarf | null>(null);
 
   useEffect(() => {
     loadUsers();
@@ -38,7 +45,9 @@ export const TaskAssignmentModal: React.FC<Props> = ({ taskId, eventId, eventIns
     try {
       // Lade aktuelle Zuweisungen für diese Task und Instanz
       const response = await client.get(`/tasks/instance/${eventInstanceId}/assignments`);
-      const assignments = response.data.filter((a: any) => a.id === taskId && a.user_id);
+      const zurAufgabe = response.data.filter((a: any) => a.id === taskId);
+      if (zurAufgabe.length > 0) setTask(zurAufgabe[0]);
+      const assignments = zurAufgabe.filter((a: any) => a.user_id);
       const assignedUserIds = assignments.map((a: any) => a.user_id);
       setSelectedUserIds(assignedUserIds);
     } catch (error) {
@@ -86,7 +95,15 @@ export const TaskAssignmentModal: React.FC<Props> = ({ taskId, eventId, eventIns
   return (
     <div className="app-modal-overlay" style={styles.overlay} onClick={handleOverlayClick}>
       <div className="app-modal" style={styles.modal}>
-        <h2 style={styles.title}>Aufgabe zuweisen</h2>
+        {/*
+          Der Bedarf gehoert genau hierher: man teilt gerade ein. Die Zahl
+          links zaehlt die aktuell angehakten Personen mit, man sieht also
+          sofort, ob es reicht.
+        */}
+        <div style={styles.titleRow}>
+          <h2 style={styles.title}>Aufgabe zuweisen</h2>
+          {task && <BedarfBadge task={task} zugewiesen={selectedUserIds.length} />}
+        </div>
 
         {error && <div style={styles.error}>{error}</div>}
 
@@ -180,10 +197,17 @@ const styles: { [key: string]: React.CSSProperties } = {
     maxHeight: '80vh',
     overflow: 'auto',
   },
+  titleRow: {
+    display: 'flex',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: '0.625rem',
+    marginBottom: '1rem',
+  },
   title: {
     fontSize: '1.5rem',
     fontWeight: 'bold',
-    marginBottom: '1.5rem',
+    margin: 0,
     color: 'var(--c-text)',
   },
   error: {

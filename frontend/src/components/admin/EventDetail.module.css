@@ -437,6 +437,13 @@
   gap: 0.5rem;
 }
 
+.assignmentsHeader {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 .assignmentsLabel {
   font-size: 0.75rem;
   color:var(--c-text-muted);

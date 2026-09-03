@@ -5,14 +5,47 @@ import { CreateEventRequest } from '../types';
 import { broadcastUpdate } from './sse';
 import { darfEventVerwalten } from '../middleware/eventAccess';
 import multer from 'multer';
+import { CSV_BOM, ohneBom, parseCsvLine, csvFeld } from '../utils/csv';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
+
 
 /*
  * Personalbedarf aus einer CSV-Zelle. Leer bleibt leer - "keine Angabe" ist
  * etwas anderes als "null Personen noetig".
  */
+/*
+ * Serie einer importierten Aufgabe. Kommt als Name in der Datei an; passt er
+ * zu einer Serie DIESER Veranstaltung, wird die Aufgabe dort eingehaengt,
+ * sonst die Serie angelegt. Nummern gelten nur in der jeweiligen Datenbank
+ * und ueberleben den Umweg nicht.
+ */
+const serieFuerEvent = async (
+  eventId: number,
+  name: string | undefined,
+  // Der Zwischenspeicher gehoert zur einzelnen Anfrage. Modulweit waere er
+  // ein Leck und wuerde nach dem Loeschen einer Serie auf eine Nummer
+  // zeigen, die es nicht mehr gibt.
+  cache: Map<string, number>
+): Promise<number | null> => {
+  const sauber = (name || '').trim();
+  if (!sauber) return null;
+  const key = `${eventId}#${sauber.toLowerCase()}`;
+  if (cache.has(key)) return cache.get(key)!;
+
+  const vorhanden = await query(
+    'SELECT id FROM task_series WHERE event_id = $1 AND LOWER(name) = LOWER($2) LIMIT 1',
+    [eventId, sauber]
+  );
+  const id = vorhanden.rows.length > 0
+    ? vorhanden.rows[0].id
+    : (await query('INSERT INTO task_series (event_id, name) VALUES ($1, $2) RETURNING id', [eventId, sauber])).rows[0].id;
+
+  cache.set(key, id);
+  return id;
+};
+
 const bedarfsZahlCsv = (wert: unknown): number | null => {
   if (wert === null || wert === undefined || wert === '') return null;
   const n = Number(wert);
@@ -1135,23 +1168,43 @@ router.post('/export-csv', authMiddleware, teamleiterOrAdminMiddleware, async (r
       // Create Events CSV
       const eventsHeaders = ['id', 'name', 'description', 'start_date', 'days', 'is_template'];
       const eventsRows = result.rows.map(row =>
-        `${row.id},"${row.name}","${row.description || ''}",${formatDate(row.start_date)},${row.days},${row.is_template}`
+        [row.id, csvFeld(row.name), csvFeld(row.description), formatDate(row.start_date), row.days, row.is_template].join(',')
       );
-      const eventsCSV = [eventsHeaders.join(','), ...eventsRows].join('\n');
+      const eventsCSV = CSV_BOM + [eventsHeaders.join(','), ...eventsRows].join('\n');
 
       // Create Tasks CSV (for all events)
       const eventIds = result.rows.map(e => e.id);
       let tasksCSV = '';
       if (eventIds.length > 0) {
         const tasksResult = await query(
-          'SELECT event_id, title, description, day_number, scheduled_time, start_time, end_time, is_public FROM tasks WHERE event_id = ANY($1) ORDER BY event_id, day_number, sort_order',
+          `SELECT t.event_id, t.title, t.description, t.day_number, t.scheduled_time, t.start_time,
+                  t.end_time, t.is_public, t.needed_staff, t.needed_female, t.needed_male,
+                  ts.name AS series_name
+           FROM tasks t
+           LEFT JOIN task_series ts ON ts.id = t.series_id
+           WHERE t.event_id = ANY($1)
+           ORDER BY t.event_id, t.day_number, t.sort_order`,
           [eventIds]
         );
-        const tasksHeaders = ['event_id', 'title', 'description', 'day_number', 'scheduled_time', 'start_time', 'end_time', 'is_public'];
-        const tasksRows = tasksResult.rows.map(row =>
-          `${row.event_id},"${row.title}","${row.description || ''}",${row.day_number},"${row.scheduled_time || ''}","${row.start_time || ''}","${row.end_time || ''}",${row.is_public}`
-        );
-        tasksCSV = [tasksHeaders.join(','), ...tasksRows].join('\n');
+        // Dieselben Spalten wie beim Aufgaben-Export einer einzelnen
+        // Veranstaltung - sonst haengt es vom gewaehlten Weg ab, was
+        // erhalten bleibt.
+        const tasksHeaders = ['event_id', 'title', 'description', 'day_number', 'scheduled_time', 'start_time', 'end_time', 'is_public', 'series_name', 'needed_staff', 'needed_female', 'needed_male'];
+        const tasksRows = tasksResult.rows.map(row => [
+          row.event_id,
+          csvFeld(row.title),
+          csvFeld(row.description),
+          row.day_number,
+          row.scheduled_time || '',
+          row.start_time || '',
+          row.end_time || '',
+          row.is_public,
+          csvFeld(row.series_name),
+          row.needed_staff ?? '',
+          row.needed_female ?? '',
+          row.needed_male ?? '',
+        ].join(','));
+        tasksCSV = CSV_BOM + [tasksHeaders.join(','), ...tasksRows].join('\n');
       }
 
       // Send both CSVs as JSON response
@@ -1174,11 +1227,11 @@ router.post('/export-csv', authMiddleware, teamleiterOrAdminMiddleware, async (r
       // Create CSV (events only)
       const headers = ['id', 'name', 'description', 'start_date', 'days', 'is_template'];
       const rows = result.rows.map(row =>
-        `${row.id},"${row.name}","${row.description || ''}",${formatDate(row.start_date)},${row.days},${row.is_template}`
+        [row.id, csvFeld(row.name), csvFeld(row.description), formatDate(row.start_date), row.days, row.is_template].join(',')
       );
-      const csv = [headers.join(','), ...rows].join('\n');
+      const csv = CSV_BOM + [headers.join(','), ...rows].join('\n');
 
-      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename=events_${new Date().toISOString().split('T')[0]}.csv`);
       res.send(csv);
     }
@@ -1202,35 +1255,20 @@ router.post('/import-csv', authMiddleware, teamleiterOrAdminMiddleware, upload.f
     // Check if import as template is requested via query param
     const forceAsTemplate = req.query.asTemplate === 'true';
 
-    const csvText = eventsFile.buffer.toString('utf-8');
+    const csvText = ohneBom(eventsFile.buffer.toString('utf-8'));
     const lines = csvText.split('\n').filter(line => line.trim());
 
     if (lines.length < 2) {
       return res.status(400).json({ error: 'CSV ist leer oder ungültig' });
     }
 
-    const headers = lines[0].split(',').map(h => h.trim());
+    const headers = parseCsvLine(lines[0]);
     let imported = 0;
     const eventIdMapping: { [oldId: string]: number } = {}; // Map old ID to new ID
 
     for (let i = 1; i < lines.length; i++) {
       // Parse CSV line with quoted strings
-      const values: string[] = [];
-      let currentValue = '';
-      let inQuotes = false;
-
-      for (let j = 0; j < lines[i].length; j++) {
-        const char = lines[i][j];
-        if (char === '"') {
-          inQuotes = !inQuotes;
-        } else if (char === ',' && !inQuotes) {
-          values.push(currentValue.trim());
-          currentValue = '';
-        } else {
-          currentValue += char;
-        }
-      }
-      values.push(currentValue.trim());
+      const values = parseCsvLine(lines[i]);
 
       const event: any = {};
       headers.forEach((header, idx) => {
@@ -1279,30 +1317,16 @@ router.post('/import-csv', authMiddleware, teamleiterOrAdminMiddleware, upload.f
     // Import tasks if tasksFile is provided
     let tasksImported = 0;
     if (tasksFile) {
-      const tasksCSVText = tasksFile.buffer.toString('utf-8');
+      const tasksCSVText = ohneBom(tasksFile.buffer.toString('utf-8'));
+      const serienCache = new Map<string, number>();
       const tasksLines = tasksCSVText.split('\n').filter(line => line.trim());
 
       if (tasksLines.length >= 2) {
-        const tasksHeaders = tasksLines[0].split(',').map(h => h.trim());
+        const tasksHeaders = parseCsvLine(tasksLines[0]);
 
         for (let i = 1; i < tasksLines.length; i++) {
           // Parse CSV line with quoted strings
-          const values: string[] = [];
-          let currentValue = '';
-          let inQuotes = false;
-
-          for (let j = 0; j < tasksLines[i].length; j++) {
-            const char = tasksLines[i][j];
-            if (char === '"') {
-              inQuotes = !inQuotes;
-            } else if (char === ',' && !inQuotes) {
-              values.push(currentValue.trim());
-              currentValue = '';
-            } else {
-              currentValue += char;
-            }
-          }
-          values.push(currentValue.trim());
+          const values = parseCsvLine(tasksLines[i]);
 
           const task: any = {};
           tasksHeaders.forEach((header, idx) => {
@@ -1317,8 +1341,8 @@ router.post('/import-csv', authMiddleware, teamleiterOrAdminMiddleware, upload.f
             // Insert task with new event_id
             await query(
               `INSERT INTO tasks (event_id, title, description, day_number, scheduled_time, start_time, end_time, is_public,
-                                  needed_staff, needed_female, needed_male)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+                                  needed_staff, needed_female, needed_male, series_id)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
               [
                 newEventId,
                 task.title,
@@ -1331,7 +1355,8 @@ router.post('/import-csv', authMiddleware, teamleiterOrAdminMiddleware, upload.f
                 // Spalten duerfen fehlen - aeltere Dateien kennen sie nicht.
                 bedarfsZahlCsv(task.needed_staff),
                 bedarfsZahlCsv(task.needed_female),
-                bedarfsZahlCsv(task.needed_male)
+                bedarfsZahlCsv(task.needed_male),
+                await serieFuerEvent(newEventId, task.series_name, serienCache)
               ]
             );
             tasksImported++;

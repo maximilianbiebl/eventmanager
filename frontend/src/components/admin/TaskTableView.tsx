@@ -39,7 +39,17 @@ interface TaskAssignment {
 
 interface Props {
   eventInstanceId: number;
-  onEditTask: (taskId: number) => void;
+  /*
+   * Bekommt die Aufgabe selbst, nicht nur ihre Nummer.
+   *
+   * Vorher wurde die Nummer uebergeben und die Elternansicht suchte die
+   * Aufgabe in IHRER Liste. Nach einem CSV-Import stand die neue Aufgabe
+   * zwar in der Tabelle (die laedt selbst nach), fehlte dort aber noch -
+   * die Suche lief ins Leere und "Bearbeiten" tat schlicht nichts. Die
+   * Kartenansicht uebergibt die Aufgabe seit jeher direkt, deshalb trat es
+   * nur in der Tabelle auf.
+   */
+  onEditTask: (task: any) => void;
   onAssignTask: (taskId: number) => void;
   eventDays?: number; // Anzahl der Tage im Event
   selectedDay?: number | 'all'; // Ausgewählter Tag von außen
@@ -48,6 +58,8 @@ interface Props {
   manualRefreshTrigger?: number;
   readOnly?: boolean;
   eventId?: number; // Needed for CSV export/import
+  /** Nach Import o.ae.: die Elternansicht soll ihre Aufgabenliste nachladen. */
+  onTasksChanged?: () => void;
   /**
    * Leitung der Veranstaltung. Bestimmt die Farbe der Zuweisungs-Badges:
    * innerhalb einer Veranstaltung zaehlt die Zustaendigkeit hier, nicht die
@@ -87,6 +99,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
   readOnly = false,
   eventId,
   leitung,
+  onTasksChanged,
 }, ref) => {
   const [assignments, setAssignments] = useState<TaskAssignment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -508,6 +521,9 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
   const handleImportSuccess = async () => {
     setShowImportModal(false);
     await loadAssignments(false);
+    // Die Elternansicht fuehrt eine eigene Aufgabenliste - ohne diesen
+    // Anstoss kennt sie die frisch importierten Aufgaben nicht.
+    onTasksChanged?.();
   };
 
   if (loading) {
@@ -838,7 +854,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
                             Zuweisen
                           </button>
                           <button
-                            onClick={() => onEditTask(task.id)}
+                            onClick={() => onEditTask(task)}
                             style={styles.editButton}
                             title="Aufgabe bearbeiten"
                           >

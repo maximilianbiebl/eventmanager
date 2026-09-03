@@ -71,7 +71,7 @@ const FORMATS: {
     note: 'Als Vorlage importierte Veranstaltungen bekommen kein Startdatum.',
   },
   tasks: {
-    header: 'title,description,day_number,scheduled_time,start_time,end_time,is_public,needed_staff,needed_female,needed_male',
+    header: 'title,description,day_number,scheduled_time,start_time,end_time,is_public,series_name,needed_staff,needed_female,needed_male',
     columns: [
       { name: 'title', required: true, hint: 'Titel der Aufgabe' },
       { name: 'description', required: false, hint: 'Beschreibung' },
@@ -80,6 +80,7 @@ const FORMATS: {
       { name: 'start_time', required: false, hint: 'Startzeit als HH:MM' },
       { name: 'end_time', required: false, hint: 'Endzeit als HH:MM' },
       { name: 'is_public', required: false, hint: 'true oder false' },
+      { name: 'series_name', required: false, hint: 'Name der Serie, wird bei Bedarf angelegt' },
       { name: 'needed_staff', required: false, hint: 'benötigte Personen, leer = keine Angabe' },
       { name: 'needed_female', required: false, hint: 'davon weiblich, leer = keine Angabe' },
       { name: 'needed_male', required: false, hint: 'davon männlich, leer = keine Angabe' },

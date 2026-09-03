@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { query } from '../database/connection';
+import { CSV_BOM, ohneBom, parseCsvLine } from '../utils/csv';
 import { authMiddleware, adminMiddleware, teamleiterOrAdminMiddleware, AuthRequest } from '../middleware/auth';
 import { broadcastUpdate } from './sse';
 import bcrypt from 'bcrypt';
@@ -7,6 +8,7 @@ import { randomBytes } from 'crypto';
 import multer from 'multer';
 
 const router = Router();
+
 const upload = multer({ storage: multer.memoryStorage() });
 
 // Alle Benutzer abrufen
@@ -60,7 +62,7 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req: Auth
     // Der Name ist der Anmeldename und seit Migration 016 eindeutig. Ohne
     // diese Pruefung kaeme hier ein nackter 500er aus der Datenbank.
     if (name) {
-      const nameTaken = await query('SELECT id FROM users WHERE name = $1 AND id <> $2', [name, id]);
+      const nameTaken = await query('SELECT id FROM users WHERE LOWER(name) = LOWER($1) AND id <> $2', [name, id]);
       if (nameTaken.rows.length > 0) {
         return res.status(400).json({ error: 'Dieser Name ist bereits vergeben' });
       }
@@ -449,9 +451,9 @@ router.post('/export-csv', authMiddleware, teamleiterOrAdminMiddleware, async (r
 
     const headers = ['id', 'name', 'role'];
     const rows = result.rows.map(row => [row.id, row.name, row.role].map(csvField).join(','));
-    const csv = [headers.join(','), ...rows].join('\n');
+    const csv = CSV_BOM + [headers.join(','), ...rows].join('\n');
 
-    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename=users_${new Date().toISOString().split('T')[0]}.csv`);
     res.send(csv);
   } catch (error) {
@@ -468,31 +470,6 @@ router.post('/export-csv', authMiddleware, teamleiterOrAdminMiddleware, async (r
  * Namensspalte geschoben. Namen mit Leerzeichen ("Max Mustermann") waren
  * nie ein Problem, Namen mit Komma schon.
  */
-const parseCsvLine = (line: string): string[] => {
-  const out: string[] = [];
-  let cur = '';
-  let inQuotes = false;
-
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (inQuotes) {
-      if (c === '"') {
-        if (line[i + 1] === '"') { cur += '"'; i++; }  // "" = ein Anfuehrungszeichen
-        else inQuotes = false;
-      } else cur += c;
-    } else if (c === '"') {
-      inQuotes = true;
-    } else if (c === ',') {
-      out.push(cur.trim());
-      cur = '';
-    } else {
-      cur += c;
-    }
-  }
-  out.push(cur.trim());
-  return out;
-};
-
 /*
  * Zufaelliges Startpasswort. Ohne mehrdeutige Zeichen (0/O, 1/l/I), damit
  * es sich vorlesen und abtippen laesst.
@@ -532,7 +509,7 @@ router.post('/import-csv', authMiddleware, teamleiterOrAdminMiddleware, upload.s
     }
 
     // BOM entfernen (Excel schreibt eines) und CRLF wie LF behandeln
-    const csvText = req.file.buffer.toString('utf-8').replace(/^\uFEFF/, '');
+    const csvText = ohneBom(req.file.buffer.toString('utf-8'));
     const lines = csvText.split(/\r?\n/).filter(line => line.trim());
 
     if (lines.length < 2) {
@@ -574,7 +551,7 @@ router.post('/import-csv', authMiddleware, teamleiterOrAdminMiddleware, upload.s
 
       // Bestehende Namen bleiben unberuehrt - ein Import darf niemandem das
       // Passwort ueberschreiben und damit den Zugang entziehen.
-      const existing = await query('SELECT id FROM users WHERE name = $1', [name]);
+      const existing = await query('SELECT id FROM users WHERE LOWER(name) = LOWER($1)', [name]);
       if (existing.rows.length > 0) {
         skipped++;
         continue;

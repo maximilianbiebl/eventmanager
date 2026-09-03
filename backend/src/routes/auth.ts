@@ -18,7 +18,13 @@ router.post('/login', async (req, res) => {
     const remember = req.body?.remember !== false;
 
     // Benutzer finden
-    const result = await query('SELECT * FROM users WHERE name = $1', [name]);
+    /*
+     * Ohne Ruecksicht auf Gross-/Kleinschreibung: auf dem Handy schreibt die
+     * Tastatur den ersten Buchstaben von selbst gross, und daran ist bisher
+     * jeder gescheitert, der seinen Namen klein eingetragen hatte. Dass das
+     * eindeutig bleibt, sichert der Index aus Migration 019.
+     */
+    const result = await query('SELECT * FROM users WHERE LOWER(name) = LOWER($1)', [name]);
 
     if (result.rows.length === 0) {
       return res.status(401).json({ error: 'Benutzername oder Passwort falsch' });
@@ -70,7 +76,7 @@ router.post('/register', authMiddleware, teamleiterOrAdminMiddleware, async (req
     }
 
     // Prüfen ob Benutzer schon existiert
-    const existing = await query('SELECT * FROM users WHERE name = $1', [name]);
+    const existing = await query('SELECT * FROM users WHERE LOWER(name) = LOWER($1)', [name]);
 
     if (existing.rows.length > 0) {
       return res.status(400).json({ error: 'Benutzer existiert bereits' });

@@ -551,6 +551,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
               eventInstanceId={selectedInstance}
               onEditTask={handleEditTask}
               onAssignTask={handleAssignTask}
+              onTasksChanged={() => loadData(false)}
               eventDays={event?.days}
               selectedDay={selectedDay}
               onSelectedDayChange={handleDayChange}
@@ -1188,9 +1189,13 @@ const TaskListView: React.FC<TaskListViewProps> = ({
 
                 {(taskAssignments.length > 0 || hatBedarf(task)) && (
                   <div className={styles.assignmentsSection}>
-                    <span className={styles.assignmentsLabel}>Zugewiesen an:</span>
-                    {/* Bedarf gleich hinter der Beschriftung - wie in der Tabelle. */}
-                    <BedarfBadge task={task} zugewiesen={taskAssignments.length} klein />
+                    {/* Beschriftung und Bedarf in EINER Zeile - der Abschnitt
+                        steht sonst untereinander, und das Zeichen bekam eine
+                        ganze Zeile fuer sich. */}
+                    <div className={styles.assignmentsHeader}>
+                      <span className={styles.assignmentsLabel}>Zugewiesen an:</span>
+                      <BedarfBadge task={task} zugewiesen={taskAssignments.length} klein />
+                    </div>
                     <div className={styles.assignmentsList}>
                       {taskAssignments.map((assignment, idx) => {
                         /*

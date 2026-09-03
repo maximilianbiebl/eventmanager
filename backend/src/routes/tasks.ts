@@ -3,6 +3,7 @@ import { query } from '../database/connection';
 import { authMiddleware, teamleiterOrAdminMiddleware, AuthRequest } from '../middleware/auth';
 import { CreateTaskRequest, AssignTaskRequest } from '../types';
 import { broadcastUpdate } from './sse';
+import { CSV_BOM, ohneBom, parseCsvLine, csvFeld } from '../utils/csv';
 import {
   eventZugriff, eventIdVonTask, eventIdVonInstanz, eventIdVonZuweisung, eventIdVonSerie,
   darfEventVerwalten,
@@ -10,6 +11,7 @@ import {
 import multer from 'multer';
 
 const router = Router();
+
 const upload = multer({ storage: multer.memoryStorage() });
 
 // Helper function to format time without seconds (hh:mm)
@@ -1868,31 +1870,55 @@ router.post('/event/:eventId/export-csv', authMiddleware, teamleiterOrAdminMiddl
     const { eventId } = req.params;
     const { task_ids } = req.body;
 
-    let result;
-    if (task_ids && Array.isArray(task_ids) && task_ids.length > 0) {
-      result = await query(
-        'SELECT id, title, description, day_number, scheduled_time, start_time, end_time, is_public, status FROM tasks WHERE id = ANY($1) AND event_id = $2 ORDER BY day_number, scheduled_time',
-        [task_ids, eventId]
-      );
-    } else {
-      result = await query(
-        `SELECT id, title, description, day_number, scheduled_time, start_time, end_time, is_public, status,
-                needed_staff, needed_female, needed_male
-         FROM tasks WHERE event_id = $1 ORDER BY day_number, scheduled_time`,
-        [eventId]
-      );
-    }
+    /*
+     * Beide Zweige holen dieselben Spalten. Vorher hatte der Zweig fuer die
+     * Auswahl weniger - wer nur einzelne Aufgaben ausgewaehlt hatte, verlor
+     * beim Export still den Personalbedarf.
+     */
+    const spalten = `t.id, t.title, t.description, t.day_number, t.scheduled_time, t.start_time,
+                     t.end_time, t.is_public, t.status, t.needed_staff, t.needed_female, t.needed_male,
+                     ts.name AS series_name`;
 
-    // Create CSV
-    // Der Personalbedarf gehoert mit in die Datei - sonst geht er beim
-    // Weg ueber Export/Import verloren. Leer bleibt leer, nicht 0.
-    const headers = ['id', 'title', 'description', 'day_number', 'scheduled_time', 'start_time', 'end_time', 'is_public', 'status', 'needed_staff', 'needed_female', 'needed_male'];
-    const rows = result.rows.map(row =>
-      `${row.id},"${row.title}","${row.description || ''}",${row.day_number},${row.scheduled_time || ''},${row.start_time || ''},${row.end_time || ''},${row.is_public},${row.status},${row.needed_staff ?? ''},${row.needed_female ?? ''},${row.needed_male ?? ''}`
+    const nurAusgewaehlte = task_ids && Array.isArray(task_ids) && task_ids.length > 0;
+    const result = await query(
+      `SELECT ${spalten}
+       FROM tasks t
+       LEFT JOIN task_series ts ON ts.id = t.series_id
+       WHERE ${nurAusgewaehlte ? 't.id = ANY($1) AND t.event_id = $2' : 't.event_id = $1'}
+       ORDER BY t.day_number, t.sort_order, t.scheduled_time`,
+      nurAusgewaehlte ? [task_ids, eventId] : [eventId]
     );
-    const csv = [headers.join(','), ...rows].join('\n');
 
-    res.setHeader('Content-Type', 'text/csv');
+    /*
+     * Anfuehrungszeichen im Text werden verdoppelt - so schreibt es das
+     * CSV-Format vor. Ohne das riss ein Titel wie 'Der "grosse" Abend' die
+     * Zeile auseinander und alles dahinter verrutschte.
+     */
+    const headers = [
+      'id', 'title', 'description', 'day_number', 'scheduled_time', 'start_time', 'end_time',
+      'is_public', 'status', 'series_name', 'needed_staff', 'needed_female', 'needed_male',
+    ];
+    const rows = result.rows.map(row => [
+      row.id,
+      csvFeld(row.title),
+      csvFeld(row.description),
+      row.day_number,
+      row.scheduled_time || '',
+      row.start_time || '',
+      row.end_time || '',
+      row.is_public,
+      row.status,
+      // Die Serie steht als Name in der Datei, nicht als Nummer: Nummern
+      // gelten nur in dieser Datenbank, ein Name ueberlebt den Umweg.
+      csvFeld(row.series_name),
+      row.needed_staff ?? '',
+      row.needed_female ?? '',
+      row.needed_male ?? '',
+    ].join(','));
+
+    const csv = CSV_BOM + [headers.join(','), ...rows].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename=tasks_event${eventId}_${new Date().toISOString().split('T')[0]}.csv`);
     res.send(csv);
   } catch (error) {
@@ -1910,51 +1936,71 @@ router.post('/event/:eventId/import-csv', authMiddleware, teamleiterOrAdminMiddl
       return res.status(400).json({ error: 'Keine Datei hochgeladen' });
     }
 
-    const csvText = req.file.buffer.toString('utf-8');
+    const csvText = ohneBom(req.file.buffer.toString('utf-8'));
     const lines = csvText.split('\n').filter(line => line.trim());
 
     if (lines.length < 2) {
       return res.status(400).json({ error: 'CSV ist leer oder ungültig' });
     }
 
-    const headers = lines[0].split(',').map(h => h.trim());
+    const headers = parseCsvLine(lines[0]);
     let imported = 0;
 
     // Get max sort_order for this event
     const maxSortResult = await query('SELECT MAX(sort_order) as max_sort FROM tasks WHERE event_id = $1', [eventId]);
     let nextSortOrder = (maxSortResult.rows[0]?.max_sort || 0) + 10;
 
-    for (let i = 1; i < lines.length; i++) {
-      // Parse CSV line with quoted strings
-      const values: string[] = [];
-      let currentValue = '';
-      let inQuotes = false;
+    /*
+     * Serien kommen als Name in der Datei an, nicht als Nummer.
+     *
+     * Passt der Name zu einer Serie dieser Veranstaltung, wird die Aufgabe
+     * dort eingehaengt; sonst wird die Serie angelegt. Ohne das ging die
+     * Zuordnung ueber Export und Import verloren - die Aufgaben kamen als
+     * lose Einzelstuecke zurueck.
+     *
+     * Nur die Zugehoerigkeit, nicht die Mitglieder: wer in einer Serie
+     * mitarbeitet, haengt an dieser Veranstaltung und laesst sich nicht aus
+     * einer Aufgaben-Datei ableiten.
+     */
+    const serienCache = new Map<string, number>();
+    const serieFinden = async (name: string | undefined): Promise<number | null> => {
+      const sauber = (name || '').trim();
+      if (!sauber) return null;
+      const schluessel = sauber.toLowerCase();
+      if (serienCache.has(schluessel)) return serienCache.get(schluessel)!;
 
-      for (let j = 0; j < lines[i].length; j++) {
-        const char = lines[i][j];
-        if (char === '"') {
-          inQuotes = !inQuotes;
-        } else if (char === ',' && !inQuotes) {
-          values.push(currentValue.trim());
-          currentValue = '';
-        } else {
-          currentValue += char;
-        }
-      }
-      values.push(currentValue.trim());
+      const vorhanden = await query(
+        'SELECT id FROM task_series WHERE event_id = $1 AND LOWER(name) = LOWER($2) LIMIT 1',
+        [eventId, sauber]
+      );
+      const id = vorhanden.rows.length > 0
+        ? vorhanden.rows[0].id
+        : (await query(
+            'INSERT INTO task_series (event_id, name) VALUES ($1, $2) RETURNING id',
+            [eventId, sauber]
+          )).rows[0].id;
+
+      serienCache.set(schluessel, id);
+      return id;
+    };
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = parseCsvLine(lines[i]);
 
       const task: any = {};
       headers.forEach((header, idx) => {
         task[header] = values[idx];
       });
 
+      const serieId = await serieFinden(task.series_name);
+
       // Create new task - always reset status to not_started on import
       await query(
         `INSERT INTO tasks (
           event_id, day_number, title, description, scheduled_time, start_time, end_time,
           reminder_minutes, is_public, status, sort_order,
-          needed_staff, needed_female, needed_male
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+          needed_staff, needed_female, needed_male, series_id
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
         [
           eventId,
           parseInt(task.day_number) || 1,
@@ -1970,7 +2016,8 @@ router.post('/event/:eventId/import-csv', authMiddleware, teamleiterOrAdminMiddl
           // Spalten duerfen fehlen - aeltere Dateien kennen sie noch nicht.
           bedarfsZahl(task.needed_staff),
           bedarfsZahl(task.needed_female),
-          bedarfsZahl(task.needed_male)
+          bedarfsZahl(task.needed_male),
+          serieId
         ]
       );
 
