@@ -8,7 +8,28 @@ import { roleBadgeColors, ROLE_NAMES } from '../../utils/roleBadge';
 
 interface Props {
   eventId: number;
+  /**
+   * Wer leitet diese Veranstaltung - Ersteller und Co-Teamleitung.
+   * Kommt aus GET /events/:id mit.
+   */
+  leitung?: { id: number; is_primary?: boolean }[];
 }
+
+/*
+ * Farbe im Pool nach der Rolle IN DIESER VERANSTALTUNG, nicht nach der
+ * Konto-Rolle.
+ *
+ * Im Pool stehen alle als "einteilbar" - das ist der Zweck der Liste. Was
+ * man beim Draufschauen wissen will, ist, wer hier die Leitung hat. Die
+ * Konto-Rolle sagt das nicht: ein Admin kann in dieser Veranstaltung
+ * einfacher Mitarbeiter sein, und eine Teamleitung leitet nur ihre eigenen.
+ * Als Farbe statt als Text, weil ein zusaetzliches Wort jede Zeile wieder
+ * breiter macht; der Klartext steht im Tooltip.
+ */
+const leitungsFarben = (rolleImEvent: 'leitung' | 'co-leitung' | null) =>
+  rolleImEvent
+    ? { backgroundColor: 'var(--c-success-soft)', color: 'var(--c-success-strong)' }
+    : { backgroundColor: 'var(--c-accent-soft)', color: 'var(--c-accent-strong)' };
 
 interface EventStaff extends User {
   isInPool?: boolean;
@@ -28,7 +49,13 @@ interface StaffTask {
   seriesName?: string;
 }
 
-export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
+export const EventStaffPool: React.FC<Props> = ({ eventId, leitung }) => {
+  const rolleImEvent = (userId: number): 'leitung' | 'co-leitung' | null => {
+    const eintrag = leitung?.find(l => l.id === userId);
+    if (!eintrag) return null;
+    return eintrag.is_primary ? 'leitung' : 'co-leitung';
+  };
+
   const [allStaff, setAllStaff] = useState<EventStaff[]>([]);
   const [eventStaff, setEventStaff] = useState<EventStaff[]>([]);
   const [loading, setLoading] = useState(true);
@@ -325,26 +352,18 @@ export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
         </div>
       ) : (
         <div style={styles.staffGrid}>
-          {eventStaff.map((staff) => (
+          {eventStaff.map((staff) => {
+            const imEvent = rolleImEvent(staff.id);
+            const rolleText = ROLE_NAMES[staff.role] ? ` · ${ROLE_NAMES[staff.role]}` : '';
+            const titel = imEvent === 'leitung'
+              ? `Leitung dieser Veranstaltung${rolleText}`
+              : imEvent === 'co-leitung'
+                ? `Co-Leitung dieser Veranstaltung${rolleText}`
+                : ROLE_NAMES[staff.role] || undefined;
+            return (
             <div key={staff.id} style={styles.staffCard}>
-              {/*
-                Im Pool sind alle dasselbe: Leute, die hier Aufgaben bekommen
-                koennen. Deshalb ist der Badge fuer alle gleich - faerbte man
-                ihn nach Konto-Rolle, schrie ein Admin in einer Liste lauter
-                als der Rest, obwohl er hier genau dieselbe Rolle hat.
-                Die Konto-Rolle steht daneben als kleines Zeichen, damit man
-                sie trotzdem sieht.
-              */}
-              <div style={styles.staffEllipse}>
+              <div style={{ ...styles.staffEllipse, ...leitungsFarben(imEvent) }} title={titel}>
                 <span style={styles.staffName}>{staff.name}</span>
-                {(staff.role === 'admin' || staff.role === 'teamleiter') && (
-                  <span
-                    style={{ ...styles.rolePill, ...roleBadgeColors(staff.role) }}
-                    title={`${ROLE_NAMES[staff.role]} · im Pool wie alle anderen einteilbar`}
-                  >
-                    {ROLE_NAMES[staff.role]}
-                  </span>
-                )}
                 <button
                   onClick={() => handleRemoveStaff(staff)}
                   style={styles.removeButtonEllipse}
@@ -377,7 +396,8 @@ export const EventStaffPool: React.FC<Props> = ({ eventId }) => {
                 )}
               </button>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -1509,16 +1529,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: '500',
     color: 'inherit',
     fontSize: '0.75rem',
-  },
-  // Konto-Rolle als kleines Zeichen im Badge - nur fuer Admin und
-  // Teamleitung, Mitarbeiter sind der Normalfall und brauchen keine Marke.
-  rolePill: {
-    padding: '0 0.3125rem',
-    borderRadius: '9999px',
-    fontSize: '0.625rem',
-    fontWeight: 700,
-    lineHeight: '1.15rem',
-    whiteSpace: 'nowrap',
   },
   staffMeta: {
     display: 'flex',

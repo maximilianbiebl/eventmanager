@@ -449,7 +449,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
       {/* Teamleiter sehen Mitarbeiterpool bei Vorlagen nicht */}
       {(isAdmin || !event.is_template) && (
         <div className={styles.section}>
-          <EventStaffPool eventId={eventId} />
+          <EventStaffPool eventId={eventId} leitung={event?.teamleiter} />
         </div>
       )}
 

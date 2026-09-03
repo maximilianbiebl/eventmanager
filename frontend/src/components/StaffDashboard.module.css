@@ -117,6 +117,15 @@
   font-weight: bold;
   color:var(--c-text);
   margin: 0;
+  /*
+   * Nicht umbrechen. In der Kopfzeile stehen neben dem Titel noch der
+   * Offline-Badge und die Knoepfe; sobald es eng wurde, brach "Meine
+   * Aufgaben" zweizeilig um und die Zeile sah schief aus. Lieber kuerzen -
+   * was hier steht, ist ohnehin immer derselbe kurze Text.
+   */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .subtitle {
@@ -928,35 +937,31 @@
     padding: 0.5rem;
   }
 
-  /*
-   * Titel, Badge und Menue passten auf dem Handy nicht nebeneinander: der
-   * Badge ist unumbrechbar breit, also blieb dem Titel so wenig Platz, dass
-   * "Meine Aufgaben" zweizeilig umbrach. Jetzt teilen sich Titel und Menue
-   * die erste Zeile, der Badge bekommt darunter eine eigene.
-   */
   .header {
     flex-direction: row;
     align-items: center;
-    flex-wrap: wrap;
     padding: 0.5rem 0.75rem;
     margin-bottom: 1rem;
-    row-gap: 0.5rem;
   }
 
   .headerContent {
-    order: 1;
     flex: 1;
     min-width: 0;
   }
 
-  .mobileMenuContainer {
-    order: 2;
+  /*
+   * Der Badge bleibt in der Kopfzeile stehen. Damit er dem Titel nicht den
+   * Platz nimmt, faellt auf schmalen Geraeten "· Stand" weg - die Uhrzeit
+   * sagt dasselbe, der ganze Satz steht weiterhin im Tooltip.
+   */
+  .header .offlineBadge {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.6875rem;
+    gap: 0.25rem;
   }
 
-  .header .offlineBadge {
-    order: 3;
-    flex: 1 0 100%;
-    justify-content: center;
+  .offlineStand {
+    display: none;
   }
 
   .title {

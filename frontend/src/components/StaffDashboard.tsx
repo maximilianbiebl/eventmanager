@@ -590,11 +590,21 @@ export const StaffDashboard: React.FC<Props> = ({ embedded = false }) => {
     <div className={styles.offlineBadge} role="status" title={offlineTitel}>
       {offline && <span className={styles.offlineDot} aria-hidden="true" />}
       <span>
-        {offline
-          ? standVon
-            ? `Offline · Stand ${new Date(standVon).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`
-            : 'Offline'
-          : `${ausstehend.size} wird gesendet`}
+        {offline ? (
+          standVon ? (
+            <>
+              Offline
+              {/* "· Stand" faellt auf schmalen Geraeten weg, damit der Badge
+                  in der Kopfzeile bleibt, ohne den Titel zu quetschen. */}
+              <span className={styles.offlineStand}> · Stand</span>{' '}
+              {new Date(standVon).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
+            </>
+          ) : (
+            'Offline'
+          )
+        ) : (
+          `${ausstehend.size} wird gesendet`
+        )}
       </span>
       {offline && ausstehend.size > 0 && (
         <span className={styles.offlineCount}>{ausstehend.size}</span>
