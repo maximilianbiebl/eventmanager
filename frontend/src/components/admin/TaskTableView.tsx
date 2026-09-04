@@ -77,6 +77,16 @@ interface Props {
   leitung?: Leitung[];
 }
 
+/*
+ * Die Tabelle hat zehn Spalten: Auswahl, Tag, Datum, Aufgabe, Geplante
+ * Zeit, Startzeit, Endzeit, Status, Zugewiesen an, Aktionen.
+ *
+ * Der Kopf einer Gruppe laeuft ueber die ersten NEUN und bekommt fuer seine
+ * Knoepfe eine eigene Zelle in der zehnten - dann stehen sie genau in
+ * derselben Spalte wie die Knoepfe der Aufgaben darunter.
+ */
+const GRUPPEN_SPALTEN = 9;
+
 const STATUS_COLORS: { [key: string]: string } = {
   not_started: 'var(--c-text-muted)',
   in_progress: 'var(--c-accent)',
@@ -826,8 +836,14 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
     const zeit = gruppenZeit(gruppe);
 
     return (
+      /*
+       * Zwei Zellen statt einer ueber alles: so stehen die Knoepfe der
+       * Gruppe genau in der Spalte "Aktionen", also senkrecht unter denen
+       * der Aufgaben. Eine durchgehende Zelle haette sie irgendwo in der
+       * Mitte enden lassen.
+       */
       <tr key={`kopf-${gruppe.id}`} style={styles.gruppenZeile}>
-        <td style={{ ...styles.gruppenZelle, display: 'flex', alignItems: 'center', gap: '0.5rem' }} colSpan={12}>
+        <td style={styles.gruppenZelle} colSpan={GRUPPEN_SPALTEN}>
           <button
             type="button"
             onClick={() => klappe(gruppe.id)}
@@ -843,11 +859,13 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
             </span>
           </button>
 
-          {/*
-            Dieselben Aktionen wie in der Kartenansicht - vorher gab es sie
-            nur dort, und wer mit der Tabelle arbeitet, kam an seine Gruppen
-            gar nicht heran.
-          */}
+        </td>
+        {/*
+          Dieselben Aktionen wie in der Kartenansicht - vorher gab es sie
+          nur dort, und wer mit der Tabelle arbeitet, kam an seine Gruppen
+          gar nicht heran.
+        */}
+        <td style={styles.gruppenAktionenZelle}>
           {!readOnly && (
             <span style={styles.gruppenAktionen}>
               <button type="button" style={styles.gruppenAktion}
@@ -1403,10 +1421,18 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '0.75rem',
     color: 'var(--c-text-muted)',
   },
+  gruppenAktionenZelle: {
+    borderTop: '1px solid var(--c-border-strong)',
+    borderBottom: '1px solid var(--c-border)',
+    // Dieselbe Polsterung wie eine normale Zelle, damit die Knoepfe genau
+    // dort beginnen wie die der Aufgaben darunter.
+    padding: '0.75rem',
+    verticalAlign: 'middle',
+  },
   gruppenAktionen: {
     display: 'flex',
     gap: '0.25rem',
-    paddingRight: '0.75rem',
+    flexWrap: 'wrap',
   },
   gruppenAktion: {
     padding: '0.1875rem 0.5rem',

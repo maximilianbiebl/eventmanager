@@ -4,6 +4,7 @@ import { Response } from 'express';
 import { authMiddleware, teamleiterOrAdminMiddleware, AuthRequest } from '../middleware/auth';
 import { eventZugriff } from '../middleware/eventAccess';
 import { broadcastUpdate } from './sse';
+import { verschiebeZeile } from '../utils/reihenfolge';
 
 /*
  * Aufgabengruppen.
@@ -128,54 +129,30 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware,
 });
 
 /*
- * Gruppen von Hand sortieren.
+ * Gruppen von Hand sortieren - innerhalb ihres Tages.
  *
- * Getauscht wird mit der Nachbargruppe DESSELBEN TAGES - eine Gruppe
- * gehoert zu einem Tag, ueber die Tagesgrenze hinweg zu schieben waere
- * etwas anderes (dafuer gibt es das Bearbeiten).
- *
- * Sortiert wird sonst nach Zeit; die Handreihenfolge greift dort, wo keine
- * Zeit steht oder wo zwei dieselbe haben. Deshalb bekommen beide Gruppen
- * beim Tausch garantiert verschiedene Werte, auch wenn vorher zufaellig
- * beide auf 0 standen.
+ * Gruppen und gruppenlose Aufgaben teilen sich eine Zaehlung, eine Gruppe
+ * laesst sich also auch ZWISCHEN zwei losen Aufgaben platzieren. Die Logik
+ * dazu steht in utils/reihenfolge, weil die Aufgaben-Route dieselbe braucht.
  */
 const verschiebe = (richtung: 'hoch' | 'runter') =>
   async (req: AuthRequest, res: Response) => {
     try {
       const { id } = req.params;
-      const aktuell = await query('SELECT * FROM program_items WHERE id = $1', [id]);
-      if (aktuell.rows.length === 0) {
+      const g = await query('SELECT * FROM program_items WHERE id = $1', [id]);
+      if (g.rows.length === 0) {
         return res.status(404).json({ error: 'Aufgabengruppe nicht gefunden' });
       }
-      const g = aktuell.rows[0];
+      const gruppe = g.rows[0];
 
-      const nachbar = await query(
-        `SELECT * FROM program_items
-         WHERE event_id = $1 AND day_number = $2
-           AND (sort_order, id) ${richtung === 'hoch' ? '<' : '>'} ($3, $4)
-         ORDER BY sort_order ${richtung === 'hoch' ? 'DESC' : 'ASC'}, id ${richtung === 'hoch' ? 'DESC' : 'ASC'}
-         LIMIT 1`,
-        [g.event_id, g.day_number, g.sort_order ?? 0, g.id]
+      const ergebnis = await verschiebeZeile(
+        gruppe.event_id, gruppe.day_number, 'gruppe', gruppe.id, richtung
       );
 
-      if (nachbar.rows.length === 0) {
-        return res.json({ message: richtung === 'hoch' ? 'Gruppe steht bereits ganz oben' : 'Gruppe steht bereits ganz unten' });
+      if (ergebnis.bewegt) {
+        broadcastUpdate('task', { action: 'group_moved', eventId: gruppe.event_id });
       }
-      const n = nachbar.rows[0];
-
-      // Gleiche Werte kaeme es sonst zu keiner Bewegung - deshalb notfalls
-      // auseinanderziehen statt stumpf zu tauschen.
-      const meins = g.sort_order ?? 0;
-      const seins = n.sort_order ?? 0;
-      const [neuMeins, neuSeins] = meins === seins
-        ? (richtung === 'hoch' ? [seins - 10, seins] : [seins + 10, seins])
-        : [seins, meins];
-
-      await query('UPDATE program_items SET sort_order = $1 WHERE id = $2', [neuMeins, g.id]);
-      await query('UPDATE program_items SET sort_order = $1 WHERE id = $2', [neuSeins, n.id]);
-
-      broadcastUpdate('task', { action: 'group_moved', eventId: g.event_id });
-      res.json({ message: 'Reihenfolge aktualisiert' });
+      res.json({ message: ergebnis.meldung });
     } catch (error) {
       console.error('Move task group error:', error);
       res.status(500).json({ error: 'Server Fehler' });

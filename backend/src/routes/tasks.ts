@@ -4,6 +4,7 @@ import { authMiddleware, teamleiterOrAdminMiddleware, AuthRequest } from '../mid
 import { CreateTaskRequest, AssignTaskRequest } from '../types';
 import { broadcastUpdate } from './sse';
 import { CSV_BOM, ohneBom, parseCsvLine, csvFeld } from '../utils/csv';
+import { verschiebeZeile } from '../utils/reihenfolge';
 import {
   eventZugriff, eventIdVonTask, eventIdVonInstanz, eventIdVonZuweisung, eventIdVonSerie,
   darfEventVerwalten,
@@ -215,6 +216,10 @@ router.get('/my-tasks', authMiddleware, async (req: AuthRequest, res) => {
         ei.start_date as instance_start_date,
         ei.instance_number,
         pi.title as program_item_title,
+        -- Aufgabengruppe fuer die Zwischenueberschriften im Mitarbeiterbereich
+        pi.title as group_name,
+        pi.time as group_time,
+        pi.sort_order as group_sort_order,
         ${MITARBEITER_DER_AUFGABE('ta.event_instance_id')} as mitarbeiter
        FROM task_assignments ta
        JOIN tasks t ON ta.task_id = t.id
@@ -241,6 +246,9 @@ router.get('/my-tasks', authMiddleware, async (req: AuthRequest, res) => {
         ei.start_date as instance_start_date,
         ei.instance_number,
         pi.title as program_item_title,
+        pi.title as group_name,
+        pi.time as group_time,
+        pi.sort_order as group_sort_order,
         ${MITARBEITER_DER_AUFGABE('ei.id')} as mitarbeiter
        FROM tasks t
        JOIN events e ON t.event_id = e.id
@@ -1748,24 +1756,29 @@ router.put('/:id/move-up', authMiddleware, teamleiterOrAdminMiddleware, eventZug
     const { event_id, sort_order, day_number } = currentTask;
 
     /*
-     * Verschoben wird INNERHALB der Aufgabengruppe.
+     * Aufgabe IN einer Gruppe wird nur innerhalb ihrer Gruppe verschoben -
+     * die Gruppe wechselt man im Bearbeiten-Dialog, nicht aus Versehen mit
+     * einem Pfeil.
      *
-     * Sonst waere der Pfeil ein Werkzeug, das die Aufgabe aus ihrer Gruppe
-     * herausschiebt - die Gruppe wechselt man aber im Bearbeiten-Dialog,
-     * nicht aus Versehen mit einem Pfeil. Aufgaben ohne Gruppe tauschen
-     * untereinander; sie bilden gewissermassen die Gruppe "ohne".
+     * Eine Aufgabe OHNE Gruppe steht auf derselben Ebene wie die Gruppen
+     * selbst und tauscht deshalb auch mit ihnen (utils/reihenfolge) - so
+     * laesst sich eine Gruppe zwischen zwei losen Aufgaben platzieren.
      */
     const { program_item_id } = currentTask;
-    const gruppenBedingung = program_item_id === null
-      ? 'program_item_id IS NULL'
-      : 'program_item_id = $4';
-    const gruppenWert = program_item_id === null ? [] : [program_item_id];
+
+    if (program_item_id === null) {
+      const ergebnis = await verschiebeZeile(event_id, day_number, 'aufgabe', currentTask.id, 'hoch');
+      if (ergebnis.bewegt) {
+        broadcastUpdate('task', { action: 'move', taskId: parseInt(id), eventId: event_id });
+      }
+      return res.json({ message: ergebnis.meldung });
+    }
 
     const aboveResult = await query(
       `SELECT * FROM tasks
-       WHERE event_id = $1 AND day_number = $2 AND sort_order < $3 AND ${gruppenBedingung}
+       WHERE event_id = $1 AND day_number = $2 AND sort_order < $3 AND program_item_id = $4
        ORDER BY sort_order DESC LIMIT 1`,
-      [event_id, day_number, sort_order, ...gruppenWert]
+      [event_id, day_number, sort_order, program_item_id]
     );
 
     if (aboveResult.rows.length === 0) {
@@ -1774,11 +1787,9 @@ router.put('/:id/move-up', authMiddleware, teamleiterOrAdminMiddleware, eventZug
 
     const aboveTask = aboveResult.rows[0];
 
-    // Swap sort_order
     await query('UPDATE tasks SET sort_order = $1 WHERE id = $2', [aboveTask.sort_order, id]);
     await query('UPDATE tasks SET sort_order = $1 WHERE id = $2', [sort_order, aboveTask.id]);
 
-    // Broadcast update for live sync
     broadcastUpdate('task', { action: 'move', taskId: parseInt(id), eventId: event_id });
 
     res.json({ message: 'Reihenfolge aktualisiert' });
@@ -1802,18 +1813,22 @@ router.put('/:id/move-down', authMiddleware, teamleiterOrAdminMiddleware, eventZ
     const currentTask = taskResult.rows[0];
     const { event_id, sort_order, day_number } = currentTask;
 
-    // Ebenfalls innerhalb der Gruppe - siehe move-up.
+    // Spiegelbild zu move-up.
     const { program_item_id } = currentTask;
-    const gruppenBedingung = program_item_id === null
-      ? 'program_item_id IS NULL'
-      : 'program_item_id = $4';
-    const gruppenWert = program_item_id === null ? [] : [program_item_id];
+
+    if (program_item_id === null) {
+      const ergebnis = await verschiebeZeile(event_id, day_number, 'aufgabe', currentTask.id, 'runter');
+      if (ergebnis.bewegt) {
+        broadcastUpdate('task', { action: 'move', taskId: parseInt(id), eventId: event_id });
+      }
+      return res.json({ message: ergebnis.meldung });
+    }
 
     const belowResult = await query(
       `SELECT * FROM tasks
-       WHERE event_id = $1 AND day_number = $2 AND sort_order > $3 AND ${gruppenBedingung}
+       WHERE event_id = $1 AND day_number = $2 AND sort_order > $3 AND program_item_id = $4
        ORDER BY sort_order ASC LIMIT 1`,
-      [event_id, day_number, sort_order, ...gruppenWert]
+      [event_id, day_number, sort_order, program_item_id]
     );
 
     if (belowResult.rows.length === 0) {
@@ -1822,11 +1837,9 @@ router.put('/:id/move-down', authMiddleware, teamleiterOrAdminMiddleware, eventZ
 
     const belowTask = belowResult.rows[0];
 
-    // Swap sort_order
     await query('UPDATE tasks SET sort_order = $1 WHERE id = $2', [belowTask.sort_order, id]);
     await query('UPDATE tasks SET sort_order = $1 WHERE id = $2', [sort_order, belowTask.id]);
 
-    // Broadcast update for live sync
     broadcastUpdate('task', { action: 'move', taskId: parseInt(id), eventId: event_id });
 
     res.json({ message: 'Reihenfolge aktualisiert' });

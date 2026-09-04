@@ -40,6 +40,14 @@ export interface Task {
 }
 
 export interface TaskAssignment extends Task {
+  /**
+   * Aufgabengruppe, in der die Aufgabe steht - als Name, Zeit und
+   * Reihenfolge. Der Mitarbeiterbereich baut daraus dieselben
+   * Zwischenüberschriften wie die Verwaltung.
+   */
+  group_name?: string | null;
+  group_time?: string | null;
+  group_sort_order?: number | null;
   assignment_id: number;
   completed: boolean;
   completed_at?: string;

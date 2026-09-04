@@ -12,6 +12,8 @@ import client from '../api/client';
 import styles from './StaffDashboard.module.css';
 import { toLocalDate } from '../utils/date';
 import { DaySelection, resolveInitialDay, storeDay } from '../utils/dayPreference';
+import { zeilenMitGruppen, zugeklappteGruppen, merkeZugeklappt, gruppenZeit } from '../utils/taskGroups';
+import { TaskGroup } from '../api/program';
 import {
   cacheTasks, readCachedTasks, enqueue, flushQueue, pendingTaskIds,
   queueLength, istNetzfehler,
@@ -341,6 +343,49 @@ export const StaffDashboard: React.FC<Props> = ({ embedded = false }) => {
    * Der Platz fuer den Offline-Badge in der Kopfzeile des Adminbereichs.
    * Beim ersten Rendern gibt es ihn noch nicht, deshalb im Effekt gesucht.
    */
+  /*
+   * Aufgabengruppen im Mitarbeiterbereich.
+   *
+   * Die Gruppen kommen nicht als eigene Liste, sondern haengen an den
+   * Aufgaben (group_name, group_time, group_sort_order) - der
+   * Mitarbeiterbereich holt seine Aufgaben ueber /tasks/my-tasks und soll
+   * dafuer keinen zweiten Abruf brauchen, schon gar nicht offline.
+   */
+  const gruppen: TaskGroup[] = React.useMemo(() => {
+    const nachId = new Map<number, TaskGroup>();
+    for (const t of tasks) {
+      const id = t.program_item_id;
+      if (!id || nachId.has(id)) continue;
+      nachId.set(id, {
+        id,
+        event_id: t.event_id,
+        day_number: t.day_number,
+        title: t.group_name || '',
+        time: t.group_time ?? null,
+        sort_order: t.group_sort_order ?? 0,
+      });
+    }
+    return [...nachId.values()];
+  }, [tasks]);
+
+  /*
+   * Zugeklappte Gruppen - eigener Speicher fuer den Mitarbeiterbereich.
+   * Die Nummern der Gruppen sind eindeutig, ein Schluessel genuegt also
+   * fuer alle Veranstaltungen. Was die Leitung bei sich zuklappt, geht
+   * niemanden hier etwas an.
+   */
+  const GRUPPEN_SPEICHER = 0;
+  const [zugeklappt, setZugeklappt] = useState<Set<number>>(() => zugeklappteGruppen(GRUPPEN_SPEICHER));
+
+  const klappe = (id: number) => {
+    setZugeklappt(prev => {
+      const neu = new Set(prev);
+      if (neu.has(id)) neu.delete(id); else neu.add(id);
+      merkeZugeklappt(GRUPPEN_SPEICHER, neu);
+      return neu;
+    });
+  };
+
   const [badgePlatz, setBadgePlatz] = useState<HTMLElement | null>(null);
   useEffect(() => {
     if (embedded) setBadgePlatz(document.getElementById(ADMIN_BADGE_PLATZ));
@@ -610,6 +655,74 @@ export const StaffDashboard: React.FC<Props> = ({ embedded = false }) => {
       return orderA - orderB;
     });
   }, [dayFilteredTasks]);
+
+  /*
+   * Karten einer Liste - mit Zwischenueberschriften, wo Aufgaben zu einer
+   * Gruppe gehoeren. Dieselbe Darstellung wie in der Verwaltung, nur ohne
+   * die Knoepfe: hier wird nichts umbenannt oder verschoben.
+   *
+   * Sortiert wird nach Zeit: die Gruppe steht bei ihrer eigenen Uhrzeit
+   * und, wenn sie keine hat, bei der fruehesten ihrer Aufgaben. Eine
+   * Handreihenfolge gibt es hier nicht - die kennt nur die Verwaltung.
+   */
+  const kartenMitGruppen = (liste: TaskAssignment[]) => (
+    zeilenMitGruppen(liste as any[], gruppen, 'zeit').map((z) => {
+      if (z.typ === 'aufgabe') {
+        const t = z.aufgabe as TaskAssignment;
+        return (
+          <TaskCard
+            key={`${t.assignment_id || 'task'}-${t.id}`}
+            task={t}
+            onComplete={handleComplete}
+            onCompletePublic={handleCompletePublic}
+            onStatusUpdate={handleStatusUpdate}
+            onReminderUpdate={() => loadTasks(false)}
+            isOverdue={isTaskOverdue(t)}
+            pending={ausstehend.has(t.id)}
+          />
+        );
+      }
+
+      const zu = zugeklappt.has(z.gruppe.id);
+      const zeit = gruppenZeit(z.gruppe);
+      const offen = z.aufgaben.filter((t: any) => t.status !== 'completed').length;
+
+      return (
+        <React.Fragment key={`gruppe-${z.gruppe.id}`}>
+          <button
+            type="button"
+            onClick={() => klappe(z.gruppe.id)}
+            className={styles.gruppenKopf}
+            aria-expanded={!zu}
+          >
+            <span className={styles.gruppenPfeil} style={{ transform: zu ? 'none' : 'rotate(90deg)' }} aria-hidden="true">›</span>
+            <span className={styles.gruppenTitel}>{z.gruppe.title}</span>
+            {zeit && <span className={styles.gruppenZeit}>{zeit} Uhr</span>}
+            <span className={styles.gruppenZahl}>
+              {z.aufgaben.length} {z.aufgaben.length === 1 ? 'Aufgabe' : 'Aufgaben'}
+              {offen > 0 && ` · ${offen} offen`}
+            </span>
+          </button>
+          {!zu && (
+            <div className={styles.gruppenInhalt}>
+              {(z.aufgaben as TaskAssignment[]).map((t) => (
+                <TaskCard
+                  key={`${t.assignment_id || 'task'}-${t.id}`}
+                  task={t}
+                  onComplete={handleComplete}
+                  onCompletePublic={handleCompletePublic}
+                  onStatusUpdate={handleStatusUpdate}
+                  onReminderUpdate={() => loadTasks(false)}
+                  isOverdue={isTaskOverdue(t)}
+                  pending={ausstehend.has(t.id)}
+                />
+              ))}
+            </div>
+          )}
+        </React.Fragment>
+      );
+    })
+  );
 
   if (loading) {
     return <div className={styles.loading}>Lade Aufgaben...</div>;
@@ -918,18 +1031,7 @@ export const StaffDashboard: React.FC<Props> = ({ embedded = false }) => {
         />
       ) : sortBy === 'standard' ? (
         <div key="standard-view" className={styles.taskList}>
-          {sortedTasks.map((task) => (
-            <TaskCard
-              key={`${task.assignment_id || 'task'}-${task.id}`}
-              task={task}
-              onComplete={handleComplete}
-              onCompletePublic={handleCompletePublic}
-              onStatusUpdate={handleStatusUpdate}
-              onReminderUpdate={() => loadTasks(false)}
-              isOverdue={isTaskOverdue(task)}
-              pending={ausstehend.has(task.id)}
-            />
-          ))}
+          {kartenMitGruppen(sortedTasks)}
         </div>
       ) : sortBy === 'event-day' ? (
         <div key="event-day-view" className={styles.groupedView}>
@@ -937,18 +1039,7 @@ export const StaffDashboard: React.FC<Props> = ({ embedded = false }) => {
             <div key={groupKey} className={styles.group}>
               <h2 className={styles.groupTitle}>{groupKey}</h2>
               <div className={styles.taskList}>
-                {groupTasks.map((task) => (
-                  <TaskCard
-                    key={`${task.assignment_id || 'task'}-${task.id}`}
-                    task={task}
-                    onComplete={handleComplete}
-                    onCompletePublic={handleCompletePublic}
-                    onStatusUpdate={handleStatusUpdate}
-                    onReminderUpdate={() => loadTasks(false)}
-                    isOverdue={isTaskOverdue(task)}
-                    pending={ausstehend.has(task.id)}
-                  />
-                ))}
+                {kartenMitGruppen(groupTasks)}
               </div>
             </div>
           ))}
@@ -959,18 +1050,7 @@ export const StaffDashboard: React.FC<Props> = ({ embedded = false }) => {
             <div key={groupKey} className={styles.group}>
               <h2 className={styles.groupTitle}>{groupKey}</h2>
               <div className={styles.taskList}>
-                {groupTasks.map((task) => (
-                  <TaskCard
-                    key={`${task.assignment_id || 'task'}-${task.id}`}
-                    task={task}
-                    onComplete={handleComplete}
-                    onCompletePublic={handleCompletePublic}
-                    onStatusUpdate={handleStatusUpdate}
-                    onReminderUpdate={() => loadTasks(false)}
-                    isOverdue={isTaskOverdue(task)}
-                    pending={ausstehend.has(task.id)}
-                  />
-                ))}
+                {kartenMitGruppen(groupTasks)}
               </div>
             </div>
           ))}
@@ -981,18 +1061,7 @@ export const StaffDashboard: React.FC<Props> = ({ embedded = false }) => {
             <div key={groupKey} className={styles.group}>
               <h2 className={styles.groupTitle}>{groupKey}</h2>
               <div className={styles.taskList}>
-                {groupTasks.map((task) => (
-                  <TaskCard
-                    key={`${task.assignment_id || 'task'}-${task.id}`}
-                    task={task}
-                    onComplete={handleComplete}
-                    onCompletePublic={handleCompletePublic}
-                    onStatusUpdate={handleStatusUpdate}
-                    onReminderUpdate={() => loadTasks(false)}
-                    isOverdue={isTaskOverdue(task)}
-                    pending={ausstehend.has(task.id)}
-                  />
-                ))}
+                {kartenMitGruppen(groupTasks)}
               </div>
             </div>
           ))}

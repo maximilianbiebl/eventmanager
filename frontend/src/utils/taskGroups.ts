@@ -9,11 +9,10 @@ import { TaskGroup } from '../api/program';
  *
  * Wo die Gruppe steht, hängt von der gewählten Sortierung ab:
  *
- *   "manuell"  Gruppen in ihrer eigenen Reihenfolge (die Pfeile am
- *              Gruppenkopf), danach die Aufgaben ohne Gruppe in ihrer.
- *              Nur so haben die Pfeile überhaupt eine Wirkung - die
- *              Reihenfolge der Gruppen und die der losen Aufgaben sind
- *              zwei getrennte Zählungen und lassen sich nicht mischen.
+ *   "manuell"  Gruppen UND Aufgaben ohne Gruppe stehen auf einer Ebene und
+ *              teilen sich eine Zählung. Deshalb lässt sich eine Gruppe
+ *              auch zwischen zwei lose Aufgaben schieben. Die Reihenfolge
+ *              kommt vom Server (sort_order), die Pfeile ändern sie.
  *
  *   "zeit"     Alles nach Uhrzeit. Die Zeit einer Gruppe ist ihre eigene,
  *              und wenn sie keine hat, die früheste ihrer Aufgaben. Was
@@ -93,17 +92,21 @@ export const zeilenMitGruppen = <T extends Gruppierbar>(
 
   if (sortierung === 'manuell') {
     /*
-     * Gruppen zuerst, in ihrer Handreihenfolge; danach die losen Aufgaben.
-     * Ein gemeinsamer Rang liesse sich nicht bilden - die Nummern der
-     * Gruppen und die der Aufgaben zaehlen unabhaengig voneinander.
+     * Ein gemeinsamer Rang fuer Gruppen und lose Aufgaben - der Server
+     * fuehrt beide in derselben Zaehlung (utils/reihenfolge). Nur so kann
+     * eine Gruppe zwischen zwei losen Aufgaben stehen.
      */
+    const rang = (z: Zeile<T>) =>
+      z.typ === 'gruppe' ? (z.gruppe.sort_order ?? 0) : (z.aufgabe.sort_order ?? 0);
+
     return [...zeilen].sort((a, b) => {
       const tag = tagVon(a) - tagVon(b);
       if (tag !== 0) return tag;
-      if (a.typ !== b.typ) return a.typ === 'gruppe' ? -1 : 1;
-      const ra = a.typ === 'gruppe' ? (a.gruppe.sort_order ?? 0) : (a.aufgabe.sort_order ?? 0);
-      const rb = b.typ === 'gruppe' ? (b.gruppe.sort_order ?? 0) : (b.aufgabe.sort_order ?? 0);
-      return ra - rb;
+      const r = rang(a) - rang(b);
+      if (r !== 0) return r;
+      // Gleicher Rang kommt nach einem Import vor, bevor einmal sortiert
+      // wurde - dann wenigstens stabil und nachvollziehbar.
+      return a.typ === b.typ ? 0 : a.typ === 'gruppe' ? -1 : 1;
     });
   }
 
