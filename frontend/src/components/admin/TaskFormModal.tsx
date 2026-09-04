@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { tasksApi } from '../../api/tasks';
 import { taskSeriesApi, TaskSeries } from '../../api/taskSeries';
+import { programApi, TaskGroup } from '../../api/program';
 import client from '../../api/client';
 
 interface Props {
@@ -40,6 +41,7 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
     needed_female: task?.needed_female ?? '',
     needed_male: task?.needed_male ?? '',
     auto_complete: task?.auto_complete || false,
+    program_item_id: task?.program_item_id ?? null as number | null,
   });
 
   /*
@@ -82,10 +84,26 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
   const [showStaffSelection, setShowStaffSelection] = useState(false);
   const [taskSeries, setTaskSeries] = useState<TaskSeries[]>([]);
 
+  /*
+   * Aufgabengruppen der Veranstaltung. Angeboten werden nur die des
+   * gewaehlten Tages - eine Gruppe gehoert zu genau einem Tag, und
+   * "Fruehstueck" gibt es an jedem Tag einmal.
+   */
+  const [gruppen, setGruppen] = useState<TaskGroup[]>([]);
+  const [neueGruppe, setNeueGruppe] = useState('');
+  const [neueGruppeZeit, setNeueGruppeZeit] = useState('');
+  const [gruppeNeuAnlegen, setGruppeNeuAnlegen] = useState(false);
+
+  // Eine Gruppe gehoert zu genau einem Tag - beim Tageswechsel passt die
+  // bisherige Auswahl womoeglich nicht mehr.
+  const gruppenDesTages = gruppen.filter(g => g.day_number === Number(formData.day_number));
+
+
   useEffect(() => {
     // Lade Event Staff Pool und Task Series
     loadStaff();
     loadTaskSeries();
+    loadGruppen();
 
     // Lade bestehende Zuweisungen im Edit-Modus
     if (isEdit && task?.id && eventInstances && eventInstances.length > 0) {
@@ -127,6 +145,14 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
     }
   };
 
+  const loadGruppen = async () => {
+    try {
+      setGruppen(await programApi.getByEvent(eventId));
+    } catch (error) {
+      console.error('Load task groups error:', error);
+    }
+  };
+
   const loadTaskSeries = async () => {
     try {
       const series = await taskSeriesApi.getByEvent(eventId);
@@ -150,8 +176,24 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
     setError('');
 
     try {
+      /*
+       * Eine im Formular benannte Gruppe muss es geben, bevor die Aufgabe
+       * darauf zeigen kann. Sie wird deshalb hier angelegt - und nur, wenn
+       * wirklich ein Name dasteht.
+       */
+      let daten = formData;
+      if (gruppeNeuAnlegen && neueGruppe.trim()) {
+        const angelegt = await programApi.create({
+          event_id: eventId,
+          day_number: Number(formData.day_number),
+          title: neueGruppe.trim(),
+          time: neueGruppeZeit || null,
+        });
+        daten = { ...formData, program_item_id: angelegt.id };
+      }
+
       if (isEdit) {
-        await tasksApi.update(task.id, formData);
+        await tasksApi.update(task.id, daten);
 
         // Aktualisiere Zuweisungen für alle Event-Instanzen (falls ausgewählt)
         if (eventInstances && eventInstances.length > 0) {
@@ -168,7 +210,7 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
         // Erstelle Task
         const newTask = await tasksApi.create({
           event_id: eventId,
-          ...formData,
+          ...daten,
         });
 
         // Weise Mitarbeiter zu (falls ausgewählt und Instanzen vorhanden)
@@ -282,6 +324,61 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
                 <option value="completed">Erledigt</option>
                 <option value="overdue">Überfällig</option>
               </select>
+            </div>
+          </div>
+
+          {/*
+            Aufgabengruppe - die Zwischenueberschrift, unter der die Aufgabe
+            steht. Nur Gruppen des gewaehlten Tages, denn eine Gruppe gehoert
+            zu genau einem Tag.
+          */}
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Aufgabengruppe (optional)</label>
+            <select
+              value={formData.program_item_id === null ? '' : String(formData.program_item_id)}
+              onChange={(e) => {
+                const v = e.target.value;
+                setFormData({ ...formData, program_item_id: v === '' || v === 'neu' ? null : parseInt(v) });
+                setGruppeNeuAnlegen(v === 'neu');
+              }}
+              style={styles.input}
+            >
+              <option value="">Keine Gruppe</option>
+              {gruppenDesTages.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.title}{g.time ? ` · ${String(g.time).slice(0, 5)} Uhr` : ''}
+                </option>
+              ))}
+              <option value="neu">＋ Neue Gruppe anlegen…</option>
+            </select>
+
+            {gruppeNeuAnlegen && (
+              <div style={styles.bedarfZeile}>
+                <label style={{ ...styles.bedarfFeld, flex: '2 1 10rem' }}>
+                  <span style={styles.bedarfLabel}>Name der Gruppe</span>
+                  <input
+                    type="text"
+                    value={neueGruppe}
+                    onChange={(e) => setNeueGruppe(e.target.value)}
+                    placeholder="z. B. Frühstück"
+                    style={styles.bedarfInput}
+                  />
+                </label>
+                <label style={styles.bedarfFeld}>
+                  <span style={styles.bedarfLabel}>Uhrzeit (optional)</span>
+                  <input
+                    type="time"
+                    value={neueGruppeZeit}
+                    onChange={(e) => setNeueGruppeZeit(e.target.value)}
+                    style={styles.bedarfInput}
+                  />
+                </label>
+              </div>
+            )}
+
+            <div style={{fontSize: '0.875rem', color: 'var(--c-text-muted)', marginTop: '0.25rem'}}>
+              Gruppen fassen Aufgaben zusammen, die zusammengehören – etwa „Frühstück“
+              mit Essensausgabe und Tische wischen.
             </div>
           </div>
 

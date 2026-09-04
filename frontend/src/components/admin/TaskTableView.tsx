@@ -4,6 +4,8 @@ import { tasksApi } from '../../api/tasks';
 import { taskSeriesApi, TaskSeries } from '../../api/taskSeries';
 import { Leitung, eventBadgeColors, eventRolleVon, eventAssignmentTitle } from '../../utils/roleBadge';
 import { BedarfBadge } from './BedarfBadge';
+import { TaskGroup } from '../../api/program';
+import { zeilenMitGruppen, zugeklappteGruppen, merkeZugeklappt, gruppenZeit } from '../../utils/taskGroups';
 import { useSSE } from '../../hooks/useSSE';
 import responsiveStyles from './TaskTableView.module.css';
 import { Toast } from '../Toast';
@@ -33,6 +35,8 @@ interface TaskAssignment {
   series_id?: number;
   /** Hakt sich selbst ab und meldet sich nicht - siehe Migration 020. */
   auto_complete?: boolean;
+  /** Aufgabengruppe (Zwischenueberschrift) - siehe Migration 021. */
+  program_item_id?: number | null;
   // Personalbedarf - siehe BedarfBadge
   needed_staff?: number | null;
   needed_female?: number | null;
@@ -62,6 +66,8 @@ interface Props {
   eventId?: number; // Needed for CSV export/import
   /** Nach Import o.ae.: die Elternansicht soll ihre Aufgabenliste nachladen. */
   onTasksChanged?: () => void;
+  /** Aufgabengruppen der Veranstaltung - Zwischenueberschriften in der Liste. */
+  gruppen?: TaskGroup[];
   /**
    * Leitung der Veranstaltung. Bestimmt die Farbe der Zuweisungs-Badges:
    * innerhalb einer Veranstaltung zaehlt die Zustaendigkeit hier, nicht die
@@ -102,6 +108,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
   eventId,
   leitung,
   onTasksChanged,
+  gruppen = [],
 }, ref) => {
   const [assignments, setAssignments] = useState<TaskAssignment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -111,6 +118,22 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
   const [internalSelectedDay, setInternalSelectedDay] = useState<number | 'all'>('all');
   const [sortColumn, setSortColumn] = useState<string>('manual');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  /*
+   * Zugeklappte Gruppen. Gemerkt werden nur diese - offen ist der Normalfall,
+   * und eine neu angelegte Gruppe ist damit automatisch offen.
+   */
+  const [zugeklappt, setZugeklappt] = useState<Set<number>>(() => zugeklappteGruppen(eventId || 0));
+  useEffect(() => { setZugeklappt(zugeklappteGruppen(eventId || 0)); }, [eventId]);
+
+  const klappe = (id: number) => {
+    setZugeklappt(prev => {
+      const neu = new Set(prev);
+      if (neu.has(id)) neu.delete(id); else neu.add(id);
+      merkeZugeklappt(eventId || 0, neu);
+      return neu;
+    });
+  };
+
   const [descriptionModal, setDescriptionModal] = useState<{ title: string; description: string } | null>(null);
   const pendingActionsRef = React.useRef<number>(0);
   const [selectedTaskIds, setSelectedTaskIds] = useState<number[]>([]);
@@ -528,6 +551,268 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
     onTasksChanged?.();
   };
 
+  /*
+   * Eine Aufgabenzeile. Als Funktion, weil sie an zwei Stellen gebraucht
+   * wird: einzeln und - eingerueckt - unter einer Gruppenueberschrift.
+   */
+  const aufgabenZeile = ({ task, assignedUsers }: any, inGruppe: boolean = false) => (
+    <tr
+      key={task.id}
+      style={{
+        ...styles.row,
+        ...(selectedTaskIds.includes(task.id) ? styles.selectedRow : {}),
+        // Eingerueckt und mit einer feinen Kante: so sieht man auf einen
+        // Blick, was zur Ueberschrift darueber gehoert.
+        ...(inGruppe ? { boxShadow: 'inset 3px 0 0 var(--c-border-strong)' } : {}),
+      }}
+    >
+                  <td style={styles.td}>
+                    <input
+                      type="checkbox"
+                      checked={selectedTaskIds.includes(task.id)}
+                      onChange={() => handleToggleSelectTask(task.id)}
+                      style={styles.checkbox}
+                    />
+                  </td>
+                  <td style={styles.td} className={responsiveStyles.hideOnMobile}>Tag {task.day_number}</td>
+                  <td style={styles.td} className={responsiveStyles.hideOnMobile}>{getTaskDate(task.day_number)}</td>
+                  <td style={styles.td}>
+                    <div style={styles.taskTitle} className={responsiveStyles.taskTitle}>
+                      {task.title}
+                      {task.is_public && (
+                        <span style={styles.publicBadge} className={responsiveStyles.publicBadge}>Öffentlich</span>
+                      )}
+                      {task.auto_complete && (
+                        <span
+                          title="Diese Aufgabe hakt sich zum Ende ihres Zeitfensters selbst ab. Es geht keine Benachrichtigung dazu raus, und sie wird nie überfällig."
+                          style={{
+                            fontSize: '0.7rem',
+                            padding: '0.125rem 0.5rem',
+                            backgroundColor: 'var(--c-surface-muted)',
+                            color: 'var(--c-text-muted)',
+                            border: '1px solid var(--c-border)',
+                            borderRadius: '9999px',
+                            fontWeight: '500',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >automatisch</span>
+                      )}
+                      {task.is_active === false && (
+                        <span style={{
+                          fontSize: '0.7rem',
+                          padding: '0.125rem 0.5rem',
+                          backgroundColor: 'var(--c-danger-soft)',
+                          color: 'var(--c-danger-strong)',
+                          borderRadius: '9999px',
+                          fontWeight: '500',
+                          marginLeft: '0.5rem'
+                        }}>Deaktiviert</span>
+                      )}
+                      {task.series_id && taskSeries.find(s => s.id === task.series_id) && (
+                        /*
+                         * Der Badge hatte zwei Zustaende: normal und ein
+                         * ausgegrautes "individuelle Zuweisung ueberschreibt
+                         * das Serien-Team". Beides stimmt so nicht mehr -
+                         * Serien-Mitglieder haben jetzt echte Zuweisungen,
+                         * also griff immer der graue Zustand: graue Schrift
+                         * auf grauem Grund (2.4:1) und eine Beschriftung, die
+                         * das Gegenteil des Wahren behauptete.
+                         *
+                         * Der Badge sagt jetzt schlicht, zu welcher Serie die
+                         * Aufgabe gehoert - mehr war nie seine Aufgabe.
+                         */
+                        <span style={{
+                          fontSize: '0.7rem',
+                          padding: '0.125rem 0.5rem',
+                          backgroundColor: 'var(--c-accent-soft)',
+                          color: 'var(--c-accent-text)',
+                          borderRadius: '9999px',
+                          fontWeight: '500',
+                          marginLeft: '0.5rem'
+                        }} title={`Gehört zur Serie "${taskSeries.find(s => s.id === task.series_id)?.name}"`}>{taskSeries.find(s => s.id === task.series_id)?.name}</span>
+                      )}
+                    </div>
+                    {task.description && (
+                      <div style={styles.taskDescription} className={responsiveStyles.taskDescription}>
+                        {task.description.length > 30 ? (
+                          <>
+                            {task.description.substring(0, 30)}...
+                            <button
+                              onClick={() => setDescriptionModal({ title: task.title, description: task.description! })}
+                              style={{
+                                marginLeft: '0.5rem',
+                                padding: '0.25rem 0.5rem',
+                                fontSize: '0.7rem',
+                                backgroundColor: 'var(--c-accent-soft)',
+                                border: 'none',
+                                borderRadius: '9999px',
+                                cursor: 'pointer',
+                                color: 'var(--c-accent-strong)',
+                                fontWeight: '500',
+                                display: 'inline-block',
+                                verticalAlign: 'baseline'
+                              }}
+                            >
+                              mehr
+                            </button>
+                          </>
+                        ) : (
+                          task.description
+                        )}
+                      </div>
+                    )}
+                  </td>
+                  <td style={styles.td}>{task.scheduled_time ? task.scheduled_time.slice(0, 5) : '-'}</td>
+                  <td style={styles.td}>{task.start_time ? task.start_time.slice(0, 5) : '-'}</td>
+                  <td style={styles.td}>{task.end_time ? task.end_time.slice(0, 5) : '-'}</td>
+                  <td style={styles.td}>
+                    <StatusCell
+                      value={task.status}
+                      label={STATUS_LABELS[task.status] || task.status}
+                      overdue={isTaskOverdue(task)}
+                      color={getTaskStatusColor(task)}
+                      disabled={readOnly}
+                      onChange={(v) => handleStatusChange(task.id, v)}
+                    />
+                  </td>
+                  <td style={styles.td}>
+                    {/* Wie viele gebraucht werden - vor den Namen, damit man
+                        beim Ueberfliegen sieht, wo noch jemand fehlt. */}
+                    <BedarfBadge task={task} zugewiesen={assignedUsers.length} klein />
+                    {assignedUsers.length === 0 ? (
+                      <span style={styles.noAssignments}>Nicht zugewiesen</span>
+                    ) : (
+                      <div style={styles.usersList} className={responsiveStyles.usersList}>
+                        {assignedUsers.map((user: any, idx: number) => {
+                          /*
+                           * Gestrichelt = über die Serie zugewiesen, ohne
+                           * Rahmen = einzeln zugewiesen.
+                           *
+                           * Diese Unterscheidung hing vorher daran, dass
+                           * Serien-Mitglieder GAR KEINE Zuweisung hatten und
+                           * in einem eigenen Zweig gezeichnet wurden. Seit sie
+                           * echte Zuweisungen bekommen, lief alles über den
+                           * Zweig ohne Rahmen - die Unterscheidung war weg.
+                           * Jetzt entscheidet die Mitgliedschaft in der Serie
+                           * der Aufgabe, was der Sache auch näher kommt.
+                           */
+                          const viaSeries = !!task.series_id
+                            && !!user.userId
+                            && (seriesMembers[task.series_id] || []).some(m => m.id === user.userId);
+
+                          return (
+                            <span
+                              key={idx}
+                              style={{
+                                ...styles.userBadge,
+                                ...eventBadgeColors(eventRolleVon(user.userId, leitung)),
+                                border: viaSeries
+                                  ? '1px dashed var(--c-accent-border)'
+                                  : '1px solid transparent',
+                              }}
+                              className={responsiveStyles.userBadge}
+                              title={eventAssignmentTitle(eventRolleVon(user.userId, leitung), user.role, viaSeries)}
+                            >
+                              {user.name}
+                              {user.completed && (
+                                <span style={styles.completedIcon}>✓</span>
+                              )}
+                              {user.assignmentId && (
+                                <button
+                                  onClick={() => handleUnassign(user.assignmentId!, user.name)}
+                                  style={styles.unassignButton}
+                                  className={responsiveStyles.unassignButton}
+                                  title="Zuweisung entfernen"
+                                >
+                                  ✕
+                                </button>
+                              )}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </td>
+                  <td style={styles.td}>
+                    {!readOnly && (
+                      <div style={styles.actions} className={responsiveStyles.actions}>
+                        <div className={responsiveStyles.buttonGroup}>
+                          <button
+                            onClick={() => onAssignTask(task.id)}
+                            style={styles.assignButton}
+                            title="Mitarbeiter zuweisen"
+                          >
+                            Zuweisen
+                          </button>
+                          <button
+                            onClick={() => onEditTask(task)}
+                            style={styles.editButton}
+                            title="Aufgabe bearbeiten"
+                          >
+                            Bearbeiten
+                          </button>
+                        </div>
+                        <div style={{display: 'flex', gap: '0.25rem', justifyContent: 'center'}} className={responsiveStyles.moveButtonGroup}>
+                          <button
+                            onClick={() => handleMoveUp(task.id)}
+                            style={styles.moveButton}
+                            className={responsiveStyles.moveButton}
+                            title="Aufgabe nach oben verschieben"
+                          >
+                            ▲
+                          </button>
+                          <button
+                            onClick={() => handleMoveDown(task.id)}
+                            style={styles.moveButton}
+                            className={responsiveStyles.moveButton}
+                            title="Aufgabe nach unten verschieben"
+                          >
+                            ▼
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+  );
+
+  /*
+   * Die Ueberschrift einer Gruppe. Sie fasst zusammen, was darunter steht:
+   * wie viele Aufgaben und wie viele Leute schon eingeteilt sind - damit man
+   * eine zugeklappte Gruppe nicht aufmachen muss, um das zu sehen.
+   */
+  const gruppenKopfZeile = (gruppe: TaskGroup, eintraege: any[]) => {
+    const zu = zugeklappt.has(gruppe.id);
+    const eingeteilt = eintraege.reduce((n, e) => n + (e.assignedUsers?.length || 0), 0);
+    const zeit = gruppenZeit(gruppe);
+
+    return (
+      <tr key={`kopf-${gruppe.id}`} style={styles.gruppenZeile}>
+        <td style={styles.gruppenZelle} colSpan={12}>
+          <button
+            type="button"
+            onClick={() => klappe(gruppe.id)}
+            style={styles.gruppenKnopf}
+            aria-expanded={!zu}
+          >
+            <span style={{ ...styles.gruppenPfeil, transform: zu ? 'none' : 'rotate(90deg)' }} aria-hidden="true">›</span>
+            <span style={styles.gruppenTitel}>{gruppe.title}</span>
+            {zeit && <span style={styles.gruppenZeit}>{zeit} Uhr</span>}
+            <span style={styles.gruppenZahl}>
+              {eintraege.length} {eintraege.length === 1 ? 'Aufgabe' : 'Aufgaben'}
+              {eingeteilt > 0 && ` · ${eingeteilt} eingeteilt`}
+            </span>
+          </button>
+        </td>
+      </tr>
+    );
+  };
+
+  const zeilen = zeilenMitGruppen(
+    sortedTasks.map(t => ({ ...t, id: t.task.id, program_item_id: t.task.program_item_id })),
+    gruppen
+  );
+
   if (loading) {
     return <div style={styles.loading}>Lade Aufgaben...</div>;
   }
@@ -690,216 +975,13 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
               </tr>
             </thead>
             <tbody>
-              {sortedTasks.map(({ task, assignedUsers }) => (
-                <tr key={task.id} style={{...styles.row, ...(selectedTaskIds.includes(task.id) ? styles.selectedRow : {})}}>
-                  <td style={styles.td}>
-                    <input
-                      type="checkbox"
-                      checked={selectedTaskIds.includes(task.id)}
-                      onChange={() => handleToggleSelectTask(task.id)}
-                      style={styles.checkbox}
-                    />
-                  </td>
-                  <td style={styles.td} className={responsiveStyles.hideOnMobile}>Tag {task.day_number}</td>
-                  <td style={styles.td} className={responsiveStyles.hideOnMobile}>{getTaskDate(task.day_number)}</td>
-                  <td style={styles.td}>
-                    <div style={styles.taskTitle} className={responsiveStyles.taskTitle}>
-                      {task.title}
-                      {task.is_public && (
-                        <span style={styles.publicBadge} className={responsiveStyles.publicBadge}>Öffentlich</span>
-                      )}
-                      {task.auto_complete && (
-                        <span
-                          title="Diese Aufgabe hakt sich zum Ende ihres Zeitfensters selbst ab. Es geht keine Benachrichtigung dazu raus, und sie wird nie überfällig."
-                          style={{
-                            fontSize: '0.7rem',
-                            padding: '0.125rem 0.5rem',
-                            backgroundColor: 'var(--c-surface-muted)',
-                            color: 'var(--c-text-muted)',
-                            border: '1px solid var(--c-border)',
-                            borderRadius: '9999px',
-                            fontWeight: '500',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >automatisch</span>
-                      )}
-                      {task.is_active === false && (
-                        <span style={{
-                          fontSize: '0.7rem',
-                          padding: '0.125rem 0.5rem',
-                          backgroundColor: 'var(--c-danger-soft)',
-                          color: 'var(--c-danger-strong)',
-                          borderRadius: '9999px',
-                          fontWeight: '500',
-                          marginLeft: '0.5rem'
-                        }}>Deaktiviert</span>
-                      )}
-                      {task.series_id && taskSeries.find(s => s.id === task.series_id) && (
-                        /*
-                         * Der Badge hatte zwei Zustaende: normal und ein
-                         * ausgegrautes "individuelle Zuweisung ueberschreibt
-                         * das Serien-Team". Beides stimmt so nicht mehr -
-                         * Serien-Mitglieder haben jetzt echte Zuweisungen,
-                         * also griff immer der graue Zustand: graue Schrift
-                         * auf grauem Grund (2.4:1) und eine Beschriftung, die
-                         * das Gegenteil des Wahren behauptete.
-                         *
-                         * Der Badge sagt jetzt schlicht, zu welcher Serie die
-                         * Aufgabe gehoert - mehr war nie seine Aufgabe.
-                         */
-                        <span style={{
-                          fontSize: '0.7rem',
-                          padding: '0.125rem 0.5rem',
-                          backgroundColor: 'var(--c-accent-soft)',
-                          color: 'var(--c-accent-text)',
-                          borderRadius: '9999px',
-                          fontWeight: '500',
-                          marginLeft: '0.5rem'
-                        }} title={`Gehört zur Serie "${taskSeries.find(s => s.id === task.series_id)?.name}"`}>{taskSeries.find(s => s.id === task.series_id)?.name}</span>
-                      )}
-                    </div>
-                    {task.description && (
-                      <div style={styles.taskDescription} className={responsiveStyles.taskDescription}>
-                        {task.description.length > 30 ? (
-                          <>
-                            {task.description.substring(0, 30)}...
-                            <button
-                              onClick={() => setDescriptionModal({ title: task.title, description: task.description! })}
-                              style={{
-                                marginLeft: '0.5rem',
-                                padding: '0.25rem 0.5rem',
-                                fontSize: '0.7rem',
-                                backgroundColor: 'var(--c-accent-soft)',
-                                border: 'none',
-                                borderRadius: '9999px',
-                                cursor: 'pointer',
-                                color: 'var(--c-accent-strong)',
-                                fontWeight: '500',
-                                display: 'inline-block',
-                                verticalAlign: 'baseline'
-                              }}
-                            >
-                              mehr
-                            </button>
-                          </>
-                        ) : (
-                          task.description
-                        )}
-                      </div>
-                    )}
-                  </td>
-                  <td style={styles.td}>{task.scheduled_time ? task.scheduled_time.slice(0, 5) : '-'}</td>
-                  <td style={styles.td}>{task.start_time ? task.start_time.slice(0, 5) : '-'}</td>
-                  <td style={styles.td}>{task.end_time ? task.end_time.slice(0, 5) : '-'}</td>
-                  <td style={styles.td}>
-                    <StatusCell
-                      value={task.status}
-                      label={STATUS_LABELS[task.status] || task.status}
-                      overdue={isTaskOverdue(task)}
-                      color={getTaskStatusColor(task)}
-                      disabled={readOnly}
-                      onChange={(v) => handleStatusChange(task.id, v)}
-                    />
-                  </td>
-                  <td style={styles.td}>
-                    {/* Wie viele gebraucht werden - vor den Namen, damit man
-                        beim Ueberfliegen sieht, wo noch jemand fehlt. */}
-                    <BedarfBadge task={task} zugewiesen={assignedUsers.length} klein />
-                    {assignedUsers.length === 0 ? (
-                      <span style={styles.noAssignments}>Nicht zugewiesen</span>
-                    ) : (
-                      <div style={styles.usersList} className={responsiveStyles.usersList}>
-                        {assignedUsers.map((user, idx) => {
-                          /*
-                           * Gestrichelt = über die Serie zugewiesen, ohne
-                           * Rahmen = einzeln zugewiesen.
-                           *
-                           * Diese Unterscheidung hing vorher daran, dass
-                           * Serien-Mitglieder GAR KEINE Zuweisung hatten und
-                           * in einem eigenen Zweig gezeichnet wurden. Seit sie
-                           * echte Zuweisungen bekommen, lief alles über den
-                           * Zweig ohne Rahmen - die Unterscheidung war weg.
-                           * Jetzt entscheidet die Mitgliedschaft in der Serie
-                           * der Aufgabe, was der Sache auch näher kommt.
-                           */
-                          const viaSeries = !!task.series_id
-                            && !!user.userId
-                            && (seriesMembers[task.series_id] || []).some(m => m.id === user.userId);
-
-                          return (
-                            <span
-                              key={idx}
-                              style={{
-                                ...styles.userBadge,
-                                ...eventBadgeColors(eventRolleVon(user.userId, leitung)),
-                                border: viaSeries
-                                  ? '1px dashed var(--c-accent-border)'
-                                  : '1px solid transparent',
-                              }}
-                              className={responsiveStyles.userBadge}
-                              title={eventAssignmentTitle(eventRolleVon(user.userId, leitung), user.role, viaSeries)}
-                            >
-                              {user.name}
-                              {user.completed && (
-                                <span style={styles.completedIcon}>✓</span>
-                              )}
-                              {user.assignmentId && (
-                                <button
-                                  onClick={() => handleUnassign(user.assignmentId!, user.name)}
-                                  style={styles.unassignButton}
-                                  className={responsiveStyles.unassignButton}
-                                  title="Zuweisung entfernen"
-                                >
-                                  ✕
-                                </button>
-                              )}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </td>
-                  <td style={styles.td}>
-                    {!readOnly && (
-                      <div style={styles.actions} className={responsiveStyles.actions}>
-                        <div className={responsiveStyles.buttonGroup}>
-                          <button
-                            onClick={() => onAssignTask(task.id)}
-                            style={styles.assignButton}
-                            title="Mitarbeiter zuweisen"
-                          >
-                            Zuweisen
-                          </button>
-                          <button
-                            onClick={() => onEditTask(task)}
-                            style={styles.editButton}
-                            title="Aufgabe bearbeiten"
-                          >
-                            Bearbeiten
-                          </button>
-                        </div>
-                        <div style={{display: 'flex', gap: '0.25rem', justifyContent: 'center'}} className={responsiveStyles.moveButtonGroup}>
-                          <button
-                            onClick={() => handleMoveUp(task.id)}
-                            style={styles.moveButton}
-                            className={responsiveStyles.moveButton}
-                            title="Aufgabe nach oben verschieben"
-                          >
-                            ▲
-                          </button>
-                          <button
-                            onClick={() => handleMoveDown(task.id)}
-                            style={styles.moveButton}
-                            className={responsiveStyles.moveButton}
-                            title="Aufgabe nach unten verschieben"
-                          >
-                            ▼
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </td>
-                </tr>
+              {zeilen.map((z) => (
+                z.typ === 'gruppe' ? (
+                  <React.Fragment key={`gruppe-${z.gruppe.id}`}>
+                    {gruppenKopfZeile(z.gruppe, z.aufgaben)}
+                    {!zugeklappt.has(z.gruppe.id) && z.aufgaben.map(a => aufgabenZeile(a, true))}
+                  </React.Fragment>
+                ) : aufgabenZeile(z.aufgabe)
               ))}
             </tbody>
           </table>
@@ -1200,6 +1282,52 @@ const styles: { [key: string]: React.CSSProperties } = {
   headerRow: {
     backgroundColor: 'var(--c-surface-muted)',
     borderBottom: '2px solid var(--c-border)',
+  },
+  /* --- Aufgabengruppen: Zwischenueberschrift ueber ihren Aufgaben --- */
+  gruppenZeile: {
+    backgroundColor: 'var(--c-surface-muted)',
+  },
+  gruppenZelle: {
+    padding: 0,
+    borderTop: '1px solid var(--c-border-strong)',
+    borderBottom: '1px solid var(--c-border)',
+  },
+  gruppenKnopf: {
+    display: 'flex',
+    alignItems: 'center',
+    // Global gilt button { justify-content: center } - eine Ueberschrift
+    // gehoert aber nach links.
+    justifyContent: 'flex-start',
+    gap: '0.5rem',
+    width: '100%',
+    padding: '0.5rem 0.75rem',
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    textAlign: 'left',
+    fontFamily: 'inherit',
+  },
+  gruppenPfeil: {
+    display: 'inline-block',
+    transition: 'transform 0.12s ease',
+    color: 'var(--c-text-muted)',
+    fontSize: '1.125rem',
+    lineHeight: 1,
+  },
+  gruppenTitel: {
+    fontWeight: 700,
+    fontSize: '0.9375rem',
+    color: 'var(--c-text)',
+  },
+  gruppenZeit: {
+    fontSize: '0.75rem',
+    fontWeight: 600,
+    color: 'var(--c-text-muted)',
+    fontVariantNumeric: 'tabular-nums',
+  },
+  gruppenZahl: {
+    fontSize: '0.75rem',
+    color: 'var(--c-text-muted)',
   },
   th: {
     padding: '0.75rem',

@@ -1091,3 +1091,84 @@
   flex-wrap: wrap;
   gap: 0.5rem;
 }
+
+
+/* --- Aufgabengruppen ---------------------------------------------------- */
+
+/*
+ * Zwischenueberschrift ueber ihren Aufgaben. Bewusst schmaler und ruhiger
+ * als eine Aufgabenkarte: sie ordnet, sie konkurriert nicht.
+ */
+.gruppenKarte {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0.375rem;
+  padding: 0.25rem 0.5rem 0.25rem 0;
+  border-bottom: 1px solid var(--c-border-strong);
+}
+
+.gruppenKnopf {
+  display: flex;
+  align-items: center;
+  /* Global gilt button { justify-content: center } als Vorgabe - eine
+     Ueberschrift gehoert aber nach links. */
+  justify-content: flex-start;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+  padding: 0.375rem 0.25rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+
+.gruppenPfeil {
+  display: inline-block;
+  transition: transform 0.12s ease;
+  color:var(--c-text-muted);
+  font-size: 1.125rem;
+  line-height: 1;
+}
+
+.gruppenTitel {
+  font-weight: 700;
+  font-size: 1rem;
+  color:var(--c-text);
+}
+
+.gruppenZeit {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color:var(--c-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.gruppenZahl {
+  font-size: 0.75rem;
+  color:var(--c-text-muted);
+}
+
+.gruppenAktionen {
+  display: flex;
+  gap: 0.375rem;
+}
+
+.gruppenAktion {
+  padding: 0.25rem 0.5rem;
+  background: none;
+  border:1px solid var(--c-border);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color:var(--c-text-muted);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.gruppenAktion:hover {
+  color:var(--c-text);
+  border-color:var(--c-border-strong);
+}

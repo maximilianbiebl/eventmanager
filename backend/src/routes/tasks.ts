@@ -1394,6 +1394,7 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req
       is_public = currentTask.is_public,
       status = currentTask.status,
       series_id = currentTask.series_id,
+      program_item_id = currentTask.program_item_id,
       needed_staff = currentTask.needed_staff,
       needed_female = currentTask.needed_female,
       needed_male = currentTask.needed_male,
@@ -1419,7 +1420,8 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req
         needed_staff = $12,
         needed_female = $13,
         needed_male = $14,
-        auto_complete = $15
+        auto_complete = $15,
+        program_item_id = $16
        WHERE id = $11 RETURNING *`,
       [
         title,
@@ -1436,7 +1438,8 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req
         bedarfsZahl(needed_staff),
         bedarfsZahl(needed_female),
         bedarfsZahl(needed_male),
-        auto_complete === true || auto_complete === 'true'
+        auto_complete === true || auto_complete === 'true',
+        program_item_id || null
       ]
     );
 
@@ -1888,13 +1891,15 @@ router.post('/event/:eventId/export-csv', authMiddleware, teamleiterOrAdminMiddl
      */
     const spalten = `t.id, t.title, t.description, t.day_number, t.scheduled_time, t.start_time,
                      t.end_time, t.is_public, t.status, t.needed_staff, t.needed_female, t.needed_male,
-                     t.auto_complete, ts.name AS series_name`;
+                     t.auto_complete, ts.name AS series_name,
+                     pi.title AS group_name, pi.time AS group_time`;
 
     const nurAusgewaehlte = task_ids && Array.isArray(task_ids) && task_ids.length > 0;
     const result = await query(
       `SELECT ${spalten}
        FROM tasks t
        LEFT JOIN task_series ts ON ts.id = t.series_id
+       LEFT JOIN program_items pi ON pi.id = t.program_item_id
        WHERE ${nurAusgewaehlte ? 't.id = ANY($1) AND t.event_id = $2' : 't.event_id = $1'}
        ORDER BY t.day_number, t.sort_order, t.scheduled_time`,
       nurAusgewaehlte ? [task_ids, eventId] : [eventId]
@@ -1907,8 +1912,8 @@ router.post('/event/:eventId/export-csv', authMiddleware, teamleiterOrAdminMiddl
      */
     const headers = [
       'id', 'title', 'description', 'day_number', 'scheduled_time', 'start_time', 'end_time',
-      'is_public', 'status', 'series_name', 'needed_staff', 'needed_female', 'needed_male',
-      'auto_complete',
+      'is_public', 'status', 'group_name', 'group_time', 'series_name',
+      'needed_staff', 'needed_female', 'needed_male', 'auto_complete',
     ];
     const rows = result.rows.map(row => [
       row.id,
@@ -1920,8 +1925,10 @@ router.post('/event/:eventId/export-csv', authMiddleware, teamleiterOrAdminMiddl
       row.end_time || '',
       row.is_public,
       row.status,
-      // Die Serie steht als Name in der Datei, nicht als Nummer: Nummern
-      // gelten nur in dieser Datenbank, ein Name ueberlebt den Umweg.
+      // Gruppe und Serie stehen als Name in der Datei, nicht als Nummer:
+      // Nummern gelten nur in dieser Datenbank, ein Name ueberlebt den Umweg.
+      csvFeld(row.group_name),
+      row.group_time || '',
       csvFeld(row.series_name),
       row.needed_staff ?? '',
       row.needed_female ?? '',
@@ -1976,6 +1983,46 @@ router.post('/event/:eventId/import-csv', authMiddleware, teamleiterOrAdminMiddl
      * einer Aufgaben-Datei ableiten.
      */
     const serienCache = new Map<string, number>();
+
+    /*
+     * Aufgabengruppen kommen als Name in der Datei an. Der Name allein
+     * reicht nicht: "Fruehstueck" gibt es an jedem Tag einmal, und die
+     * Gruppe gehoert zu genau einem Tag. Geschluesselt wird deshalb ueber
+     * Tag UND Name.
+     *
+     * Eine Uhrzeit in der Datei wird nur beim Anlegen verwendet - eine
+     * bestehende Gruppe soll ein Import nicht stillschweigend verschieben.
+     */
+    const gruppenCache = new Map<string, number>();
+    const gruppeFinden = async (
+      name: string | undefined,
+      tag: number,
+      zeit: string | undefined
+    ): Promise<number | null> => {
+      const sauber = (name || '').trim();
+      if (!sauber) return null;
+      const schluessel = `${tag}#${sauber.toLowerCase()}`;
+      if (gruppenCache.has(schluessel)) return gruppenCache.get(schluessel)!;
+
+      const vorhanden = await query(
+        `SELECT id FROM program_items
+         WHERE event_id = $1 AND day_number = $2 AND LOWER(title) = LOWER($3) LIMIT 1`,
+        [eventId, tag, sauber]
+      );
+      const id = vorhanden.rows.length > 0
+        ? vorhanden.rows[0].id
+        : (await query(
+            `INSERT INTO program_items (event_id, day_number, title, time, sort_order)
+             VALUES ($1, $2, $3, $4,
+                     (SELECT COALESCE(MAX(sort_order), 0) + 10 FROM program_items
+                      WHERE event_id = $1 AND day_number = $2))
+             RETURNING id`,
+            [eventId, tag, sauber, (zeit || '').trim() || null]
+          )).rows[0].id;
+
+      gruppenCache.set(schluessel, id);
+      return id;
+    };
     const serieFinden = async (name: string | undefined): Promise<number | null> => {
       const sauber = (name || '').trim();
       if (!sauber) return null;
@@ -2005,15 +2052,17 @@ router.post('/event/:eventId/import-csv', authMiddleware, teamleiterOrAdminMiddl
         task[header] = values[idx];
       });
 
+      const tagNummer = parseInt(task.day_number) || 1;
       const serieId = await serieFinden(task.series_name);
+      const gruppeId = await gruppeFinden(task.group_name, tagNummer, task.group_time);
 
       // Create new task - always reset status to not_started on import
       await query(
         `INSERT INTO tasks (
           event_id, day_number, title, description, scheduled_time, start_time, end_time,
           reminder_minutes, is_public, status, sort_order,
-          needed_staff, needed_female, needed_male, series_id, auto_complete
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
+          needed_staff, needed_female, needed_male, series_id, auto_complete, program_item_id
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
         [
           eventId,
           parseInt(task.day_number) || 1,
@@ -2031,7 +2080,8 @@ router.post('/event/:eventId/import-csv', authMiddleware, teamleiterOrAdminMiddl
           bedarfsZahl(task.needed_female),
           bedarfsZahl(task.needed_male),
           serieId,
-          task.auto_complete === 'true'
+          task.auto_complete === 'true',
+          gruppeId
         ]
       );
 

@@ -458,15 +458,16 @@ router.post('/:id/create-from-template', authMiddleware, teamleiterOrAdminMiddle
 
     if (templateProgram.rows.length > 0) {
       const programValues = templateProgram.rows.map((p, idx) =>
-        `($1, $${idx * 4 + 2}, $${idx * 4 + 3}, $${idx * 4 + 4}, $${idx * 4 + 5})`
+        `($1, $${idx * 5 + 2}, $${idx * 5 + 3}, $${idx * 5 + 4}, $${idx * 5 + 5}, $${idx * 5 + 6})`
       ).join(', ');
       const programParams = [newEvent.id];
       templateProgram.rows.forEach(p => {
-        programParams.push(p.day_number, p.time, p.title, p.description);
+        // sort_order mit: ohne Uhrzeit ist sie die einzige Reihenfolge.
+        programParams.push(p.day_number, p.time, p.title, p.description, p.sort_order ?? 0);
       });
 
       const newProgramItems = await query(
-        `INSERT INTO program_items (event_id, day_number, time, title, description)
+        `INSERT INTO program_items (event_id, day_number, time, title, description, sort_order)
          VALUES ${programValues} RETURNING id`,
         programParams
       );
@@ -576,15 +577,16 @@ router.post('/:id/copy-to-template', authMiddleware, adminMiddleware, async (req
     if (originalProgram.rows.length > 0) {
       // Bulk INSERT für Programmpunkte
       const programValues = originalProgram.rows.map((p, idx) =>
-        `($1, $${idx * 4 + 2}, $${idx * 4 + 3}, $${idx * 4 + 4}, $${idx * 4 + 5})`
+        `($1, $${idx * 5 + 2}, $${idx * 5 + 3}, $${idx * 5 + 4}, $${idx * 5 + 5}, $${idx * 5 + 6})`
       ).join(', ');
       const programParams = [template.id];
       originalProgram.rows.forEach(p => {
-        programParams.push(p.day_number, p.time, p.title, p.description);
+        // sort_order mit: ohne Uhrzeit ist sie die einzige Reihenfolge.
+        programParams.push(p.day_number, p.time, p.title, p.description, p.sort_order ?? 0);
       });
 
       const newProgramItems = await query(
-        `INSERT INTO program_items (event_id, day_number, time, title, description)
+        `INSERT INTO program_items (event_id, day_number, time, title, description, sort_order)
          VALUES ${programValues} RETURNING id`,
         programParams
       );
@@ -738,15 +740,16 @@ router.post('/:id/approve-suggestion', authMiddleware, adminMiddleware, async (r
 
     if (originalProgram.rows.length > 0) {
       const programValues = originalProgram.rows.map((p, idx) =>
-        `($1, $${idx * 4 + 2}, $${idx * 4 + 3}, $${idx * 4 + 4}, $${idx * 4 + 5})`
+        `($1, $${idx * 5 + 2}, $${idx * 5 + 3}, $${idx * 5 + 4}, $${idx * 5 + 5}, $${idx * 5 + 6})`
       ).join(', ');
       const programParams = [template.id];
       originalProgram.rows.forEach(p => {
-        programParams.push(p.day_number, p.time, p.title, p.description);
+        // sort_order mit: ohne Uhrzeit ist sie die einzige Reihenfolge.
+        programParams.push(p.day_number, p.time, p.title, p.description, p.sort_order ?? 0);
       });
 
       const newProgramItems = await query(
-        `INSERT INTO program_items (event_id, day_number, time, title, description)
+        `INSERT INTO program_items (event_id, day_number, time, title, description, sort_order)
          VALUES ${programValues} RETURNING id`,
         programParams
       );
@@ -878,15 +881,16 @@ router.post('/:id/duplicate', authMiddleware, teamleiterOrAdminMiddleware, async
 
     if (originalProgram.rows.length > 0) {
       const programValues = originalProgram.rows.map((p, idx) =>
-        `($1, $${idx * 4 + 2}, $${idx * 4 + 3}, $${idx * 4 + 4}, $${idx * 4 + 5})`
+        `($1, $${idx * 5 + 2}, $${idx * 5 + 3}, $${idx * 5 + 4}, $${idx * 5 + 5}, $${idx * 5 + 6})`
       ).join(', ');
       const programParams = [newEvent.id];
       originalProgram.rows.forEach(p => {
-        programParams.push(p.day_number, p.time, p.title, p.description);
+        // sort_order mit: ohne Uhrzeit ist sie die einzige Reihenfolge.
+        programParams.push(p.day_number, p.time, p.title, p.description, p.sort_order ?? 0);
       });
 
       const newProgramItems = await query(
-        `INSERT INTO program_items (event_id, day_number, time, title, description)
+        `INSERT INTO program_items (event_id, day_number, time, title, description, sort_order)
          VALUES ${programValues} RETURNING id`,
         programParams
       );
@@ -1061,15 +1065,16 @@ router.post('/bulk-approve-suggestions', authMiddleware, adminMiddleware, async 
 
       if (originalProgram.rows.length > 0) {
         const programValues = originalProgram.rows.map((p, idx) =>
-          `($1, $${idx * 4 + 2}, $${idx * 4 + 3}, $${idx * 4 + 4}, $${idx * 4 + 5})`
+          `($1, $${idx * 5 + 2}, $${idx * 5 + 3}, $${idx * 5 + 4}, $${idx * 5 + 5}, $${idx * 5 + 6})`
         ).join(', ');
         const programParams = [template.id];
         originalProgram.rows.forEach(p => {
-          programParams.push(p.day_number, p.time, p.title, p.description);
+          // sort_order mit: ohne Uhrzeit ist sie die einzige Reihenfolge.
+          programParams.push(p.day_number, p.time, p.title, p.description, p.sort_order ?? 0);
         });
 
         const newProgramItems = await query(
-          `INSERT INTO program_items (event_id, day_number, time, title, description)
+          `INSERT INTO program_items (event_id, day_number, time, title, description, sort_order)
            VALUES ${programValues} RETURNING id`,
           programParams
         );

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { eventsApi } from '../../api/events';
 import { tasksApi, Task } from '../../api/tasks';
 import { usersApi, User } from '../../api/users';
-import { programApi, ProgramItem } from '../../api/program';
+import { programApi, TaskGroup } from '../../api/program';
 import { taskSeriesApi, TaskSeries } from '../../api/taskSeries';
 import { useSSE } from '../../hooks/useSSE';
 import { useAuth } from '../../context/AuthContext';
@@ -22,6 +22,7 @@ import { toLocalDate } from '../../utils/date';
 import { eventBadgeColors, eventRolleVon, eventAssignmentTitle } from '../../utils/roleBadge';
 import { BedarfBadge, hatBedarf } from './BedarfBadge';
 import { DaySelection, resolveInitialDayForEvent, storeDay } from '../../utils/dayPreference';
+import { zeilenMitGruppen, zugeklappteGruppen, merkeZugeklappt, gruppenZeit } from '../../utils/taskGroups';
 import styles from './EventDetail.module.css';
 
 const STATUS_LABELS: { [key: string]: string } = {
@@ -40,7 +41,9 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
   const { isAdmin, isTeamleiter } = useAuth();
   const [event, setEvent] = useState<any>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [_program, setProgram] = useState<ProgramItem[]>([]);
+  // Aufgabengruppen der Veranstaltung - Zwischenueberschriften in beiden
+  // Ansichten. Wurden hier schon geladen, aber nie benutzt.
+  const [gruppen, setGruppen] = useState<TaskGroup[]>([]);
   const [_users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   /*
@@ -124,7 +127,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
 
       setEvent(eventData);
       setTasks(tasksData);
-      setProgram(programData);
+      setGruppen(programData);
       setUsers(usersData);
 
       const instance = eventData.instances.find((i: any) => i.id === selectedInstance)
@@ -538,6 +541,8 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
             selectedInstance={selectedInstance}
             onEditTask={handleEditTask}
             onAssignTask={handleAssignTask}
+            gruppen={gruppen}
+            onGruppenGeaendert={() => loadData(false)}
             event={event}
             manualRefreshTrigger={manualRefreshTrigger}
             readOnly={isTeamleiter && event.is_template}
@@ -552,6 +557,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
               onEditTask={handleEditTask}
               onAssignTask={handleAssignTask}
               onTasksChanged={() => loadData(false)}
+              gruppen={gruppen}
               eventDays={event?.days}
               selectedDay={selectedDay}
               onSelectedDayChange={handleDayChange}
@@ -654,6 +660,10 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
 
 // Erweiterte Listen-Ansicht mit Zeiten, MAs und Status
 interface TaskListViewProps {
+  /** Aufgabengruppen - Zwischenueberschriften ueber ihren Aufgaben. */
+  gruppen?: TaskGroup[];
+  /** Nach Umbenennen/Loeschen einer Gruppe: Elternansicht nachladen. */
+  onGruppenGeaendert?: () => void;
   selectedDay: number | 'all';
   selectedInstance: number | null;
   onEditTask: (task: Task) => void;
@@ -666,6 +676,8 @@ interface TaskListViewProps {
 }
 
 const TaskListView: React.FC<TaskListViewProps> = ({
+  gruppen = [],
+  onGruppenGeaendert,
   selectedDay,
   selectedInstance,
   onEditTask,
@@ -990,74 +1002,90 @@ const TaskListView: React.FC<TaskListViewProps> = ({
               : `Keine Aufgaben für Tag ${selectedDay} vorhanden`)
         : null;
 
-  return (
-    <div className={styles.tasksList}>
-      {successMessage && (
-        <Toast message={successMessage} onClose={() => setSuccessMessage('')} />
-      )}
+  /*
+   * Zugeklappte Gruppen. Gemerkt werden nur diese - offen ist der Normalfall.
+   */
+  const eventIdFuerGruppen = event?.id ?? 0;
+  const [zugeklappt, setZugeklappt] = React.useState<Set<number>>(() => zugeklappteGruppen(eventIdFuerGruppen));
+  React.useEffect(() => { setZugeklappt(zugeklappteGruppen(eventIdFuerGruppen)); }, [eventIdFuerGruppen]);
 
-      {/* Gemeinsame Werkzeugleiste (styles/toolbar.css) - identische Klassen
-          wie in der Tabellenansicht, damit beide Ansichten gleich wirken. */}
-      <div className="tv-toolbar">
-        {eventDays && eventDays > 1 && onDayChange && (
-          <div className="tv-group">
-            <span className="tv-label">Tage</span>
-            <button
-              onClick={() => onDayChange('all')}
-              className={selectedDay === 'all' ? 'tv-chip-active' : 'tv-chip'}
-              type="button"
-            >
-              Alle
-            </button>
-            {Array.from({ length: eventDays }, (_, i) => i + 1).map((day) => (
-              <button
-                key={day}
-                onClick={() => onDayChange(day)}
-                className={selectedDay === day ? 'tv-chip-active' : 'tv-chip'}
-                type="button"
-              >
-                {day}
-              </button>
-            ))}
+  const klappe = (id: number) => {
+    setZugeklappt(prev => {
+      const neu = new Set(prev);
+      if (neu.has(id)) neu.delete(id); else neu.add(id);
+      merkeZugeklappt(eventIdFuerGruppen, neu);
+      return neu;
+    });
+  };
+
+  /*
+   * Die Ueberschrift einer Gruppe. Fasst zusammen, was darunter steht -
+   * damit man eine zugeklappte Gruppe nicht oeffnen muss, um es zu sehen.
+   * Umbenennen und Loeschen sitzen hier, weil die Gruppe hier "wohnt";
+   * Loeschen nimmt nur die Ueberschrift, die Aufgaben bleiben.
+   */
+  const gruppenKarte = (gruppe: TaskGroup, eintraege: any[]) => {
+    const zu = zugeklappt.has(gruppe.id);
+    const eingeteilt = eintraege.reduce((n, t) => n + getAssignmentsForTask(t.id).length, 0);
+    const zeit = gruppenZeit(gruppe);
+
+    const umbenennen = async () => {
+      const neu = window.prompt('Name der Aufgabengruppe', gruppe.title);
+      if (!neu || !neu.trim() || neu.trim() === gruppe.title) return;
+      try {
+        await programApi.update(gruppe.id, { title: neu.trim() });
+        onGruppenGeaendert?.();
+      } catch (error) {
+        console.error('Rename task group error:', error);
+      }
+    };
+
+    const loeschen = async () => {
+      if (!window.confirm(
+        `Aufgabengruppe "${gruppe.title}" entfernen?\n\n` +
+        `Die ${eintraege.length} ${eintraege.length === 1 ? 'Aufgabe bleibt' : 'Aufgaben bleiben'} erhalten und stehen danach ohne Gruppe da.`
+      )) return;
+      try {
+        await programApi.delete(gruppe.id);
+        onGruppenGeaendert?.();
+      } catch (error) {
+        console.error('Delete task group error:', error);
+      }
+    };
+
+    return (
+      <div key={`gruppe-${gruppe.id}`} className={styles.gruppenKarte}>
+        <button
+          type="button"
+          onClick={() => klappe(gruppe.id)}
+          className={styles.gruppenKnopf}
+          aria-expanded={!zu}
+        >
+          <span className={styles.gruppenPfeil} style={{ transform: zu ? 'none' : 'rotate(90deg)' }} aria-hidden="true">›</span>
+          <span className={styles.gruppenTitel}>{gruppe.title}</span>
+          {zeit && <span className={styles.gruppenZeit}>{zeit} Uhr</span>}
+          <span className={styles.gruppenZahl}>
+            {eintraege.length} {eintraege.length === 1 ? 'Aufgabe' : 'Aufgaben'}
+            {eingeteilt > 0 && ` · ${eingeteilt} eingeteilt`}
+          </span>
+        </button>
+        {!readOnly && (
+          <div className={styles.gruppenAktionen}>
+            <button type="button" onClick={umbenennen} className={styles.gruppenAktion} title="Gruppe umbenennen">Umbenennen</button>
+            <button type="button" onClick={loeschen} className={styles.gruppenAktion} title="Gruppe entfernen, Aufgaben bleiben">Entfernen</button>
           </div>
         )}
-
-        <div className="tv-group">
-          <span className="tv-label">Status</span>
-          <StatusFilter value={statusFilter} onChange={setStatusFilter} />
-        </div>
-
-        <div className="tv-group">
-          <span className="tv-label">Sortieren</span>
-          {([
-            ['manual', 'Manuell'],
-            ['time', 'Zeit'],
-            ['title', 'Titel'],
-            ['status', 'Status'],
-          ] as const).map(([key, label]) => (
-            <button
-              key={key}
-              onClick={() => {
-                if (sortBy === key && key !== 'manual') {
-                  setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-                } else {
-                  setSortBy(key);
-                  setSortDirection('asc');
-                }
-              }}
-              className={sortBy === key ? 'tv-chip-active' : 'tv-chip'}
-              type="button"
-            >
-              {label}
-              {sortBy === key && key !== 'manual' ? (sortDirection === 'asc' ? ' ↑' : ' ↓') : ''}
-            </button>
-          ))}
-        </div>
       </div>
+    );
+  };
 
-      {leerHinweis && <p className={styles.emptyHint}>{leerHinweis}</p>}
+  const zeilen = zeilenMitGruppen(sortedTasks as any[], gruppen);
 
-      {sortedTasks.map((task) => {
+  /*
+   * Eine Aufgabenkarte. Als Funktion, weil sie einzeln und - eingerueckt -
+   * unter einer Gruppenueberschrift gebraucht wird.
+   */
+  const aufgabenKarte = (task: any, inGruppe: boolean = false) => {
         const taskAssignments = getAssignmentsForTask(task.id);
         const maxLength = 100;
         const isExpanded = expandedDescriptions.has(task.id);
@@ -1079,7 +1107,12 @@ const TaskListView: React.FC<TaskListViewProps> = ({
           <div
             key={task.id}
             className={styles.taskItemExtended}
-            style={{ borderLeft: `4px solid ${getStatusColor(task)}` }}
+            style={{
+              borderLeft: `4px solid ${getStatusColor(task)}`,
+              // Eingerueckt unter der Gruppenueberschrift - so sieht man, was
+              // zusammengehoert, ohne die Karte anders aussehen zu lassen.
+              ...(inGruppe ? { marginLeft: '1.25rem' } : {}),
+            }}
           >
             <div className={styles.taskMainInfo}>
               <div className={styles.taskHeader}>
@@ -1303,7 +1336,83 @@ const TaskListView: React.FC<TaskListViewProps> = ({
             </div>
           </div>
         );
-      })}
+  };
+
+  return (
+    <div className={styles.tasksList}>
+      {successMessage && (
+        <Toast message={successMessage} onClose={() => setSuccessMessage('')} />
+      )}
+
+      {/* Gemeinsame Werkzeugleiste (styles/toolbar.css) - identische Klassen
+          wie in der Tabellenansicht, damit beide Ansichten gleich wirken. */}
+      <div className="tv-toolbar">
+        {eventDays && eventDays > 1 && onDayChange && (
+          <div className="tv-group">
+            <span className="tv-label">Tage</span>
+            <button
+              onClick={() => onDayChange('all')}
+              className={selectedDay === 'all' ? 'tv-chip-active' : 'tv-chip'}
+              type="button"
+            >
+              Alle
+            </button>
+            {Array.from({ length: eventDays }, (_, i) => i + 1).map((day) => (
+              <button
+                key={day}
+                onClick={() => onDayChange(day)}
+                className={selectedDay === day ? 'tv-chip-active' : 'tv-chip'}
+                type="button"
+              >
+                {day}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="tv-group">
+          <span className="tv-label">Status</span>
+          <StatusFilter value={statusFilter} onChange={setStatusFilter} />
+        </div>
+
+        <div className="tv-group">
+          <span className="tv-label">Sortieren</span>
+          {([
+            ['manual', 'Manuell'],
+            ['time', 'Zeit'],
+            ['title', 'Titel'],
+            ['status', 'Status'],
+          ] as const).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => {
+                if (sortBy === key && key !== 'manual') {
+                  setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                } else {
+                  setSortBy(key);
+                  setSortDirection('asc');
+                }
+              }}
+              className={sortBy === key ? 'tv-chip-active' : 'tv-chip'}
+              type="button"
+            >
+              {label}
+              {sortBy === key && key !== 'manual' ? (sortDirection === 'asc' ? ' ↑' : ' ↓') : ''}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {leerHinweis && <p className={styles.emptyHint}>{leerHinweis}</p>}
+
+      {zeilen.map((z) => (
+        z.typ === 'gruppe' ? (
+          <React.Fragment key={`gruppe-${z.gruppe.id}`}>
+            {gruppenKarte(z.gruppe, z.aufgaben)}
+            {!zugeklappt.has(z.gruppe.id) && z.aufgaben.map(a => aufgabenKarte(a, true))}
+          </React.Fragment>
+        ) : aufgabenKarte(z.aufgabe)
+      ))}
 
     </div>
   );

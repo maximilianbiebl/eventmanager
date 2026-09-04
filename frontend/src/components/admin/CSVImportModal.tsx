@@ -80,6 +80,8 @@ const FORMATS: {
       { name: 'start_time', required: false, hint: 'Startzeit als HH:MM' },
       { name: 'end_time', required: false, hint: 'Endzeit als HH:MM' },
       { name: 'is_public', required: false, hint: 'true oder false' },
+      { name: 'group_name', required: false, hint: 'Aufgabengruppe – gleiche Namen am selben Tag bilden eine Gruppe' },
+      { name: 'group_time', required: false, hint: 'Uhrzeit der Gruppe als HH:MM, nur beim Anlegen verwendet' },
       { name: 'series_name', required: false, hint: 'Alle Zeilen mit demselben Namen bilden eine Serie; leer = keine Serie' },
       { name: 'needed_staff', required: false, hint: 'benötigte Personen, leer = keine Angabe' },
       { name: 'needed_female', required: false, hint: 'davon weiblich, leer = keine Angabe' },
