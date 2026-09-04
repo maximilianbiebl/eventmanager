@@ -80,12 +80,12 @@ const FORMATS: {
       { name: 'start_time', required: false, hint: 'Startzeit als HH:MM' },
       { name: 'end_time', required: false, hint: 'Endzeit als HH:MM' },
       { name: 'is_public', required: false, hint: 'true oder false' },
-      { name: 'series_name', required: false, hint: 'Name der Serie, wird bei Bedarf angelegt' },
+      { name: 'series_name', required: false, hint: 'Alle Zeilen mit demselben Namen bilden eine Serie; leer = keine Serie' },
       { name: 'needed_staff', required: false, hint: 'benötigte Personen, leer = keine Angabe' },
       { name: 'needed_female', required: false, hint: 'davon weiblich, leer = keine Angabe' },
       { name: 'needed_male', required: false, hint: 'davon männlich, leer = keine Angabe' },
     ],
-    note: 'Felder mit Komma bitte in Anführungszeichen setzen: "Aufbau, Halle 2". Der Personalbedarf ist unverbindlich - die Spalten dürfen auch ganz fehlen.',
+    note: 'Felder mit Komma bitte in Anführungszeichen setzen: "Aufbau, Halle 2". Serien werden bei Bedarf angelegt; wer darin mitarbeitet, wird danach in der Serienverwaltung eingetragen. Der Personalbedarf ist unverbindlich - die Spalten dürfen auch ganz fehlen.',
   },
 };
 
