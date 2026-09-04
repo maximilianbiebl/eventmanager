@@ -3,6 +3,7 @@ import { query } from '../database/connection';
 import webpush from 'web-push';
 import config from '../config';
 import { signalService } from './signal';
+import { broadcastUpdate } from '../routes/sse';
 
 // Helper function to format time without seconds (hh:mm)
 function formatTime(time: string | null): string {
@@ -17,6 +18,9 @@ export function startNotificationScheduler() {
 
   cron.schedule('* * * * *', async () => {
     try {
+      // Zuerst abhaken, dann erst ueberfaellig setzen - sonst waere eine
+      // selbstabhakende Aufgabe fuer einen Moment "ueberfaellig".
+      await selbstAbhakendeAufgaben();
       await sendTaskReminders();
       await updateOverdueTasks();
     } catch (error) {
@@ -25,7 +29,77 @@ export function startNotificationScheduler() {
   });
 }
 
-async function sendTaskReminders() {
+/*
+ * Aufgaben, die sich selbst abhaken.
+ *
+ * Manche Aufgaben sind mit ihrem Zeitpunkt erledigt - "Nachtruhe",
+ * "Zimmerkontrolle", "Bus faehrt". Da drueckt niemand einen Knopf. Ist das
+ * Kennzeichen gesetzt, wird die Aufgabe zum Ende ihres Zeitfensters auf
+ * erledigt gesetzt.
+ *
+ * Massgeblich ist die Endzeit, sonst die Startzeit, sonst die geplante Zeit
+ * - der spaeteste bekannte Zeitpunkt also, zu dem sie vorbei ist. Ohne jede
+ * Zeitangabe passiert nichts; dann gibt es keinen Moment, an dem man das
+ * festmachen koennte.
+ *
+ * Bewusst OHNE Benachrichtigung: weder hier noch beim Statuswechsel. Die
+ * Oberflaeche erfaehrt es ueber SSE, damit offene Ansichten nachziehen.
+ */
+export async function selbstAbhakendeAufgaben() {
+  const jetzt = new Date();
+  const uhrzeit = jetzt.toTimeString().substring(0, 8);
+
+  const instanzen = await query(
+    `SELECT ei.*, e.days
+     FROM event_instances ei
+     JOIN events e ON ei.event_id = e.id
+     WHERE ei.start_date <= CURRENT_DATE
+       AND (ei.start_date + INTERVAL '1 day' * e.days) >= CURRENT_DATE`
+  );
+
+  for (const instanz of instanzen.rows) {
+    const start = new Date(instanz.start_date);
+    const tagesNummer = Math.floor((jetzt.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+    /*
+     * Faellig ist alles an vergangenen Tagen und alles am heutigen Tag,
+     * dessen Zeitpunkt vorbei ist. Der Tag davor kommt mit, damit eine
+     * Aufgabe nicht offen stehen bleibt, nur weil der Server in der
+     * entscheidenden Minute nicht lief.
+     */
+    const faellig = await query(
+      `SELECT id, title
+       FROM tasks
+       WHERE event_id = $1
+         AND auto_complete = true
+         AND status <> 'completed'
+         AND (scheduled_time IS NOT NULL OR start_time IS NOT NULL OR end_time IS NOT NULL)
+         AND (
+           day_number < $2
+           OR (day_number = $2 AND COALESCE(end_time, start_time, scheduled_time) <= $3)
+         )`,
+      [instanz.event_id, tagesNummer, uhrzeit]
+    );
+
+    for (const aufgabe of faellig.rows) {
+      await query(
+        `UPDATE tasks SET status = 'completed', status_changed_at = NOW() WHERE id = $1`,
+        [aufgabe.id]
+      );
+      await query(
+        `UPDATE task_assignments
+         SET completed = true, completed_at = NOW()
+         WHERE task_id = $1 AND event_instance_id = $2 AND completed = false`,
+        [aufgabe.id, instanz.id]
+      );
+
+      console.log(`[Scheduler] Aufgabe "${aufgabe.title}" (${aufgabe.id}) hat sich selbst abgehakt`);
+      broadcastUpdate('task', { action: 'auto_completed', task: { id: aufgabe.id } });
+    }
+  }
+}
+
+export async function sendTaskReminders() {
   const now = new Date();
   const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
 
@@ -67,7 +141,10 @@ async function sendTaskReminders() {
        WHERE ta.event_instance_id = $1
          AND t.day_number = $2
          AND (t.scheduled_time IS NOT NULL OR t.start_time IS NOT NULL)
-         AND ta.completed = false`,
+         AND ta.completed = false
+         -- Selbstabhakende Aufgaben erinnern nicht: sie erledigen sich ja
+         -- von allein, eine Erinnerung dazu waere nur Laerm.
+         AND t.auto_complete = false`,
       [instance.id, currentDay]
     );
 
@@ -474,7 +551,7 @@ async function sendStartTimeNotification(userId: number, task: any, instance: an
   }
 }
 
-async function updateOverdueTasks() {
+export async function updateOverdueTasks() {
   const now = new Date();
 
   // Finde alle Event-Instanzen die heute oder in der Vergangenheit laufen
@@ -499,6 +576,8 @@ async function updateOverdueTasks() {
        LEFT JOIN task_assignments ta ON t.id = ta.task_id AND ta.event_instance_id = $1
        WHERE t.event_id = $2
          AND t.status NOT IN ('completed', 'overdue')
+         -- Was sich selbst abhakt, wird nie ueberfaellig.
+         AND t.auto_complete = false
          AND t.end_time IS NOT NULL
          AND (
            t.day_number < $3

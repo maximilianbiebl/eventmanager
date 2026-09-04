@@ -30,6 +30,13 @@ export interface Task {
   needed_staff?: number | null;
   needed_female?: number | null;
   needed_male?: number | null;
+  /**
+   * Hakt sich zum Ende ihres Zeitfensters selbst ab und meldet sich dabei
+   * nicht - fuer Aufgaben, die mit ihrem Zeitpunkt erledigt sind
+   * ("Nachtruhe", "Bus faehrt"). Massgeblich ist die Endzeit, sonst die
+   * Startzeit, sonst die geplante Zeit.
+   */
+  auto_complete?: boolean;
 }
 
 export interface TaskAssignment extends Task {
@@ -67,6 +74,7 @@ export interface CreateTaskData {
   needed_staff?: number | null;
   needed_female?: number | null;
   needed_male?: number | null;
+  auto_complete?: boolean;
 }
 
 export const tasksApi = {

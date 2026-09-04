@@ -324,7 +324,8 @@ router.post('/', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req =
       series_id,
       needed_staff,
       needed_female,
-      needed_male
+      needed_male,
+      auto_complete
     } = req.body;
 
     // Get all existing tasks for this event, sorted by day and time
@@ -386,9 +387,9 @@ router.post('/', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req =
       `INSERT INTO tasks (
         event_id, program_item_id, day_number, title, description,
         scheduled_time, start_time, end_time, reminder_minutes, is_public, status, sort_order, series_id,
-        needed_staff, needed_female, needed_male
+        needed_staff, needed_female, needed_male, auto_complete
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *`,
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *`,
       [
         event_id,
         program_item_id,
@@ -405,7 +406,8 @@ router.post('/', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req =
         series_id || null,
         bedarfsZahl(needed_staff),
         bedarfsZahl(needed_female),
-        bedarfsZahl(needed_male)
+        bedarfsZahl(needed_male),
+        auto_complete === true || auto_complete === 'true'
       ]
     );
 
@@ -1082,8 +1084,13 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
       console.log(`Reset completed status for all assignments of task ${id}`);
     }
 
-    // Wenn Status geändert wurde, sende Benachrichtigungen (nur für Admin-Änderungen)
-    if (isAdmin && status !== currentTask.status) {
+    /*
+     * Aufgaben, die sich selbst abhaken, melden sich nie: sie sind mit
+     * ihrem Zeitpunkt erledigt, eine Meldung dazu waere nur Laerm. Das gilt
+     * auch, wenn jemand den Status von Hand setzt - sonst haette man die
+     * Automatik zwar an, bekaeme aber trotzdem Nachrichten.
+     */
+    if (isAdmin && status !== currentTask.status && !currentTask.auto_complete) {
       try {
         // Status-Labels für Benachrichtigungen
         const statusLabels: { [key: string]: string } = {
@@ -1389,7 +1396,8 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req
       series_id = currentTask.series_id,
       needed_staff = currentTask.needed_staff,
       needed_female = currentTask.needed_female,
-      needed_male = currentTask.needed_male
+      needed_male = currentTask.needed_male,
+      auto_complete = currentTask.auto_complete
     } = req.body;
 
     const result = await query(
@@ -1410,7 +1418,8 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req
         series_id = $10,
         needed_staff = $12,
         needed_female = $13,
-        needed_male = $14
+        needed_male = $14,
+        auto_complete = $15
        WHERE id = $11 RETURNING *`,
       [
         title,
@@ -1426,7 +1435,8 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req
         id,
         bedarfsZahl(needed_staff),
         bedarfsZahl(needed_female),
-        bedarfsZahl(needed_male)
+        bedarfsZahl(needed_male),
+        auto_complete === true || auto_complete === 'true'
       ]
     );
 
@@ -1462,8 +1472,9 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req
       console.log(`Reset completed status for all assignments of task ${id}`);
     }
 
-    // Wenn Status geändert wurde, sende Benachrichtigungen (Web Push + Signal)
-    if (status !== currentTask.status) {
+    // Wenn Status geändert wurde, sende Benachrichtigungen (Web Push + Signal).
+    // Selbstabhakende Aufgaben bleiben still - siehe Migration 020.
+    if (status !== currentTask.status && !currentTask.auto_complete) {
       try {
         const statusLabels: { [key: string]: string } = {
           not_started: 'Nicht gestartet',
@@ -1877,7 +1888,7 @@ router.post('/event/:eventId/export-csv', authMiddleware, teamleiterOrAdminMiddl
      */
     const spalten = `t.id, t.title, t.description, t.day_number, t.scheduled_time, t.start_time,
                      t.end_time, t.is_public, t.status, t.needed_staff, t.needed_female, t.needed_male,
-                     ts.name AS series_name`;
+                     t.auto_complete, ts.name AS series_name`;
 
     const nurAusgewaehlte = task_ids && Array.isArray(task_ids) && task_ids.length > 0;
     const result = await query(
@@ -1897,6 +1908,7 @@ router.post('/event/:eventId/export-csv', authMiddleware, teamleiterOrAdminMiddl
     const headers = [
       'id', 'title', 'description', 'day_number', 'scheduled_time', 'start_time', 'end_time',
       'is_public', 'status', 'series_name', 'needed_staff', 'needed_female', 'needed_male',
+      'auto_complete',
     ];
     const rows = result.rows.map(row => [
       row.id,
@@ -1914,6 +1926,7 @@ router.post('/event/:eventId/export-csv', authMiddleware, teamleiterOrAdminMiddl
       row.needed_staff ?? '',
       row.needed_female ?? '',
       row.needed_male ?? '',
+      row.auto_complete,
     ].join(','));
 
     const csv = CSV_BOM + [headers.join(','), ...rows].join('\n');
@@ -1999,8 +2012,8 @@ router.post('/event/:eventId/import-csv', authMiddleware, teamleiterOrAdminMiddl
         `INSERT INTO tasks (
           event_id, day_number, title, description, scheduled_time, start_time, end_time,
           reminder_minutes, is_public, status, sort_order,
-          needed_staff, needed_female, needed_male, series_id
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+          needed_staff, needed_female, needed_male, series_id, auto_complete
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
         [
           eventId,
           parseInt(task.day_number) || 1,
@@ -2017,7 +2030,8 @@ router.post('/event/:eventId/import-csv', authMiddleware, teamleiterOrAdminMiddl
           bedarfsZahl(task.needed_staff),
           bedarfsZahl(task.needed_female),
           bedarfsZahl(task.needed_male),
-          serieId
+          serieId,
+          task.auto_complete === 'true'
         ]
       );
 

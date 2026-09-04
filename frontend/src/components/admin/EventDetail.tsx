@@ -1099,6 +1099,21 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                         fontWeight: '500'
                       }}>Öffentlich</span>
                     )}
+                    {task.auto_complete && (
+                      <span
+                        title="Diese Aufgabe hakt sich zum Ende ihres Zeitfensters selbst ab. Es geht keine Benachrichtigung dazu raus, und sie wird nie überfällig."
+                        style={{
+                          fontSize: '0.7rem',
+                          padding: '0.125rem 0.5rem',
+                          backgroundColor: 'var(--c-surface-muted)',
+                          color: 'var(--c-text-muted)',
+                          border: '1px solid var(--c-border)',
+                          borderRadius: '9999px',
+                          fontWeight: '500',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >automatisch</span>
+                    )}
                     {task.is_active === false && (
                       <span style={{
                         fontSize: '0.7rem',

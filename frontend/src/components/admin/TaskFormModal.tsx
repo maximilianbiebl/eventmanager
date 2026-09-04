@@ -39,6 +39,7 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
     needed_staff: task?.needed_staff ?? '',
     needed_female: task?.needed_female ?? '',
     needed_male: task?.needed_male ?? '',
+    auto_complete: task?.auto_complete || false,
   });
 
   /*
@@ -55,6 +56,22 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
     if (w + m > gesamt) return `Aufteilung ergibt ${w + m} - mehr als die angegebene Anzahl ${gesamt}.`;
     if (w + m < gesamt) return `Aufteilung ergibt ${w + m} von ${gesamt} - der Rest ist beliebig.`;
     return '';
+  })();
+
+  /*
+   * Der Zeitpunkt, an dem sich die Aufgabe abhakt: Endzeit, sonst Startzeit,
+   * sonst geplante Zeit. Ohne jede Zeitangabe gibt es keinen - dann muss das
+   * im Formular stehen, sonst wartet man vergeblich.
+   */
+  const selbstHinweis = (() => {
+    if (!formData.auto_complete) {
+      return 'Wird zur Endzeit automatisch abgehakt, ohne Erinnerung und ohne Meldung.';
+    }
+    const zeit = formData.end_time || formData.start_time || formData.scheduled_time;
+    const woher = formData.end_time ? 'Endzeit' : formData.start_time ? 'Startzeit' : 'geplanten Zeit';
+    return zeit
+      ? `Wird um ${String(zeit).slice(0, 5)} Uhr (${woher}) von selbst abgehakt. Keine Erinnerung, keine Meldung, nie überfällig.`
+      : 'Ohne Zeitangabe passiert nichts – bitte eine Start-, End- oder geplante Zeit eintragen.';
   })();
 
   const [loading, setLoading] = useState(false);
@@ -345,6 +362,26 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
               />
               <span>Öffentliche Aufgabe (für alle Mitarbeiter sichtbar)</span>
             </label>
+          </div>
+
+          {/*
+            Aufgaben, die mit ihrem Zeitpunkt erledigt sind - "Nachtruhe",
+            "Bus faehrt". Da drueckt niemand einen Knopf, und eine
+            Erinnerung dazu waere nur Laerm.
+          */}
+          <div style={styles.formGroup}>
+            <label style={styles.checkboxLabel}>
+              <input
+                type="checkbox"
+                checked={formData.auto_complete}
+                onChange={(e) => setFormData({ ...formData, auto_complete: e.target.checked })}
+                style={styles.checkbox}
+              />
+              <span>Erledigt sich von selbst (keine Benachrichtigungen)</span>
+            </label>
+            <p style={styles.bedarfHinweis}>
+              {selbstHinweis}
+            </p>
           </div>
 
           {/*

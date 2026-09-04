@@ -10,11 +10,6 @@ import { CSV_BOM, ohneBom, parseCsvLine, csvFeld } from '../utils/csv';
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
-
-/*
- * Personalbedarf aus einer CSV-Zelle. Leer bleibt leer - "keine Angabe" ist
- * etwas anderes als "null Personen noetig".
- */
 /*
  * Serie einer importierten Aufgabe. Kommt als Name in der Datei an; passt er
  * zu einer Serie DIESER Veranstaltung, wird die Aufgabe dort eingehaengt,
@@ -46,6 +41,10 @@ const serieFuerEvent = async (
   return id;
 };
 
+/*
+ * Personalbedarf aus einer CSV-Zelle. Leer bleibt leer - "keine Angabe" ist
+ * etwas anderes als "null Personen noetig".
+ */
 const bedarfsZahlCsv = (wert: unknown): number | null => {
   if (wert === null || wert === undefined || wert === '') return null;
   const n = Number(wert);
@@ -482,8 +481,8 @@ router.post('/:id/create-from-template', authMiddleware, teamleiterOrAdminMiddle
 
     if (templateTasks.rows.length > 0) {
       const taskValues = templateTasks.rows.map((t, idx) => {
-        const baseIdx = idx * 15 + 2;
-        return `($1, $${baseIdx}, $${baseIdx+1}, $${baseIdx+2}, $${baseIdx+3}, $${baseIdx+4}, $${baseIdx+5}, $${baseIdx+6}, $${baseIdx+7}, $${baseIdx+8}, $${baseIdx+9}, $${baseIdx+10}, $${baseIdx+11}, $${baseIdx+12}, $${baseIdx+13}, $${baseIdx+14})`;
+        const baseIdx = idx * 16 + 2;
+        return `($1, $${baseIdx}, $${baseIdx+1}, $${baseIdx+2}, $${baseIdx+3}, $${baseIdx+4}, $${baseIdx+5}, $${baseIdx+6}, $${baseIdx+7}, $${baseIdx+8}, $${baseIdx+9}, $${baseIdx+10}, $${baseIdx+11}, $${baseIdx+12}, $${baseIdx+13}, $${baseIdx+14}, $${baseIdx+15})`;
       }).join(', ');
 
       const taskParams = [newEvent.id];
@@ -507,7 +506,8 @@ router.post('/:id/create-from-template', authMiddleware, teamleiterOrAdminMiddle
           // Vorlage verloren.
           task.needed_staff ?? null,
           task.needed_female ?? null,
-          task.needed_male ?? null
+          task.needed_male ?? null,
+          task.auto_complete ?? false
         );
       });
 
@@ -515,7 +515,7 @@ router.post('/:id/create-from-template', authMiddleware, teamleiterOrAdminMiddle
         `INSERT INTO tasks (
           event_id, program_item_id, day_number, title, description,
           scheduled_time, start_time, end_time, reminder_minutes, is_public, status, is_active, sort_order,
-          needed_staff, needed_female, needed_male
+          needed_staff, needed_female, needed_male, auto_complete
         ) VALUES ${taskValues}`,
         taskParams
       );
@@ -602,8 +602,8 @@ router.post('/:id/copy-to-template', authMiddleware, adminMiddleware, async (req
     if (originalTasks.rows.length > 0) {
       // Bulk INSERT für Tasks
       const taskValues = originalTasks.rows.map((t, idx) => {
-        const baseIdx = idx * 15 + 2;
-        return `($1, $${baseIdx}, $${baseIdx+1}, $${baseIdx+2}, $${baseIdx+3}, $${baseIdx+4}, $${baseIdx+5}, $${baseIdx+6}, $${baseIdx+7}, $${baseIdx+8}, $${baseIdx+9}, $${baseIdx+10}, $${baseIdx+11}, $${baseIdx+12}, $${baseIdx+13}, $${baseIdx+14})`;
+        const baseIdx = idx * 16 + 2;
+        return `($1, $${baseIdx}, $${baseIdx+1}, $${baseIdx+2}, $${baseIdx+3}, $${baseIdx+4}, $${baseIdx+5}, $${baseIdx+6}, $${baseIdx+7}, $${baseIdx+8}, $${baseIdx+9}, $${baseIdx+10}, $${baseIdx+11}, $${baseIdx+12}, $${baseIdx+13}, $${baseIdx+14}, $${baseIdx+15})`;
       }).join(', ');
 
       const taskParams = [template.id];
@@ -627,7 +627,8 @@ router.post('/:id/copy-to-template', authMiddleware, adminMiddleware, async (req
           // Vorlage verloren.
           task.needed_staff ?? null,
           task.needed_female ?? null,
-          task.needed_male ?? null
+          task.needed_male ?? null,
+          task.auto_complete ?? false
         );
       });
 
@@ -635,7 +636,7 @@ router.post('/:id/copy-to-template', authMiddleware, adminMiddleware, async (req
         `INSERT INTO tasks (
           event_id, program_item_id, day_number, title, description,
           scheduled_time, start_time, end_time, reminder_minutes, is_public, status, is_active, sort_order,
-          needed_staff, needed_female, needed_male
+          needed_staff, needed_female, needed_male, auto_complete
         ) VALUES ${taskValues}`,
         taskParams
       );
@@ -761,8 +762,8 @@ router.post('/:id/approve-suggestion', authMiddleware, adminMiddleware, async (r
 
     if (originalTasks.rows.length > 0) {
       const taskValues = originalTasks.rows.map((t, idx) => {
-        const baseIdx = idx * 15 + 2;
-        return `($1, $${baseIdx}, $${baseIdx+1}, $${baseIdx+2}, $${baseIdx+3}, $${baseIdx+4}, $${baseIdx+5}, $${baseIdx+6}, $${baseIdx+7}, $${baseIdx+8}, $${baseIdx+9}, $${baseIdx+10}, $${baseIdx+11}, $${baseIdx+12}, $${baseIdx+13}, $${baseIdx+14})`;
+        const baseIdx = idx * 16 + 2;
+        return `($1, $${baseIdx}, $${baseIdx+1}, $${baseIdx+2}, $${baseIdx+3}, $${baseIdx+4}, $${baseIdx+5}, $${baseIdx+6}, $${baseIdx+7}, $${baseIdx+8}, $${baseIdx+9}, $${baseIdx+10}, $${baseIdx+11}, $${baseIdx+12}, $${baseIdx+13}, $${baseIdx+14}, $${baseIdx+15})`;
       }).join(', ');
 
       const taskParams = [template.id];
@@ -786,7 +787,8 @@ router.post('/:id/approve-suggestion', authMiddleware, adminMiddleware, async (r
           // Vorlage verloren.
           task.needed_staff ?? null,
           task.needed_female ?? null,
-          task.needed_male ?? null
+          task.needed_male ?? null,
+          task.auto_complete ?? false
         );
       });
 
@@ -794,7 +796,7 @@ router.post('/:id/approve-suggestion', authMiddleware, adminMiddleware, async (r
         `INSERT INTO tasks (
           event_id, program_item_id, day_number, title, description,
           scheduled_time, start_time, end_time, reminder_minutes, is_public, status, is_active, sort_order,
-          needed_staff, needed_female, needed_male
+          needed_staff, needed_female, needed_male, auto_complete
         ) VALUES ${taskValues}`,
         taskParams
       );
@@ -899,8 +901,8 @@ router.post('/:id/duplicate', authMiddleware, teamleiterOrAdminMiddleware, async
 
     if (originalTasks.rows.length > 0) {
       const taskValues = originalTasks.rows.map((t, idx) => {
-        const baseIdx = idx * 15 + 2;
-        return `($1, $${baseIdx}, $${baseIdx+1}, $${baseIdx+2}, $${baseIdx+3}, $${baseIdx+4}, $${baseIdx+5}, $${baseIdx+6}, $${baseIdx+7}, $${baseIdx+8}, $${baseIdx+9}, $${baseIdx+10}, $${baseIdx+11}, $${baseIdx+12}, $${baseIdx+13}, $${baseIdx+14})`;
+        const baseIdx = idx * 16 + 2;
+        return `($1, $${baseIdx}, $${baseIdx+1}, $${baseIdx+2}, $${baseIdx+3}, $${baseIdx+4}, $${baseIdx+5}, $${baseIdx+6}, $${baseIdx+7}, $${baseIdx+8}, $${baseIdx+9}, $${baseIdx+10}, $${baseIdx+11}, $${baseIdx+12}, $${baseIdx+13}, $${baseIdx+14}, $${baseIdx+15})`;
       }).join(', ');
 
       const taskParams = [newEvent.id];
@@ -924,7 +926,8 @@ router.post('/:id/duplicate', authMiddleware, teamleiterOrAdminMiddleware, async
           // Vorlage verloren.
           task.needed_staff ?? null,
           task.needed_female ?? null,
-          task.needed_male ?? null
+          task.needed_male ?? null,
+          task.auto_complete ?? false
         );
       });
 
@@ -932,7 +935,7 @@ router.post('/:id/duplicate', authMiddleware, teamleiterOrAdminMiddleware, async
         `INSERT INTO tasks (
           event_id, program_item_id, day_number, title, description,
           scheduled_time, start_time, end_time, reminder_minutes, is_public, status, is_active, sort_order,
-          needed_staff, needed_female, needed_male
+          needed_staff, needed_female, needed_male, auto_complete
         ) VALUES ${taskValues}`,
         taskParams
       );
@@ -1081,8 +1084,8 @@ router.post('/bulk-approve-suggestions', authMiddleware, adminMiddleware, async 
 
       if (originalTasks.rows.length > 0) {
         const taskValues = originalTasks.rows.map((t, idx) => {
-          const baseIdx = idx * 15 + 2;
-          return `($1, $${baseIdx}, $${baseIdx+1}, $${baseIdx+2}, $${baseIdx+3}, $${baseIdx+4}, $${baseIdx+5}, $${baseIdx+6}, $${baseIdx+7}, $${baseIdx+8}, $${baseIdx+9}, $${baseIdx+10}, $${baseIdx+11}, $${baseIdx+12}, $${baseIdx+13}, $${baseIdx+14})`;
+          const baseIdx = idx * 16 + 2;
+          return `($1, $${baseIdx}, $${baseIdx+1}, $${baseIdx+2}, $${baseIdx+3}, $${baseIdx+4}, $${baseIdx+5}, $${baseIdx+6}, $${baseIdx+7}, $${baseIdx+8}, $${baseIdx+9}, $${baseIdx+10}, $${baseIdx+11}, $${baseIdx+12}, $${baseIdx+13}, $${baseIdx+14}, $${baseIdx+15})`;
         }).join(', ');
 
         const taskParams = [template.id];
@@ -1104,7 +1107,8 @@ router.post('/bulk-approve-suggestions', authMiddleware, adminMiddleware, async 
             // Personalbedarf mitkopieren, siehe oben.
             task.needed_staff ?? null,
             task.needed_female ?? null,
-            task.needed_male ?? null
+            task.needed_male ?? null,
+            task.auto_complete ?? false
           );
         });
 
@@ -1112,7 +1116,7 @@ router.post('/bulk-approve-suggestions', authMiddleware, adminMiddleware, async 
           `INSERT INTO tasks (
             event_id, program_item_id, day_number, title, description,
             scheduled_time, start_time, end_time, reminder_minutes, is_public, status, is_active, sort_order,
-            needed_staff, needed_female, needed_male
+            needed_staff, needed_female, needed_male, auto_complete
           ) VALUES ${taskValues}`,
           taskParams
         );
@@ -1179,7 +1183,7 @@ router.post('/export-csv', authMiddleware, teamleiterOrAdminMiddleware, async (r
         const tasksResult = await query(
           `SELECT t.event_id, t.title, t.description, t.day_number, t.scheduled_time, t.start_time,
                   t.end_time, t.is_public, t.needed_staff, t.needed_female, t.needed_male,
-                  ts.name AS series_name
+                  t.auto_complete, ts.name AS series_name
            FROM tasks t
            LEFT JOIN task_series ts ON ts.id = t.series_id
            WHERE t.event_id = ANY($1)
@@ -1189,7 +1193,7 @@ router.post('/export-csv', authMiddleware, teamleiterOrAdminMiddleware, async (r
         // Dieselben Spalten wie beim Aufgaben-Export einer einzelnen
         // Veranstaltung - sonst haengt es vom gewaehlten Weg ab, was
         // erhalten bleibt.
-        const tasksHeaders = ['event_id', 'title', 'description', 'day_number', 'scheduled_time', 'start_time', 'end_time', 'is_public', 'series_name', 'needed_staff', 'needed_female', 'needed_male'];
+        const tasksHeaders = ['event_id', 'title', 'description', 'day_number', 'scheduled_time', 'start_time', 'end_time', 'is_public', 'series_name', 'needed_staff', 'needed_female', 'needed_male', 'auto_complete'];
         const tasksRows = tasksResult.rows.map(row => [
           row.event_id,
           csvFeld(row.title),
@@ -1203,6 +1207,7 @@ router.post('/export-csv', authMiddleware, teamleiterOrAdminMiddleware, async (r
           row.needed_staff ?? '',
           row.needed_female ?? '',
           row.needed_male ?? '',
+          row.auto_complete,
         ].join(','));
         tasksCSV = CSV_BOM + [tasksHeaders.join(','), ...tasksRows].join('\n');
       }
@@ -1341,8 +1346,8 @@ router.post('/import-csv', authMiddleware, teamleiterOrAdminMiddleware, upload.f
             // Insert task with new event_id
             await query(
               `INSERT INTO tasks (event_id, title, description, day_number, scheduled_time, start_time, end_time, is_public,
-                                  needed_staff, needed_female, needed_male, series_id)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+                                  needed_staff, needed_female, needed_male, series_id, auto_complete)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
               [
                 newEventId,
                 task.title,
@@ -1356,7 +1361,8 @@ router.post('/import-csv', authMiddleware, teamleiterOrAdminMiddleware, upload.f
                 bedarfsZahlCsv(task.needed_staff),
                 bedarfsZahlCsv(task.needed_female),
                 bedarfsZahlCsv(task.needed_male),
-                await serieFuerEvent(newEventId, task.series_name, serienCache)
+                await serieFuerEvent(newEventId, task.series_name, serienCache),
+                task.auto_complete === 'true'
               ]
             );
             tasksImported++;

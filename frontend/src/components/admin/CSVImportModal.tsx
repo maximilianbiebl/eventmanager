@@ -84,6 +84,7 @@ const FORMATS: {
       { name: 'needed_staff', required: false, hint: 'benötigte Personen, leer = keine Angabe' },
       { name: 'needed_female', required: false, hint: 'davon weiblich, leer = keine Angabe' },
       { name: 'needed_male', required: false, hint: 'davon männlich, leer = keine Angabe' },
+      { name: 'auto_complete', required: false, hint: 'true = hakt sich selbst ab, ohne Benachrichtigung' },
     ],
     note: 'Felder mit Komma bitte in Anführungszeichen setzen: "Aufbau, Halle 2". Serien werden bei Bedarf angelegt; wer darin mitarbeitet, wird danach in der Serienverwaltung eingetragen. Der Personalbedarf ist unverbindlich - die Spalten dürfen auch ganz fehlen.',
   },
