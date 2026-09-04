@@ -5,7 +5,8 @@ import { taskSeriesApi, TaskSeries } from '../../api/taskSeries';
 import { Leitung, eventBadgeColors, eventRolleVon, eventAssignmentTitle } from '../../utils/roleBadge';
 import { BedarfBadge } from './BedarfBadge';
 import { TaskGroup } from '../../api/program';
-import { zeilenMitGruppen, zugeklappteGruppen, merkeZugeklappt, gruppenZeit } from '../../utils/taskGroups';
+import { zeilenMitGruppen, zugeklappteGruppen, merkeZugeklappt, gruppenZeit, Sortierung } from '../../utils/taskGroups';
+import { programApi } from '../../api/program';
 import { useSSE } from '../../hooks/useSSE';
 import responsiveStyles from './TaskTableView.module.css';
 import { Toast } from '../Toast';
@@ -777,6 +778,44 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
   );
 
   /*
+   * Gruppe umbenennen, entfernen, verschieben. Danach laedt die
+   * Elternansicht die Gruppen neu - sie fuehrt die Liste.
+   */
+  const gruppeUmbenennen = async (gruppe: TaskGroup) => {
+    const neu = window.prompt('Name der Aufgabengruppe', gruppe.title);
+    if (!neu || !neu.trim() || neu.trim() === gruppe.title) return;
+    try {
+      await programApi.update(gruppe.id, { title: neu.trim() });
+      onTasksChanged?.();
+    } catch (error) {
+      console.error('Rename task group error:', error);
+    }
+  };
+
+  const gruppeLoeschen = async (gruppe: TaskGroup, anzahl: number) => {
+    if (!window.confirm(
+      `Aufgabengruppe "${gruppe.title}" entfernen?\n\n` +
+      `Die ${anzahl} ${anzahl === 1 ? 'Aufgabe bleibt' : 'Aufgaben bleiben'} erhalten und stehen danach ohne Gruppe da.`
+    )) return;
+    try {
+      await programApi.delete(gruppe.id);
+      onTasksChanged?.();
+    } catch (error) {
+      console.error('Delete task group error:', error);
+    }
+  };
+
+  const gruppeVerschieben = async (gruppe: TaskGroup, richtung: 'hoch' | 'runter') => {
+    try {
+      if (richtung === 'hoch') await programApi.moveUp(gruppe.id);
+      else await programApi.moveDown(gruppe.id);
+      onTasksChanged?.();
+    } catch (error) {
+      console.error('Move task group error:', error);
+    }
+  };
+
+  /*
    * Die Ueberschrift einer Gruppe. Sie fasst zusammen, was darunter steht:
    * wie viele Aufgaben und wie viele Leute schon eingeteilt sind - damit man
    * eine zugeklappte Gruppe nicht aufmachen muss, um das zu sehen.
@@ -788,7 +827,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
 
     return (
       <tr key={`kopf-${gruppe.id}`} style={styles.gruppenZeile}>
-        <td style={styles.gruppenZelle} colSpan={12}>
+        <td style={{ ...styles.gruppenZelle, display: 'flex', alignItems: 'center', gap: '0.5rem' }} colSpan={12}>
           <button
             type="button"
             onClick={() => klappe(gruppe.id)}
@@ -803,14 +842,49 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
               {eingeteilt > 0 && ` · ${eingeteilt} eingeteilt`}
             </span>
           </button>
+
+          {/*
+            Dieselben Aktionen wie in der Kartenansicht - vorher gab es sie
+            nur dort, und wer mit der Tabelle arbeitet, kam an seine Gruppen
+            gar nicht heran.
+          */}
+          {!readOnly && (
+            <span style={styles.gruppenAktionen}>
+              <button type="button" style={styles.gruppenAktion}
+                onClick={() => gruppeUmbenennen(gruppe)} title="Gruppe umbenennen">Umbenennen</button>
+              <button type="button" style={styles.gruppenAktion}
+                onClick={() => gruppeLoeschen(gruppe, eintraege.length)} title="Gruppe entfernen, Aufgaben bleiben">Entfernen</button>
+              <button type="button" style={styles.gruppenPfeilKnopf}
+                onClick={() => gruppeVerschieben(gruppe, 'hoch')} title="Gruppe nach oben">▲</button>
+              <button type="button" style={styles.gruppenPfeilKnopf}
+                onClick={() => gruppeVerschieben(gruppe, 'runter')} title="Gruppe nach unten">▼</button>
+            </span>
+          )}
         </td>
       </tr>
     );
   };
 
+  /*
+   * Wie die Gruppen einsortiert werden, haengt an der gewaehlten Spalte:
+   * von Hand nach ihrer eigenen Reihenfolge, nach Zeit anhand ihrer Zeit
+   * (ersatzweise der fruehesten ihrer Aufgaben). Siehe utils/taskGroups.
+   */
+  const gruppenSortierung: Sortierung =
+    sortColumn === 'manual' ? 'manuell' : sortColumn === 'time' ? 'zeit' : 'sonst';
+
   const zeilen = zeilenMitGruppen(
-    sortedTasks.map(t => ({ ...t, id: t.task.id, program_item_id: t.task.program_item_id })),
-    gruppen
+    sortedTasks.map(t => ({
+      ...t,
+      id: t.task.id,
+      day_number: t.task.day_number,
+      program_item_id: t.task.program_item_id,
+      scheduled_time: t.task.scheduled_time,
+      start_time: t.task.start_time,
+      sort_order: t.task.sort_order,
+    })),
+    gruppen,
+    gruppenSortierung
   );
 
   if (loading) {
@@ -1328,6 +1402,33 @@ const styles: { [key: string]: React.CSSProperties } = {
   gruppenZahl: {
     fontSize: '0.75rem',
     color: 'var(--c-text-muted)',
+  },
+  gruppenAktionen: {
+    display: 'flex',
+    gap: '0.25rem',
+    paddingRight: '0.75rem',
+  },
+  gruppenAktion: {
+    padding: '0.1875rem 0.5rem',
+    background: 'none',
+    border: '1px solid var(--c-border)',
+    borderRadius: '4px',
+    fontSize: '0.75rem',
+    color: 'var(--c-text-muted)',
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    whiteSpace: 'nowrap',
+  },
+  gruppenPfeilKnopf: {
+    padding: '0.1875rem 0.4375rem',
+    background: 'none',
+    border: '1px solid var(--c-border)',
+    borderRadius: '4px',
+    fontSize: '0.6875rem',
+    lineHeight: 1,
+    color: 'var(--c-text-muted)',
+    cursor: 'pointer',
+    fontFamily: 'inherit',
   },
   th: {
     padding: '0.75rem',

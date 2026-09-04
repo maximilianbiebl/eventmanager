@@ -28,6 +28,11 @@ export interface TaskGroup {
 export type ProgramItem = TaskGroup;
 
 export const programApi = {
+  /** Gruppe eine Stelle nach oben - innerhalb ihres Tages. */
+  moveUp: async (id: number) => (await client.put(`/program/${id}/move-up`)).data,
+  /** Gruppe eine Stelle nach unten - innerhalb ihres Tages. */
+  moveDown: async (id: number) => (await client.put(`/program/${id}/move-down`)).data,
+
   getByEvent: async (eventId: number): Promise<TaskGroup[]> => {
     const response = await client.get(`/program/event/${eventId}`);
     return response.data;

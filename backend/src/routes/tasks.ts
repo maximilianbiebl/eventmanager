@@ -1747,14 +1747,29 @@ router.put('/:id/move-up', authMiddleware, teamleiterOrAdminMiddleware, eventZug
     const currentTask = taskResult.rows[0];
     const { event_id, sort_order, day_number } = currentTask;
 
-    // Find the task directly above (same day, highest sort_order that is less than current)
+    /*
+     * Verschoben wird INNERHALB der Aufgabengruppe.
+     *
+     * Sonst waere der Pfeil ein Werkzeug, das die Aufgabe aus ihrer Gruppe
+     * herausschiebt - die Gruppe wechselt man aber im Bearbeiten-Dialog,
+     * nicht aus Versehen mit einem Pfeil. Aufgaben ohne Gruppe tauschen
+     * untereinander; sie bilden gewissermassen die Gruppe "ohne".
+     */
+    const { program_item_id } = currentTask;
+    const gruppenBedingung = program_item_id === null
+      ? 'program_item_id IS NULL'
+      : 'program_item_id = $4';
+    const gruppenWert = program_item_id === null ? [] : [program_item_id];
+
     const aboveResult = await query(
-      'SELECT * FROM tasks WHERE event_id = $1 AND day_number = $2 AND sort_order < $3 ORDER BY sort_order DESC LIMIT 1',
-      [event_id, day_number, sort_order]
+      `SELECT * FROM tasks
+       WHERE event_id = $1 AND day_number = $2 AND sort_order < $3 AND ${gruppenBedingung}
+       ORDER BY sort_order DESC LIMIT 1`,
+      [event_id, day_number, sort_order, ...gruppenWert]
     );
 
     if (aboveResult.rows.length === 0) {
-      return res.json({ message: 'Aufgabe ist bereits an erster Position für diesen Tag' });
+      return res.json({ message: 'Aufgabe steht bereits ganz oben' });
     }
 
     const aboveTask = aboveResult.rows[0];
@@ -1787,14 +1802,22 @@ router.put('/:id/move-down', authMiddleware, teamleiterOrAdminMiddleware, eventZ
     const currentTask = taskResult.rows[0];
     const { event_id, sort_order, day_number } = currentTask;
 
-    // Find the task directly below (same day, lowest sort_order that is greater than current)
+    // Ebenfalls innerhalb der Gruppe - siehe move-up.
+    const { program_item_id } = currentTask;
+    const gruppenBedingung = program_item_id === null
+      ? 'program_item_id IS NULL'
+      : 'program_item_id = $4';
+    const gruppenWert = program_item_id === null ? [] : [program_item_id];
+
     const belowResult = await query(
-      'SELECT * FROM tasks WHERE event_id = $1 AND day_number = $2 AND sort_order > $3 ORDER BY sort_order ASC LIMIT 1',
-      [event_id, day_number, sort_order]
+      `SELECT * FROM tasks
+       WHERE event_id = $1 AND day_number = $2 AND sort_order > $3 AND ${gruppenBedingung}
+       ORDER BY sort_order ASC LIMIT 1`,
+      [event_id, day_number, sort_order, ...gruppenWert]
     );
 
     if (belowResult.rows.length === 0) {
-      return res.json({ message: 'Aufgabe ist bereits an letzter Position für diesen Tag' });
+      return res.json({ message: 'Aufgabe steht bereits ganz unten' });
     }
 
     const belowTask = belowResult.rows[0];

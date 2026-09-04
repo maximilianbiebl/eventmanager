@@ -22,7 +22,7 @@ import { toLocalDate } from '../../utils/date';
 import { eventBadgeColors, eventRolleVon, eventAssignmentTitle } from '../../utils/roleBadge';
 import { BedarfBadge, hatBedarf } from './BedarfBadge';
 import { DaySelection, resolveInitialDayForEvent, storeDay } from '../../utils/dayPreference';
-import { zeilenMitGruppen, zugeklappteGruppen, merkeZugeklappt, gruppenZeit } from '../../utils/taskGroups';
+import { zeilenMitGruppen, zugeklappteGruppen, merkeZugeklappt, gruppenZeit, Sortierung } from '../../utils/taskGroups';
 import styles from './EventDetail.module.css';
 
 const STATUS_LABELS: { [key: string]: string } = {
@@ -1040,6 +1040,16 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       }
     };
 
+    const verschieben = async (richtung: 'hoch' | 'runter') => {
+      try {
+        if (richtung === 'hoch') await programApi.moveUp(gruppe.id);
+        else await programApi.moveDown(gruppe.id);
+        onGruppenGeaendert?.();
+      } catch (error) {
+        console.error('Move task group error:', error);
+      }
+    };
+
     const loeschen = async () => {
       if (!window.confirm(
         `Aufgabengruppe "${gruppe.title}" entfernen?\n\n` +
@@ -1073,13 +1083,30 @@ const TaskListView: React.FC<TaskListViewProps> = ({
           <div className={styles.gruppenAktionen}>
             <button type="button" onClick={umbenennen} className={styles.gruppenAktion} title="Gruppe umbenennen">Umbenennen</button>
             <button type="button" onClick={loeschen} className={styles.gruppenAktion} title="Gruppe entfernen, Aufgaben bleiben">Entfernen</button>
+            {/* Pfeile nur bei "Manuell" - in einer Sortierung nach Zeit oder
+                Titel haetten sie keine sichtbare Wirkung und wuerden nur
+                verwirren. Genauso wie bei den Aufgaben. */}
+            {sortBy === 'manual' && (
+              <>
+                <button type="button" onClick={() => verschieben('hoch')} className={styles.gruppenAktion} title="Gruppe nach oben">▲</button>
+                <button type="button" onClick={() => verschieben('runter')} className={styles.gruppenAktion} title="Gruppe nach unten">▼</button>
+              </>
+            )}
           </div>
         )}
       </div>
     );
   };
 
-  const zeilen = zeilenMitGruppen(sortedTasks as any[], gruppen);
+  /*
+   * Wie die Gruppen einsortiert werden, haengt an der gewaehlten Sortierung:
+   * "Manuell" nach ihrer eigenen Reihenfolge (die Pfeile am Kopf), "Zeit"
+   * nach ihrer Zeit bzw. der fruehesten ihrer Aufgaben.
+   */
+  const gruppenSortierung: Sortierung =
+    sortBy === 'manual' ? 'manuell' : sortBy === 'time' ? 'zeit' : 'sonst';
+
+  const zeilen = zeilenMitGruppen(sortedTasks as any[], gruppen, gruppenSortierung);
 
   /*
    * Eine Aufgabenkarte. Als Funktion, weil sie einzeln und - eingerueckt -
