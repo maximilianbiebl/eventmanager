@@ -605,9 +605,9 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
                       style={styles.checkbox}
                     />
                   </td>
-                  <td style={styles.td} className={responsiveStyles.hideOnMobile}>Tag {task.day_number}</td>
-                  <td style={styles.td} className={responsiveStyles.hideOnMobile}>{getTaskDate(task.day_number)}</td>
-                  <td style={{ ...styles.td, ...(inGruppe ? styles.eingerueckt : {}) }}>
+                  <td style={{ ...styles.td, ...styles.tdKurz }} className={responsiveStyles.hideOnMobile}>Tag {task.day_number}</td>
+                  <td style={{ ...styles.td, ...styles.tdKurz }} className={responsiveStyles.hideOnMobile}>{getTaskDate(task.day_number)}</td>
+                  <td style={{ ...styles.td, ...styles.tdTitel, ...(inGruppe ? styles.eingerueckt : {}) }}>
                     <div style={styles.taskTitle} className={responsiveStyles.taskTitle}>
                       {task.title}
                       {task.is_public && (
@@ -693,9 +693,9 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
                       </div>
                     )}
                   </td>
-                  <td style={styles.td}>{task.scheduled_time ? task.scheduled_time.slice(0, 5) : '-'}</td>
-                  <td style={styles.td}>{task.start_time ? task.start_time.slice(0, 5) : '-'}</td>
-                  <td style={styles.td}>{task.end_time ? task.end_time.slice(0, 5) : '-'}</td>
+                  <td style={{ ...styles.td, ...styles.tdKurz }}>{task.scheduled_time ? task.scheduled_time.slice(0, 5) : '-'}</td>
+                  <td style={{ ...styles.td, ...styles.tdKurz }}>{task.start_time ? task.start_time.slice(0, 5) : '-'}</td>
+                  <td style={{ ...styles.td, ...styles.tdKurz }}>{task.end_time ? task.end_time.slice(0, 5) : '-'}</td>
                   <td style={styles.td}>
                     <StatusCell
                       value={task.status}
@@ -1500,12 +1500,22 @@ const styles: { [key: string]: React.CSSProperties } = {
     cursor: 'pointer',
     fontFamily: 'inherit',
   },
+  /*
+   * Ueberschriften brechen nicht um.
+   *
+   * "Tag" und das Sortierzeichen sind zwei Textstuecke mit einem Leerraum
+   * dazwischen - genau dort hat der Browser die Zeile getrennt, sobald die
+   * Spalte eng wurde. Der Pfeil stand dann unter der Ueberschrift. Die
+   * Tabelle liegt in einem Kasten, der waagerecht rollt; sie darf also
+   * breiter werden, statt sich die Spalten zusammenzuquetschen.
+   */
   th: {
     padding: '0.75rem',
     textAlign: 'left',
     fontSize: '0.875rem',
     fontWeight: '600',
     color: 'var(--c-text)',
+    whiteSpace: 'nowrap',
   },
   row: {
     borderBottom: '1px solid var(--c-border)',
@@ -1514,6 +1524,18 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: '0.75rem',
     fontSize: '0.875rem',
     color: 'var(--c-text)',
+  },
+  /** Kurze Angaben wie "Tag 1" oder "06:30" gehoeren auf eine Zeile. */
+  tdKurz: {
+    whiteSpace: 'nowrap',
+  },
+  /*
+   * Der Titel darf umbrechen - aber nicht auf vier Buchstaben je Zeile.
+   * Ohne Mindestbreite quetscht die Tabelle genau diese Spalte zusammen,
+   * weil sie die einzige ist, die nachgibt.
+   */
+  tdTitel: {
+    minWidth: '12rem',
   },
   taskTitle: {
     fontWeight: '500',
