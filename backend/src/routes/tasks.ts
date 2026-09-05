@@ -1968,12 +1968,58 @@ router.post('/event/:eventId/export-csv', authMiddleware, teamleiterOrAdminMiddl
      * CSV-Format vor. Ohne das riss ein Titel wie 'Der "grosse" Abend' die
      * Zeile auseinander und alles dahinter verrutschte.
      */
+    /*
+     * Zwei Zeilenarten in einer Datei.
+     *
+     * "aufgabe" ist die gewohnte Zeile. "gruppe" beschreibt eine
+     * Aufgabengruppe fuer sich - mit Farbe und eigener Serie, und vor allem:
+     * auch dann, wenn keine einzige Aufgabe daran haengt. Eine reine
+     * Zwischenueberschrift tauchte in einer aufgabenweisen Datei sonst gar
+     * nicht auf und ging bei Export und Import verloren.
+     *
+     * row_type steht vorn, damit man beim Ueberfliegen sofort sieht, was
+     * man vor sich hat. Aeltere Dateien ohne die Spalte werden weiter
+     * gelesen - dort ist jede Zeile eine Aufgabe.
+     */
     const headers = [
+      'row_type',
       'id', 'title', 'description', 'day_number', 'scheduled_time', 'start_time', 'end_time',
-      'is_public', 'status', 'group_name', 'group_time', 'group_color', 'series_name',
-      'needed_staff', 'needed_female', 'needed_male', 'auto_complete',
+      'is_public', 'status', 'group_name', 'group_time', 'group_color', 'group_series_name',
+      'series_name', 'needed_staff', 'needed_female', 'needed_male', 'auto_complete',
     ];
+
+    /*
+     * Gruppen zuerst, nach Tag und eigener Reihenfolge. Beim Einlesen steht
+     * die Gruppe damit schon, bevor die erste Aufgabe sie sucht - Farbe und
+     * Serie kommen so vollstaendig an, auch wenn die Aufgabenzeilen sie
+     * nicht tragen.
+     *
+     * Beim Export einzelner Aufgaben bleiben die Gruppenzeilen weg: dort
+     * geht es um genau diese Auswahl, nicht um den Aufbau des Tages.
+     */
+    const gruppenZeilen = nurAusgewaehlte ? [] : (await query(
+      `SELECT pi.day_number, pi.title, pi.time, pi.color, ts.name AS series_name
+       FROM program_items pi
+       LEFT JOIN task_series ts ON ts.id = pi.series_id
+       WHERE pi.event_id = $1
+       ORDER BY pi.day_number, pi.sort_order, pi.id`,
+      [eventId]
+    )).rows.map(g => [
+      'gruppe',
+      '', '', '',            // id, title, description
+      g.day_number,
+      '', '', '',            // scheduled_time, start_time, end_time
+      '', '',                // is_public, status
+      csvFeld(g.title),
+      g.time || '',
+      g.color || '',
+      csvFeld(g.series_name),
+      '',                    // series_name (gehoert zur Aufgabe)
+      '', '', '', '',        // Bedarf und auto_complete
+    ].join(','));
+
     const rows = result.rows.map(row => [
+      'aufgabe',
       row.id,
       csvFeld(row.title),
       csvFeld(row.description),
@@ -1988,6 +2034,7 @@ router.post('/event/:eventId/export-csv', authMiddleware, teamleiterOrAdminMiddl
       csvFeld(row.group_name),
       row.group_time || '',
       row.group_color || '',
+      '',   // group_series_name steht in der Gruppenzeile
       csvFeld(row.series_name),
       row.needed_staff ?? '',
       row.needed_female ?? '',
@@ -1995,7 +2042,7 @@ router.post('/event/:eventId/export-csv', authMiddleware, teamleiterOrAdminMiddl
       row.auto_complete,
     ].join(','));
 
-    const csv = CSV_BOM + [headers.join(','), ...rows].join('\n');
+    const csv = CSV_BOM + [headers.join(','), ...gruppenZeilen, ...rows].join('\n');
 
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename=tasks_event${eventId}_${new Date().toISOString().split('T')[0]}.csv`);
@@ -2057,7 +2104,8 @@ router.post('/event/:eventId/import-csv', authMiddleware, teamleiterOrAdminMiddl
       name: string | undefined,
       tag: number,
       zeit: string | undefined,
-      farbe?: string
+      farbe?: string,
+      serieId?: number | null
     ): Promise<number | null> => {
       const sauber = (name || '').trim();
       if (!sauber) return null;
@@ -2072,12 +2120,12 @@ router.post('/event/:eventId/import-csv', authMiddleware, teamleiterOrAdminMiddl
       const id = vorhanden.rows.length > 0
         ? vorhanden.rows[0].id
         : (await query(
-            `INSERT INTO program_items (event_id, day_number, title, time, color, sort_order)
-             VALUES ($1, $2, $3, $4, $5,
+            `INSERT INTO program_items (event_id, day_number, title, time, color, series_id, sort_order)
+             VALUES ($1, $2, $3, $4, $5, $6,
                      (SELECT COALESCE(MAX(sort_order), 0) + 10 FROM program_items
                       WHERE event_id = $1 AND day_number = $2))
              RETURNING id`,
-            [eventId, tag, sauber, (zeit || '').trim() || null, farbeOderNull(farbe)]
+            [eventId, tag, sauber, (zeit || '').trim() || null, farbeOderNull(farbe), serieId ?? null]
           )).rows[0].id;
 
       gruppenCache.set(schluessel, id);
@@ -2104,13 +2152,34 @@ router.post('/event/:eventId/import-csv', authMiddleware, teamleiterOrAdminMiddl
       return id;
     };
 
-    for (let i = 1; i < lines.length; i++) {
-      const values = parseCsvLine(lines[i]);
+    /*
+     * Zeilen einlesen und nach Art trennen.
+     *
+     * Eine Datei ohne row_type stammt aus einer aelteren Fassung - dort ist
+     * jede Zeile eine Aufgabe. Gruppenzeilen kommen zuerst dran, damit eine
+     * Gruppe mit Farbe und Serie schon steht, bevor die erste Aufgabe sie
+     * sucht.
+     */
+    const zeilen = lines.slice(1).map((zeile) => {
+      const values = parseCsvLine(zeile);
+      const satz: any = {};
+      headers.forEach((header, idx) => { satz[header] = values[idx]; });
+      return satz;
+    });
 
-      const task: any = {};
-      headers.forEach((header, idx) => {
-        task[header] = values[idx];
-      });
+    const gruppenZeilen = zeilen.filter((z) => String(z.row_type || '').trim().toLowerCase() === 'gruppe');
+    const aufgabenZeilen = zeilen.filter((z) => String(z.row_type || '').trim().toLowerCase() !== 'gruppe');
+
+    let gruppenAngelegt = 0;
+    for (const g of gruppenZeilen) {
+      const tag = parseInt(g.day_number) || 1;
+      const gruppenSerie = await serieFinden(g.group_series_name);
+      const id = await gruppeFinden(g.group_name, tag, g.group_time, g.group_color, gruppenSerie);
+      if (id) gruppenAngelegt++;
+    }
+
+    for (const task of aufgabenZeilen) {
+      if (!task.title || !String(task.title).trim()) continue;
 
       const tagNummer = parseInt(task.day_number) || 1;
       const serieId = await serieFinden(task.series_name);
@@ -2151,7 +2220,10 @@ router.post('/event/:eventId/import-csv', authMiddleware, teamleiterOrAdminMiddl
 
     broadcastUpdate('task', { action: 'tasks_imported', count: imported, eventId: parseInt(eventId) });
 
-    res.json({ message: `${imported} Aufgaben importiert`, imported });
+    const meldung = gruppenAngelegt > 0
+      ? `${imported} Aufgaben importiert, ${gruppenAngelegt} ${gruppenAngelegt === 1 ? 'Gruppe' : 'Gruppen'} übernommen`
+      : `${imported} Aufgaben importiert`;
+    res.json({ message: meldung, imported, gruppen: gruppenAngelegt });
   } catch (error) {
     console.error('Import CSV error:', error);
     res.status(500).json({ error: 'Server Fehler' });

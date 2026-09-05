@@ -573,15 +573,28 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
    * Eine Aufgabenzeile. Als Funktion, weil sie an zwei Stellen gebraucht
    * wird: einzeln und - eingerueckt - unter einer Gruppenueberschrift.
    */
-  const aufgabenZeile = ({ task, assignedUsers }: any, inGruppe: boolean = false) => (
+  const aufgabenZeile = ({ task, assignedUsers }: any, inGruppe: boolean = false) => {
+    /*
+     * Aufgaben einer Gruppe stehen eingerueckt und bekommen links eine
+     * feine Kante - in der Farbe der Gruppe, wenn sie eine hat. So sieht
+     * man auf einen Blick, was zur Ueberschrift darueber gehoert.
+     *
+     * Eingerueckt wird die Spalte "Aufgabe", nicht die ganze Zeile: die
+     * Spalten sollen untereinander bleiben, sonst verrutscht die Tabelle.
+     */
+    const gruppenFarbe = inGruppe
+      ? farbeVon(gruppen.find((g) => g.id === task.program_item_id)?.color)
+      : undefined;
+
+    return (
     <tr
       key={task.id}
       style={{
         ...styles.row,
         ...(selectedTaskIds.includes(task.id) ? styles.selectedRow : {}),
-        // Eingerueckt und mit einer feinen Kante: so sieht man auf einen
-        // Blick, was zur Ueberschrift darueber gehoert.
-        ...(inGruppe ? { boxShadow: 'inset 3px 0 0 var(--c-border-strong)' } : {}),
+        ...(inGruppe
+          ? { boxShadow: `inset 3px 0 0 ${gruppenFarbe ? gruppenFarbe.kraeftig : 'var(--c-border-strong)'}` }
+          : {}),
       }}
     >
                   <td style={styles.td}>
@@ -594,7 +607,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
                   </td>
                   <td style={styles.td} className={responsiveStyles.hideOnMobile}>Tag {task.day_number}</td>
                   <td style={styles.td} className={responsiveStyles.hideOnMobile}>{getTaskDate(task.day_number)}</td>
-                  <td style={styles.td}>
+                  <td style={{ ...styles.td, ...(inGruppe ? styles.eingerueckt : {}) }}>
                     <div style={styles.taskTitle} className={responsiveStyles.taskTitle}>
                       {task.title}
                       {task.is_public && (
@@ -792,10 +805,11 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
                     )}
                   </td>
                 </tr>
-  );
+    );
+  };
 
   /*
-   * Gruppe umbenennen, entfernen, verschieben. Danach laedt die
+   * Gruppe bearbeiten, entfernen, verschieben. Danach laedt die
    * Elternansicht die Gruppen neu - sie fuehrt die Liste.
    */
   const gruppeLoeschen = async (gruppe: TaskGroup, anzahl: number) => {
@@ -1455,6 +1469,10 @@ const styles: { [key: string]: React.CSSProperties } = {
   gruppenAktionen: {
     display: 'flex',
     gap: '0.25rem',
+  },
+  /** Aufgaben unter einer Gruppenueberschrift ruecken ein. */
+  eingerueckt: {
+    paddingLeft: '1.75rem',
   },
   gruppenAktionenReihe: {
     display: 'flex',
