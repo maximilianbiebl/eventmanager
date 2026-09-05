@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { eventsApi, Event } from '../../api/events';
 import { usersApi, User } from '../../api/users';
 import { useAuth } from '../../context/AuthContext';
+import { zeitFeldProps } from '../../utils/zeitFeld';
 
 interface Props {
   templates: Event[];
@@ -147,6 +148,7 @@ export const CreateFromTemplateModal: React.FC<Props> = ({ templates, onClose, o
             <label style={styles.label}>Startdatum *</label>
             <input
               type="date"
+              {...zeitFeldProps}
               value={formData.start_date}
               onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
               style={styles.input}

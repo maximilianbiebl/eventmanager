@@ -3,6 +3,8 @@ import { tasksApi } from '../../api/tasks';
 import { taskSeriesApi, TaskSeries } from '../../api/taskSeries';
 import { programApi, TaskGroup } from '../../api/program';
 import client from '../../api/client';
+import { BedarfBadge, hatBedarf } from './BedarfBadge';
+import { zeitFeldProps } from '../../utils/zeitFeld';
 
 interface Props {
   eventId: number;
@@ -17,6 +19,10 @@ interface User {
   id: number;
   name: string;
 }
+
+/** Leeres Feld heisst "keine Angabe", nicht "null". */
+const zahl = (v: string | number | null | undefined): number | null =>
+  v === '' || v === null || v === undefined ? null : Number(v);
 
 export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, task, eventInstances, defaultDay }) => {
   const isEdit = !!task;
@@ -50,7 +56,6 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
    * Gesagt wird es trotzdem, weil es genauso gut ein Tippfehler sein kann.
    */
   const bedarfWarnung = (() => {
-    const zahl = (v: string | number) => (v === '' || v === null ? null : Number(v));
     const gesamt = zahl(formData.needed_staff);
     const w = zahl(formData.needed_female) ?? 0;
     const m = zahl(formData.needed_male) ?? 0;
@@ -76,6 +81,14 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
       : 'Ohne Zeitangabe passiert nichts – bitte eine Start-, End- oder geplante Zeit eintragen.';
   })();
 
+  /** Bedarf als Zahlen - fuer dieselbe Plakette wie in der Aufgabenliste. */
+  const bedarfWerte = {
+    needed_staff: zahl(formData.needed_staff),
+    needed_female: zahl(formData.needed_female),
+    needed_male: zahl(formData.needed_male),
+  };
+
+  const [gefahrOffen, setGefahrOffen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [deleting, setDeleting] = useState(false);
@@ -127,10 +140,12 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
         }
       });
 
+      /*
+       * Zugeklappt lassen, auch wenn schon jemand eingeteilt ist - wie
+       * viele es sind, steht als Plakette im Klappkopf. Frueher klappte der
+       * Bereich auf und schob den Rest des Formulars nach unten.
+       */
       setSelectedUserIds(Array.from(userIds));
-      if (userIds.size > 0) {
-        setShowStaffSelection(true);
-      }
     } catch (error) {
       console.error('Load existing assignments error:', error);
     }
@@ -299,8 +314,11 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
             />
           </div>
 
+          <div style={styles.trenner} />
+
+          {/* Alles zum "wann" in einer Zeile. */}
           <div style={styles.row}>
-            <div style={styles.formGroup}>
+            <div style={{ ...styles.formGroup, flex: '0 0 5rem' }}>
               <label style={styles.label}>Tag *</label>
               <input
                 type="number"
@@ -313,98 +331,10 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
             </div>
 
             <div style={styles.formGroup}>
-              <label style={styles.label}>Status</label>
-              <select
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                style={styles.input}
-              >
-                <option value="not_started">Nicht gestartet</option>
-                <option value="in_progress">In Arbeit</option>
-                <option value="completed">Erledigt</option>
-                <option value="overdue">Überfällig</option>
-              </select>
-            </div>
-          </div>
-
-          {/*
-            Aufgabengruppe - die Zwischenueberschrift, unter der die Aufgabe
-            steht. Nur Gruppen des gewaehlten Tages, denn eine Gruppe gehoert
-            zu genau einem Tag.
-          */}
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Aufgabengruppe (optional)</label>
-            <select
-              value={formData.program_item_id === null ? '' : String(formData.program_item_id)}
-              onChange={(e) => {
-                const v = e.target.value;
-                setFormData({ ...formData, program_item_id: v === '' || v === 'neu' ? null : parseInt(v) });
-                setGruppeNeuAnlegen(v === 'neu');
-              }}
-              style={styles.input}
-            >
-              <option value="">Keine Gruppe</option>
-              {gruppenDesTages.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.title}{g.time ? ` · ${String(g.time).slice(0, 5)} Uhr` : ''}
-                </option>
-              ))}
-              <option value="neu">＋ Neue Gruppe anlegen…</option>
-            </select>
-
-            {gruppeNeuAnlegen && (
-              <div style={styles.bedarfZeile}>
-                <label style={{ ...styles.bedarfFeld, flex: '2 1 10rem' }}>
-                  <span style={styles.bedarfLabel}>Name der Gruppe</span>
-                  <input
-                    type="text"
-                    value={neueGruppe}
-                    onChange={(e) => setNeueGruppe(e.target.value)}
-                    placeholder="z. B. Frühstück"
-                    style={styles.bedarfInput}
-                  />
-                </label>
-                <label style={styles.bedarfFeld}>
-                  <span style={styles.bedarfLabel}>Uhrzeit (optional)</span>
-                  <input
-                    type="time"
-                    value={neueGruppeZeit}
-                    onChange={(e) => setNeueGruppeZeit(e.target.value)}
-                    style={styles.bedarfInput}
-                  />
-                </label>
-              </div>
-            )}
-
-            <div style={{fontSize: '0.875rem', color: 'var(--c-text-muted)', marginTop: '0.25rem'}}>
-              Zwischenüberschrift für zusammengehörende Aufgaben.
-            </div>
-          </div>
-
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Serie (optional)</label>
-            <select
-              value={formData.series_id || ''}
-              onChange={(e) => setFormData({ ...formData, series_id: e.target.value ? parseInt(e.target.value) : null })}
-              style={styles.input}
-            >
-              <option value="">Keine Serie</option>
-              {taskSeries.map((series) => (
-                <option key={series.id} value={series.id}>
-                  {series.name} ({series.member_count || 0} Mitglieder)
-                </option>
-              ))}
-            </select>
-            <div style={{fontSize: '0.875rem', color: 'var(--c-text-muted)', marginTop: '0.25rem'}}>
-              Aufgaben einer Serie können gemeinsam einem Team zugewiesen werden
-            </div>
-          </div>
-
-          <div style={styles.row}>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Startzeit (optional)</label>
+              <label style={styles.label}>Startzeit</label>
               <input
                 type="time"
+                {...zeitFeldProps}
                 value={formData.start_time}
                 onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
                 style={styles.input}
@@ -412,9 +342,10 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
             </div>
 
             <div style={styles.formGroup}>
-              <label style={styles.label}>Endzeit (optional)</label>
+              <label style={styles.label}>Endzeit</label>
               <input
                 type="time"
+                {...zeitFeldProps}
                 value={formData.end_time}
                 onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
                 style={styles.input}
@@ -422,63 +353,102 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
             </div>
           </div>
 
-          <div style={styles.formGroup}>
-            <label style={styles.label}>
-              Geplante Zeit (falls keine Start-/Endzeit)
-            </label>
-            <input
-              type="time"
-              value={formData.scheduled_time}
-              onChange={(e) => setFormData({ ...formData, scheduled_time: e.target.value })}
-              style={styles.input}
-            />
-            <small style={styles.hint}>
-              Wird für Benachrichtigungen verwendet, wenn keine Startzeit angegeben
-            </small>
-          </div>
-
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Erinnerung (Minuten vorher)</label>
-            <input
-              type="number"
-              min="0"
-              value={formData.reminder_minutes}
-              onChange={(e) => setFormData({ ...formData, reminder_minutes: parseInt(e.target.value) })}
-              style={styles.input}
-            />
-          </div>
-
-          <div style={styles.formGroup}>
-            <label style={styles.checkboxLabel}>
+          {/*
+            Die geplante Zeit greift nur, wenn weder Start- noch Endzeit
+            steht. Sonst stuende hier ein Feld, das nichts tut.
+          */}
+          {!formData.start_time && !formData.end_time && (
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Geplante Zeit</label>
               <input
-                type="checkbox"
-                checked={formData.is_public}
-                onChange={(e) => setFormData({ ...formData, is_public: e.target.checked })}
-                style={styles.checkbox}
+                type="time"
+                {...zeitFeldProps}
+                value={formData.scheduled_time}
+                onChange={(e) => setFormData({ ...formData, scheduled_time: e.target.value })}
+                style={styles.input}
               />
-              <span>Öffentliche Aufgabe (für alle Mitarbeiter sichtbar)</span>
-            </label>
-          </div>
+              <small style={styles.hint}>
+                Wird für Benachrichtigungen verwendet, wenn keine Startzeit angegeben ist
+              </small>
+            </div>
+          )}
+
+          <div style={styles.trenner} />
 
           {/*
-            Aufgaben, die mit ihrem Zeitpunkt erledigt sind - "Nachtruhe",
-            "Bus faehrt". Da drueckt niemand einen Knopf, und eine
-            Erinnerung dazu waere nur Laerm.
+            Einsortierung: Aufgabengruppe (die Zwischenueberschrift, unter
+            der die Aufgabe steht - nur Gruppen des gewaehlten Tages, denn
+            eine Gruppe gehoert zu genau einem Tag) und Serie.
           */}
-          <div style={styles.formGroup}>
-            <label style={styles.checkboxLabel}>
-              <input
-                type="checkbox"
-                checked={formData.auto_complete}
-                onChange={(e) => setFormData({ ...formData, auto_complete: e.target.checked })}
-                style={styles.checkbox}
-              />
-              <span>Erledigt sich von selbst (keine Benachrichtigungen)</span>
-            </label>
-            <p style={styles.bedarfHinweis}>
-              {selbstHinweis}
-            </p>
+          <div style={styles.row}>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Aufgabengruppe</label>
+              <select
+                value={formData.program_item_id === null ? '' : String(formData.program_item_id)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setFormData({ ...formData, program_item_id: v === '' || v === 'neu' ? null : parseInt(v) });
+                  setGruppeNeuAnlegen(v === 'neu');
+                }}
+                style={styles.input}
+              >
+                <option value="">Keine Gruppe</option>
+                {gruppenDesTages.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.title}{g.time ? ` · ${String(g.time).slice(0, 5)} Uhr` : ''}
+                  </option>
+                ))}
+                <option value="neu">＋ Neue Gruppe anlegen…</option>
+              </select>
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Serie</label>
+              <select
+                value={formData.series_id || ''}
+                onChange={(e) => setFormData({ ...formData, series_id: e.target.value ? parseInt(e.target.value) : null })}
+                style={styles.input}
+              >
+                <option value="">Keine Serie</option>
+                {taskSeries.map((series) => (
+                  <option key={series.id} value={series.id}>
+                    {series.name} ({series.member_count || 0} Mitglieder)
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
+
+          {gruppeNeuAnlegen && (
+            <div style={styles.bedarfZeile}>
+              <label style={{ ...styles.bedarfFeld, flex: '2 1 10rem' }}>
+                <span style={styles.bedarfLabel}>Name der Gruppe</span>
+                <input
+                  type="text"
+                  value={neueGruppe}
+                  onChange={(e) => setNeueGruppe(e.target.value)}
+                  placeholder="z. B. Frühstück"
+                  style={styles.bedarfInput}
+                />
+              </label>
+              <label style={styles.bedarfFeld}>
+                <span style={styles.bedarfLabel}>Uhrzeit (optional)</span>
+                <input
+                  type="time"
+                  {...zeitFeldProps}
+                  value={neueGruppeZeit}
+                  onChange={(e) => setNeueGruppeZeit(e.target.value)}
+                  style={styles.bedarfInput}
+                />
+              </label>
+            </div>
+          )}
+
+          <p style={styles.bedarfHinweis}>
+            Zwischenüberschrift für zusammengehörende Aufgaben.
+          </p>
+
+          <div style={styles.trenner} />
 
           {/*
             Personalbedarf. Reine Planungshilfe: beim Einteilen sieht man,
@@ -535,21 +505,32 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
             </p>
           </div>
 
-          {/* Mitarbeiter-Auswahl */}
+          {/*
+            Mitarbeiter-Auswahl. Zugeklappt eine Flaeche mit Rahmen und
+            Pfeil - als Bedienelement lesbar und nicht als Ueberschrift -,
+            mit derselben Plakette wie in der Aufgabenliste.
+          */}
           {staffUsers.length > 0 && (
             <div style={styles.formGroup}>
-              <div style={styles.staffHeader}>
-                <label style={styles.label}>
-                  {isEdit ? 'Mitarbeiter-Zuweisungen bearbeiten' : 'Direkt Mitarbeiter zuweisen (optional)'}
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setShowStaffSelection(!showStaffSelection)}
-                  style={styles.toggleButton}
-                >
-                  {showStaffSelection ? 'Ausblenden' : 'Mitarbeiter auswählen'}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setShowStaffSelection(!showStaffSelection)}
+                style={{
+                  ...styles.klappKopf,
+                  borderRadius: showStaffSelection ? '6px 6px 0 0' : '6px',
+                }}
+              >
+                <span style={styles.klappPfeil}>{showStaffSelection ? '▾' : '▸'}</span>
+                <span style={styles.klappTitel}>
+                  {isEdit ? 'Mitarbeiter zuweisen' : 'Direkt Mitarbeiter zuweisen'}
+                </span>
+                {hatBedarf(bedarfWerte)
+                  ? <BedarfBadge task={bedarfWerte} zugewiesen={selectedUserIds.length} />
+                  : selectedUserIds.length > 0 && (
+                      <span style={styles.zahlBadge}>{selectedUserIds.length} zugewiesen</span>
+                    )}
+                <span style={styles.klappRechts}>{showStaffSelection ? 'Fertig' : 'Ändern'}</span>
+              </button>
 
               {showStaffSelection && (
                 <div style={styles.staffList}>
@@ -569,40 +550,120 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
                       <span>{user.name}</span>
                     </label>
                   ))}
-                  {selectedUserIds.length > 0 && (
-                    <div style={styles.selectedCount}>
-                      {selectedUserIds.length} Mitarbeiter ausgewählt
-                    </div>
-                  )}
                 </div>
               )}
             </div>
           )}
 
+          <div style={styles.trenner} />
+
+          <div style={styles.formGroup}>
+            <label style={styles.checkboxLabel}>
+              <input
+                type="checkbox"
+                checked={formData.is_public}
+                onChange={(e) => setFormData({ ...formData, is_public: e.target.checked })}
+                style={styles.checkbox}
+              />
+              <span>Öffentliche Aufgabe (für alle Mitarbeiter sichtbar)</span>
+            </label>
+          </div>
+
+          {/*
+            Aufgaben, die mit ihrem Zeitpunkt erledigt sind - "Nachtruhe",
+            "Bus faehrt". Da drueckt niemand einen Knopf. Erinnert wird
+            trotzdem ganz normal vorher; nur die Meldung ueber das Abhaken
+            und die Ueberfaellig-Meldung entfallen.
+          */}
+          <div style={styles.formGroup}>
+            <label style={styles.checkboxLabel}>
+              <input
+                type="checkbox"
+                checked={formData.auto_complete}
+                onChange={(e) => setFormData({ ...formData, auto_complete: e.target.checked })}
+                style={styles.checkbox}
+              />
+              <span>Erledigt sich von selbst</span>
+            </label>
+            <p style={styles.bedarfHinweis}>
+              {selbstHinweis}
+            </p>
+          </div>
+
+          <div style={styles.row}>
+            {isEdit && (
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Status</label>
+                <select
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  style={styles.input}
+                >
+                  <option value="not_started">Nicht gestartet</option>
+                  <option value="in_progress">In Arbeit</option>
+                  <option value="completed">Erledigt</option>
+                  <option value="overdue">Überfällig</option>
+                </select>
+              </div>
+            )}
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Erinnerung (Minuten vorher)</label>
+              <input
+                type="number"
+                min="0"
+                value={formData.reminder_minutes}
+                onChange={(e) => setFormData({ ...formData, reminder_minutes: parseInt(e.target.value) })}
+                style={styles.input}
+              />
+              <small style={styles.hint}>0 = keine Erinnerung</small>
+            </div>
+          </div>
+
           {isEdit && (
-            <div style={styles.dangerZone}>
-              <h3 style={styles.dangerZoneTitle}>Gefahrenbereich</h3>
-              <div style={styles.dangerZoneKnoepfe}>
+            <>
+              <div style={styles.trenner} />
+              <div>
                 <button
                   type="button"
-                  onClick={handleToggleActive}
+                  onClick={() => setGefahrOffen(!gefahrOffen)}
                   style={{
-                    ...styles.deleteButton,
-                    backgroundColor: task.is_active === false ? 'var(--c-success)' : 'var(--c-warning)',
+                    ...styles.klappKopf,
+                    ...styles.klappKopfGefahr,
+                    borderRadius: gefahrOffen ? '6px 6px 0 0' : '6px',
                   }}
                 >
-                  {task.is_active === false ? 'Aktivieren' : 'Deaktivieren'}
+                  <span style={styles.klappPfeil}>{gefahrOffen ? '▾' : '▸'}</span>
+                  <span style={styles.klappTitel}>Gefahrenbereich</span>
+                  <span style={styles.klappRechts}>Deaktivieren, Löschen</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={handleDelete}
-                  style={styles.deleteButton}
-                  disabled={deleting}
-                >
-                  {deleting ? 'Löschen...' : 'Löschen'}
-                </button>
+
+                {gefahrOffen && (
+                  <div style={styles.dangerZone}>
+                    <div style={styles.dangerZoneKnoepfe}>
+                      <button
+                        type="button"
+                        onClick={handleToggleActive}
+                        style={{
+                          ...styles.deleteButton,
+                          backgroundColor: task.is_active === false ? 'var(--c-success)' : 'var(--c-warning)',
+                        }}
+                      >
+                        {task.is_active === false ? 'Aktivieren' : 'Deaktivieren'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDelete}
+                        style={styles.deleteButton}
+                        disabled={deleting}
+                      >
+                        {deleting ? 'Löschen...' : 'Löschen'}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
+            </>
           )}
 
           <div className="app-modal-actions" style={styles.actions}>
@@ -768,22 +829,70 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: '500',
     transition: 'background-color 0.2s',
   },
+  trenner: {
+    height: '1px',
+    backgroundColor: 'var(--c-border)',
+    margin: '1.25rem 0',
+  },
+  /*
+   * Aufklappbare Bereiche. Rahmen und Flaeche, damit die Zeile als
+   * Bedienelement lesbar ist - eine blosse Ueberschrift mit Knopf daneben
+   * sah aus wie eine Ueberschrift.
+   *
+   * justifyContent ausdruecklich: global steht auf button eine Zentrierung.
+   */
+  klappKopf: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: '0.625rem',
+    width: '100%',
+    padding: '0.625rem 0.75rem',
+    textAlign: 'left' as const,
+    fontSize: '0.875rem',
+    color: 'var(--c-text)',
+    backgroundColor: 'var(--c-surface-muted)',
+    border: '1px solid var(--c-border-strong)',
+    cursor: 'pointer',
+  },
+  klappKopfGefahr: {
+    backgroundColor: 'var(--c-danger-soft)',
+    borderColor: 'var(--c-danger-soft)',
+    color: 'var(--c-danger-strong)',
+  },
+  klappPfeil: {
+    fontSize: '0.75rem',
+    opacity: 0.7,
+  },
+  klappTitel: {
+    fontWeight: 500,
+  },
+  klappRechts: {
+    marginLeft: 'auto',
+    fontSize: '0.8125rem',
+    opacity: 0.8,
+  },
+  /** Ohne hinterlegten Bedarf gibt es nur die nackte Zahl. */
+  zahlBadge: {
+    padding: '0.125rem 0.5rem',
+    borderRadius: '9999px',
+    fontSize: '0.75rem',
+    fontWeight: 600,
+    color: 'var(--c-text-muted)',
+    backgroundColor: 'var(--c-surface)',
+    border: '1px solid var(--c-border-strong)',
+    whiteSpace: 'nowrap' as const,
+  },
   dangerZone: {
-    marginTop: '1.5rem',
     padding: '0.75rem',
     backgroundColor: 'var(--c-danger-soft)',
     border: '1px solid var(--c-danger-soft)',
-    borderRadius: '8px',
+    borderTop: 'none',
+    borderRadius: '0 0 6px 6px',
   },
   // Knapp gehalten: Überschrift, darunter die beiden Knöpfe nebeneinander.
   // Ein Warnsatz stand hier auch mal - er stimmte nur fürs Löschen,
   // deaktivieren lässt sich jederzeit zurücknehmen.
-  dangerZoneTitle: {
-    fontSize: '0.875rem',
-    fontWeight: 'bold',
-    color: 'var(--c-danger-strong)',
-    margin: '0 0 0.5rem 0',
-  },
   dangerZoneKnoepfe: {
     display: 'flex',
     gap: '0.5rem',
@@ -801,29 +910,14 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '0.875rem',
     transition: 'background-color 0.2s',
   },
-  staffHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '0.5rem',
-  },
-  toggleButton: {
-    padding: '0.25rem 0.75rem',
-    backgroundColor: 'var(--c-text-muted)',
-    color: 'var(--c-text-inverse)',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    fontWeight: '500',
-    transition: 'background-color 0.2s',
-  },
+  // Haengt unter dem Klappkopf, deshalb oben ohne Rahmen und ohne Radius.
   staffList: {
     border: '1px solid var(--c-border-strong)',
-    borderRadius: '4px',
-    padding: '1rem',
-    backgroundColor: 'var(--c-surface-muted)',
-    maxHeight: '200px',
+    borderTop: 'none',
+    borderRadius: '0 0 6px 6px',
+    padding: '0.75rem',
+    backgroundColor: 'var(--c-surface)',
+    maxHeight: '220px',
     overflowY: 'auto',
   },
   staffItem: {
@@ -834,15 +928,5 @@ const styles: { [key: string]: React.CSSProperties } = {
     cursor: 'pointer',
     borderRadius: '4px',
     color: 'var(--c-text)',
-  },
-  selectedCount: {
-    marginTop: '0.5rem',
-    padding: '0.5rem',
-    backgroundColor: 'var(--c-accent-soft)',
-    color: 'var(--c-accent-text)',
-    borderRadius: '4px',
-    fontSize: '0.875rem',
-    fontWeight: '500',
-    textAlign: 'center',
   },
 };

@@ -10,6 +10,7 @@ import { programApi } from '../../api/program';
 import { useSSE } from '../../hooks/useSSE';
 import responsiveStyles from './TaskTableView.module.css';
 import { Toast } from '../Toast';
+import { useSchmal } from '../../utils/schmal';
 import { CSVExportModal } from './CSVExportModal';
 import { CSVImportModal } from './CSVImportModal';
 import { StatusFilter } from './StatusFilter';
@@ -87,6 +88,15 @@ interface Props {
  */
 const GRUPPEN_SPALTEN = 9;
 
+/*
+ * Unter 640px blendet das Stylesheet "Tag" und "Datum" aus (.hideOnMobile).
+ * Die Gruppenzeile muss dann ueber entsprechend weniger Spalten spannen -
+ * sonst schiebt ihr colSpan die Aktionenzelle um zwei Spalten nach rechts
+ * aus der Aktionen-Spalte heraus. Am Handy war sie dadurch weit weg von
+ * den Knoepfen der Aufgaben und nur nach seitlichem Scrollen zu sehen.
+ */
+const GRUPPEN_SPALTEN_SCHMAL = GRUPPEN_SPALTEN - 2;
+
 const STATUS_COLORS: { [key: string]: string } = {
   not_started: 'var(--c-text-muted)',
   in_progress: 'var(--c-accent)',
@@ -121,6 +131,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
   onTasksChanged,
   gruppen = [],
 }, ref) => {
+  const schmal = useSchmal();
   const [assignments, setAssignments] = useState<TaskAssignment[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -836,7 +847,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
        * Mitte enden lassen.
        */
       <tr key={`kopf-${gruppe.id}`} style={styles.gruppenZeile}>
-        <td style={styles.gruppenZelle} colSpan={GRUPPEN_SPALTEN}>
+        <td style={styles.gruppenZelle} colSpan={schmal ? GRUPPEN_SPALTEN_SCHMAL : GRUPPEN_SPALTEN}>
           <button
             type="button"
             onClick={() => klappe(gruppe.id)}
@@ -860,16 +871,22 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
         */}
         <td style={styles.gruppenAktionenZelle}>
           {!readOnly && (
-            <span style={styles.gruppenAktionen}>
-              <button type="button" style={styles.gruppenAktion}
-                onClick={() => gruppeUmbenennen(gruppe)} title="Gruppe umbenennen">Umbenennen</button>
-              <button type="button" style={styles.gruppenAktion}
-                onClick={() => gruppeLoeschen(gruppe, eintraege.length)} title="Gruppe entfernen, Aufgaben bleiben">Entfernen</button>
-              <button type="button" style={styles.gruppenPfeilKnopf}
-                onClick={() => gruppeVerschieben(gruppe, 'hoch')} title="Gruppe nach oben">▲</button>
-              <button type="button" style={styles.gruppenPfeilKnopf}
-                onClick={() => gruppeVerschieben(gruppe, 'runter')} title="Gruppe nach unten">▼</button>
-            </span>
+            /* Gleicher Aufbau wie bei den Aufgaben, damit am Handy auch
+               dieselbe Anordnung greift: Knoepfe untereinander. */
+            <div style={styles.gruppenAktionen} className={responsiveStyles.actions}>
+              <div className={responsiveStyles.buttonGroup} style={styles.gruppenAktionenReihe}>
+                <button type="button" style={styles.gruppenAktion}
+                  onClick={() => gruppeUmbenennen(gruppe)} title="Gruppe umbenennen">Umbenennen</button>
+                <button type="button" style={styles.gruppenAktion}
+                  onClick={() => gruppeLoeschen(gruppe, eintraege.length)} title="Gruppe entfernen, Aufgaben bleiben">Entfernen</button>
+              </div>
+              <div className={responsiveStyles.moveButtonGroup} style={styles.gruppenAktionenReihe}>
+                <button type="button" style={styles.gruppenPfeilKnopf}
+                  onClick={() => gruppeVerschieben(gruppe, 'hoch')} title="Gruppe nach oben">▲</button>
+                <button type="button" style={styles.gruppenPfeilKnopf}
+                  onClick={() => gruppeVerschieben(gruppe, 'runter')} title="Gruppe nach unten">▼</button>
+              </div>
+            </div>
           )}
         </td>
       </tr>
@@ -1422,10 +1439,15 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: '0.75rem',
     verticalAlign: 'middle',
   },
+  // Wie styles.actions bei den Aufgaben - nur enger, die Beschriftungen
+  // sind laenger.
   gruppenAktionen: {
     display: 'flex',
     gap: '0.25rem',
-    flexWrap: 'wrap',
+  },
+  gruppenAktionenReihe: {
+    display: 'flex',
+    gap: '0.25rem',
   },
   gruppenAktion: {
     padding: '0.1875rem 0.5rem',

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { eventsApi, Event } from '../../api/events';
 import { toDateInputValue } from '../../utils/date';
+import { zeitFeldProps } from '../../utils/zeitFeld';
 
 interface Props {
   event: Event;
@@ -71,6 +72,7 @@ export const DuplicateEventModal: React.FC<Props> = ({ event, onClose, onSuccess
             <label style={styles.label}>Startdatum *</label>
             <input
               type="date"
+              {...zeitFeldProps}
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
               style={styles.input}

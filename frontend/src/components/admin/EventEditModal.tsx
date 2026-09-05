@@ -3,6 +3,7 @@ import { eventsApi, Event } from '../../api/events';
 import { usersApi, User } from '../../api/users';
 import { useAuth } from '../../context/AuthContext';
 import { toDateInputValue } from '../../utils/date';
+import { zeitFeldProps } from '../../utils/zeitFeld';
 
 interface Props {
   event: Event;
@@ -148,6 +149,7 @@ export const EventEditModal: React.FC<Props> = ({ event, onClose, onSuccess, onD
               <label style={styles.label}>Startdatum</label>
               <input
                 type="date"
+                {...zeitFeldProps}
                 value={formData.start_date}
                 onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
                 style={styles.input}
