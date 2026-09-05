@@ -869,6 +869,40 @@ const TaskListView: React.FC<TaskListViewProps> = ({
     }
   };
 
+  /*
+   * Aufgabe INNERHALB ihrer Gruppe sofort tauschen - siehe die gleich
+   * lautende Stelle in der Tabellenansicht. Der Server tut fuer eine
+   * gruppierte Aufgabe genau das; ohne diesen Vorgriff wartet die Anzeige
+   * auf das Nachladen, das erst laeuft, wenn keine Aktion mehr offen ist.
+   */
+  const tauscheInGruppe = (taskId: number, richtung: 'hoch' | 'runter') => {
+    setAssignments((alt) => {
+      const ich = alt.find((a: any) => a.id === taskId);
+      if (!ich || !ich.program_item_id) return alt;
+
+      const jeAufgabe = new Map<number, any>();
+      for (const a of alt) {
+        if (a.program_item_id === ich.program_item_id && !jeAufgabe.has(a.id)) jeAufgabe.set(a.id, a);
+      }
+      const geschwister = [...jeAufgabe.values()]
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+
+      const i = geschwister.findIndex((a) => a.id === taskId);
+      const j = richtung === 'hoch' ? i - 1 : i + 1;
+      if (i === -1 || j < 0 || j >= geschwister.length) return alt;
+
+      const meiner = geschwister[i].sort_order ?? 0;
+      const seiner = geschwister[j].sort_order ?? 0;
+      const anderer = geschwister[j].id;
+
+      return alt.map((a: any) =>
+        a.id === taskId ? { ...a, sort_order: seiner }
+        : a.id === anderer ? { ...a, sort_order: meiner }
+        : a
+      );
+    });
+  };
+
   const handleMoveUp = async (taskId: number) => {
     pendingActionsRef.current++; // Increment pending actions counter
     try {
@@ -881,6 +915,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
        * falsches Bild auf. Ausserdem nummeriert der Server beim Verschieben
        * den ganzen Tag neu, das laesst sich hier nicht nachbilden.
        */
+      tauscheInGruppe(taskId, 'hoch');
       await tasksApi.moveUp(taskId);
       setSuccessMessage('Aufgabe wurde nach oben verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
@@ -910,6 +945,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       const { tasksApi } = await import('../../api/tasks');
 
       // Kein vorgezogenes Umsortieren - siehe handleMoveUp.
+      tauscheInGruppe(taskId, 'runter');
       await tasksApi.moveDown(taskId);
       setSuccessMessage('Aufgabe wurde nach unten verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
@@ -1079,8 +1115,8 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                 verwirren. Genauso wie bei den Aufgaben. */}
             {sortBy === 'manual' && (
               <>
-                <button type="button" onClick={() => verschieben('hoch')} className={styles.gruppenAktion} title="Gruppe nach oben">▲</button>
-                <button type="button" onClick={() => verschieben('runter')} className={styles.gruppenAktion} title="Gruppe nach unten">▼</button>
+                <button type="button" onClick={() => verschieben('hoch')} className={styles.gruppenPfeil2} title="Gruppe nach oben">▲</button>
+                <button type="button" onClick={() => verschieben('runter')} className={styles.gruppenPfeil2} title="Gruppe nach unten">▼</button>
               </>
             )}
           </div>

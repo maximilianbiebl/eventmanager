@@ -33,13 +33,17 @@ interface Aufgabe {
 interface Props {
   serie: TaskSeries;
   eventId: number;
+  /** Für die Tagesreiter über der Aufgabenliste. */
+  eventDays?: number;
   onClose: () => void;
   onGespeichert: () => void;
 }
 
 const hhmm = (wert?: string | null) => (wert ? String(wert).slice(0, 5) : '');
 
-export const SerieBearbeitenModal: React.FC<Props> = ({ serie, eventId, onClose, onGespeichert }) => {
+export const SerieBearbeitenModal: React.FC<Props> = ({
+  serie, eventId, eventDays, onClose, onGespeichert,
+}) => {
   const [name, setName] = useState(serie.name);
   const [beschreibung, setBeschreibung] = useState(serie.description || '');
 
@@ -52,6 +56,13 @@ export const SerieBearbeitenModal: React.FC<Props> = ({ serie, eventId, onClose,
   const [mitglieder, setMitglieder] = useState<number[]>([]);
   const [vorherigeMitglieder, setVorherigeMitglieder] = useState<number[]>([]);
 
+  /*
+   * Tagesreiter über der Aufgabenliste. Bei einer Woche wäre eine einzige
+   * Rolle unübersichtlich: man scrollt an Tag 4 vorbei, ohne es zu merken.
+   * "Alle" bleibt für den Überblick, und die Reiter tragen die Zahl der
+   * gewählten Aufgaben - so sieht man ohne Klicken, wo etwas drin ist.
+   */
+  const [tagFilter, setTagFilter] = useState<number | 'alle'>('alle');
   const [laedt, setLaedt] = useState(true);
   const [speichert, setSpeichert] = useState(false);
   const [fehler, setFehler] = useState('');
@@ -120,6 +131,26 @@ export const SerieBearbeitenModal: React.FC<Props> = ({ serie, eventId, onClose,
     a.day_number - b.day_number
     || hhmm(a.start_time || a.scheduled_time).localeCompare(hhmm(b.start_time || b.scheduled_time)));
 
+  /*
+   * Welche Tage es gibt: was die Veranstaltung hergibt, mindestens aber
+   * die Tage, an denen wirklich Aufgaben stehen - eine Aufgabe soll nicht
+   * unerreichbar werden, nur weil die Tageszahl kleiner ist.
+   */
+  const tage = [...new Set([
+    ...Array.from({ length: Math.max(0, eventDays ?? 0) }, (_, i) => i + 1),
+    ...alleAufgaben.map((a) => a.day_number),
+    ...gruppen.map((g) => g.day_number),
+  ])].filter((t) => Number.isFinite(t)).sort((a, b) => a - b);
+
+  const gewaehltAnTag = (tag: number) =>
+    nachTag.filter((a) => a.day_number === tag && gewaehlteAufgaben.includes(a.id)).length
+    + gruppen.filter((g) => g.day_number === tag && gewaehlteGruppen.includes(g.id)).length;
+
+  const sichtbareGruppen = tagFilter === 'alle'
+    ? gruppen : gruppen.filter((g) => g.day_number === tagFilter);
+  const sichtbareAufgaben = tagFilter === 'alle'
+    ? nachTag : nachTag.filter((a) => a.day_number === tagFilter);
+
   return (
     <div className="app-modal-overlay" style={stil.overlay} onClick={onClose}>
       <div className="app-modal" style={stil.modal} onClick={(e) => e.stopPropagation()}>
@@ -163,11 +194,35 @@ export const SerieBearbeitenModal: React.FC<Props> = ({ serie, eventId, onClose,
 
         <div style={stil.feld}>
           <label style={stil.label}>Inhalt</label>
+
+          {tage.length > 1 && (
+            <div style={stil.tagLeiste}>
+              <button type="button" onClick={() => setTagFilter('alle')}
+                title="Alle Tage" aria-label="Alle Tage"
+                style={{ ...stil.tagKnopf, ...(tagFilter === 'alle' ? stil.tagKnopfAn : {}) }}>
+                Alle
+              </button>
+              {tage.map((t) => {
+                const n = gewaehltAnTag(t);
+                return (
+                  <button key={t} type="button" onClick={() => setTagFilter(t)}
+                    title={`Tag ${t}`} aria-label={`Tag ${t}`}
+                    style={{ ...stil.tagKnopf, ...(tagFilter === t ? stil.tagKnopfAn : {}) }}>
+                    {t}
+                    {n > 0 && <span style={stil.tagZahl}>{n}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           <div style={stil.liste}>
             <div style={stil.listeKopf}>Aufgabengruppen</div>
-            {gruppen.length === 0 ? (
-              <div style={stil.leer}>Es gibt noch keine Gruppen.</div>
-            ) : gruppen.map((g) => {
+            {sichtbareGruppen.length === 0 ? (
+              <div style={stil.leer}>
+                {tagFilter === 'alle' ? 'Es gibt noch keine Gruppen.' : `An Tag ${tagFilter} gibt es keine Gruppe.`}
+              </div>
+            ) : sichtbareGruppen.map((g) => {
               const f = farbeVon(g.color);
               const n = Number(g.task_count || 0);
               return (
@@ -179,13 +234,18 @@ export const SerieBearbeitenModal: React.FC<Props> = ({ serie, eventId, onClose,
                   <span style={stil.leise}>
                     {n === 0 ? 'nur Überschrift' : `${n} ${n === 1 ? 'Aufgabe' : 'Aufgaben'}`}
                   </span>
-                  <span style={stil.tag}>Tag {g.day_number}</span>
+                  {tagFilter === 'alle' && <span style={stil.tag}>Tag {g.day_number}</span>}
                 </label>
               );
             })}
 
             <div style={stil.listeKopf}>Einzelne Aufgaben</div>
-            {nachTag.map((a) => (
+            {sichtbareAufgaben.length === 0 && (
+              <div style={stil.leer}>
+                {tagFilter === 'alle' ? 'Es gibt noch keine Aufgaben.' : `An Tag ${tagFilter} gibt es keine Aufgabe.`}
+              </div>
+            )}
+            {sichtbareAufgaben.map((a) => (
               <label key={`a${a.id}`} style={stil.listeZeile}>
                 <input type="checkbox" checked={gewaehlteAufgaben.includes(a.id)}
                   onChange={() => um(gewaehlteAufgaben, setGewaehlteAufgaben, a.id)} style={stil.haken} />
@@ -193,7 +253,7 @@ export const SerieBearbeitenModal: React.FC<Props> = ({ serie, eventId, onClose,
                 {ueberGruppe.has(a.id) && !gewaehlteAufgaben.includes(a.id) && (
                   <span style={stil.ueberGruppe}>über Gruppe dabei</span>
                 )}
-                <span style={stil.tag}>Tag {a.day_number}</span>
+                {tagFilter === 'alle' && <span style={stil.tag}>Tag {a.day_number}</span>}
               </label>
             ))}
           </div>
@@ -244,6 +304,27 @@ const stil: { [k: string]: React.CSSProperties } = {
     width: '100%', padding: '0.5rem', border: '1px solid var(--c-border-strong)',
     borderRadius: '4px', fontSize: '0.9375rem', color: 'var(--c-text)',
     backgroundColor: 'var(--c-surface)',
+  },
+  /*
+   * Reiterleiste. Sie darf umbrechen und rollt zur Not waagerecht - bei
+   * vierzehn Tagen soll sie den Dialog nicht sprengen.
+   */
+  tagLeiste: {
+    display: 'flex', gap: '0.25rem', flexWrap: 'wrap', marginBottom: '0.5rem',
+    maxHeight: '4.5rem', overflowY: 'auto',
+  },
+  tagKnopf: {
+    display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+    padding: '0.1875rem 0.5rem', minWidth: '2rem', justifyContent: 'center',
+    fontSize: '0.75rem', borderRadius: '4px', cursor: 'pointer',
+    background: 'none', border: '1px solid var(--c-border-strong)', color: 'var(--c-text)',
+  },
+  tagKnopfAn: {
+    backgroundColor: 'var(--c-accent)', borderColor: 'var(--c-accent)',
+    color: 'var(--c-text-inverse)', fontWeight: 600,
+  },
+  tagZahl: {
+    fontSize: '0.625rem', fontWeight: 700, opacity: 0.85,
   },
   liste: {
     border: '1px solid var(--c-border-strong)', borderRadius: '6px',

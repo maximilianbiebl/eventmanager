@@ -14,6 +14,8 @@ import { SerieBearbeitenModal } from './SerieBearbeitenModal';
 
 interface Props {
   eventId: number;
+  /** Für die Tagesreiter im Bearbeiten-Dialog. */
+  eventDays?: number;
   onGeaendert?: () => void;
   /** Löschen fragt nach, was mit den Aufgaben geschieht - das macht der Elternteil. */
   onLoeschen: (serie: TaskSeries) => void;
@@ -21,7 +23,7 @@ interface Props {
   neuLaden?: number;
 }
 
-export const SerienPanel: React.FC<Props> = ({ eventId, onGeaendert, onLoeschen, neuLaden }) => {
+export const SerienPanel: React.FC<Props> = ({ eventId, eventDays, onGeaendert, onLoeschen, neuLaden }) => {
   const [serien, setSerien] = useState<TaskSeries[]>([]);
   const [laedt, setLaedt] = useState(true);
   const [fehler, setFehler] = useState('');
@@ -107,6 +109,7 @@ export const SerienPanel: React.FC<Props> = ({ eventId, onGeaendert, onLoeschen,
         <SerieBearbeitenModal
           serie={bearbeite}
           eventId={eventId}
+          eventDays={eventDays}
           onClose={() => setBearbeite(null)}
           onGespeichert={() => { laden(); onGeaendert?.(); }}
         />

@@ -305,6 +305,53 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
     }
   };
 
+  /*
+   * Aufgabe INNERHALB ihrer Gruppe sofort tauschen.
+   *
+   * Der Server tut fuer eine gruppierte Aufgabe genau das: er tauscht die
+   * Reihenfolge-Nummer mit dem Nachbarn DERSELBEN Gruppe. Das laesst sich
+   * hier nachbilden, also zeigt die Anzeige den Zug sofort - vorher wartete
+   * sie auf das Nachladen, und weil das erst laeuft, wenn keine Aktion mehr
+   * offen ist, fuehlte sich schnelles Klicken wie eingefroren an.
+   *
+   * Fuer eine Aufgabe OHNE Gruppe wird bewusst nichts vorweggenommen: dort
+   * nummeriert der Server den ganzen Tag neu, samt Gruppen - das ist hier
+   * nicht nachzubilden, und ein falsches Zwischenbild waere schlimmer als
+   * ein Augenblick Warten.
+   */
+  const tauscheInGruppe = (taskId: number, richtung: 'hoch' | 'runter') => {
+    setAssignments((alt) => {
+      const ich = alt.find((a) => a.id === taskId);
+      if (!ich || !ich.program_item_id) return alt;
+
+      /*
+       * In der Liste steht je Zuweisung eine Zeile - eine Aufgabe mit drei
+       * Eingeteilten kommt dreimal vor. Fuer die Nachbarschaft zaehlt aber
+       * die Aufgabe, nicht die Zuweisung.
+       */
+      const jeAufgabe = new Map<number, typeof ich>();
+      for (const a of alt) {
+        if (a.program_item_id === ich.program_item_id && !jeAufgabe.has(a.id)) jeAufgabe.set(a.id, a);
+      }
+      const geschwister = [...jeAufgabe.values()]
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+
+      const i = geschwister.findIndex((a) => a.id === taskId);
+      const j = richtung === 'hoch' ? i - 1 : i + 1;
+      if (i === -1 || j < 0 || j >= geschwister.length) return alt;
+
+      const meiner = geschwister[i].sort_order ?? 0;
+      const seiner = geschwister[j].sort_order ?? 0;
+      const anderer = geschwister[j].id;
+
+      return alt.map((a) =>
+        a.id === taskId ? { ...a, sort_order: seiner }
+        : a.id === anderer ? { ...a, sort_order: meiner }
+        : a
+      );
+    });
+  };
+
   const handleMoveUp = async (taskId: number) => {
     pendingActionsRef.current++; // Increment pending actions counter
     try {
@@ -318,6 +365,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
        * zurechtrueckte. Und der Server nummeriert beim Verschieben den
        * ganzen Tag neu, das laesst sich hier ohnehin nicht nachbilden.
        */
+      tauscheInGruppe(taskId, 'hoch');
       await tasksApi.moveUp(taskId);
       setSuccessMessage('Aufgabe wurde nach oben verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
@@ -349,6 +397,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
     pendingActionsRef.current++; // Increment pending actions counter
     try {
       // Kein vorgezogenes Umsortieren - siehe handleMoveUp.
+      tauscheInGruppe(taskId, 'runter');
       await tasksApi.moveDown(taskId);
       setSuccessMessage('Aufgabe wurde nach unten verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
@@ -896,9 +945,11 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
                   onClick={() => gruppeLoeschen(gruppe, eintraege.length)} title="Gruppe entfernen, Aufgaben bleiben">Entfernen</button>
               </div>
               <div className={responsiveStyles.moveButtonGroup} style={styles.gruppenAktionenReihe}>
-                <button type="button" style={styles.gruppenPfeilKnopf}
+                {/* Gleiche Knopfform wie bei den Aufgaben - sonst sind die
+                    Pfeilspalten unterschiedlich breit und treffen sich nicht. */}
+                <button type="button" style={styles.moveButton} className={responsiveStyles.moveButton}
                   onClick={() => gruppeVerschieben(gruppe, 'hoch')} title="Gruppe nach oben">▲</button>
-                <button type="button" style={styles.gruppenPfeilKnopf}
+                <button type="button" style={styles.moveButton} className={responsiveStyles.moveButton}
                   onClick={() => gruppeVerschieben(gruppe, 'runter')} title="Gruppe nach unten">▼</button>
               </div>
             </div>
@@ -1464,11 +1515,23 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: '0.75rem',
     verticalAlign: 'middle',
   },
-  // Wie styles.actions bei den Aufgaben - nur enger, die Beschriftungen
-  // sind laenger.
+  /*
+   * Rechtsbuendig - und zwar bei Gruppen wie bei Aufgaben.
+   *
+   * "Bearbeiten Entfernen" ist schmaler als "Zuweisen Bearbeiten"; linksbuendig
+   * standen die Pfeile der Gruppe deshalb elf Pixel neben denen der Aufgaben.
+   * An der rechten Kante treffen sich beide, unabhaengig von der Beschriftung.
+   *
+   * alignItems fuer den schmalen Bildschirm: dort stehen die Knoepfe
+   * untereinander, die Ausrichtung laeuft dann ueber die andere Achse.
+   */
   gruppenAktionen: {
     display: 'flex',
-    gap: '0.25rem',
+    // Derselbe Abstand wie bei den Aufgaben, sonst enden die Textknoepfe
+    // ein paar Pixel versetzt.
+    gap: '0.5rem',
+    justifyContent: 'flex-end',
+    alignItems: 'flex-end',
   },
   /** Aufgaben unter einer Gruppenueberschrift ruecken ein. */
   eingerueckt: {
@@ -1605,9 +1668,13 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: '50%',
     transition: 'background-color 0.2s',
   },
+  // Rechtsbuendig, damit die Pfeile der Aufgaben und die der Gruppen
+  // genau uebereinander stehen - siehe gruppenAktionen.
   actions: {
     display: 'flex',
     gap: '0.5rem',
+    justifyContent: 'flex-end',
+    alignItems: 'flex-end',
   },
   editButton: {
     padding: '0.3125rem 0.625rem',

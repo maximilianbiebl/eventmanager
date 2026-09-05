@@ -608,6 +608,15 @@ interface AddStaffModalProps {
 
 const AddStaffModal: React.FC<AddStaffModalProps> = ({ availableStaff, onClose, onAdd }) => {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  /*
+   * Namenssuche wie in der Mitarbeiterverwaltung. Bei drei Leuten braucht
+   * es sie nicht, bei sechzig schon - und ausgewaehlte bleiben ausgewaehlt,
+   * auch wenn die Suche sie gerade ausblendet.
+   */
+  const [suche, setSuche] = useState('');
+  const gefiltert = suche.trim()
+    ? availableStaff.filter((s) => s.name.toLowerCase().includes(suche.trim().toLowerCase()))
+    : availableStaff;
 
   const handleToggle = (userId: number) => {
     setSelectedIds(prev =>
@@ -637,8 +646,20 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ availableStaff, onClose, 
         {availableStaff.length === 0 ? (
           <p style={styles.noStaff}>Alle Mitarbeiter sind bereits im Pool.</p>
         ) : (
+          <>
+          <input
+            type="search"
+            value={suche}
+            onChange={(e) => setSuche(e.target.value)}
+            placeholder="Name suchen"
+            aria-label="Nach Name suchen"
+            style={styles.sucheFeld}
+          />
           <div style={styles.staffList}>
-            {availableStaff.map((staff) => (
+            {gefiltert.length === 0 && (
+              <p style={styles.noStaff}>Niemand gefunden.</p>
+            )}
+            {gefiltert.map((staff) => (
               <label key={staff.id} style={styles.staffCheckbox}>
                 <input
                   type="checkbox"
@@ -650,6 +671,12 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ availableStaff, onClose, 
               </label>
             ))}
           </div>
+          {selectedIds.length > 0 && suche.trim() && (
+            <p style={styles.ausgewaehltHinweis}>
+              {selectedIds.length} ausgewählt – auch außerhalb der Suche.
+            </p>
+          )}
+          </>
         )}
 
         <div className="app-modal-actions" style={styles.modalButtons}>
@@ -1616,6 +1643,21 @@ const styles: { [key: string]: React.CSSProperties } = {
   noStaff: {
     textAlign: 'center',
     padding: '2rem',
+    color: 'var(--c-text-muted)',
+  },
+  sucheFeld: {
+    width: '100%',
+    padding: '0.5rem',
+    marginBottom: '0.5rem',
+    border: '1px solid var(--c-border-strong)',
+    borderRadius: '4px',
+    fontSize: '0.9375rem',
+    color: 'var(--c-text)',
+    backgroundColor: 'var(--c-surface)',
+  },
+  ausgewaehltHinweis: {
+    margin: '0.375rem 0 0 0',
+    fontSize: '0.75rem',
     color: 'var(--c-text-muted)',
   },
   staffList: {

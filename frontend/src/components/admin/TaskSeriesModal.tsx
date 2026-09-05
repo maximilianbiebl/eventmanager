@@ -97,6 +97,7 @@ export const TaskSeriesModal: React.FC<Props> = ({
         ) : (
           <SerienPanel
             eventId={eventId}
+            eventDays={eventDays}
             onGeaendert={onSeriesCreated}
             onLoeschen={handleDeleteSeries}
             neuLaden={serienStand}
