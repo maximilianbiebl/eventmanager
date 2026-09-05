@@ -77,8 +77,25 @@ export async function selbstAbhakendeAufgaben() {
          AND (
            day_number < $2
            OR (day_number = $2 AND COALESCE(end_time, start_time, scheduled_time) <= $3)
+         )
+         /*
+          * Wer die Aufgabe NACH ihrem Zeitpunkt von Hand wieder aufmacht,
+          * behaelt recht. Sonst haette die Automatik sie eine Minute
+          * spaeter stumm wieder zugemacht - der Status waere nicht zu
+          * aendern gewesen.
+          *
+          * Vor dem Zeitpunkt aendert eine Eintragung nichts: die Aufgabe
+          * hakt sich zu ihrer Zeit trotzdem ab, genau dafuer ist das
+          * Kennzeichen da. Das Abhaken selbst setzt status_changed_at, es
+          * greift also auch bei sich wiederholenden Veranstaltungen je
+          * Durchfuehrung genau einmal.
+          */
+         AND (
+           status_changed_at IS NULL
+           OR status_changed_at < (($4::date + (day_number - 1))
+                                   + COALESCE(end_time, start_time, scheduled_time))
          )`,
-      [instanz.event_id, tagesNummer, uhrzeit]
+      [instanz.event_id, tagesNummer, uhrzeit, instanz.start_date]
     );
 
     for (const aufgabe of faellig.rows) {

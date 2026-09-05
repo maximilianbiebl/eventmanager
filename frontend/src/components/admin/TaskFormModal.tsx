@@ -553,11 +553,11 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
 
               {showStaffSelection && (
                 <div style={styles.staffList}>
-                  <small style={styles.hint}>
-                    {isEdit
-                      ? 'Änderungen gelten für alle Durchführungen dieser Aufgabe'
-                      : 'Ausgewählte Mitarbeiter werden automatisch für alle Durchführungen zugewiesen'}
-                  </small>
+                  {!isEdit && (
+                    <small style={styles.hint}>
+                      Ausgewählte Mitarbeiter werden automatisch für alle Durchführungen zugewiesen
+                    </small>
+                  )}
                   {staffUsers.map((user) => (
                     <label key={user.id} style={styles.staffItem}>
                       <input
@@ -581,10 +581,7 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
 
           {isEdit && (
             <div style={styles.dangerZone}>
-              <div style={styles.dangerZoneKopf}>
-                <h3 style={styles.dangerZoneTitle}>Gefahrenbereich</h3>
-                <span style={styles.dangerZoneWarning}>nicht rückgängig zu machen</span>
-              </div>
+              <h3 style={styles.dangerZoneTitle}>Gefahrenbereich</h3>
               <div style={styles.dangerZoneKnoepfe}>
                 <button
                   type="button"
@@ -778,25 +775,14 @@ const styles: { [key: string]: React.CSSProperties } = {
     border: '1px solid var(--c-danger-soft)',
     borderRadius: '8px',
   },
-  // Überschrift und Warnung teilen sich eine Zeile, die Knöpfe stehen
-  // nebeneinander - der Bereich soll unten am Formular nicht aufblähen.
-  dangerZoneKopf: {
-    display: 'flex',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    gap: '0.5rem',
-    flexWrap: 'wrap' as const,
-    marginBottom: '0.5rem',
-  },
+  // Knapp gehalten: Überschrift, darunter die beiden Knöpfe nebeneinander.
+  // Ein Warnsatz stand hier auch mal - er stimmte nur fürs Löschen,
+  // deaktivieren lässt sich jederzeit zurücknehmen.
   dangerZoneTitle: {
     fontSize: '0.875rem',
     fontWeight: 'bold',
     color: 'var(--c-danger-strong)',
-    margin: 0,
-  },
-  dangerZoneWarning: {
-    fontSize: '0.75rem',
-    color: 'var(--c-danger-strong)',
+    margin: '0 0 0.5rem 0',
   },
   dangerZoneKnoepfe: {
     display: 'flex',
