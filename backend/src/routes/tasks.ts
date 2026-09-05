@@ -5,6 +5,8 @@ import { CreateTaskRequest, AssignTaskRequest } from '../types';
 import { broadcastUpdate } from './sse';
 import { CSV_BOM, ohneBom, parseCsvLine, csvFeld } from '../utils/csv';
 import { verschiebeZeile } from '../utils/reihenfolge';
+import { farbeOderNull } from '../utils/gruppenFarben';
+import { AUFGABEN_DER_SERIE, syncSeriesAssignments } from '../utils/serien';
 import {
   eventZugriff, eventIdVonTask, eventIdVonInstanz, eventIdVonZuweisung, eventIdVonSerie,
   darfEventVerwalten,
@@ -235,6 +237,7 @@ router.get('/my-tasks', authMiddleware, async (req: AuthRequest, res) => {
         -- Aufgabengruppe fuer die Zwischenueberschriften im Mitarbeiterbereich
         pi.title as group_name,
         pi.time as group_time,
+        pi.color as group_color,
         pi.sort_order as group_sort_order,
         ${MITARBEITER_DER_AUFGABE('ta.event_instance_id')} as mitarbeiter
        FROM task_assignments ta
@@ -264,6 +267,7 @@ router.get('/my-tasks', authMiddleware, async (req: AuthRequest, res) => {
         pi.title as program_item_title,
         pi.title as group_name,
         pi.time as group_time,
+        pi.color as group_color,
         pi.sort_order as group_sort_order,
         ${MITARBEITER_DER_AUFGABE('ei.id')} as mitarbeiter
        FROM tasks t
@@ -1946,7 +1950,7 @@ router.post('/event/:eventId/export-csv', authMiddleware, teamleiterOrAdminMiddl
     const spalten = `t.id, t.title, t.description, t.day_number, t.scheduled_time, t.start_time,
                      t.end_time, t.is_public, t.status, t.needed_staff, t.needed_female, t.needed_male,
                      t.auto_complete, ts.name AS series_name,
-                     pi.title AS group_name, pi.time AS group_time`;
+                     pi.title AS group_name, pi.time AS group_time, pi.color AS group_color`;
 
     const nurAusgewaehlte = task_ids && Array.isArray(task_ids) && task_ids.length > 0;
     const result = await query(
@@ -1966,7 +1970,7 @@ router.post('/event/:eventId/export-csv', authMiddleware, teamleiterOrAdminMiddl
      */
     const headers = [
       'id', 'title', 'description', 'day_number', 'scheduled_time', 'start_time', 'end_time',
-      'is_public', 'status', 'group_name', 'group_time', 'series_name',
+      'is_public', 'status', 'group_name', 'group_time', 'group_color', 'series_name',
       'needed_staff', 'needed_female', 'needed_male', 'auto_complete',
     ];
     const rows = result.rows.map(row => [
@@ -1983,6 +1987,7 @@ router.post('/event/:eventId/export-csv', authMiddleware, teamleiterOrAdminMiddl
       // Nummern gelten nur in dieser Datenbank, ein Name ueberlebt den Umweg.
       csvFeld(row.group_name),
       row.group_time || '',
+      row.group_color || '',
       csvFeld(row.series_name),
       row.needed_staff ?? '',
       row.needed_female ?? '',
@@ -2051,7 +2056,8 @@ router.post('/event/:eventId/import-csv', authMiddleware, teamleiterOrAdminMiddl
     const gruppeFinden = async (
       name: string | undefined,
       tag: number,
-      zeit: string | undefined
+      zeit: string | undefined,
+      farbe?: string
     ): Promise<number | null> => {
       const sauber = (name || '').trim();
       if (!sauber) return null;
@@ -2066,12 +2072,12 @@ router.post('/event/:eventId/import-csv', authMiddleware, teamleiterOrAdminMiddl
       const id = vorhanden.rows.length > 0
         ? vorhanden.rows[0].id
         : (await query(
-            `INSERT INTO program_items (event_id, day_number, title, time, sort_order)
-             VALUES ($1, $2, $3, $4,
+            `INSERT INTO program_items (event_id, day_number, title, time, color, sort_order)
+             VALUES ($1, $2, $3, $4, $5,
                      (SELECT COALESCE(MAX(sort_order), 0) + 10 FROM program_items
                       WHERE event_id = $1 AND day_number = $2))
              RETURNING id`,
-            [eventId, tag, sauber, (zeit || '').trim() || null]
+            [eventId, tag, sauber, (zeit || '').trim() || null, farbeOderNull(farbe)]
           )).rows[0].id;
 
       gruppenCache.set(schluessel, id);
@@ -2108,7 +2114,7 @@ router.post('/event/:eventId/import-csv', authMiddleware, teamleiterOrAdminMiddl
 
       const tagNummer = parseInt(task.day_number) || 1;
       const serieId = await serieFinden(task.series_name);
-      const gruppeId = await gruppeFinden(task.group_name, tagNummer, task.group_time);
+      const gruppeId = await gruppeFinden(task.group_name, tagNummer, task.group_time, task.group_color);
 
       // Create new task - always reset status to not_started on import
       await query(
@@ -2238,7 +2244,7 @@ router.get('/task-series/event/:eventId', authMiddleware, teamleiterOrAdminMiddl
 
     const result = await query(
       `SELECT ts.*,
-        (SELECT COUNT(*) FROM tasks WHERE series_id = ts.id) as task_count,
+        (SELECT COUNT(*) FROM tasks t WHERE ${AUFGABEN_DER_SERIE('ts.id')}) as task_count,
         (SELECT COUNT(*) FROM task_series_members WHERE series_id = ts.id) as member_count
        FROM task_series ts
        WHERE ts.event_id = $1
@@ -2288,7 +2294,7 @@ router.get('/task-series/:seriesId', authMiddleware, teamleiterOrAdminMiddleware
 
     // Get tasks in this series
     const tasksResult = await query(
-      'SELECT * FROM tasks WHERE series_id = $1 ORDER BY day_number, scheduled_time',
+      `SELECT t.* FROM tasks t WHERE ${AUFGABEN_DER_SERIE('$1')} ORDER BY t.day_number, t.scheduled_time`,
       [seriesId]
     );
     console.log('Tasks found:', tasksResult.rows.length);
@@ -2401,7 +2407,8 @@ router.delete('/task-series/:seriesId', authMiddleware, teamleiterOrAdminMiddlew
       return res.status(400).json({ error: 'Ungültiger Modus' });
     }
 
-    const seriesTasks = await query('SELECT id FROM tasks WHERE series_id = $1', [seriesId]);
+    const seriesTasks = await query(
+      `SELECT t.id FROM tasks t WHERE ${AUFGABEN_DER_SERIE('$1')}`, [seriesId]);
     const taskIds = seriesTasks.rows.map((r: any) => r.id);
 
     let removedAssignments = 0;
@@ -2552,7 +2559,7 @@ router.post('/task-series/:seriesId/assign-to-instance', authMiddleware, teamlei
 
     // Get all tasks in this series
     const tasksResult = await query(
-      'SELECT id, reminder_minutes FROM tasks WHERE series_id = $1',
+      `SELECT t.id, t.reminder_minutes FROM tasks t WHERE ${AUFGABEN_DER_SERIE('$1')}`,
       [seriesId]
     );
 
@@ -2602,54 +2609,13 @@ router.post('/task-series/:seriesId/assign-to-instance', authMiddleware, teamlei
  * assignment_id - ohne die koennte der Mitarbeiter sie auch nicht als
  * erledigt melden (complete-public lehnt nicht-oeffentliche Aufgaben ab).
  */
-const syncSeriesAssignments = async (seriesId: number | string): Promise<number> => {
-  const members = await query(
-    'SELECT user_id FROM task_series_members WHERE series_id = $1',
-    [seriesId]
-  );
-  if (members.rows.length === 0) return 0;
-
-  const tasks = await query(
-    'SELECT id, event_id, reminder_minutes FROM tasks WHERE series_id = $1',
-    [seriesId]
-  );
-  if (tasks.rows.length === 0) return 0;
-
-  // Alle Durchfuehrungen der zugehoerigen Veranstaltung
-  const instances = await query(
-    'SELECT id FROM event_instances WHERE event_id = $1',
-    [tasks.rows[0].event_id]
-  );
-
-  let created = 0;
-
-  for (const task of tasks.rows) {
-    for (const instance of instances.rows) {
-      for (const { user_id } of members.rows) {
-        const existing = await query(
-          'SELECT id FROM task_assignments WHERE task_id = $1 AND event_instance_id = $2 AND user_id = $3',
-          [task.id, instance.id, user_id]
-        );
-        if (existing.rows.length === 0) {
-          await query(
-            'INSERT INTO task_assignments (task_id, event_instance_id, user_id, reminder_minutes) VALUES ($1, $2, $3, $4)',
-            [task.id, instance.id, user_id, task.reminder_minutes ?? 15]
-          );
-          created++;
-        }
-      }
-    }
-  }
-
-  return created;
-};
 
 /** Zuweisungen eines Mitglieds fuer alle Aufgaben einer Serie entfernen. */
 const removeSeriesAssignments = async (seriesId: number | string, userId: number | string) => {
   await query(
     `DELETE FROM task_assignments
      WHERE user_id = $1
-       AND task_id IN (SELECT id FROM tasks WHERE series_id = $2)`,
+       AND task_id IN (SELECT t.id FROM tasks t WHERE ${AUFGABEN_DER_SERIE('$2')})`,
     [userId, seriesId]
   );
 };

@@ -5,6 +5,8 @@ import { authMiddleware, teamleiterOrAdminMiddleware, AuthRequest } from '../mid
 import { eventZugriff } from '../middleware/eventAccess';
 import { broadcastUpdate } from './sse';
 import { verschiebeZeile } from '../utils/reihenfolge';
+import { farbeOderNull } from '../utils/gruppenFarben';
+import { syncSeriesAssignments } from '../utils/serien';
 
 /*
  * Aufgabengruppen.
@@ -38,6 +40,13 @@ const zeitOderNull = (wert: unknown): string | null => {
   return s === '' ? null : s;
 };
 
+
+/** Serie: 0, '' und Unfug bedeuten "keine". */
+const serieOderNull = (wert: unknown): number | null => {
+  const n = Number(wert);
+  return Number.isInteger(n) && n > 0 ? n : null;
+};
+
 /*
  * Gruppen einer Veranstaltung.
  *
@@ -52,8 +61,10 @@ router.get('/event/:eventId', authMiddleware, teamleiterOrAdminMiddleware,
 
     const result = await query(
       `SELECT pi.*,
+              ts.name AS series_name,
               (SELECT COUNT(*) FROM tasks t WHERE t.program_item_id = pi.id) AS task_count
        FROM program_items pi
+       LEFT JOIN task_series ts ON ts.id = pi.series_id
        WHERE pi.event_id = $1
        ORDER BY pi.day_number, pi.time NULLS LAST, pi.sort_order, pi.id`,
       [eventId]
@@ -69,7 +80,7 @@ router.get('/event/:eventId', authMiddleware, teamleiterOrAdminMiddleware,
 router.post('/', authMiddleware, teamleiterOrAdminMiddleware,
   eventZugriff(req => req.body.event_id), async (req: AuthRequest, res) => {
   try {
-    const { event_id, day_number, time, title, description } = req.body;
+    const { event_id, day_number, time, title, description, color, series_id } = req.body;
 
     if (!title || !String(title).trim()) {
       return res.status(400).json({ error: 'Titel fehlt' });
@@ -82,9 +93,10 @@ router.post('/', authMiddleware, teamleiterOrAdminMiddleware,
     );
 
     const result = await query(
-      `INSERT INTO program_items (event_id, day_number, time, title, description, sort_order)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [event_id, day_number, zeitOderNull(time), String(title).trim(), description || null, max.rows[0].m + 10]
+      `INSERT INTO program_items (event_id, day_number, time, title, description, sort_order, color, series_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [event_id, day_number, zeitOderNull(time), String(title).trim(), description || null,
+       max.rows[0].m + 10, farbeOderNull(color), serieOderNull(series_id)]
     );
 
     broadcastUpdate('task', { action: 'group_created', eventId: Number(event_id) });
@@ -112,13 +124,34 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware,
       time = alt.time,
       title = alt.title,
       description = alt.description,
+      color = alt.color,
+      series_id = alt.series_id,
     } = req.body;
 
     const result = await query(
-      `UPDATE program_items SET day_number = $1, time = $2, title = $3, description = $4
-       WHERE id = $5 RETURNING *`,
-      [day_number, zeitOderNull(time), String(title).trim(), description || null, id]
+      `UPDATE program_items
+       SET day_number = $1, time = $2, title = $3, description = $4, color = $5, series_id = $6
+       WHERE id = $7 RETURNING *`,
+      [day_number, zeitOderNull(time), String(title).trim(), description || null,
+       farbeOderNull(color), serieOderNull(series_id), id]
     );
+
+    /*
+     * Wechselt die Gruppe den Tag, muessen ihre Aufgaben mit. Sonst stuende
+     * die Ueberschrift an Tag 2 und ihre Aufgaben weiter an Tag 1 - in der
+     * Ansicht waeren sie schlicht verschwunden.
+     */
+    if (Number(day_number) !== Number(alt.day_number)) {
+      await query('UPDATE tasks SET day_number = $1 WHERE program_item_id = $2', [day_number, id]);
+    }
+
+    /*
+     * Gehoert die Gruppe zu einer Serie, bekommt deren Team die Aufgaben
+     * der Gruppe zugewiesen - sonst waere die Zuordnung eine Angabe ohne
+     * Wirkung, bis jemand zufaellig die Serie anfasst.
+     */
+    const neueSerie = serieOderNull(series_id);
+    if (neueSerie) await syncSeriesAssignments(neueSerie);
 
     broadcastUpdate('task', { action: 'group_updated', eventId: alt.event_id });
     res.json(result.rows[0]);
@@ -164,6 +197,158 @@ router.put('/:id/move-up', authMiddleware, teamleiterOrAdminMiddleware,
 
 router.put('/:id/move-down', authMiddleware, teamleiterOrAdminMiddleware,
   eventZugriff(req => eventIdVonGruppe(req.params.id)), verschiebe('runter'));
+
+/*
+ * Welche Aufgaben gehoeren zur Gruppe?
+ *
+ * Der Bearbeiten-Dialog schickt die vollstaendige Liste der angehakten
+ * Aufgaben. Alles, was frueher drin war und jetzt fehlt, faellt heraus;
+ * alles Neue kommt hinein - auch wenn es vorher in einer ANDEREN Gruppe
+ * stand. Eine Aufgabe gehoert zu hoechstens einer Gruppe.
+ *
+ * Angenommen werden nur Aufgaben derselben Veranstaltung und desselben
+ * Tages. Eine Aufgabe von Tag 3 unter einer Ueberschrift von Tag 1 waere
+ * in keiner Ansicht zu finden.
+ */
+router.put('/:id/tasks', authMiddleware, teamleiterOrAdminMiddleware,
+  eventZugriff(req => eventIdVonGruppe(req.params.id)), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { task_ids } = req.body;
+
+    const g = await query('SELECT * FROM program_items WHERE id = $1', [id]);
+    if (g.rows.length === 0) {
+      return res.status(404).json({ error: 'Aufgabengruppe nicht gefunden' });
+    }
+    const gruppe = g.rows[0];
+
+    const gewuenscht: number[] = Array.isArray(task_ids)
+      ? task_ids.map((n: unknown) => Number(n)).filter((n: number) => Number.isInteger(n))
+      : [];
+
+    // Herausnehmen, was nicht mehr angehakt ist.
+    await query(
+      `UPDATE tasks SET program_item_id = NULL
+       WHERE program_item_id = $1 AND NOT (id = ANY($2::int[]))`,
+      [id, gewuenscht]
+    );
+
+    // Aufnehmen, was angehakt ist - aber nur aus derselben Veranstaltung
+    // und demselben Tag.
+    const rein = await query(
+      `UPDATE tasks SET program_item_id = $1
+       WHERE id = ANY($2::int[]) AND event_id = $3 AND day_number = $4
+       RETURNING id`,
+      [id, gewuenscht, gruppe.event_id, gruppe.day_number]
+    );
+
+    const zahl = await query(
+      'SELECT COUNT(*)::int AS n FROM tasks WHERE program_item_id = $1', [id]
+    );
+
+    // Neu aufgenommene Aufgaben brauchen die Zuweisungen der Serie.
+    if (gruppe.series_id) await syncSeriesAssignments(gruppe.series_id);
+
+    broadcastUpdate('task', { action: 'group_updated', eventId: gruppe.event_id });
+    res.json({
+      message: 'Zuordnung gespeichert',
+      task_count: zahl.rows[0].n,
+      uebersprungen: gewuenscht.length - rein.rows.length,
+    });
+  } catch (error) {
+    console.error('Set task group members error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+/*
+ * Gruppe duplizieren - auf denselben oder einen anderen Tag.
+ *
+ * Die Kopie ist eigenstaendig: nichts verweist zurueck. Wer spaeter die
+ * eine aendert, aendert die andere nicht.
+ *
+ * Kopierte Aufgaben starten auf "nicht gestartet" - der Stand des Originals
+ * gehoert zu dessen Tag, nicht zum neuen. Zuweisungen kommen nur auf
+ * Wunsch mit; wer am zweiten Tag Kuechendienst hat, ist selten dasselbe
+ * Team.
+ */
+router.post('/:id/duplicate', authMiddleware, teamleiterOrAdminMiddleware,
+  eventZugriff(req => eventIdVonGruppe(req.params.id)), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { day_number, mit_aufgaben = true, mit_zuweisungen = false } = req.body;
+
+    const g = await query('SELECT * FROM program_items WHERE id = $1', [id]);
+    if (g.rows.length === 0) {
+      return res.status(404).json({ error: 'Aufgabengruppe nicht gefunden' });
+    }
+    const alt = g.rows[0];
+    const zielTag = Number.isInteger(Number(day_number)) ? Number(day_number) : alt.day_number;
+
+    const max = await query(
+      'SELECT COALESCE(MAX(sort_order), 0) AS m FROM program_items WHERE event_id = $1 AND day_number = $2',
+      [alt.event_id, zielTag]
+    );
+
+    const neu = await query(
+      `INSERT INTO program_items (event_id, day_number, time, title, description, sort_order, color, series_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [alt.event_id, zielTag, alt.time, alt.title, alt.description,
+       max.rows[0].m + 10, alt.color, alt.series_id]
+    );
+    const neueGruppe = neu.rows[0];
+
+    let kopierteAufgaben = 0;
+    let kopierteZuweisungen = 0;
+
+    if (mit_aufgaben) {
+      const aufgaben = await query(
+        'SELECT * FROM tasks WHERE program_item_id = $1 ORDER BY sort_order, id', [id]
+      );
+
+      for (const a of aufgaben.rows) {
+        const kopie = await query(
+          `INSERT INTO tasks
+             (event_id, program_item_id, day_number, title, description, scheduled_time,
+              reminder_minutes, start_time, end_time, is_public, status, is_active,
+              sort_order, series_id, needed_staff, needed_female, needed_male, auto_complete)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'not_started', $11, $12, $13, $14, $15, $16, $17)
+           RETURNING id`,
+          [alt.event_id, neueGruppe.id, zielTag, a.title, a.description, a.scheduled_time,
+           a.reminder_minutes, a.start_time, a.end_time, a.is_public, a.is_active,
+           a.sort_order, a.series_id, a.needed_staff, a.needed_female, a.needed_male, a.auto_complete]
+        );
+        kopierteAufgaben++;
+
+        if (mit_zuweisungen) {
+          const zuw = await query(
+            'SELECT DISTINCT user_id, event_instance_id, reminder_minutes FROM task_assignments WHERE task_id = $1',
+            [a.id]
+          );
+          for (const z of zuw.rows) {
+            await query(
+              `INSERT INTO task_assignments (task_id, event_instance_id, user_id, reminder_minutes)
+               VALUES ($1, $2, $3, $4)`,
+              [kopie.rows[0].id, z.event_instance_id, z.user_id, z.reminder_minutes]
+            );
+            kopierteZuweisungen++;
+          }
+        }
+      }
+    }
+
+    broadcastUpdate('task', { action: 'group_created', eventId: alt.event_id });
+    res.status(201).json({
+      gruppe: neueGruppe,
+      kopierteAufgaben,
+      kopierteZuweisungen,
+      message: `„${alt.title}" wurde nach Tag ${zielTag} kopiert`,
+    });
+  } catch (error) {
+    console.error('Duplicate task group error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
 
 /*
  * Loeschen entfernt nur die Ueberschrift. Die Aufgaben bleiben und stehen
