@@ -862,21 +862,13 @@ const TaskListView: React.FC<TaskListViewProps> = ({
     try {
       const { tasksApi } = await import('../../api/tasks');
 
-      // Optimistic update: Swap sort_order values (not array positions!)
-      const currentTaskIndex = assignments.findIndex((a: any) => a.id === taskId);
-      if (currentTaskIndex > 0) {
-        const newAssignments = [...assignments];
-        const currentTask = newAssignments[currentTaskIndex];
-        const aboveTask = newAssignments[currentTaskIndex - 1];
-
-        // Swap sort_order values
-        const tempOrder = currentTask.sort_order;
-        currentTask.sort_order = aboveTask.sort_order;
-        aboveTask.sort_order = tempOrder;
-
-        setAssignments(newAssignments);
-      }
-
+      /*
+       * Kein vorgezogenes Umsortieren: es tauschte die Nachbarn in der
+       * ROHEN Liste, die weder sortiert noch gruppiert ist. Mit Gruppen ist
+       * das ein anderer Nachbar als in der Anzeige - es sprang kurz ein
+       * falsches Bild auf. Ausserdem nummeriert der Server beim Verschieben
+       * den ganzen Tag neu, das laesst sich hier nicht nachbilden.
+       */
       await tasksApi.moveUp(taskId);
       setSuccessMessage('Aufgabe wurde nach oben verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
@@ -889,7 +881,13 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       // SSE updates will now be processed if no more actions are pending
       if (pendingActionsRef.current === 0) {
         // Small delay to ensure server has processed all updates
-        setTimeout(() => loadAssignments(false), 50);
+        setTimeout(() => {
+          loadAssignments(false);
+          // Der Server nummeriert Gruppen UND lose Aufgaben des Tages neu -
+          // ohne dieses Nachladen behaelt die Anzeige die alten
+          // Gruppenraenge.
+          onGruppenGeaendert?.();
+        }, 50);
       }
     }
   };
@@ -899,21 +897,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
     try {
       const { tasksApi } = await import('../../api/tasks');
 
-      // Optimistic update: Swap sort_order values (not array positions!)
-      const currentTaskIndex = assignments.findIndex((a: any) => a.id === taskId);
-      if (currentTaskIndex < assignments.length - 1 && currentTaskIndex !== -1) {
-        const newAssignments = [...assignments];
-        const currentTask = newAssignments[currentTaskIndex];
-        const belowTask = newAssignments[currentTaskIndex + 1];
-
-        // Swap sort_order values
-        const tempOrder = currentTask.sort_order;
-        currentTask.sort_order = belowTask.sort_order;
-        belowTask.sort_order = tempOrder;
-
-        setAssignments(newAssignments);
-      }
-
+      // Kein vorgezogenes Umsortieren - siehe handleMoveUp.
       await tasksApi.moveDown(taskId);
       setSuccessMessage('Aufgabe wurde nach unten verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
@@ -926,7 +910,13 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       // SSE updates will now be processed if no more actions are pending
       if (pendingActionsRef.current === 0) {
         // Small delay to ensure server has processed all updates
-        setTimeout(() => loadAssignments(false), 50);
+        setTimeout(() => {
+          loadAssignments(false);
+          // Der Server nummeriert Gruppen UND lose Aufgaben des Tages neu -
+          // ohne dieses Nachladen behaelt die Anzeige die alten
+          // Gruppenraenge.
+          onGruppenGeaendert?.();
+        }, 50);
       }
     }
   };

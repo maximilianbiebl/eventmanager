@@ -294,21 +294,16 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
   const handleMoveUp = async (taskId: number) => {
     pendingActionsRef.current++; // Increment pending actions counter
     try {
-      // Optimistic update: Swap sort_order values (not array positions!)
-      const currentAssignmentIndex = assignments.findIndex(a => a.id === taskId);
-      if (currentAssignmentIndex > 0) {
-        const newAssignments = [...assignments];
-        const currentAssignment = newAssignments[currentAssignmentIndex];
-        const aboveAssignment = newAssignments[currentAssignmentIndex - 1];
-
-        // Swap sort_order values
-        const tempOrder = currentAssignment.sort_order;
-        currentAssignment.sort_order = aboveAssignment.sort_order;
-        aboveAssignment.sort_order = tempOrder;
-
-        setAssignments(newAssignments);
-      }
-
+      /*
+       * Kein vorgezogenes Umsortieren mehr.
+       *
+       * Es tauschte die Nachbarn in der ROHEN Liste - die ist weder
+       * sortiert noch gruppiert. Sobald es Gruppen gibt, ist der Nachbar
+       * dort ein anderer als der in der Anzeige: es sprang kurz ein
+       * falsches Bild auf, das der Nachladevorgang gleich wieder
+       * zurechtrueckte. Und der Server nummeriert beim Verschieben den
+       * ganzen Tag neu, das laesst sich hier ohnehin nicht nachbilden.
+       */
       await tasksApi.moveUp(taskId);
       setSuccessMessage('Aufgabe wurde nach oben verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
@@ -325,7 +320,13 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
       // SSE updates will now be processed if no more actions are pending
       if (pendingActionsRef.current === 0) {
         // Small delay to ensure server has processed all updates
-        setTimeout(() => loadAssignments(false), 50);
+        setTimeout(() => {
+          loadAssignments(false);
+          // Der Server nummeriert beim Verschieben Gruppen UND lose Aufgaben
+          // des Tages neu - ohne dieses Nachladen behaelt die Anzeige die
+          // alten Gruppenraenge und die Reihenfolge stimmt nicht mehr.
+          onTasksChanged?.();
+        }, 50);
       }
     }
   };
@@ -333,21 +334,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
   const handleMoveDown = async (taskId: number) => {
     pendingActionsRef.current++; // Increment pending actions counter
     try {
-      // Optimistic update: Swap sort_order values (not array positions!)
-      const currentAssignmentIndex = assignments.findIndex(a => a.id === taskId);
-      if (currentAssignmentIndex < assignments.length - 1 && currentAssignmentIndex !== -1) {
-        const newAssignments = [...assignments];
-        const currentAssignment = newAssignments[currentAssignmentIndex];
-        const belowAssignment = newAssignments[currentAssignmentIndex + 1];
-
-        // Swap sort_order values
-        const tempOrder = currentAssignment.sort_order;
-        currentAssignment.sort_order = belowAssignment.sort_order;
-        belowAssignment.sort_order = tempOrder;
-
-        setAssignments(newAssignments);
-      }
-
+      // Kein vorgezogenes Umsortieren - siehe handleMoveUp.
       await tasksApi.moveDown(taskId);
       setSuccessMessage('Aufgabe wurde nach unten verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
@@ -364,7 +351,13 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
       // SSE updates will now be processed if no more actions are pending
       if (pendingActionsRef.current === 0) {
         // Small delay to ensure server has processed all updates
-        setTimeout(() => loadAssignments(false), 50);
+        setTimeout(() => {
+          loadAssignments(false);
+          // Der Server nummeriert beim Verschieben Gruppen UND lose Aufgaben
+          // des Tages neu - ohne dieses Nachladen behaelt die Anzeige die
+          // alten Gruppenraenge und die Reihenfolge stimmt nicht mehr.
+          onTasksChanged?.();
+        }, 50);
       }
     }
   };

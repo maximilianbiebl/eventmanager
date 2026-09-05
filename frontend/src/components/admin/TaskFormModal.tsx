@@ -261,9 +261,9 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
     }
 
     try {
-      await client.patch(`/tasks/${task.id}/active`, {
-        is_active: !isCurrentlyActive
-      });
+      // Der Server kennt zwei eigene Routen, kein Feld "active".
+      if (isCurrentlyActive) await tasksApi.deactivate(task.id);
+      else await tasksApi.activate(task.id);
       onSuccess();
     } catch (err: any) {
       setError(err.response?.data?.error || `Fehler beim ${action.charAt(0).toUpperCase() + action.slice(1)}`);
@@ -377,8 +377,7 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
             )}
 
             <div style={{fontSize: '0.875rem', color: 'var(--c-text-muted)', marginTop: '0.25rem'}}>
-              Gruppen fassen Aufgaben zusammen, die zusammengehören – etwa „Frühstück“
-              mit Essensausgabe und Tische wischen.
+              Zwischenüberschrift für zusammengehörende Aufgaben.
             </div>
           </div>
 
@@ -582,29 +581,30 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
 
           {isEdit && (
             <div style={styles.dangerZone}>
-              <h3 style={styles.dangerZoneTitle}>Gefahrenbereich</h3>
-              <button
-                type="button"
-                onClick={handleToggleActive}
-                style={{
-                  ...styles.deleteButton,
-                  backgroundColor: task.is_active === false ? 'var(--c-success)' : 'var(--c-warning)',
-                  marginBottom: '0.75rem'
-                }}
-              >
-                {task.is_active === false ? 'Aufgabe aktivieren' : 'Aufgabe deaktivieren'}
-              </button>
-              <button
-                type="button"
-                onClick={handleDelete}
-                style={styles.deleteButton}
-                disabled={deleting}
-              >
-                {deleting ? 'Löschen...' : 'Aufgabe löschen'}
-              </button>
-              <p style={styles.dangerZoneWarning}>
-                Diese Aktionen können nicht rückgängig gemacht werden.
-              </p>
+              <div style={styles.dangerZoneKopf}>
+                <h3 style={styles.dangerZoneTitle}>Gefahrenbereich</h3>
+                <span style={styles.dangerZoneWarning}>nicht rückgängig zu machen</span>
+              </div>
+              <div style={styles.dangerZoneKnoepfe}>
+                <button
+                  type="button"
+                  onClick={handleToggleActive}
+                  style={{
+                    ...styles.deleteButton,
+                    backgroundColor: task.is_active === false ? 'var(--c-success)' : 'var(--c-warning)',
+                  }}
+                >
+                  {task.is_active === false ? 'Aktivieren' : 'Deaktivieren'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  style={styles.deleteButton}
+                  disabled={deleting}
+                >
+                  {deleting ? 'Löschen...' : 'Löschen'}
+                </button>
+              </div>
             </div>
           )}
 
@@ -772,28 +772,40 @@ const styles: { [key: string]: React.CSSProperties } = {
     transition: 'background-color 0.2s',
   },
   dangerZone: {
-    marginTop: '2rem',
-    padding: '1rem',
+    marginTop: '1.5rem',
+    padding: '0.75rem',
     backgroundColor: 'var(--c-danger-soft)',
     border: '1px solid var(--c-danger-soft)',
     borderRadius: '8px',
   },
+  // Überschrift und Warnung teilen sich eine Zeile, die Knöpfe stehen
+  // nebeneinander - der Bereich soll unten am Formular nicht aufblähen.
+  dangerZoneKopf: {
+    display: 'flex',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: '0.5rem',
+    flexWrap: 'wrap' as const,
+    marginBottom: '0.5rem',
+  },
   dangerZoneTitle: {
-    fontSize: '1rem',
+    fontSize: '0.875rem',
     fontWeight: 'bold',
     color: 'var(--c-danger-strong)',
-    marginBottom: '0.5rem',
-    marginTop: 0,
+    margin: 0,
   },
   dangerZoneWarning: {
     fontSize: '0.75rem',
     color: 'var(--c-danger-strong)',
-    marginTop: '0.5rem',
-    marginBottom: 0,
+  },
+  dangerZoneKnoepfe: {
+    display: 'flex',
+    gap: '0.5rem',
+    flexWrap: 'wrap' as const,
   },
   deleteButton: {
-    width: '100%',
-    padding: '0.75rem',
+    flex: '1 1 8rem',
+    padding: '0.5rem 0.75rem',
     backgroundColor: 'var(--c-danger)',
     color: 'var(--c-text-inverse)',
     border: 'none',
