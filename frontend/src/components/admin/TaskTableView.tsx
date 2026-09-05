@@ -11,6 +11,8 @@ import { useSSE } from '../../hooks/useSSE';
 import responsiveStyles from './TaskTableView.module.css';
 import { Toast } from '../Toast';
 import { useSchmal } from '../../utils/schmal';
+import { farbeVon } from '../../utils/gruppenFarben';
+import { GruppeBearbeitenModal } from './GruppeBearbeitenModal';
 import { CSVExportModal } from './CSVExportModal';
 import { CSVImportModal } from './CSVImportModal';
 import { StatusFilter } from './StatusFilter';
@@ -132,6 +134,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
   gruppen = [],
 }, ref) => {
   const schmal = useSchmal();
+  const [gruppeInBearbeitung, setGruppeInBearbeitung] = useState<TaskGroup | null>(null);
   const [assignments, setAssignments] = useState<TaskAssignment[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -795,17 +798,6 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
    * Gruppe umbenennen, entfernen, verschieben. Danach laedt die
    * Elternansicht die Gruppen neu - sie fuehrt die Liste.
    */
-  const gruppeUmbenennen = async (gruppe: TaskGroup) => {
-    const neu = window.prompt('Name der Aufgabengruppe', gruppe.title);
-    if (!neu || !neu.trim() || neu.trim() === gruppe.title) return;
-    try {
-      await programApi.update(gruppe.id, { title: neu.trim() });
-      onTasksChanged?.();
-    } catch (error) {
-      console.error('Rename task group error:', error);
-    }
-  };
-
   const gruppeLoeschen = async (gruppe: TaskGroup, anzahl: number) => {
     if (!window.confirm(
       `Aufgabengruppe "${gruppe.title}" entfernen?\n\n` +
@@ -838,6 +830,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
     const zu = zugeklappt.has(gruppe.id);
     const eingeteilt = eintraege.reduce((n, e) => n + (e.assignedUsers?.length || 0), 0);
     const zeit = gruppenZeit(gruppe);
+    const farbe = farbeVon(gruppe.color);
 
     return (
       /*
@@ -846,8 +839,16 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
        * der Aufgaben. Eine durchgehende Zelle haette sie irgendwo in der
        * Mitte enden lassen.
        */
-      <tr key={`kopf-${gruppe.id}`} style={styles.gruppenZeile}>
-        <td style={styles.gruppenZelle} colSpan={schmal ? GRUPPEN_SPALTEN_SCHMAL : GRUPPEN_SPALTEN}>
+      <tr key={`kopf-${gruppe.id}`} style={{ ...styles.gruppenZeile, ...(farbe ? { backgroundColor: farbe.weich } : {}) }}>
+        <td
+          style={{
+            ...styles.gruppenZelle,
+            // Der Streifen sitzt an der ersten Zelle - er soll den ganzen
+            // Block links markieren, nicht jede Zelle einzeln.
+            ...(farbe ? { borderLeft: `3px solid ${farbe.kraeftig}` } : {}),
+          }}
+          colSpan={schmal ? GRUPPEN_SPALTEN_SCHMAL : GRUPPEN_SPALTEN}
+        >
           <button
             type="button"
             onClick={() => klappe(gruppe.id)}
@@ -876,7 +877,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
             <div style={styles.gruppenAktionen} className={responsiveStyles.actions}>
               <div className={responsiveStyles.buttonGroup} style={styles.gruppenAktionenReihe}>
                 <button type="button" style={styles.gruppenAktion}
-                  onClick={() => gruppeUmbenennen(gruppe)} title="Gruppe umbenennen">Umbenennen</button>
+                  onClick={() => setGruppeInBearbeitung(gruppe)} title="Gruppe bearbeiten">Bearbeiten</button>
                 <button type="button" style={styles.gruppenAktion}
                   onClick={() => gruppeLoeschen(gruppe, eintraege.length)} title="Gruppe entfernen, Aufgaben bleiben">Entfernen</button>
               </div>
@@ -1143,6 +1144,16 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
           </div>
         </div>
       )}
+      {gruppeInBearbeitung && (
+        <GruppeBearbeitenModal
+          gruppe={gruppeInBearbeitung}
+          eventId={eventId!}
+          eventDays={eventDays ?? 1}
+          onClose={() => setGruppeInBearbeitung(null)}
+          onGespeichert={() => { loadAssignments(false); onTasksChanged?.(); }}
+        />
+      )}
+
     </div>
   );
 });

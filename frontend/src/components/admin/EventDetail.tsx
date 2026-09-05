@@ -10,6 +10,8 @@ import { TaskFormModal } from './TaskFormModal';
 import { TaskAssignmentModal } from './TaskAssignmentModal';
 import { TaskTableView, TaskTableViewHandle } from './TaskTableView';
 import { TaskSeriesModal } from './TaskSeriesModal';
+import { GruppeBearbeitenModal } from './GruppeBearbeitenModal';
+import { gruppenLeisteStil } from '../../utils/gruppenFarben';
 import { DuplicateEventModal } from './DuplicateEventModal';
 import { CreateFromTemplateModal } from './CreateFromTemplateModal';
 import { EventEditModal } from './EventEditModal';
@@ -523,7 +525,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
                   className={styles.secondaryButton}
                   type="button"
                 >
-                  Serien verwalten
+                  Serien &amp; Gruppen
                 </button>
                 <button onClick={handleCreateTask} className={styles.addButton}>
                   Neue Aufgabe
@@ -542,6 +544,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
             onEditTask={handleEditTask}
             onAssignTask={handleAssignTask}
             gruppen={gruppen}
+            eventId={eventId}
             onGruppenGeaendert={() => loadData(false)}
             event={event}
             manualRefreshTrigger={manualRefreshTrigger}
@@ -646,9 +649,14 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
       {showSeriesModal && (
         <TaskSeriesModal
           eventId={eventId}
+          eventDays={event.days}
           onClose={() => setShowSeriesModal(false)}
           onSeriesCreated={() => {
             // Beide Ansichten neu laden, damit Serien-Zuweisungen sofort sichtbar sind
+            loadData(false);
+            setManualRefreshTrigger(prev => prev + 1);
+          }}
+          onGruppenGeaendert={() => {
             loadData(false);
             setManualRefreshTrigger(prev => prev + 1);
           }}
@@ -662,6 +670,8 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
 interface TaskListViewProps {
   /** Aufgabengruppen - Zwischenueberschriften ueber ihren Aufgaben. */
   gruppen?: TaskGroup[];
+  /** Fuer den Bearbeiten-Dialog einer Gruppe. */
+  eventId?: number;
   /** Nach Umbenennen/Loeschen einer Gruppe: Elternansicht nachladen. */
   onGruppenGeaendert?: () => void;
   selectedDay: number | 'all';
@@ -677,6 +687,7 @@ interface TaskListViewProps {
 
 const TaskListView: React.FC<TaskListViewProps> = ({
   gruppen = [],
+  eventId,
   onGruppenGeaendert,
   selectedDay,
   selectedInstance,
@@ -688,6 +699,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   eventDays,
   onDayChange,
 }) => {
+  const [gruppeInBearbeitung, setGruppeInBearbeitung] = useState<TaskGroup | null>(null);
   const [assignments, setAssignments] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [successMessage, setSuccessMessage] = React.useState('');
@@ -1019,17 +1031,6 @@ const TaskListView: React.FC<TaskListViewProps> = ({
     const eingeteilt = eintraege.reduce((n, t) => n + getAssignmentsForTask(t.id).length, 0);
     const zeit = gruppenZeit(gruppe);
 
-    const umbenennen = async () => {
-      const neu = window.prompt('Name der Aufgabengruppe', gruppe.title);
-      if (!neu || !neu.trim() || neu.trim() === gruppe.title) return;
-      try {
-        await programApi.update(gruppe.id, { title: neu.trim() });
-        onGruppenGeaendert?.();
-      } catch (error) {
-        console.error('Rename task group error:', error);
-      }
-    };
-
     const verschieben = async (richtung: 'hoch' | 'runter') => {
       try {
         if (richtung === 'hoch') await programApi.moveUp(gruppe.id);
@@ -1054,7 +1055,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
     };
 
     return (
-      <div key={`gruppe-${gruppe.id}`} className={styles.gruppenKarte}>
+      <div key={`gruppe-${gruppe.id}`} className={styles.gruppenKarte} style={gruppenLeisteStil(gruppe.color)}>
         <button
           type="button"
           onClick={() => klappe(gruppe.id)}
@@ -1071,7 +1072,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
         </button>
         {!readOnly && (
           <div className={styles.gruppenAktionen}>
-            <button type="button" onClick={umbenennen} className={styles.gruppenAktion} title="Gruppe umbenennen">Umbenennen</button>
+            <button type="button" onClick={() => setGruppeInBearbeitung(gruppe)} className={styles.gruppenAktion} title="Gruppe bearbeiten">Bearbeiten</button>
             <button type="button" onClick={loeschen} className={styles.gruppenAktion} title="Gruppe entfernen, Aufgaben bleiben">Entfernen</button>
             {/* Pfeile nur bei "Manuell" - in einer Sortierung nach Zeit oder
                 Titel haetten sie keine sichtbare Wirkung und wuerden nur
@@ -1431,6 +1432,15 @@ const TaskListView: React.FC<TaskListViewProps> = ({
         ) : aufgabenKarte(z.aufgabe)
       ))}
 
+      {gruppeInBearbeitung && eventId && (
+        <GruppeBearbeitenModal
+          gruppe={gruppeInBearbeitung}
+          eventId={eventId}
+          eventDays={eventDays ?? 1}
+          onClose={() => setGruppeInBearbeitung(null)}
+          onGespeichert={() => onGruppenGeaendert?.()}
+        />
+      )}
     </div>
   );
 };

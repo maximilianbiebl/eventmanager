@@ -47,6 +47,8 @@ export interface TaskAssignment extends Task {
    */
   group_name?: string | null;
   group_time?: string | null;
+  /** Farbname der Gruppe - siehe utils/gruppenFarben. */
+  group_color?: string | null;
   group_sort_order?: number | null;
   assignment_id: number;
   completed: boolean;

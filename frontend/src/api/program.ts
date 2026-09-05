@@ -22,6 +22,11 @@ export interface TaskGroup {
   sort_order?: number;
   /** Wie viele Aufgaben in der Gruppe stecken (nur beim Abruf gefüllt). */
   task_count?: number | string;
+  /** Farbname - siehe utils/gruppenFarben. null heißt: keine Farbe. */
+  color?: string | null;
+  /** Serie der Gruppe. Eine eigene Serie an der Aufgabe geht vor. */
+  series_id?: number | null;
+  series_name?: string | null;
 }
 
 /** Alter Name, solange noch Stellen darauf verweisen. */
@@ -44,6 +49,8 @@ export const programApi = {
     title: string;
     time?: string | null;
     description?: string;
+    color?: string | null;
+    series_id?: number | null;
   }): Promise<TaskGroup> => {
     const response = await client.post('/program', data);
     return response.data;
@@ -51,6 +58,28 @@ export const programApi = {
 
   update: async (id: number, data: Partial<TaskGroup>): Promise<TaskGroup> => {
     const response = await client.put(`/program/${id}`, data);
+    return response.data;
+  },
+
+  /**
+   * Welche Aufgaben zur Gruppe gehören - die vollständige Liste. Was fehlt,
+   * fällt heraus; Neues kommt hinein, auch aus einer anderen Gruppe.
+   * Aufgaben fremder Tage weist der Server ab (`uebersprungen`).
+   */
+  setzeAufgaben: async (id: number, taskIds: number[]): Promise<{
+    task_count: number; uebersprungen: number; message: string;
+  }> => {
+    const response = await client.put(`/program/${id}/tasks`, { task_ids: taskIds });
+    return response.data;
+  },
+
+  /** Kopie auf einen Zieltag. Die Kopie ist eigenständig. */
+  duplizieren: async (id: number, daten: {
+    day_number: number;
+    mit_aufgaben?: boolean;
+    mit_zuweisungen?: boolean;
+  }): Promise<{ gruppe: TaskGroup; kopierteAufgaben: number; kopierteZuweisungen: number; message: string }> => {
+    const response = await client.post(`/program/${id}/duplicate`, daten);
     return response.data;
   },
 

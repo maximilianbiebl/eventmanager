@@ -3,6 +3,7 @@ import { taskSeriesApi, TaskSeries } from '../../api/taskSeries';
 import { User } from '../../api/users';
 import client from '../../api/client';
 import { Toast } from '../Toast';
+import { GruppenPanel } from './GruppenPanel';
 
 interface Task {
   id: number;
@@ -15,9 +16,21 @@ interface Props {
   eventId: number;
   onClose: () => void;
   onSeriesCreated?: () => void;
+  /** Für den Reiter "Aufgabengruppen" - wie viele Tage die Veranstaltung hat. */
+  eventDays?: number;
+  /** Wird gerufen, wenn sich an den Gruppen etwas geändert hat. */
+  onGruppenGeaendert?: () => void;
 }
 
-export const TaskSeriesModal: React.FC<Props> = ({ eventId, onClose, onSeriesCreated }) => {
+export const TaskSeriesModal: React.FC<Props> = ({
+  eventId, onClose, onSeriesCreated, eventDays = 1, onGruppenGeaendert,
+}) => {
+  /*
+   * Zwei Reiter statt zweier Knöpfe in der Werkzeugleiste. Bewusst keine
+   * Auswahlseite davor: ein Zwischenschritt kostet jeden Aufruf einen Klick,
+   * und wer sich vertut, muss zurück.
+   */
+  const [reiter, setReiter] = useState<'serien' | 'gruppen'>('serien');
   const [series, setSeries] = useState<TaskSeries[]>([]);
   const [eventStaff, setEventStaff] = useState<User[]>([]);
   const [eventTasks, setEventTasks] = useState<Task[]>([]);
@@ -294,10 +307,27 @@ export const TaskSeriesModal: React.FC<Props> = ({ eventId, onClose, onSeriesCre
       )}
       <div className="app-modal" style={styles.modal}>
         <div style={styles.header}>
-          <h2 style={styles.title}>Aufgaben-Serien verwalten</h2>
+          <h2 style={styles.title}>Serien &amp; Gruppen</h2>
           <button onClick={onClose} style={styles.closeButton}>✕</button>
         </div>
 
+        <div style={styles.reiterLeiste}>
+          {([['serien', 'Serien'], ['gruppen', 'Aufgabengruppen']] as const).map(([wert, text]) => (
+            <button
+              key={wert}
+              type="button"
+              onClick={() => setReiter(wert)}
+              style={{ ...styles.reiter, ...(reiter === wert ? styles.reiterAktiv : {}) }}
+            >
+              {text}
+            </button>
+          ))}
+        </div>
+
+        {reiter === 'gruppen' ? (
+          <GruppenPanel eventId={eventId} eventDays={eventDays} onGeaendert={onGruppenGeaendert} />
+        ) : (
+        <>
         <p style={styles.description}>
           Erstellen Sie Serien für wiederkehrende Aufgaben. Alle Aufgaben einer Serie können
           einem gemeinsamen Team zugewiesen werden.
@@ -530,6 +560,8 @@ export const TaskSeriesModal: React.FC<Props> = ({ eventId, onClose, onSeriesCre
             )}
           </>
         )}
+        </>
+        )}
 
         <div className="app-modal-actions" style={styles.footer}>
           <button onClick={onClose} style={styles.footerButton}>
@@ -729,6 +761,27 @@ const styles: { [key: string]: React.CSSProperties } = {
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: '1rem',
+  },
+  reiterLeiste: {
+    display: 'flex',
+    gap: '0.25rem',
+    borderBottom: '1px solid var(--c-border)',
+    marginBottom: '1rem',
+  },
+  reiter: {
+    padding: '0.5rem 0.875rem',
+    fontSize: '0.875rem',
+    color: 'var(--c-text-muted)',
+    background: 'none',
+    border: 'none',
+    borderBottom: '2px solid transparent',
+    marginBottom: '-1px',
+    cursor: 'pointer',
+  },
+  reiterAktiv: {
+    color: 'var(--c-accent-text)',
+    borderBottomColor: 'var(--c-accent)',
+    fontWeight: 600,
   },
   title: {
     fontSize: '1.5rem',

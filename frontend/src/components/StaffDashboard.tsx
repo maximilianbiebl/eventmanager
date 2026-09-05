@@ -14,6 +14,7 @@ import { toLocalDate } from '../utils/date';
 import { DaySelection, resolveInitialDay, storeDay } from '../utils/dayPreference';
 import { zeilenMitGruppen, zugeklappteGruppen, merkeZugeklappt, gruppenZeit } from '../utils/taskGroups';
 import { TaskGroup } from '../api/program';
+import { gruppenLeisteStil } from '../utils/gruppenFarben';
 import {
   cacheTasks, readCachedTasks, enqueue, flushQueue, pendingTaskIds,
   queueLength, istNetzfehler,
@@ -363,6 +364,7 @@ export const StaffDashboard: React.FC<Props> = ({ embedded = false }) => {
         title: t.group_name || '',
         time: t.group_time ?? null,
         sort_order: t.group_sort_order ?? 0,
+        color: t.group_color ?? null,
       });
     }
     return [...nachId.values()];
@@ -693,6 +695,7 @@ export const StaffDashboard: React.FC<Props> = ({ embedded = false }) => {
             type="button"
             onClick={() => klappe(z.gruppe.id)}
             className={styles.gruppenKopf}
+            style={gruppenLeisteStil(z.gruppe.color)}
             aria-expanded={!zu}
           >
             <span className={styles.gruppenPfeil} style={{ transform: zu ? 'none' : 'rotate(90deg)' }} aria-hidden="true">›</span>

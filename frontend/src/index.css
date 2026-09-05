@@ -55,6 +55,19 @@
   --shadow-md: 0 1px 3px rgba(15, 23, 42, 0.10);
   --shadow-lg: 0 10px 30px rgba(15, 23, 42, 0.12);
 
+
+  /* Farben der Aufgabengruppen. Gespeichert wird der NAME der Farbe, hier
+     steht der Wert - so bekommt das dunkle Thema eigene Toene. Der kraeftige
+     Wert traegt den Streifen, der weiche die Flaeche. */
+  --g-blau: #3B82F6;    --g-blau-soft: #EFF6FF;
+  --g-gruen: #10B981;   --g-gruen-soft: #ECFDF5;
+  --g-gelb: #F59E0B;    --g-gelb-soft: #FFFBEB;
+  --g-rot: #EF4444;     --g-rot-soft: #FEF2F2;
+  --g-violett: #8B5CF6; --g-violett-soft: #F5F3FF;
+  --g-tuerkis: #06B6D4; --g-tuerkis-soft: #ECFEFF;
+  --g-braun: #A16207;   --g-braun-soft: #FEFCE8;
+  --g-grau: #64748B;    --g-grau-soft: #F1F5F9;
+
   --radius: 6px;
   --radius-lg: 10px;
 }
@@ -100,6 +113,18 @@
   --c-warning-text: #FBBF24;
   --c-warning-soft: #33240B;
   --c-warning-strong: #FCD34D;
+
+
+  /* Gruppenfarben im dunklen Thema: der Streifen bleibt kraeftig, die
+     Flaeche wird ein dunkler Hauch - ein heller Ton wuerde hier blenden. */
+  --g-blau: #60A5FA;    --g-blau-soft: #16243D;
+  --g-gruen: #34D399;   --g-gruen-soft: #0E2C22;
+  --g-gelb: #FBBF24;    --g-gelb-soft: #33240B;
+  --g-rot: #F87171;     --g-rot-soft: #3A1618;
+  --g-violett: #A78BFA; --g-violett-soft: #241B3D;
+  --g-tuerkis: #22D3EE; --g-tuerkis-soft: #0C2B33;
+  --g-braun: #D6A45B;   --g-braun-soft: #2E2415;
+  --g-grau: #94A3B8;    --g-grau-soft: #1C2739;
 
   --c-overlay: rgba(2, 6, 16, 0.8);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
@@ -149,6 +174,18 @@
     --c-warning-text: #FBBF24;
     --c-warning-soft: #33240B;
     --c-warning-strong: #FCD34D;
+
+
+    /* Gruppenfarben im dunklen Thema: der Streifen bleibt kraeftig, die
+       Flaeche wird ein dunkler Hauch - ein heller Ton wuerde hier blenden. */
+    --g-blau: #60A5FA;    --g-blau-soft: #16243D;
+    --g-gruen: #34D399;   --g-gruen-soft: #0E2C22;
+    --g-gelb: #FBBF24;    --g-gelb-soft: #33240B;
+    --g-rot: #F87171;     --g-rot-soft: #3A1618;
+    --g-violett: #A78BFA; --g-violett-soft: #241B3D;
+    --g-tuerkis: #22D3EE; --g-tuerkis-soft: #0C2B33;
+    --g-braun: #D6A45B;   --g-braun-soft: #2E2415;
+    --g-grau: #94A3B8;    --g-grau-soft: #1C2739;
 
     --c-overlay: rgba(2, 6, 16, 0.8);
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
