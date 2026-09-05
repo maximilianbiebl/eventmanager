@@ -67,12 +67,12 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
    */
   const selbstHinweis = (() => {
     if (!formData.auto_complete) {
-      return 'Wird zur Endzeit automatisch abgehakt, ohne Erinnerung und ohne Meldung.';
+      return 'Wird zum Ende ihres Zeitfensters automatisch abgehakt.';
     }
     const zeit = formData.end_time || formData.start_time || formData.scheduled_time;
     const woher = formData.end_time ? 'Endzeit' : formData.start_time ? 'Startzeit' : 'geplanten Zeit';
     return zeit
-      ? `Wird um ${String(zeit).slice(0, 5)} Uhr (${woher}) von selbst abgehakt. Keine Erinnerung, keine Meldung, nie überfällig.`
+      ? `Wird um ${String(zeit).slice(0, 5)} Uhr (${woher}) von selbst abgehakt.`
       : 'Ohne Zeitangabe passiert nichts – bitte eine Start-, End- oder geplante Zeit eintragen.';
   })();
 

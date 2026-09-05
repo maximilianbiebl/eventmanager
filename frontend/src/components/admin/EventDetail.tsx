@@ -1151,7 +1151,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                     )}
                     {task.auto_complete && (
                       <span
-                        title="Diese Aufgabe hakt sich zum Ende ihres Zeitfensters selbst ab. Es geht keine Benachrichtigung dazu raus, und sie wird nie überfällig."
+                        title="Diese Aufgabe hakt sich zum Ende ihres Zeitfensters selbst ab."
                         style={{
                           fontSize: '0.7rem',
                           padding: '0.125rem 0.5rem',

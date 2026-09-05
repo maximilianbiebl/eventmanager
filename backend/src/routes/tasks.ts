@@ -190,6 +190,22 @@ const NOCH_AKTUELL = `(
  * Personen noetig". Negatives wird auf 0 gehoben, damit die Pruefung in der
  * Datenbank nicht ueber einen Tippfehler stolpert.
  */
+/*
+ * Vorgabe fuer die Erinnerung einer neuen Zuweisung.
+ *
+ * Massgeblich ist, was an der AUFGABE steht - dort wird es eingetragen.
+ * Frueher bekam jede neue Zuweisung fest 15 Minuten mit; weil die
+ * Zuweisung die Aufgabe ueberstimmt (COALESCE im Scheduler), blieb das
+ * Feld im Bearbeiten-Dialog fuer alle Eingeteilten wirkungslos.
+ *
+ * Wer fuer sich selbst etwas anderes einstellt, behaelt seinen Wert - der
+ * steht dann an seiner Zuweisung.
+ */
+const erinnerungDerAufgabe = async (taskId: number | string): Promise<number> => {
+  const r = await query('SELECT reminder_minutes FROM tasks WHERE id = $1', [taskId]);
+  return r.rows[0]?.reminder_minutes ?? 15;
+};
+
 const bedarfsZahl = (wert: unknown): number | null => {
   if (wert === null || wert === undefined || wert === '') return null;
   const n = Number(wert);
@@ -475,6 +491,7 @@ router.post('/assign', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff
     }
 
     const assignments = [];
+    const standardErinnerung = await erinnerungDerAufgabe(task_id);
 
     // Füge neue Zuweisungen hinzu (wenn user_ids nicht leer ist)
     for (const user_id of (user_ids || [])) {
@@ -487,7 +504,7 @@ router.post('/assign', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff
       if (existing.rows.length === 0) {
         const result = await query(
           'INSERT INTO task_assignments (task_id, event_instance_id, user_id, reminder_minutes) VALUES ($1, $2, $3, $4) RETURNING *',
-          [task_id, event_instance_id, user_id, reminder_minutes || 15]
+          [task_id, event_instance_id, user_id, reminder_minutes ?? standardErinnerung]
         );
         assignments.push(result.rows[0]);
       } else {
@@ -1888,6 +1905,7 @@ router.post('/instance/:instanceId/bulk-assign', authMiddleware, teamleiterOrAdm
     let assigned = 0;
 
     for (const taskId of task_ids) {
+      const erinnerung = await erinnerungDerAufgabe(taskId);
       for (const userId of user_ids) {
         // Check if already assigned
         const existing = await query(
@@ -1898,7 +1916,7 @@ router.post('/instance/:instanceId/bulk-assign', authMiddleware, teamleiterOrAdm
         if (existing.rows.length === 0) {
           await query(
             'INSERT INTO task_assignments (task_id, event_instance_id, user_id, reminder_minutes) VALUES ($1, $2, $3, $4)',
-            [taskId, instanceId, userId, 15]
+            [taskId, instanceId, userId, erinnerung]
           );
           assigned++;
         }
@@ -2534,7 +2552,7 @@ router.post('/task-series/:seriesId/assign-to-instance', authMiddleware, teamlei
 
     // Get all tasks in this series
     const tasksResult = await query(
-      'SELECT id FROM tasks WHERE series_id = $1',
+      'SELECT id, reminder_minutes FROM tasks WHERE series_id = $1',
       [seriesId]
     );
 
@@ -2555,7 +2573,7 @@ router.post('/task-series/:seriesId/assign-to-instance', authMiddleware, teamlei
         if (existing.rows.length === 0) {
           await query(
             'INSERT INTO task_assignments (task_id, event_instance_id, user_id, reminder_minutes) VALUES ($1, $2, $3, $4)',
-            [task.id, event_instance_id, userId, 15]
+            [task.id, event_instance_id, userId, task.reminder_minutes ?? 15]
           );
           assigned++;
         }

@@ -158,17 +158,31 @@ export async function sendTaskReminders() {
        WHERE ta.event_instance_id = $1
          AND t.day_number = $2
          AND (t.scheduled_time IS NOT NULL OR t.start_time IS NOT NULL)
-         AND ta.completed = false
-         -- Selbstabhakende Aufgaben erinnern nicht: sie erledigen sich ja
-         -- von allein, eine Erinnerung dazu waere nur Laerm.
-         AND t.auto_complete = false`,
+         AND ta.completed = false`,
+      /*
+       * Selbstabhakende Aufgaben erinnern GENAUSO wie alle anderen.
+       *
+       * Das Abhaken passiert am Ende - die Erinnerung vorher hat damit
+       * nichts zu tun: "Bus faehrt um 14:00" darf 15 Minuten vorher
+       * Bescheid sagen und sich um 14:00 trotzdem selbst abhaken. Wer
+       * keine Erinnerung will, traegt bei der Aufgabe 0 Minuten ein.
+       *
+       * Was entfaellt, ist nur die Meldung ueber das Abhaken selbst und
+       * die Ueberfaellig-Meldung.
+       */
       [instance.id, currentDay]
     );
 
     console.log(`[Notification Scheduler] Found ${tasksResult.rows.length} tasks for today`);
 
     for (const task of tasksResult.rows) {
-      const reminderMinutes = task.reminder_minutes || 15;
+      /*
+       * 0 Minuten heisst: keine Erinnerung. Das ist der Ausschalter an der
+       * Aufgabe - frueher fiel die 0 auf die Voreinstellung 15 zurueck,
+       * abschalten liess sie sich also gar nicht.
+       */
+      const reminderMinutes = task.reminder_minutes ?? 15;
+      if (reminderMinutes <= 0) continue;
       console.log(`[Notification Scheduler] Task "${task.title}" - reminder_minutes: ${reminderMinutes}, scheduled_time: ${task.scheduled_time}, start_time: ${task.start_time}`);
 
       // Erinnerung für scheduled_time
