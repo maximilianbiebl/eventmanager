@@ -541,6 +541,26 @@
 
 /* Mobile Optimizations */
 @media (max-width: 640px) {
+  /*
+   * Gruppenueberschrift am Handy: Titel ueber die ganze Breite, Knoepfe
+   * darunter. Nebeneinander bleiben fuer den Titel keine 100 Pixel - dort
+   * lief die Schrift ueber die Knoepfe.
+   */
+  .gruppenKarte {
+    padding-right: 0;
+    row-gap: 0.25rem;
+  }
+
+  .gruppenKnopf {
+    flex: 1 1 100%;
+    min-width: 100%;
+  }
+
+  .gruppenAktionen {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
   /* Kopfzeile bleibt eine Zeile: Zurück links, Aktionen rechts.
      Die frühere Spalten-Anordnung stammt aus der Zeit, als hier vier
      einzelne Buttons standen - die liegen jetzt im Überlaufmenü. */
@@ -1114,6 +1134,11 @@
 .gruppenKnopf {
   display: flex;
   align-items: center;
+  /* Ohne Umbruch schrumpfen die Textstuecke auf ihre kleinste Breite und
+     laufen dann trotzdem aus dem Knopf heraus - am Handy schoben sie sich
+     unter die Knoepfe daneben. */
+  flex-wrap: wrap;
+  row-gap: 0.125rem;
   /* Global gilt button { justify-content: center } als Vorgabe - eine
      Ueberschrift gehoert aber nach links. */
   justify-content: flex-start;
@@ -1136,10 +1161,16 @@
   line-height: 1;
 }
 
+/* "08:30 Uhr" und "2 Aufgaben" gehoeren zusammen - sie duerfen umbrechen,
+   aber nicht in sich zerfallen. */
 .gruppenTitel {
   font-weight: 700;
   font-size: 1rem;
   color:var(--c-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .gruppenZeit {
@@ -1147,11 +1178,13 @@
   font-weight: 600;
   color:var(--c-text-muted);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .gruppenZahl {
   font-size: 0.75rem;
   color:var(--c-text-muted);
+  white-space: nowrap;
 }
 
 .gruppenAktionen {
