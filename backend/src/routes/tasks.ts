@@ -2371,10 +2371,25 @@ router.get('/task-series/:seriesId', authMiddleware, teamleiterOrAdminMiddleware
     );
     console.log('Tasks found:', tasksResult.rows.length);
 
+    /*
+     * Gruppen, die zur Serie gehoeren. Ihre Aufgaben stecken schon in
+     * tasksResult - hier geht es um die Ueberschrift selbst, damit der
+     * Dialog "Fruehstueck (Gruppe, 3 Aufgaben)" zeigen kann statt drei
+     * loser Zeilen.
+     */
+    const gruppenResult = await query(
+      `SELECT pi.*, (SELECT COUNT(*) FROM tasks t WHERE t.program_item_id = pi.id) AS task_count
+       FROM program_items pi
+       WHERE pi.series_id = $1
+       ORDER BY pi.day_number, pi.sort_order, pi.id`,
+      [seriesId]
+    );
+
     res.json({
       ...seriesResult.rows[0],
       members: membersResult.rows,
       tasks: tasksResult.rows,
+      groups: gruppenResult.rows,
     });
   } catch (error) {
     console.error('Get task series details error:', error);
@@ -2449,6 +2464,75 @@ router.put('/task-series/:seriesId', authMiddleware, teamleiterOrAdminMiddleware
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Update task series error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+/*
+ * Was gehoert zur Serie?
+ *
+ * Der Dialog schickt beides: einzelne Aufgaben und ganze Gruppen. Was
+ * fehlt, faellt heraus - eine Serie ist die vollstaendige Liste ihrer
+ * Mitglieder, kein Sammelbecken, in das nur hinzugefuegt wird.
+ *
+ * Eine Aufgabe, die ueber ihre Gruppe schon dabei ist, braucht keinen
+ * eigenen Eintrag; sie bekommt ihn hier auch nicht. Steht sie ausdruecklich
+ * in der Liste, gewinnt ihre eigene Zuordnung - das ist die abgestimmte
+ * Regel fuer den Streitfall.
+ */
+router.put('/task-series/:seriesId/inhalt', authMiddleware, teamleiterOrAdminMiddleware,
+  eventZugriff(req => eventIdVonSerie(req.params.seriesId)), async (req, res) => {
+  try {
+    const { seriesId } = req.params;
+    const { task_ids, group_ids } = req.body;
+
+    const serie = await query('SELECT * FROM task_series WHERE id = $1', [seriesId]);
+    if (serie.rows.length === 0) {
+      return res.status(404).json({ error: 'Serie nicht gefunden' });
+    }
+    const eventId = serie.rows[0].event_id;
+
+    const zahlen = (x: unknown): number[] => Array.isArray(x)
+      ? x.map((n) => Number(n)).filter((n) => Number.isInteger(n))
+      : [];
+    const aufgaben = zahlen(task_ids);
+    const gruppen = zahlen(group_ids);
+
+    // Gruppen: abgewaehlte loesen, angewaehlte binden - nur aus dieser Veranstaltung.
+    await query(
+      `UPDATE program_items SET series_id = NULL
+       WHERE series_id = $1 AND NOT (id = ANY($2::int[]))`,
+      [seriesId, gruppen]
+    );
+    await query(
+      `UPDATE program_items SET series_id = $1
+       WHERE id = ANY($2::int[]) AND event_id = $3`,
+      [seriesId, gruppen, eventId]
+    );
+
+    // Aufgaben ebenso.
+    await query(
+      `UPDATE tasks SET series_id = NULL
+       WHERE series_id = $1 AND NOT (id = ANY($2::int[]))`,
+      [seriesId, aufgaben]
+    );
+    await query(
+      `UPDATE tasks SET series_id = $1
+       WHERE id = ANY($2::int[]) AND event_id = $3`,
+      [seriesId, aufgaben, eventId]
+    );
+
+    const dazu = await syncSeriesAssignments(seriesId);
+
+    broadcastUpdate('task', { action: 'series_updated', seriesId: parseInt(seriesId), eventId });
+    res.json({
+      message: 'Inhalt der Serie gespeichert',
+      aufgaben: aufgaben.length,
+      gruppen: gruppen.length,
+      neueZuweisungen: dazu,
+    });
+  } catch (error) {
+    console.error('Set series content error:', error);
     res.status(500).json({ error: 'Server Fehler' });
   }
 });
