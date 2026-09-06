@@ -4,7 +4,7 @@ import { authMiddleware, teamleiterOrAdminMiddleware, AuthRequest } from '../mid
 import { CreateTaskRequest, AssignTaskRequest } from '../types';
 import { broadcastUpdate } from './sse';
 import { CSV_BOM, ohneBom, parseCsvLine, csvFeld } from '../utils/csv';
-import { verschiebeZeile } from '../utils/reihenfolge';
+import { verschiebeZeile, einsortierenNachZeit, einsortierenInGruppe } from '../utils/reihenfolge';
 import { farbeOderNull } from '../utils/gruppenFarben';
 import { AUFGABEN_DER_SERIE, syncSeriesAssignments } from '../utils/serien';
 import {
@@ -369,59 +369,16 @@ router.post('/', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req =
       auto_complete
     } = req.body;
 
-    // Get all existing tasks for this event, sorted by day and time
-    const existingTasks = await query(
-      `SELECT id, day_number, scheduled_time, start_time, sort_order
-       FROM tasks
-       WHERE event_id = $1
-       ORDER BY day_number,
-                COALESCE(scheduled_time, start_time, '00:00') ASC`,
-      [event_id]
-    );
-
-    // Determine the time for the new task (tasks without time get '00:00' = top of list)
-    const newTaskTime = scheduled_time || start_time || '00:00';
-
-    // Find the position where the new task should be inserted
-    let insertPosition = -1;
-    for (let i = 0; i < existingTasks.rows.length; i++) {
-      const task = existingTasks.rows[i];
-      const taskTime = task.scheduled_time || task.start_time || '00:00';
-
-      // If the existing task is on a later day, or same day but later time, insert before it
-      if (task.day_number > day_number ||
-          (task.day_number === day_number && taskTime > newTaskTime)) {
-        insertPosition = i;
-        break;
-      }
-    }
-
-    // Calculate new sort_order based on surrounding tasks
-    let newSortOrder;
-    if (insertPosition === -1) {
-      // Insert at the end
-      const lastTask = existingTasks.rows[existingTasks.rows.length - 1];
-      newSortOrder = lastTask ? (lastTask.sort_order || 0) + 10 : 10;
-    } else if (insertPosition === 0) {
-      // Insert at the beginning
-      const firstTask = existingTasks.rows[0];
-      newSortOrder = firstTask ? Math.max(1, (firstTask.sort_order || 10) - 10) : 10;
-    } else {
-      // Insert in the middle - use average of surrounding tasks
-      const taskBefore = existingTasks.rows[insertPosition - 1];
-      const taskAfter = existingTasks.rows[insertPosition];
-      const orderBefore = taskBefore.sort_order || 10;
-      const orderAfter = taskAfter.sort_order || 20;
-
-      // If there's a gap, use the middle
-      if (orderAfter - orderBefore > 1) {
-        newSortOrder = Math.floor((orderBefore + orderAfter) / 2);
-      } else {
-        // No gap - need to shift everything after
-        newSortOrder = orderAfter;
-        // Will shift later tasks in separate query
-      }
-    }
+    /*
+     * Der Platz in der Handreihenfolge wird NACH dem Anlegen bestimmt -
+     * siehe unten, einsortierenNachZeit. Vorher rechnete diese Stelle
+     * selbst: sie suchte quer ueber ALLE Tage die Nachbarn nach Uhrzeit,
+     * mittelte deren Nummern und schob notfalls alles dahinter um zehn
+     * weiter. Aufgabengruppen kamen darin gar nicht vor, eine neue Aufgabe
+     * konnte deshalb oberhalb einer Gruppe landen, zu der sie zeitlich
+     * laengst gehoert haette.
+     */
+    const newSortOrder = 0;
 
     // Insert the new task with calculated sort_order
     const result = await query(
@@ -452,23 +409,15 @@ router.post('/', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req =
       ]
     );
 
-    // Update sort_order of all tasks that come after the inserted position
-    // Only shift if there was no gap
-    if (insertPosition !== -1 && insertPosition > 0) {
-      const taskAfter = existingTasks.rows[insertPosition];
-      const taskBefore = existingTasks.rows[insertPosition - 1];
-      const orderBefore = taskBefore.sort_order || 10;
-      const orderAfter = taskAfter.sort_order || 20;
-
-      if (orderAfter - orderBefore <= 1) {
-        // No gap - shift everything after
-        await query(
-          `UPDATE tasks
-           SET sort_order = sort_order + 10
-           WHERE event_id = $1 AND sort_order >= $2 AND id != $3`,
-          [event_id, newSortOrder, result.rows[0].id]
-        );
-      }
+    /*
+     * Jetzt an die Stelle setzen, die die Uhrzeit vorgibt: innerhalb der
+     * Gruppe, wenn die Aufgabe zu einer gehoert, sonst auf der Tagesebene
+     * zwischen Gruppen und losen Aufgaben.
+     */
+    if (program_item_id) {
+      await einsortierenInGruppe(Number(program_item_id), result.rows[0].id);
+    } else {
+      await einsortierenNachZeit(Number(event_id), Number(day_number), 'aufgabe', result.rows[0].id);
     }
 
     // Gehört die neue Aufgabe zu einer Serie, bekommen deren Mitglieder sie

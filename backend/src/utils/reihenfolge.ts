@@ -28,26 +28,43 @@ export interface Zeile {
   art: ZeilenArt;
   id: number;
   rang: number;
+  /** Zeit, nach der einsortiert wird - siehe zeilenDesTages. */
+  zeit?: string | null;
 }
 
-/** Gruppen und gruppenlose Aufgaben eines Tages in ihrer Reihenfolge. */
+/**
+ * Gruppen und gruppenlose Aufgaben eines Tages in ihrer Reihenfolge.
+ *
+ * Mit der Zeit, nach der die Zeile einsortiert wird: bei einer Aufgabe die
+ * geplante bzw. die Startzeit, bei einer Gruppe ihre eigene - und wenn sie
+ * keine hat, die frueheste ihrer Aufgaben. Dieselbe Regel wie in der
+ * Anzeige (frontend/utils/taskGroups): eine Gruppe ohne eigene Zeit, deren
+ * Aufgaben aber Zeiten haben, ist eben doch verortet.
+ */
 export const zeilenDesTages = async (eventId: number, dayNumber: number): Promise<Zeile[]> => {
   const [gruppen, lose] = await Promise.all([
     query(
-      `SELECT id, COALESCE(sort_order, 0) AS rang FROM program_items
-       WHERE event_id = $1 AND day_number = $2`,
+      `SELECT pi.id, COALESCE(pi.sort_order, 0) AS rang,
+              COALESCE(pi.time, (
+                SELECT MIN(COALESCE(t.scheduled_time, t.start_time))
+                FROM tasks t WHERE t.program_item_id = pi.id
+              )) AS zeit
+       FROM program_items pi
+       WHERE pi.event_id = $1 AND pi.day_number = $2`,
       [eventId, dayNumber]
     ),
     query(
-      `SELECT id, COALESCE(sort_order, 0) AS rang FROM tasks
+      `SELECT id, COALESCE(sort_order, 0) AS rang,
+              COALESCE(scheduled_time, start_time) AS zeit
+       FROM tasks
        WHERE event_id = $1 AND day_number = $2 AND program_item_id IS NULL`,
       [eventId, dayNumber]
     ),
   ]);
 
   const zeilen: Zeile[] = [
-    ...gruppen.rows.map(r => ({ art: 'gruppe' as const, id: r.id, rang: Number(r.rang) })),
-    ...lose.rows.map(r => ({ art: 'aufgabe' as const, id: r.id, rang: Number(r.rang) })),
+    ...gruppen.rows.map(r => ({ art: 'gruppe' as const, id: r.id, rang: Number(r.rang), zeit: r.zeit ?? null })),
+    ...lose.rows.map(r => ({ art: 'aufgabe' as const, id: r.id, rang: Number(r.rang), zeit: r.zeit ?? null })),
   ];
 
   // Bei gleichem Rang zuerst die Gruppen, dann nach Nummer - Hauptsache
@@ -135,4 +152,65 @@ export const verschiebeZeile = async (
   // Mit den Raengen, die gerade geschrieben wurden - nicht mit den alten.
   const neu = zeilen.map((z, k) => ({ ...z, rang: (k + 1) * 10 }));
   return { bewegt: true, meldung: 'Reihenfolge aktualisiert', reihenfolge: neu };
+};
+
+/**
+ * Eine neu angelegte Zeile an ihren Platz setzen - nach der Uhrzeit.
+ *
+ * Der Reihe nach: die Zeile kommt vor die erste vorhandene, die spaeter
+ * dran ist. Was keine Zeit hat, kommt ans Ende des Tages - dieselbe Regel
+ * wie in der Anzeige. Die vorhandene Handreihenfolge bleibt unangetastet;
+ * eingefuegt wird nur die neue Zeile.
+ *
+ * Danach wird der Tag neu durchnummeriert. Das ist seit der
+ * Sammelanweisung billig und erspart die Rechnerei mit Luecken, die
+ * frueher zwischen zwei gleichen Nummern stecken blieb.
+ */
+export const einsortierenNachZeit = async (
+  eventId: number,
+  dayNumber: number,
+  art: ZeilenArt,
+  id: number
+): Promise<void> => {
+  const alle = await zeilenDesTages(eventId, dayNumber);
+  const neue = alle.find(z => z.art === art && z.id === id);
+  if (!neue) return;
+
+  const andere = alle.filter(z => !(z.art === art && z.id === id));
+  const spaeter = (a: string | null | undefined, b: string | null | undefined) => {
+    if (!a) return false;          // ohne Zeit steht nichts "spaeter"
+    if (!b) return true;           // alles Zeitlose kommt danach
+    return String(b) > String(a);
+  };
+
+  let stelle = andere.findIndex(z => spaeter(neue.zeit, z.zeit));
+  if (stelle === -1) stelle = andere.length;
+
+  andere.splice(stelle, 0, neue);
+  await nummerieren(andere);
+};
+
+/**
+ * Dasselbe innerhalb einer Gruppe: eine neue Aufgabe kommt an die Stelle,
+ * die ihre Uhrzeit vorgibt, statt ans Ende.
+ */
+export const einsortierenInGruppe = async (gruppenId: number, taskId: number): Promise<void> => {
+  const r = await query(
+    `SELECT id, COALESCE(sort_order, 0) AS rang,
+            COALESCE(scheduled_time, start_time) AS zeit
+     FROM tasks WHERE program_item_id = $1`,
+    [gruppenId]
+  );
+  const alle: Zeile[] = r.rows.map((x: any) =>
+    ({ art: 'aufgabe' as const, id: x.id, rang: Number(x.rang), zeit: x.zeit ?? null }));
+
+  const neue = alle.find(z => z.id === taskId);
+  if (!neue) return;
+
+  const andere = alle.filter(z => z.id !== taskId).sort((a, b) => a.rang - b.rang || a.id - b.id);
+  let stelle = andere.findIndex(z => (neue.zeit ? (!z.zeit || String(z.zeit) > String(neue.zeit)) : false));
+  if (stelle === -1) stelle = andere.length;
+
+  andere.splice(stelle, 0, neue);
+  await nummerieren(andere);
 };

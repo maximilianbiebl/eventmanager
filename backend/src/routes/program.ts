@@ -4,7 +4,7 @@ import { Response } from 'express';
 import { authMiddleware, teamleiterOrAdminMiddleware, AuthRequest } from '../middleware/auth';
 import { eventZugriff } from '../middleware/eventAccess';
 import { broadcastUpdate } from './sse';
-import { verschiebeZeile } from '../utils/reihenfolge';
+import { verschiebeZeile, einsortierenNachZeit } from '../utils/reihenfolge';
 import { farbeOderNull } from '../utils/gruppenFarben';
 import { syncSeriesAssignments } from '../utils/serien';
 
@@ -110,8 +110,17 @@ router.post('/', authMiddleware, teamleiterOrAdminMiddleware,
        max.rows[0].m + 10, farbeOderNull(color), serieOderNull(series_id)]
     );
 
+    /*
+     * An die Stelle setzen, die die Uhrzeit vorgibt - dieselbe Regel wie in
+     * der Anzeige: eigene Zeit, sonst die frueheste ihrer Aufgaben, und
+     * ohne Zeit ans Ende des Tages. Eine frisch angelegte Gruppe hat noch
+     * keine Aufgaben, faellt also ans Ende, wenn sie keine Zeit traegt.
+     */
+    await einsortierenNachZeit(Number(event_id), Number(day_number), 'gruppe', result.rows[0].id);
+    const gesetzt = await query('SELECT * FROM program_items WHERE id = $1', [result.rows[0].id]);
+
     broadcastUpdate('task', { action: 'group_created', eventId: Number(event_id) });
-    res.status(201).json(result.rows[0]);
+    res.status(201).json(gesetzt.rows[0]);
   } catch (error) {
     console.error('Create task group error:', error);
     res.status(500).json({ error: 'Server Fehler' });
@@ -360,9 +369,16 @@ router.post('/:id/duplicate', authMiddleware, teamleiterOrAdminMiddleware,
       }
     }
 
+    /*
+     * Erst jetzt einsortieren: die Zeit einer Gruppe ohne eigene Uhrzeit
+     * kommt von ihren Aufgaben, und die sind gerade erst kopiert worden.
+     */
+    await einsortierenNachZeit(alt.event_id, zielTag, 'gruppe', neueGruppe.id);
+    const frisch = await query('SELECT * FROM program_items WHERE id = $1', [neueGruppe.id]);
+
     broadcastUpdate('task', { action: 'group_created', eventId: alt.event_id });
     res.status(201).json({
-      gruppe: neueGruppe,
+      gruppe: frisch.rows[0],
       kopierteAufgaben,
       kopierteZuweisungen,
       message: `„${alt.title}" wurde nach Tag ${zielTag} kopiert`,
