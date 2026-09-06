@@ -75,6 +75,16 @@ const nummerieren = async (zeilen: Zeile[]): Promise<void> => {
 export interface VerschiebeErgebnis {
   bewegt: boolean;
   meldung: string;
+  /*
+   * Die neue Reihenfolge des Tages - Gruppen und lose Aufgaben mit ihrem
+   * frischen Rang.
+   *
+   * Sie geht mit der Antwort zurueck, damit die Oberflaeche den Zug sofort
+   * zeigen kann. Vorher musste sie nach jedem Pfeildruck alles neu holen:
+   * Aufgaben, Gruppen, Veranstaltung, Nutzer - fuenf Abfragen fuer eine
+   * vertauschte Zeile, und bis dahin stand die Liste still.
+   */
+  reihenfolge: Zeile[];
 }
 
 /**
@@ -91,17 +101,21 @@ export const verschiebeZeile = async (
 ): Promise<VerschiebeErgebnis> => {
   const zeilen = await zeilenDesTages(eventId, dayNumber);
   const i = zeilen.findIndex(z => z.art === art && z.id === id);
-  if (i === -1) return { bewegt: false, meldung: 'Nicht gefunden' };
+  if (i === -1) return { bewegt: false, meldung: 'Nicht gefunden', reihenfolge: zeilen };
 
   const j = richtung === 'hoch' ? i - 1 : i + 1;
   if (j < 0 || j >= zeilen.length) {
     return {
       bewegt: false,
       meldung: richtung === 'hoch' ? 'Steht bereits ganz oben' : 'Steht bereits ganz unten',
+      reihenfolge: zeilen,
     };
   }
 
   [zeilen[i], zeilen[j]] = [zeilen[j], zeilen[i]];
   await nummerieren(zeilen);
-  return { bewegt: true, meldung: 'Reihenfolge aktualisiert' };
+
+  // Mit den Raengen, die gerade geschrieben wurden - nicht mit den alten.
+  const neu = zeilen.map((z, k) => ({ ...z, rang: (k + 1) * 10 }));
+  return { bewegt: true, meldung: 'Reihenfolge aktualisiert', reihenfolge: neu };
 };

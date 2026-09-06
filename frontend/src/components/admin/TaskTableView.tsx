@@ -11,6 +11,7 @@ import { useSSE } from '../../hooks/useSSE';
 import responsiveStyles from './TaskTableView.module.css';
 import { Toast } from '../Toast';
 import { useSchmal } from '../../utils/schmal';
+import { Rangzeile } from '../../api/tasks';
 import { farbeVon } from '../../utils/gruppenFarben';
 import { GruppeBearbeitenModal } from './GruppeBearbeitenModal';
 import { CSVExportModal } from './CSVExportModal';
@@ -73,6 +74,12 @@ interface Props {
   /** Aufgabengruppen der Veranstaltung - Zwischenueberschriften in der Liste. */
   gruppen?: TaskGroup[];
   /**
+   * Neue Raenge der Gruppen nach einem Verschieben. Die Liste der Gruppen
+   * fuehrt die Elternansicht - sie traegt die Aenderung dort nach, ohne
+   * dass alles neu geladen werden muss.
+   */
+  onGruppenRaenge?: (raenge: Map<number, number>) => void;
+  /**
    * Leitung der Veranstaltung. Bestimmt die Farbe der Zuweisungs-Badges:
    * innerhalb einer Veranstaltung zaehlt die Zustaendigkeit hier, nicht die
    * Rolle des Kontos.
@@ -132,9 +139,13 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
   leitung,
   onTasksChanged,
   gruppen = [],
+  onGruppenRaenge,
 }, ref) => {
   const schmal = useSchmal();
   const [gruppeInBearbeitung, setGruppeInBearbeitung] = useState<TaskGroup | null>(null);
+  /** Zuletzt verschobene Aufgabe - wird kurz hervorgehoben. */
+  const [zuletztVerschoben, setZuletztVerschoben] = useState<number | null>(null);
+  const verschobenRef = React.useRef<number | undefined>(undefined);
   const [assignments, setAssignments] = useState<TaskAssignment[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -306,50 +317,38 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
   };
 
   /*
-   * Aufgabe INNERHALB ihrer Gruppe sofort tauschen.
+   * Die vom Server zurueckgegebene Reihenfolge anwenden.
    *
-   * Der Server tut fuer eine gruppierte Aufgabe genau das: er tauscht die
-   * Reihenfolge-Nummer mit dem Nachbarn DERSELBEN Gruppe. Das laesst sich
-   * hier nachbilden, also zeigt die Anzeige den Zug sofort - vorher wartete
-   * sie auf das Nachladen, und weil das erst laeuft, wenn keine Aktion mehr
-   * offen ist, fuehlte sich schnelles Klicken wie eingefroren an.
+   * Verschieben antwortet mit der neuen Reihenfolge des Tages (Gruppen und
+   * lose Aufgaben) bzw. der Gruppe. Damit steht das Ergebnis nach EINER
+   * Anfrage fest - vorher wurde danach alles neu geholt: Aufgaben, Gruppen,
+   * Veranstaltung, Nutzer. Fuenf Abfragen fuer eine vertauschte Zeile, und
+   * bis dahin stand die Liste still.
    *
-   * Fuer eine Aufgabe OHNE Gruppe wird bewusst nichts vorweggenommen: dort
-   * nummeriert der Server den ganzen Tag neu, samt Gruppen - das ist hier
-   * nicht nachzubilden, und ein falsches Zwischenbild waere schlimmer als
-   * ein Augenblick Warten.
+   * Es wird nichts geraten: die Raenge kommen vom Server, so wie er sie
+   * gerade geschrieben hat.
    */
-  const tauscheInGruppe = (taskId: number, richtung: 'hoch' | 'runter') => {
-    setAssignments((alt) => {
-      const ich = alt.find((a) => a.id === taskId);
-      if (!ich || !ich.program_item_id) return alt;
+  const wendeReihenfolgeAn = (reihenfolge?: Rangzeile[]) => {
+    if (!reihenfolge || reihenfolge.length === 0) return false;
 
-      /*
-       * In der Liste steht je Zuweisung eine Zeile - eine Aufgabe mit drei
-       * Eingeteilten kommt dreimal vor. Fuer die Nachbarschaft zaehlt aber
-       * die Aufgabe, nicht die Zuweisung.
-       */
-      const jeAufgabe = new Map<number, typeof ich>();
-      for (const a of alt) {
-        if (a.program_item_id === ich.program_item_id && !jeAufgabe.has(a.id)) jeAufgabe.set(a.id, a);
-      }
-      const geschwister = [...jeAufgabe.values()]
-        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    const aufgaben = new Map<number, number>();
+    const gruppenRaenge = new Map<number, number>();
+    for (const z of reihenfolge) {
+      (z.art === 'gruppe' ? gruppenRaenge : aufgaben).set(z.id, z.rang);
+    }
 
-      const i = geschwister.findIndex((a) => a.id === taskId);
-      const j = richtung === 'hoch' ? i - 1 : i + 1;
-      if (i === -1 || j < 0 || j >= geschwister.length) return alt;
+    setAssignments((alt) => alt.map((a) =>
+      aufgaben.has(a.id) ? { ...a, sort_order: aufgaben.get(a.id) } : a
+    ));
+    if (gruppenRaenge.size > 0) onGruppenRaenge?.(gruppenRaenge);
+    return true;
+  };
 
-      const meiner = geschwister[i].sort_order ?? 0;
-      const seiner = geschwister[j].sort_order ?? 0;
-      const anderer = geschwister[j].id;
-
-      return alt.map((a) =>
-        a.id === taskId ? { ...a, sort_order: seiner }
-        : a.id === anderer ? { ...a, sort_order: meiner }
-        : a
-      );
-    });
+  /** Kurz hervorheben, damit das Auge der verschobenen Zeile folgt. */
+  const merkeVerschoben = (taskId: number) => {
+    setZuletztVerschoben(taskId);
+    window.clearTimeout(verschobenRef.current);
+    verschobenRef.current = window.setTimeout(() => setZuletztVerschoben(null), 1600);
   };
 
   const handleMoveUp = async (taskId: number) => {
@@ -365,10 +364,14 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
        * zurechtrueckte. Und der Server nummeriert beim Verschieben den
        * ganzen Tag neu, das laesst sich hier ohnehin nicht nachbilden.
        */
-      tauscheInGruppe(taskId, 'hoch');
-      await tasksApi.moveUp(taskId);
+      const antwort = await tasksApi.moveUp(taskId);
+      const angewandt = wendeReihenfolgeAn(antwort?.reihenfolge);
+      merkeVerschoben(taskId);
       setSuccessMessage('Aufgabe wurde nach oben verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
+      // Aeltere Serverfassungen antworten ohne Reihenfolge - dann bleibt
+      // nur das Nachladen.
+      if (!angewandt) { loadAssignments(false); onTasksChanged?.(); }
     } catch (error: any) {
       console.error('Move up error:', error);
       loadAssignments(false);
@@ -380,16 +383,10 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
     } finally {
       pendingActionsRef.current--; // Decrement when done
       // SSE updates will now be processed if no more actions are pending
-      if (pendingActionsRef.current === 0) {
-        // Small delay to ensure server has processed all updates
-        setTimeout(() => {
-          loadAssignments(false);
-          // Der Server nummeriert beim Verschieben Gruppen UND lose Aufgaben
-          // des Tages neu - ohne dieses Nachladen behaelt die Anzeige die
-          // alten Gruppenraenge und die Reihenfolge stimmt nicht mehr.
-          onTasksChanged?.();
-        }, 50);
-      }
+      /*
+       * Kein Nachladen mehr: die Antwort trug die neue Reihenfolge schon
+       * bei sich. Nachgeladen wird nur, wenn sie gefehlt hat (siehe oben).
+       */
     }
   };
 
@@ -397,10 +394,12 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
     pendingActionsRef.current++; // Increment pending actions counter
     try {
       // Kein vorgezogenes Umsortieren - siehe handleMoveUp.
-      tauscheInGruppe(taskId, 'runter');
-      await tasksApi.moveDown(taskId);
+      const antwort = await tasksApi.moveDown(taskId);
+      const angewandt = wendeReihenfolgeAn(antwort?.reihenfolge);
+      merkeVerschoben(taskId);
       setSuccessMessage('Aufgabe wurde nach unten verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
+      if (!angewandt) { loadAssignments(false); onTasksChanged?.(); }
     } catch (error: any) {
       console.error('Move down error:', error);
       loadAssignments(false);
@@ -412,16 +411,10 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
     } finally {
       pendingActionsRef.current--; // Decrement when done
       // SSE updates will now be processed if no more actions are pending
-      if (pendingActionsRef.current === 0) {
-        // Small delay to ensure server has processed all updates
-        setTimeout(() => {
-          loadAssignments(false);
-          // Der Server nummeriert beim Verschieben Gruppen UND lose Aufgaben
-          // des Tages neu - ohne dieses Nachladen behaelt die Anzeige die
-          // alten Gruppenraenge und die Reihenfolge stimmt nicht mehr.
-          onTasksChanged?.();
-        }, 50);
-      }
+      /*
+       * Kein Nachladen mehr: die Antwort trug die neue Reihenfolge schon
+       * bei sich. Nachgeladen wird nur, wenn sie gefehlt hat (siehe oben).
+       */
     }
   };
 
@@ -644,6 +637,9 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
         ...(inGruppe
           ? { boxShadow: `inset 3px 0 0 ${gruppenFarbe ? gruppenFarbe.kraeftig : 'var(--c-border-strong)'}` }
           : {}),
+        /* Kurz hervorgehoben: sonst sieht man beim Verschieben nur, dass
+           sich Text verschoben hat, und muss die Zeile wiederfinden. */
+        ...(zuletztVerschoben === task.id ? styles.verschoben : {}),
       }}
     >
                   <td style={styles.td}>
@@ -876,9 +872,11 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
 
   const gruppeVerschieben = async (gruppe: TaskGroup, richtung: 'hoch' | 'runter') => {
     try {
-      if (richtung === 'hoch') await programApi.moveUp(gruppe.id);
-      else await programApi.moveDown(gruppe.id);
-      onTasksChanged?.();
+      const antwort = richtung === 'hoch'
+        ? await programApi.moveUp(gruppe.id)
+        : await programApi.moveDown(gruppe.id);
+      // Auch hier kommt die neue Reihenfolge mit der Antwort.
+      if (!wendeReihenfolgeAn(antwort?.reihenfolge)) onTasksChanged?.();
     } catch (error) {
       console.error('Move task group error:', error);
     }
@@ -1532,6 +1530,17 @@ const styles: { [key: string]: React.CSSProperties } = {
     gap: '0.5rem',
     justifyContent: 'flex-end',
     alignItems: 'flex-end',
+  },
+  /*
+   * Die eben verschobene Zeile. Kein Blinken, sondern ein ruhiger Ton, der
+   * nach anderthalb Sekunden wieder verschwindet - lang genug, um ihr mit
+   * den Augen zu folgen, kurz genug, um nicht zu stoeren.
+   */
+  verschoben: {
+    backgroundColor: 'var(--c-accent-soft)',
+    outline: '2px solid var(--c-accent-border)',
+    outlineOffset: '-2px',
+    transition: 'background-color 0.25s ease, outline-color 0.25s ease',
   },
   /** Aufgaben unter einer Gruppenueberschrift ruecken ein. */
   eingerueckt: {

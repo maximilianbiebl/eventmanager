@@ -12,6 +12,7 @@ import { TaskTableView, TaskTableViewHandle } from './TaskTableView';
 import { TaskSeriesModal } from './TaskSeriesModal';
 import { GruppeBearbeitenModal } from './GruppeBearbeitenModal';
 import { gruppenLeisteStil } from '../../utils/gruppenFarben';
+import { Rangzeile } from '../../api/tasks';
 import { DuplicateEventModal } from './DuplicateEventModal';
 import { CreateFromTemplateModal } from './CreateFromTemplateModal';
 import { EventEditModal } from './EventEditModal';
@@ -545,6 +546,8 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
             onAssignTask={handleAssignTask}
             gruppen={gruppen}
             eventId={eventId}
+            onGruppenRaenge={(raenge) => setGruppen((alt) => alt.map((g) =>
+              raenge.has(g.id) ? { ...g, sort_order: raenge.get(g.id) } : g))}
             onGruppenGeaendert={() => loadData(false)}
             event={event}
             manualRefreshTrigger={manualRefreshTrigger}
@@ -561,6 +564,10 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
               onAssignTask={handleAssignTask}
               onTasksChanged={() => loadData(false)}
               gruppen={gruppen}
+              /* Neue Gruppenraenge nach einem Verschieben direkt eintragen -
+                 die Liste der Gruppen liegt hier, nicht in der Tabelle. */
+              onGruppenRaenge={(raenge) => setGruppen((alt) => alt.map((g) =>
+                raenge.has(g.id) ? { ...g, sort_order: raenge.get(g.id) } : g))}
               eventDays={event?.days}
               selectedDay={selectedDay}
               onSelectedDayChange={handleDayChange}
@@ -672,6 +679,8 @@ interface TaskListViewProps {
   gruppen?: TaskGroup[];
   /** Fuer den Bearbeiten-Dialog einer Gruppe. */
   eventId?: number;
+  /** Neue Raenge der Gruppen nach einem Verschieben - siehe Tabellenansicht. */
+  onGruppenRaenge?: (raenge: Map<number, number>) => void;
   /** Nach Umbenennen/Loeschen einer Gruppe: Elternansicht nachladen. */
   onGruppenGeaendert?: () => void;
   selectedDay: number | 'all';
@@ -688,6 +697,7 @@ interface TaskListViewProps {
 const TaskListView: React.FC<TaskListViewProps> = ({
   gruppen = [],
   eventId,
+  onGruppenRaenge,
   onGruppenGeaendert,
   selectedDay,
   selectedInstance,
@@ -700,6 +710,9 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   onDayChange,
 }) => {
   const [gruppeInBearbeitung, setGruppeInBearbeitung] = useState<TaskGroup | null>(null);
+  /** Zuletzt verschobene Aufgabe - wird kurz hervorgehoben. */
+  const [zuletztVerschoben, setZuletztVerschoben] = React.useState<number | null>(null);
+  const verschobenRef = React.useRef<number | undefined>(undefined);
   const [assignments, setAssignments] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [successMessage, setSuccessMessage] = React.useState('');
@@ -870,37 +883,28 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   };
 
   /*
-   * Aufgabe INNERHALB ihrer Gruppe sofort tauschen - siehe die gleich
-   * lautende Stelle in der Tabellenansicht. Der Server tut fuer eine
-   * gruppierte Aufgabe genau das; ohne diesen Vorgriff wartet die Anzeige
-   * auf das Nachladen, das erst laeuft, wenn keine Aktion mehr offen ist.
+   * Die vom Server zurueckgegebene Reihenfolge anwenden - wie in der
+   * Tabellenansicht. Eine Anfrage statt fuenf, und nichts geraten.
    */
-  const tauscheInGruppe = (taskId: number, richtung: 'hoch' | 'runter') => {
-    setAssignments((alt) => {
-      const ich = alt.find((a: any) => a.id === taskId);
-      if (!ich || !ich.program_item_id) return alt;
+  const wendeReihenfolgeAn = (reihenfolge?: Rangzeile[]) => {
+    if (!reihenfolge || reihenfolge.length === 0) return false;
+    const aufgaben = new Map<number, number>();
+    const gruppenRaenge = new Map<number, number>();
+    for (const z of reihenfolge) {
+      (z.art === 'gruppe' ? gruppenRaenge : aufgaben).set(z.id, z.rang);
+    }
+    setAssignments((alt: any[]) => alt.map((a) =>
+      aufgaben.has(a.id) ? { ...a, sort_order: aufgaben.get(a.id) } : a
+    ));
+    if (gruppenRaenge.size > 0) onGruppenRaenge?.(gruppenRaenge);
+    return true;
+  };
 
-      const jeAufgabe = new Map<number, any>();
-      for (const a of alt) {
-        if (a.program_item_id === ich.program_item_id && !jeAufgabe.has(a.id)) jeAufgabe.set(a.id, a);
-      }
-      const geschwister = [...jeAufgabe.values()]
-        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-
-      const i = geschwister.findIndex((a) => a.id === taskId);
-      const j = richtung === 'hoch' ? i - 1 : i + 1;
-      if (i === -1 || j < 0 || j >= geschwister.length) return alt;
-
-      const meiner = geschwister[i].sort_order ?? 0;
-      const seiner = geschwister[j].sort_order ?? 0;
-      const anderer = geschwister[j].id;
-
-      return alt.map((a: any) =>
-        a.id === taskId ? { ...a, sort_order: seiner }
-        : a.id === anderer ? { ...a, sort_order: meiner }
-        : a
-      );
-    });
+  /** Kurz hervorheben, damit das Auge der verschobenen Karte folgt. */
+  const merkeVerschoben = (taskId: number) => {
+    setZuletztVerschoben(taskId);
+    window.clearTimeout(verschobenRef.current);
+    verschobenRef.current = window.setTimeout(() => setZuletztVerschoben(null), 1600);
   };
 
   const handleMoveUp = async (taskId: number) => {
@@ -915,10 +919,12 @@ const TaskListView: React.FC<TaskListViewProps> = ({
        * falsches Bild auf. Ausserdem nummeriert der Server beim Verschieben
        * den ganzen Tag neu, das laesst sich hier nicht nachbilden.
        */
-      tauscheInGruppe(taskId, 'hoch');
-      await tasksApi.moveUp(taskId);
+      const antwort = await tasksApi.moveUp(taskId);
+      const angewandt = wendeReihenfolgeAn(antwort?.reihenfolge);
+      merkeVerschoben(taskId);
       setSuccessMessage('Aufgabe wurde nach oben verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
+      if (!angewandt) { loadAssignments(false); onGruppenGeaendert?.(); }
     } catch (error: any) {
       console.error('Move up error:', error);
       loadAssignments(false);
@@ -926,16 +932,8 @@ const TaskListView: React.FC<TaskListViewProps> = ({
     } finally {
       pendingActionsRef.current--; // Decrement when done
       // SSE updates will now be processed if no more actions are pending
-      if (pendingActionsRef.current === 0) {
-        // Small delay to ensure server has processed all updates
-        setTimeout(() => {
-          loadAssignments(false);
-          // Der Server nummeriert Gruppen UND lose Aufgaben des Tages neu -
-          // ohne dieses Nachladen behaelt die Anzeige die alten
-          // Gruppenraenge.
-          onGruppenGeaendert?.();
-        }, 50);
-      }
+      /* Kein Nachladen: die Antwort trug die neue Reihenfolge schon bei
+         sich (siehe oben). */
     }
   };
 
@@ -945,10 +943,12 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       const { tasksApi } = await import('../../api/tasks');
 
       // Kein vorgezogenes Umsortieren - siehe handleMoveUp.
-      tauscheInGruppe(taskId, 'runter');
-      await tasksApi.moveDown(taskId);
+      const antwort = await tasksApi.moveDown(taskId);
+      const angewandt = wendeReihenfolgeAn(antwort?.reihenfolge);
+      merkeVerschoben(taskId);
       setSuccessMessage('Aufgabe wurde nach unten verschoben');
       setTimeout(() => setSuccessMessage(''), 3000);
+      if (!angewandt) { loadAssignments(false); onGruppenGeaendert?.(); }
     } catch (error: any) {
       console.error('Move down error:', error);
       loadAssignments(false);
@@ -956,16 +956,8 @@ const TaskListView: React.FC<TaskListViewProps> = ({
     } finally {
       pendingActionsRef.current--; // Decrement when done
       // SSE updates will now be processed if no more actions are pending
-      if (pendingActionsRef.current === 0) {
-        // Small delay to ensure server has processed all updates
-        setTimeout(() => {
-          loadAssignments(false);
-          // Der Server nummeriert Gruppen UND lose Aufgaben des Tages neu -
-          // ohne dieses Nachladen behaelt die Anzeige die alten
-          // Gruppenraenge.
-          onGruppenGeaendert?.();
-        }, 50);
-      }
+      /* Kein Nachladen: die Antwort trug die neue Reihenfolge schon bei
+         sich (siehe oben). */
     }
   };
 
@@ -1069,9 +1061,10 @@ const TaskListView: React.FC<TaskListViewProps> = ({
 
     const verschieben = async (richtung: 'hoch' | 'runter') => {
       try {
-        if (richtung === 'hoch') await programApi.moveUp(gruppe.id);
-        else await programApi.moveDown(gruppe.id);
-        onGruppenGeaendert?.();
+        const antwort = richtung === 'hoch'
+          ? await programApi.moveUp(gruppe.id)
+          : await programApi.moveDown(gruppe.id);
+        if (!wendeReihenfolgeAn(antwort?.reihenfolge)) onGruppenGeaendert?.();
       } catch (error) {
         console.error('Move task group error:', error);
       }
@@ -1194,6 +1187,15 @@ const TaskListView: React.FC<TaskListViewProps> = ({
               // Eingerueckt unter der Gruppenueberschrift - so sieht man, was
               // zusammengehoert, ohne die Karte anders aussehen zu lassen.
               ...(inGruppe ? { marginLeft: '1.25rem' } : {}),
+              /* Die eben verschobene Karte bleibt anderthalb Sekunden
+                 hervorgehoben - sonst sieht man nur, dass sich Text
+                 verschoben hat, und muss die Karte wiederfinden. */
+              ...(zuletztVerschoben === task.id ? {
+                backgroundColor: 'var(--c-accent-soft)',
+                outline: '2px solid var(--c-accent-border)',
+                outlineOffset: '-2px',
+                transition: 'background-color 0.25s ease, outline-color 0.25s ease',
+              } : {}),
             }}
           >
             <div className={styles.taskMainInfo}>

@@ -87,6 +87,18 @@ export interface CreateTaskData {
   auto_complete?: boolean;
 }
 
+/** Eine Zeile der Handreihenfolge - Gruppe oder Aufgabe mit ihrem Rang. */
+export interface Rangzeile {
+  art: 'gruppe' | 'aufgabe';
+  id: number;
+  rang: number;
+}
+
+export interface VerschiebeAntwort {
+  message: string;
+  reihenfolge?: Rangzeile[];
+}
+
 export const tasksApi = {
   getByEvent: async (eventId: number): Promise<Task[]> => {
     const response = await client.get(`/tasks/event/${eventId}`);
@@ -161,12 +173,18 @@ export const tasksApi = {
     return response.data;
   },
 
-  moveUp: async (taskId: number) => {
+  /*
+   * Verschieben gibt die NEUE Reihenfolge zurueck: fuer eine lose Aufgabe
+   * die des ganzen Tages (Gruppen und lose Aufgaben), fuer eine Aufgabe in
+   * einer Gruppe die ihrer Gruppe. Damit zeigt die Liste den Zug sofort,
+   * ohne alles nachzuladen.
+   */
+  moveUp: async (taskId: number): Promise<VerschiebeAntwort> => {
     const response = await client.put(`/tasks/${taskId}/move-up`);
     return response.data;
   },
 
-  moveDown: async (taskId: number) => {
+  moveDown: async (taskId: number): Promise<VerschiebeAntwort> => {
     const response = await client.put(`/tasks/${taskId}/move-down`);
     return response.data;
   },

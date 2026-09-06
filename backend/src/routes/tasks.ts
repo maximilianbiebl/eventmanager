@@ -203,6 +203,19 @@ const NOCH_AKTUELL = `(
  * Wer fuer sich selbst etwas anderes einstellt, behaelt seinen Wert - der
  * steht dann an seiner Zuweisung.
  */
+/**
+ * Die Aufgaben einer Gruppe mit ihrem aktuellen Rang - fuer die Antwort
+ * beim Verschieben, damit die Oberflaeche nichts nachholen muss.
+ */
+const reihenfolgeDerGruppe = async (gruppenId: number) => {
+  const r = await query(
+    `SELECT id, COALESCE(sort_order, 0) AS rang FROM tasks
+     WHERE program_item_id = $1 ORDER BY sort_order, id`,
+    [gruppenId]
+  );
+  return r.rows.map((z: any) => ({ art: 'aufgabe' as const, id: z.id, rang: Number(z.rang) }));
+};
+
 const erinnerungDerAufgabe = async (taskId: number | string): Promise<number> => {
   const r = await query('SELECT reminder_minutes FROM tasks WHERE id = $1', [taskId]);
   return r.rows[0]?.reminder_minutes ?? 15;
@@ -1792,7 +1805,9 @@ router.put('/:id/move-up', authMiddleware, teamleiterOrAdminMiddleware, eventZug
       if (ergebnis.bewegt) {
         broadcastUpdate('task', { action: 'move', taskId: parseInt(id), eventId: event_id });
       }
-      return res.json({ message: ergebnis.meldung });
+      // Die neue Reihenfolge geht mit zurueck - die Oberflaeche zeigt den
+      // Zug damit sofort, ohne alles neu zu holen.
+      return res.json({ message: ergebnis.meldung, reihenfolge: ergebnis.reihenfolge });
     }
 
     const aboveResult = await query(
@@ -1803,7 +1818,12 @@ router.put('/:id/move-up', authMiddleware, teamleiterOrAdminMiddleware, eventZug
     );
 
     if (aboveResult.rows.length === 0) {
-      return res.json({ message: 'Aufgabe steht bereits ganz oben' });
+      // Auch wenn sich nichts bewegt: die Reihenfolge mitgeben, damit die
+      // Oberflaeche nicht sicherheitshalber alles neu laedt.
+      return res.json({
+        message: 'Aufgabe steht bereits ganz oben',
+        reihenfolge: await reihenfolgeDerGruppe(program_item_id),
+      });
     }
 
     const aboveTask = aboveResult.rows[0];
@@ -1813,7 +1833,10 @@ router.put('/:id/move-up', authMiddleware, teamleiterOrAdminMiddleware, eventZug
 
     broadcastUpdate('task', { action: 'move', taskId: parseInt(id), eventId: event_id });
 
-    res.json({ message: 'Reihenfolge aktualisiert' });
+    res.json({
+      message: 'Reihenfolge aktualisiert',
+      reihenfolge: await reihenfolgeDerGruppe(program_item_id),
+    });
   } catch (error) {
     console.error('Move up error:', error);
     res.status(500).json({ error: 'Server Fehler' });
@@ -1842,7 +1865,9 @@ router.put('/:id/move-down', authMiddleware, teamleiterOrAdminMiddleware, eventZ
       if (ergebnis.bewegt) {
         broadcastUpdate('task', { action: 'move', taskId: parseInt(id), eventId: event_id });
       }
-      return res.json({ message: ergebnis.meldung });
+      // Die neue Reihenfolge geht mit zurueck - die Oberflaeche zeigt den
+      // Zug damit sofort, ohne alles neu zu holen.
+      return res.json({ message: ergebnis.meldung, reihenfolge: ergebnis.reihenfolge });
     }
 
     const belowResult = await query(
@@ -1853,7 +1878,12 @@ router.put('/:id/move-down', authMiddleware, teamleiterOrAdminMiddleware, eventZ
     );
 
     if (belowResult.rows.length === 0) {
-      return res.json({ message: 'Aufgabe steht bereits ganz unten' });
+      // Auch wenn sich nichts bewegt: die Reihenfolge mitgeben, damit die
+      // Oberflaeche nicht sicherheitshalber alles neu laedt.
+      return res.json({
+        message: 'Aufgabe steht bereits ganz unten',
+        reihenfolge: await reihenfolgeDerGruppe(program_item_id),
+      });
     }
 
     const belowTask = belowResult.rows[0];
@@ -1863,7 +1893,10 @@ router.put('/:id/move-down', authMiddleware, teamleiterOrAdminMiddleware, eventZ
 
     broadcastUpdate('task', { action: 'move', taskId: parseInt(id), eventId: event_id });
 
-    res.json({ message: 'Reihenfolge aktualisiert' });
+    res.json({
+      message: 'Reihenfolge aktualisiert',
+      reihenfolge: await reihenfolgeDerGruppe(program_item_id),
+    });
   } catch (error) {
     console.error('Move down error:', error);
     res.status(500).json({ error: 'Server Fehler' });

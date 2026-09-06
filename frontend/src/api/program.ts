@@ -1,4 +1,5 @@
 import client from './client';
+import { VerschiebeAntwort } from './tasks';
 
 /*
  * Aufgabengruppen - Zwischenüberschriften über zusammengehörenden Aufgaben.
@@ -33,10 +34,14 @@ export interface TaskGroup {
 export type ProgramItem = TaskGroup;
 
 export const programApi = {
-  /** Gruppe eine Stelle nach oben - innerhalb ihres Tages. */
-  moveUp: async (id: number) => (await client.put(`/program/${id}/move-up`)).data,
-  /** Gruppe eine Stelle nach unten - innerhalb ihres Tages. */
-  moveDown: async (id: number) => (await client.put(`/program/${id}/move-down`)).data,
+  /*
+   * Verschieben gibt die neue Reihenfolge des Tages zurueck - Gruppen und
+   * lose Aufgaben mit frischem Rang. Siehe api/tasks.
+   */
+  moveUp: async (id: number): Promise<VerschiebeAntwort> =>
+    (await client.put(`/program/${id}/move-up`)).data,
+  moveDown: async (id: number): Promise<VerschiebeAntwort> =>
+    (await client.put(`/program/${id}/move-down`)).data,
 
   getByEvent: async (eventId: number): Promise<TaskGroup[]> => {
     const response = await client.get(`/program/event/${eventId}`);
