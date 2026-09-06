@@ -59,17 +59,34 @@ export const zeilenDesTages = async (eventId: number, dayNumber: number): Promis
   );
 };
 
-/** Schreibt die Reihenfolge zurueck - 10, 20, 30 ... */
+/**
+ * Schreibt die Reihenfolge zurueck - 10, 20, 30 ...
+ *
+ * In HOECHSTENS zwei Anweisungen, eine je Tabelle, und nur fuer die
+ * Zeilen, deren Rang sich wirklich aendert. Vorher lief je Zeile eine
+ * eigene Anweisung, nacheinander abgewartet: bei 44 Zeilen am Tag waren
+ * das 44 Hin- und Rueckwege zur Datenbank. Gemessen wuchs das Verschieben
+ * damit von 12 auf 29 Millisekunden, waehrend eine Aufgabe innerhalb
+ * ihrer Gruppe (zwei Schreibvorgaenge) bei 5 blieb - genau der
+ * Unterschied, der sich beim Klicken als Stocken bemerkbar machte.
+ */
 const nummerieren = async (zeilen: Zeile[]): Promise<void> => {
-  for (let i = 0; i < zeilen.length; i++) {
-    const rang = (i + 1) * 10;
-    const z = zeilen[i];
-    if (z.art === 'gruppe') {
-      await query('UPDATE program_items SET sort_order = $1 WHERE id = $2', [rang, z.id]);
-    } else {
-      await query('UPDATE tasks SET sort_order = $1 WHERE id = $2', [rang, z.id]);
-    }
-  }
+  const geaendert = zeilen
+    .map((z, i) => ({ ...z, neu: (i + 1) * 10 }))
+    .filter((z) => z.neu !== z.rang);
+
+  const schreibe = async (tabelle: 'program_items' | 'tasks', art: ZeilenArt) => {
+    const treffer = geaendert.filter((z) => z.art === art);
+    if (treffer.length === 0) return;
+    await query(
+      `UPDATE ${tabelle} AS t SET sort_order = v.rang
+       FROM (SELECT * FROM unnest($1::int[], $2::int[]) AS x(id, rang)) AS v
+       WHERE t.id = v.id`,
+      [treffer.map((z) => z.id), treffer.map((z) => z.neu)]
+    );
+  };
+
+  await Promise.all([schreibe('program_items', 'gruppe'), schreibe('tasks', 'aufgabe')]);
 };
 
 export interface VerschiebeErgebnis {

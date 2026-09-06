@@ -88,7 +88,18 @@ router.post('/', authMiddleware, teamleiterOrAdminMiddleware,
 
     // Ans Ende des Tages einsortieren.
     const max = await query(
-      'SELECT COALESCE(MAX(sort_order), 0) AS m FROM program_items WHERE event_id = $1 AND day_number = $2',
+      /*
+       * Ans Ende des Tages - und zwar hinter ALLES, was dort auf derselben
+       * Ebene steht: Gruppen UND lose Aufgaben teilen sich eine Zaehlung.
+       * Nur unter den Gruppen zu zaehlen setzte eine neue Gruppe mitten
+       * zwischen die Aufgaben, weil deren Nummern laengst hoeher lagen.
+       */
+      `SELECT COALESCE(MAX(m), 0) AS m FROM (
+         SELECT MAX(sort_order) AS m FROM program_items WHERE event_id = $1 AND day_number = $2
+         UNION ALL
+         SELECT MAX(sort_order) FROM tasks
+          WHERE event_id = $1 AND day_number = $2 AND program_item_id IS NULL
+       ) AS beide`,
       [event_id, day_number]
     );
 
@@ -287,7 +298,18 @@ router.post('/:id/duplicate', authMiddleware, teamleiterOrAdminMiddleware,
     const zielTag = Number.isInteger(Number(day_number)) ? Number(day_number) : alt.day_number;
 
     const max = await query(
-      'SELECT COALESCE(MAX(sort_order), 0) AS m FROM program_items WHERE event_id = $1 AND day_number = $2',
+      /*
+       * Ans Ende des Tages - und zwar hinter ALLES, was dort auf derselben
+       * Ebene steht: Gruppen UND lose Aufgaben teilen sich eine Zaehlung.
+       * Nur unter den Gruppen zu zaehlen setzte eine neue Gruppe mitten
+       * zwischen die Aufgaben, weil deren Nummern laengst hoeher lagen.
+       */
+      `SELECT COALESCE(MAX(m), 0) AS m FROM (
+         SELECT MAX(sort_order) AS m FROM program_items WHERE event_id = $1 AND day_number = $2
+         UNION ALL
+         SELECT MAX(sort_order) FROM tasks
+          WHERE event_id = $1 AND day_number = $2 AND program_item_id IS NULL
+       ) AS beide`,
       [alt.event_id, zielTag]
     );
 
