@@ -1101,15 +1101,43 @@ const TaskListView: React.FC<TaskListViewProps> = ({
           <span className={styles.gruppenPfeil} style={{ transform: zu ? 'none' : 'rotate(90deg)' }} aria-hidden="true">›</span>
           <span className={styles.gruppenTitel}>{gruppe.title}</span>
           {zeit && <span className={styles.gruppenZeit}>{zeit} Uhr</span>}
-          <span className={styles.gruppenZahl}>
-            {eintraege.length} {eintraege.length === 1 ? 'Aufgabe' : 'Aufgaben'}
-            {eingeteilt > 0 && ` · ${eingeteilt} eingeteilt`}
+          {/*
+            Am Handy bleibt von "2 Aufgaben · 1 eingeteilt" nur "2 · 1" -
+            sonst frisst die Zeile den Platz, den der Gruppenname braucht.
+            Der volle Wortlaut steht im title-Attribut.
+          */}
+          <span
+            className={styles.gruppenZahl}
+            title={`${eintraege.length} ${eintraege.length === 1 ? 'Aufgabe' : 'Aufgaben'}`
+              + (eingeteilt > 0 ? `, ${eingeteilt} eingeteilt` : '')}
+          >
+            {/* Trennpunkt, damit die Zahl nicht als Teil der Uhrzeit gelesen wird. */}
+            {zeit && <span aria-hidden="true">· </span>}
+            {eintraege.length}<span className={styles.knopfWort}>
+              {' '}{eintraege.length === 1 ? 'Aufgabe' : 'Aufgaben'}</span>
+            {eingeteilt > 0 && (
+              <>{' · '}{eingeteilt}<span className={styles.knopfWort}> eingeteilt</span></>
+            )}
           </span>
         </button>
         {!readOnly && (
+          /*
+            Am Handy tragen die beiden Knoepfe nur ein Zeichen - ausgeschrieben
+            passten sie nicht neben den Namen, und die Ueberschrift brauchte
+            eine zweite Zeile. Das Wort bleibt im Titel und als aria-label,
+            fuer die Vorlesehilfe aendert sich also nichts.
+          */
           <div className={styles.gruppenAktionen}>
-            <button type="button" onClick={() => setGruppeInBearbeitung(gruppe)} className={styles.gruppenAktion} title="Gruppe bearbeiten">Bearbeiten</button>
-            <button type="button" onClick={loeschen} className={styles.gruppenAktion} title="Gruppe entfernen, Aufgaben bleiben">Entfernen</button>
+            <button type="button" onClick={() => setGruppeInBearbeitung(gruppe)}
+              className={styles.gruppenAktion} title="Gruppe bearbeiten" aria-label="Gruppe bearbeiten">
+              <span className={styles.knopfWort}>Bearbeiten</span>
+              <span className={styles.knopfZeichen} aria-hidden="true">✎</span>
+            </button>
+            <button type="button" onClick={loeschen}
+              className={styles.gruppenAktion} title="Gruppe entfernen, Aufgaben bleiben" aria-label="Gruppe entfernen">
+              <span className={styles.knopfWort}>Entfernen</span>
+              <span className={styles.knopfZeichen} aria-hidden="true">✕</span>
+            </button>
             {/* Pfeile nur bei "Manuell" - in einer Sortierung nach Zeit oder
                 Titel haetten sie keine sichtbare Wirkung und wuerden nur
                 verwirren. Genauso wie bei den Aufgaben. */}

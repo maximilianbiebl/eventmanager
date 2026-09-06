@@ -541,25 +541,6 @@
 
 /* Mobile Optimizations */
 @media (max-width: 640px) {
-  /*
-   * Gruppenueberschrift am Handy: Titel ueber die ganze Breite, Knoepfe
-   * darunter. Nebeneinander bleiben fuer den Titel keine 100 Pixel - dort
-   * lief die Schrift ueber die Knoepfe.
-   */
-  .gruppenKarte {
-    padding-right: 0;
-    row-gap: 0.25rem;
-  }
-
-  .gruppenKnopf {
-    flex: 1 1 100%;
-    min-width: 100%;
-  }
-
-  .gruppenAktionen {
-    width: 100%;
-    justify-content: flex-end;
-  }
 
   /* Kopfzeile bleibt eine Zeile: Zurück links, Aktionen rechts.
      Die frühere Spalten-Anordnung stammt aus der Zeit, als hier vier
@@ -1192,6 +1173,8 @@
   gap: 0.375rem;
 }
 
+.knopfZeichen { display: none; }
+
 .gruppenAktion {
   padding: 0.25rem 0.5rem;
   background: none;
@@ -1225,4 +1208,50 @@
 .gruppenAktion:hover {
   color:var(--c-text);
   border-color:var(--c-border-strong);
+}
+
+/* Gruppenueberschrift am Handy - steht bewusst am Dateiende, damit die
+   Grundregeln weiter oben sie nicht ueberschreiben. */
+@media (max-width: 640px) {
+  /*
+   * Gruppenueberschrift am Handy: alles in EINER Zeile.
+   *
+   * Ausgeschrieben passten "Bearbeiten" und "Entfernen" nicht neben den
+   * Namen - die Ueberschrift brauchte eine zweite Zeile (71px statt 39px).
+   * Mit Zeichen statt Woertern bleibt sie einzeilig, und der Name behaelt
+   * den Vorrang: er bekommt den uebrigen Platz und wird erst gekuerzt,
+   * wenn wirklich nichts mehr geht.
+   */
+  .gruppenKarte {
+    flex-wrap: nowrap;
+    padding-right: 0.25rem;
+  }
+
+  .gruppenKnopf {
+    flex: 1 1 auto;
+    min-width: 0;
+    flex-wrap: nowrap;
+    gap: 0.375rem;
+  }
+
+  .gruppenTitel {
+    flex: 0 1 auto;
+    min-width: 3rem;
+  }
+
+  .gruppenZeit,
+  .gruppenZahl {
+    flex: 0 0 auto;
+  }
+
+  .gruppenAktionen {
+    flex: 0 0 auto;
+    gap: 0.25rem;
+  }
+
+  /* Zeichen statt Wort - der Wortlaut bleibt im title-Attribut und im
+     aria-label. Gilt auch fuer "2 Aufgaben", das am Handy zu "2" wird. */
+  .knopfWort { display: none; }
+  .gruppenAktion .knopfZeichen { display: inline; font-size: 0.875rem; line-height: 1; }
+  .gruppenAktion { min-width: 2rem; }
 }
