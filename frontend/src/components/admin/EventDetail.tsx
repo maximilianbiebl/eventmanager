@@ -536,8 +536,11 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
           </div>
         </div>
 
+        {/* Beide Ansichten bleiben eingehaengt (Zustand, Verweise), aber die
+            unsichtbare laedt nichts nach - siehe "aktiv". */}
         <div style={{ display: viewMode === 'cards' ? 'block' : 'none' }}>
           <TaskListView
+            aktiv={viewMode === 'cards'}
             selectedDay={selectedDay}
             eventDays={event?.days}
             onDayChange={handleDayChange}
@@ -557,6 +560,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
         {selectedInstance && (
           <div style={{ display: viewMode === 'table' ? 'block' : 'none' }}>
             <TaskTableView
+              aktiv={viewMode === 'table'}
               leitung={event?.teamleiter}
               ref={tableRef}
               eventInstanceId={selectedInstance}
@@ -675,6 +679,12 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
 
 // Erweiterte Listen-Ansicht mit Zeiten, MAs und Status
 interface TaskListViewProps {
+  /**
+   * Ist diese Ansicht gerade sichtbar? Die andere bleibt eingehaengt, soll
+   * aber nichts nachladen - sonst holt bei jeder Meldung auch die Ansicht
+   * Daten, die niemand sieht.
+   */
+  aktiv?: boolean;
   /** Aufgabengruppen - Zwischenueberschriften ueber ihren Aufgaben. */
   gruppen?: TaskGroup[];
   /** Fuer den Bearbeiten-Dialog einer Gruppe. */
@@ -695,6 +705,7 @@ interface TaskListViewProps {
 }
 
 const TaskListView: React.FC<TaskListViewProps> = ({
+  aktiv = true,
   gruppen = [],
   eventId,
   onGruppenRaenge,
@@ -713,6 +724,9 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   /** Zuletzt verschobene Aufgabe - wird kurz hervorgehoben. */
   const [zuletztVerschoben, setZuletztVerschoben] = React.useState<number | null>(null);
   const verschobenRef = React.useRef<number | undefined>(undefined);
+  /** Was ich selbst ausgeloest habe - um die eigene SSE-Meldung zu erkennen. */
+  const eigeneAktionRef = React.useRef<{ art: 'aufgabe' | 'gruppe'; id: number } | null>(null);
+  const verpasstRef = React.useRef<any[]>([]);
   const [assignments, setAssignments] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [successMessage, setSuccessMessage] = React.useState('');
@@ -729,11 +743,14 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   useSSE({
     enabled: true,
     onTaskUpdate: (data) => {
-      console.log('SSE: TaskListView update received', data);
-
-      // Ignore SSE updates while actions are pending (to prevent overwriting optimistic updates)
-      if (pendingActionsRef.current > 0) {
-        console.log(`SSE: Ignoring update (${pendingActionsRef.current} actions pending)`);
+      /*
+       * Waehrend einer eigenen Aktion nicht nachladen - siehe die gleich
+       * lautende Stelle in der Tabellenansicht. Die Meldung wird gemerkt
+       * und danach geprueft, damit eine fremde Aenderung nicht verloren
+       * geht, die in dieses Fenster fiel.
+       */
+      if (pendingActionsRef.current > 0 || !aktiv) {
+        verpasstRef.current.push(data);
         return;
       }
 
@@ -900,6 +917,32 @@ const TaskListView: React.FC<TaskListViewProps> = ({
     return true;
   };
 
+  /*
+   * Wird die Ansicht wieder sichtbar, wird einmal nachgeladen, falls
+   * waehrenddessen etwas hereinkam. So bleibt sie aktuell, ohne im
+   * Verborgenen bei jeder Meldung Daten zu holen.
+   */
+  React.useEffect(() => {
+    if (aktiv && verpasstRef.current.length > 0 && selectedInstance) {
+      verpasstRef.current = [];
+      loadAssignments(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aktiv]);
+
+  /** Nach der eigenen Aktion: kam in der Zwischenzeit etwas Fremdes? */
+  const nachholenWennFremd = () => {
+    const eigene = eigeneAktionRef.current;
+    const fremd = verpasstRef.current.some((d: any) => {
+      if (!eigene) return true;
+      if (eigene.art === 'aufgabe') return !(d?.action === 'move' && Number(d?.taskId) === eigene.id);
+      return d?.action !== 'group_moved';
+    });
+    verpasstRef.current = [];
+    eigeneAktionRef.current = null;
+    if (fremd && selectedInstance) loadAssignments(false);
+  };
+
   /** Kurz hervorheben, damit das Auge der verschobenen Karte folgt. */
   const merkeVerschoben = (taskId: number) => {
     setZuletztVerschoben(taskId);
@@ -919,6 +962,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
        * falsches Bild auf. Ausserdem nummeriert der Server beim Verschieben
        * den ganzen Tag neu, das laesst sich hier nicht nachbilden.
        */
+      eigeneAktionRef.current = { art: 'aufgabe', id: taskId };
       const antwort = await tasksApi.moveUp(taskId);
       const angewandt = wendeReihenfolgeAn(antwort?.reihenfolge);
       merkeVerschoben(taskId);
@@ -932,8 +976,9 @@ const TaskListView: React.FC<TaskListViewProps> = ({
     } finally {
       pendingActionsRef.current--; // Decrement when done
       // SSE updates will now be processed if no more actions are pending
-      /* Kein Nachladen: die Antwort trug die neue Reihenfolge schon bei
-         sich (siehe oben). */
+      /* Kein Nachladen fuer den eigenen Zug - nachgeholt wird nur, was in
+         der Zwischenzeit von jemand anderem hereinkam. */
+      if (pendingActionsRef.current === 0) nachholenWennFremd();
     }
   };
 
@@ -943,6 +988,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       const { tasksApi } = await import('../../api/tasks');
 
       // Kein vorgezogenes Umsortieren - siehe handleMoveUp.
+      eigeneAktionRef.current = { art: 'aufgabe', id: taskId };
       const antwort = await tasksApi.moveDown(taskId);
       const angewandt = wendeReihenfolgeAn(antwort?.reihenfolge);
       merkeVerschoben(taskId);
@@ -956,8 +1002,9 @@ const TaskListView: React.FC<TaskListViewProps> = ({
     } finally {
       pendingActionsRef.current--; // Decrement when done
       // SSE updates will now be processed if no more actions are pending
-      /* Kein Nachladen: die Antwort trug die neue Reihenfolge schon bei
-         sich (siehe oben). */
+      /* Kein Nachladen fuer den eigenen Zug - nachgeholt wird nur, was in
+         der Zwischenzeit von jemand anderem hereinkam. */
+      if (pendingActionsRef.current === 0) nachholenWennFremd();
     }
   };
 

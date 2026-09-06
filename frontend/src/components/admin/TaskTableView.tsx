@@ -74,6 +74,12 @@ interface Props {
   /** Aufgabengruppen der Veranstaltung - Zwischenueberschriften in der Liste. */
   gruppen?: TaskGroup[];
   /**
+   * Ist diese Ansicht sichtbar? Die andere bleibt eingehaengt, soll aber
+   * nichts nachladen - sonst holt bei jeder Meldung auch eine Ansicht
+   * Daten, die niemand sieht.
+   */
+  aktiv?: boolean;
+  /**
    * Neue Raenge der Gruppen nach einem Verschieben. Die Liste der Gruppen
    * fuehrt die Elternansicht - sie traegt die Aenderung dort nach, ohne
    * dass alles neu geladen werden muss.
@@ -136,6 +142,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
   manualRefreshTrigger,
   readOnly = false,
   eventId,
+  aktiv = true,
   leitung,
   onTasksChanged,
   gruppen = [],
@@ -146,6 +153,9 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
   /** Zuletzt verschobene Aufgabe - wird kurz hervorgehoben. */
   const [zuletztVerschoben, setZuletztVerschoben] = useState<number | null>(null);
   const verschobenRef = React.useRef<number | undefined>(undefined);
+  /** Was ich selbst ausgeloest habe - um die eigene SSE-Meldung zu erkennen. */
+  const eigeneAktionRef = React.useRef<{ art: 'aufgabe' | 'gruppe'; id: number } | null>(null);
+  const verpasstRef = React.useRef<any[]>([]);
   const [assignments, setAssignments] = useState<TaskAssignment[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -197,11 +207,19 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
   useSSE({
     enabled: true,
     onTaskUpdate: (data) => {
-      console.log('SSE: TaskTableView update received', data);
-
-      // Ignore SSE updates while actions are pending (to prevent overwriting optimistic updates)
-      if (pendingActionsRef.current > 0) {
-        console.log(`SSE: Ignoring update (${pendingActionsRef.current} actions pending)`);
+      /*
+       * Waehrend einer eigenen Aktion wird nicht nachgeladen - sonst
+       * ueberschriebe die Meldung gerade das, was man selbst tut. Der
+       * Server schickt die Meldung ab, BEVOR er antwortet; die eigene
+       * Aenderung landet also immer in diesem Fenster.
+       *
+       * Verworfen wird sie deshalb nicht: was hier ankommt, wird gemerkt
+       * und hinterher geprueft. Stammt es von jemand anderem, wird einmal
+       * nachgeladen - sonst ginge eine fremde Aenderung verloren, die
+       * zufaellig in diesen Sekundenbruchteil fiel.
+       */
+      if (pendingActionsRef.current > 0 || !aktiv) {
+        verpasstRef.current.push(data);
         return;
       }
 
@@ -344,6 +362,31 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
     return true;
   };
 
+  /* Wird die Ansicht wieder sichtbar, einmal nachladen - siehe oben. */
+  React.useEffect(() => {
+    if (aktiv && verpasstRef.current.length > 0) {
+      verpasstRef.current = [];
+      loadAssignments(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aktiv]);
+
+  /**
+   * Meldungen, die waehrend einer eigenen Aktion hereinkamen. Danach wird
+   * geprueft, ob eine davon von jemand anderem stammte.
+   */
+  const nachholenWennFremd = () => {
+    const eigene = eigeneAktionRef.current;
+    const fremd = verpasstRef.current.some((d: any) => {
+      if (!eigene) return true;
+      if (eigene.art === 'aufgabe') return !(d?.action === 'move' && Number(d?.taskId) === eigene.id);
+      return d?.action !== 'group_moved';
+    });
+    verpasstRef.current = [];
+    eigeneAktionRef.current = null;
+    if (fremd) loadAssignments(false);
+  };
+
   /** Kurz hervorheben, damit das Auge der verschobenen Zeile folgt. */
   const merkeVerschoben = (taskId: number) => {
     setZuletztVerschoben(taskId);
@@ -364,6 +407,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
        * zurechtrueckte. Und der Server nummeriert beim Verschieben den
        * ganzen Tag neu, das laesst sich hier ohnehin nicht nachbilden.
        */
+      eigeneAktionRef.current = { art: 'aufgabe', id: taskId };
       const antwort = await tasksApi.moveUp(taskId);
       const angewandt = wendeReihenfolgeAn(antwort?.reihenfolge);
       merkeVerschoben(taskId);
@@ -384,9 +428,11 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
       pendingActionsRef.current--; // Decrement when done
       // SSE updates will now be processed if no more actions are pending
       /*
-       * Kein Nachladen mehr: die Antwort trug die neue Reihenfolge schon
-       * bei sich. Nachgeladen wird nur, wenn sie gefehlt hat (siehe oben).
+       * Kein Nachladen fuer den eigenen Zug - die Antwort trug die neue
+       * Reihenfolge schon bei sich. Nachgeholt wird nur, was in der
+       * Zwischenzeit von jemand anderem hereinkam.
        */
+      if (pendingActionsRef.current === 0) nachholenWennFremd();
     }
   };
 
@@ -394,6 +440,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
     pendingActionsRef.current++; // Increment pending actions counter
     try {
       // Kein vorgezogenes Umsortieren - siehe handleMoveUp.
+      eigeneAktionRef.current = { art: 'aufgabe', id: taskId };
       const antwort = await tasksApi.moveDown(taskId);
       const angewandt = wendeReihenfolgeAn(antwort?.reihenfolge);
       merkeVerschoben(taskId);
@@ -412,9 +459,11 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
       pendingActionsRef.current--; // Decrement when done
       // SSE updates will now be processed if no more actions are pending
       /*
-       * Kein Nachladen mehr: die Antwort trug die neue Reihenfolge schon
-       * bei sich. Nachgeladen wird nur, wenn sie gefehlt hat (siehe oben).
+       * Kein Nachladen fuer den eigenen Zug - die Antwort trug die neue
+       * Reihenfolge schon bei sich. Nachgeholt wird nur, was in der
+       * Zwischenzeit von jemand anderem hereinkam.
        */
+      if (pendingActionsRef.current === 0) nachholenWennFremd();
     }
   };
 

@@ -69,8 +69,15 @@ export const EventStaffPool: React.FC<Props> = ({ eventId, leitung }) => {
   // SSE for real-time updates
   useSSE({
     enabled: true,
-    onTaskUpdate: (data) => {
-      console.log('SSE: EventStaffPool update received', data);
+    onTaskUpdate: (data: any) => {
+      /*
+       * Der Pool zeigt, wer dabei ist und wie viele Aufgaben er hat. Ein
+       * Verschieben aendert daran nichts, ebenso wenig eine Aenderung an
+       * einer Aufgabengruppe. Vorher lud der Pool bei JEDER Meldung vier
+       * Abfragen nach - bei jedem Pfeildruck, den jemand irgendwo taetigte.
+       */
+      const ohneWirkung = ['move', 'group_moved', 'group_created', 'group_updated', 'group_deleted'];
+      if (ohneWirkung.includes(data?.action)) return;
       loadData(false);
     },
     onConnected: () => {
