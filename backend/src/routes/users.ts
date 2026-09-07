@@ -173,6 +173,62 @@ router.get('/event/:eventId/staff', authMiddleware, async (req, res) => {
   }
 });
 
+/*
+ * Wer ist im Zeitraum dieser Veranstaltung schon anderswo eingeplant?
+ *
+ * Geliefert wird je Nutzer die Liste der ueberschneidenden Veranstaltungen -
+ * nicht nur ein Ja/Nein. Wer jemanden trotzdem einteilt, soll wenigstens
+ * sehen, wobei er sonst gebraucht wird.
+ *
+ * Massgeblich ist der Mitarbeiterpool der anderen Veranstaltung: dort
+ * eingetragen zu sein heisst, fuer diese Tage vorgesehen zu sein. Vorlagen
+ * zaehlen nicht, sie haben kein Datum.
+ *
+ * Ueberschneidung heisst: irgendeine Durchfuehrung der anderen
+ * Veranstaltung liegt in irgendeiner Durchfuehrung dieser. Der letzte Tag
+ * zaehlt mit - eine Veranstaltung ueber drei Tage ab dem 1. belegt den
+ * 1., 2. und 3.
+ */
+router.get('/event/:eventId/parallel', authMiddleware, async (req, res) => {
+  try {
+    const { eventId } = req.params;
+
+    const result = await query(
+      `WITH meine AS (
+         SELECT ei.start_date AS von,
+                (ei.start_date + (GREATEST(e.days, 1) - 1) * INTERVAL '1 day')::date AS bis
+         FROM event_instances ei
+         JOIN events e ON e.id = ei.event_id
+         WHERE ei.event_id = $1
+       )
+       SELECT DISTINCT es.user_id, e.id AS event_id, e.name,
+              ei.start_date, GREATEST(e.days, 1) AS days
+       FROM event_staff es
+       JOIN events e ON e.id = es.event_id
+       JOIN event_instances ei ON ei.event_id = e.id
+       JOIN meine m
+         ON ei.start_date <= m.bis
+        AND (ei.start_date + (GREATEST(e.days, 1) - 1) * INTERVAL '1 day')::date >= m.von
+       WHERE es.event_id <> $1
+         AND COALESCE(e.is_template, false) = false
+       ORDER BY ei.start_date`,
+      [eventId]
+    );
+
+    const jeNutzer: { [id: number]: any[] } = {};
+    for (const z of result.rows) {
+      (jeNutzer[z.user_id] ||= []).push({
+        event_id: z.event_id, name: z.name, start_date: z.start_date, days: Number(z.days),
+      });
+    }
+
+    res.json(jeNutzer);
+  } catch (error) {
+    console.error('Get parallel events error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
 // Mitarbeiter aus Event-Pool entfernen
 /*
  * Mitarbeiter aus dem Event-Pool entfernen.

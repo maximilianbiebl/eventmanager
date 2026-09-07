@@ -408,6 +408,7 @@ export const EventStaffPool: React.FC<Props> = ({ eventId, leitung }) => {
       {showAddModal && (
         <AddStaffModal
           availableStaff={allStaff.filter(s => !s.isInPool)}
+          eventId={eventId}
           onClose={() => setShowAddModal(false)}
           onAdd={handleAddStaff}
         />
@@ -609,11 +610,28 @@ const RemoveStaffModal: React.FC<RemoveStaffModalProps> = ({
 
 interface AddStaffModalProps {
   availableStaff: User[];
+  /** Für die Frage, wer im Zeitraum schon anderswo eingeplant ist. */
+  eventId: number;
   onClose: () => void;
   onAdd: (userIds: number[]) => void;
 }
 
-const AddStaffModal: React.FC<AddStaffModalProps> = ({ availableStaff, onClose, onAdd }) => {
+/** Was gleichzeitig läuft - je Nutzer die anderen Veranstaltungen. */
+interface Parallel {
+  event_id: number;
+  name: string;
+  start_date: string;
+  days: number;
+}
+
+const ROLLEN: Array<[string, string]> = [
+  ['admin', 'Admin'],
+  ['teamleiter', 'Teamleitung'],
+  ['co_teamleiter', 'Co-Leitung'],
+  ['staff', 'Mitarbeiter'],
+];
+
+const AddStaffModal: React.FC<AddStaffModalProps> = ({ availableStaff, eventId, onClose, onAdd }) => {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   /*
    * Namenssuche wie in der Mitarbeiterverwaltung. Bei drei Leuten braucht
@@ -621,9 +639,51 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ availableStaff, onClose, 
    * auch wenn die Suche sie gerade ausblendet.
    */
   const [suche, setSuche] = useState('');
-  const gefiltert = suche.trim()
-    ? availableStaff.filter((s) => s.name.toLowerCase().includes(suche.trim().toLowerCase()))
-    : availableStaff;
+
+  /*
+   * Wer im Zeitraum dieser Veranstaltung schon woanders eingeplant ist.
+   *
+   * Angezeigt wird das immer - an der Zeile steht, wobei jemand sonst
+   * gebraucht wird. Ausgeblendet wird nur auf Wunsch: manchmal ist genau
+   * diese Person trotzdem die richtige, und dann soll sie nicht spurlos
+   * fehlen.
+   */
+  const [parallel, setParallel] = useState<{ [id: number]: Parallel[] }>({});
+  const [nurFreie, setNurFreie] = useState(false);
+
+  /** Welche Rollen sollen zu sehen sein - leer heißt: alle. */
+  const [rollen, setRollen] = useState<string[]>([]);
+
+  useEffect(() => {
+    let abgebrochen = false;
+    client.get(`/users/event/${eventId}/parallel`)
+      .then((r) => { if (!abgebrochen) setParallel(r.data || {}); })
+      .catch(() => { /* ohne die Angabe geht es auch - dann eben ohne Hinweis */ });
+    return () => { abgebrochen = true; };
+  }, [eventId]);
+
+  const vorhandeneRollen = ROLLEN.filter(([wert]) => availableStaff.some((u) => u.role === wert));
+
+  const gefiltert = availableStaff.filter((u) => {
+    if (suche.trim() && !u.name.toLowerCase().includes(suche.trim().toLowerCase())) return false;
+    if (rollen.length > 0 && !rollen.includes(u.role)) return false;
+    if (nurFreie && (parallel[u.id]?.length ?? 0) > 0) return false;
+    return true;
+  });
+
+  const belegt = availableStaff.filter((u) => (parallel[u.id]?.length ?? 0) > 0).length;
+
+  const rolleUm = (wert: string) =>
+    setRollen((v) => (v.includes(wert) ? v.filter((x) => x !== wert) : [...v, wert]));
+
+  /** "Sommerfest (10.–12.06.)" - kurz genug für die Zeile. */
+  const zeitraum = (p: Parallel) => {
+    const von = new Date(p.start_date);
+    const bis = new Date(von);
+    bis.setDate(bis.getDate() + Math.max(1, p.days) - 1);
+    const tag = (d: Date) => `${d.getDate()}.${d.getMonth() + 1}.`;
+    return `${p.name} (${tag(von)}${p.days > 1 ? `–${tag(bis)}` : ''})`;
+  };
 
   const handleToggle = (userId: number) => {
     setSelectedIds(prev =>
@@ -662,21 +722,71 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ availableStaff, onClose, 
             aria-label="Nach Name suchen"
             style={styles.sucheFeld}
           />
+
+          {vorhandeneRollen.length > 1 && (
+            <div style={styles.filterZeile}>
+              <button
+                type="button"
+                onClick={() => setRollen([])}
+                style={{ ...styles.filterChip, ...(rollen.length === 0 ? styles.filterChipAn : {}) }}
+              >
+                Alle
+              </button>
+              {vorhandeneRollen.map(([wert, text]) => (
+                <button
+                  key={wert}
+                  type="button"
+                  onClick={() => rolleUm(wert)}
+                  aria-pressed={rollen.includes(wert)}
+                  style={{ ...styles.filterChip, ...(rollen.includes(wert) ? styles.filterChipAn : {}) }}
+                >
+                  {text} {availableStaff.filter((u) => u.role === wert).length}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {belegt > 0 && (
+            <label style={styles.freieZeile}>
+              <input
+                type="checkbox"
+                checked={nurFreie}
+                onChange={(e) => setNurFreie(e.target.checked)}
+                style={styles.checkbox}
+              />
+              <span>
+                Wer zeitgleich woanders eingeplant ist, ausblenden
+                <span style={styles.leiseZahl}> ({belegt})</span>
+              </span>
+            </label>
+          )}
+
           <div style={styles.staffList}>
             {gefiltert.length === 0 && (
               <p style={styles.noStaff}>Niemand gefunden.</p>
             )}
-            {gefiltert.map((staff) => (
-              <label key={staff.id} style={styles.staffCheckbox}>
-                <input
-                  type="checkbox"
-                  checked={selectedIds.includes(staff.id)}
-                  onChange={() => handleToggle(staff.id)}
-                  style={styles.checkbox}
-                />
-                <span>{staff.name}</span>
-              </label>
-            ))}
+            {gefiltert.map((staff) => {
+              const woanders = parallel[staff.id] || [];
+              return (
+                <label key={staff.id} style={styles.staffCheckbox}>
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(staff.id)}
+                    onChange={() => handleToggle(staff.id)}
+                    style={styles.checkbox}
+                  />
+                  <span>{staff.name}</span>
+                  {woanders.length > 0 && (
+                    <span
+                      style={styles.parallelHinweis}
+                      title={woanders.map(zeitraum).join(', ')}
+                    >
+                      {woanders.length === 1 ? zeitraum(woanders[0]) : `${woanders.length} parallele Veranstaltungen`}
+                    </span>
+                  )}
+                </label>
+              );
+            })}
           </div>
           {selectedIds.length > 0 && suche.trim() && (
             <p style={styles.ausgewaehltHinweis}>
@@ -1651,6 +1761,53 @@ const styles: { [key: string]: React.CSSProperties } = {
     textAlign: 'center',
     padding: '2rem',
     color: 'var(--c-text-muted)',
+  },
+  filterZeile: {
+    display: 'flex',
+    gap: '0.25rem',
+    flexWrap: 'wrap',
+    marginBottom: '0.5rem',
+  },
+  filterChip: {
+    padding: '0.1875rem 0.5rem',
+    fontSize: '0.75rem',
+    borderRadius: '9999px',
+    cursor: 'pointer',
+    background: 'none',
+    border: '1px solid var(--c-border-strong)',
+    color: 'var(--c-text-muted)',
+  },
+  filterChipAn: {
+    backgroundColor: 'var(--c-accent-soft)',
+    borderColor: 'var(--c-accent-border)',
+    color: 'var(--c-accent-text)',
+    fontWeight: 600,
+  },
+  freieZeile: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    marginBottom: '0.5rem',
+    fontSize: '0.8125rem',
+    color: 'var(--c-text)',
+    cursor: 'pointer',
+  },
+  leiseZahl: {
+    color: 'var(--c-text-muted)',
+  },
+  /* Steht an der Zeile, nicht als Sperre: wer trotzdem gebraucht wird,
+     laesst sich weiterhin einteilen. */
+  parallelHinweis: {
+    marginLeft: 'auto',
+    fontSize: '0.6875rem',
+    color: 'var(--c-warning-strong)',
+    backgroundColor: 'var(--c-warning-soft)',
+    padding: '0 0.375rem',
+    borderRadius: '9999px',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    maxWidth: '12rem',
   },
   sucheFeld: {
     width: '100%',
