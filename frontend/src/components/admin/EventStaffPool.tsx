@@ -723,42 +723,50 @@ const AddStaffModal: React.FC<AddStaffModalProps> = ({ availableStaff, eventId, 
             style={styles.sucheFeld}
           />
 
-          {vorhandeneRollen.length > 1 && (
+          {/*
+            Plaketten wie in der Werkzeugleiste (tv-chip) - dieselbe Form
+            wie ueberall sonst, aktiv in Blau. "Frei im Zeitraum" gehoert
+            in dieselbe Reihe: es ist ein Filter wie die anderen, kein
+            Kaestchen mit Satz daneben.
+          */}
+          {(vorhandeneRollen.length > 1 || belegt > 0) && (
             <div style={styles.filterZeile}>
-              <button
-                type="button"
-                onClick={() => setRollen([])}
-                style={{ ...styles.filterChip, ...(rollen.length === 0 ? styles.filterChipAn : {}) }}
-              >
-                Alle
-              </button>
-              {vorhandeneRollen.map(([wert, text]) => (
-                <button
-                  key={wert}
-                  type="button"
-                  onClick={() => rolleUm(wert)}
-                  aria-pressed={rollen.includes(wert)}
-                  style={{ ...styles.filterChip, ...(rollen.includes(wert) ? styles.filterChipAn : {}) }}
-                >
-                  {text} {availableStaff.filter((u) => u.role === wert).length}
-                </button>
-              ))}
-            </div>
-          )}
+              {vorhandeneRollen.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setRollen([])}
+                    aria-pressed={rollen.length === 0}
+                    className={rollen.length === 0 ? 'tv-chip-active' : 'tv-chip'}
+                  >
+                    Alle
+                  </button>
+                  {vorhandeneRollen.map(([wert, text]) => (
+                    <button
+                      key={wert}
+                      type="button"
+                      onClick={() => rolleUm(wert)}
+                      aria-pressed={rollen.includes(wert)}
+                      className={rollen.includes(wert) ? 'tv-chip-active' : 'tv-chip'}
+                    >
+                      {text} {availableStaff.filter((u) => u.role === wert).length}
+                    </button>
+                  ))}
+                </>
+              )}
 
-          {belegt > 0 && (
-            <label style={styles.freieZeile}>
-              <input
-                type="checkbox"
-                checked={nurFreie}
-                onChange={(e) => setNurFreie(e.target.checked)}
-                style={styles.checkbox}
-              />
-              <span>
-                Wer zeitgleich woanders eingeplant ist, ausblenden
-                <span style={styles.leiseZahl}> ({belegt})</span>
-              </span>
-            </label>
+              {belegt > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setNurFreie((v) => !v)}
+                  aria-pressed={nurFreie}
+                  title={`${belegt} ${belegt === 1 ? 'Person ist' : 'Personen sind'} im Zeitraum schon woanders eingeplant`}
+                  className={nurFreie ? 'tv-chip-active' : 'tv-chip'}
+                >
+                  Frei im Zeitraum
+                </button>
+              )}
+            </div>
           )}
 
           <div style={styles.staffList}>
@@ -1766,34 +1774,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     gap: '0.25rem',
     flexWrap: 'wrap',
-    marginBottom: '0.5rem',
-  },
-  filterChip: {
-    padding: '0.1875rem 0.5rem',
-    fontSize: '0.75rem',
-    borderRadius: '9999px',
-    cursor: 'pointer',
-    background: 'none',
-    border: '1px solid var(--c-border-strong)',
-    color: 'var(--c-text-muted)',
-  },
-  filterChipAn: {
-    backgroundColor: 'var(--c-accent-soft)',
-    borderColor: 'var(--c-accent-border)',
-    color: 'var(--c-accent-text)',
-    fontWeight: 600,
-  },
-  freieZeile: {
-    display: 'flex',
     alignItems: 'center',
-    gap: '0.5rem',
     marginBottom: '0.5rem',
-    fontSize: '0.8125rem',
-    color: 'var(--c-text)',
-    cursor: 'pointer',
-  },
-  leiseZahl: {
-    color: 'var(--c-text-muted)',
   },
   /* Steht an der Zeile, nicht als Sperre: wer trotzdem gebraucht wird,
      laesst sich weiterhin einteilen. */
