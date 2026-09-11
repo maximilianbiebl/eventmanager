@@ -115,6 +115,16 @@ const GRUPPEN_SPALTEN = 9;
  */
 const GRUPPEN_SPALTEN_SCHMAL = GRUPPEN_SPALTEN - 2;
 
+/*
+ * Die Notizzeile laeuft nur bis einschliesslich "Status" - also ueber acht
+ * der zehn Spalten. Ueber die ganze Breite gelesen, bricht ein Satz erst
+ * nach einer sehr langen Zeile um und liest sich schlecht; so bleibt der
+ * Umbruch ungefaehr dort, wo ihn auch die Kartenansicht setzt.
+ * Am Handy fallen "Tag" und "Datum" weg (.hideOnMobile).
+ */
+const NOTIZ_SPALTEN = 8;
+const NOTIZ_SPALTEN_SCHMAL = NOTIZ_SPALTEN - 2;
+
 const STATUS_COLORS: { [key: string]: string } = {
   not_started: 'var(--c-text-muted)',
   in_progress: 'var(--c-accent)',
@@ -936,7 +946,9 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
                           <NotizKnopf
                             titel={task.title}
                             notiz={task.note}
-                            klein
+                            // Form der Nachbarknoepfe, damit alle drei
+                            // gleich hoch sind und in einer Linie stehen.
+                            stil={styles.editButton}
                             speichern={(text) => notizSpeichern(task.id, text)}
                           />
                           <button
@@ -984,7 +996,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
     {task.note && task.note.trim() !== '' && (
       <tr style={{ ...styles.row, ...(zuletztVerschoben === task.id ? styles.verschoben : {}) }}>
         <td
-          colSpan={schmal ? GRUPPEN_SPALTEN_SCHMAL + 1 : GRUPPEN_SPALTEN + 1}
+          colSpan={schmal ? NOTIZ_SPALTEN_SCHMAL : NOTIZ_SPALTEN}
           style={{
             ...styles.td,
             paddingTop: 0,
@@ -1080,7 +1092,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
                 <NotizKnopf
                   titel={gruppe.title}
                   notiz={gruppe.note}
-                  klein
+                  stil={styles.gruppenAktion}
                   zahl={eintraege.filter((e) => e.task?.note && String(e.task.note).trim() !== '').length}
                   speichern={(text) => gruppenNotizSpeichern(gruppe.id, text)}
                 />

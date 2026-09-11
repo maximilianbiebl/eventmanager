@@ -25,6 +25,17 @@ const GELB_HINTERGRUND = 'var(--c-warning-soft)';
 const GELB_TEXT = 'var(--c-warning-strong)';
 
 /*
+ * Breite, ab der die Notiz umbricht.
+ *
+ * Feste Breite statt "so breit wie der Platz": Tabelle und Karten sind
+ * verschieden breit, der Text braeche sonst an verschiedenen Stellen um -
+ * in der Tabelle erst nach einer sehr langen Zeile. In der Tabelle reicht
+ * die Zeile ohnehin nur bis zur Spalte "Status"; dieselbe Breite gilt
+ * jetzt auch auf der Karte, damit beide Ansichten gleich lesen.
+ */
+const NOTIZ_BREITE = '52rem';
+
+/*
  * Das Fenster haengt mit position:fixed am Knopf statt im Fluss der Zeile:
  * in der Tabelle sitzt der Knopf in einer Zelle, und die Tabelle scrollt
  * waagerecht - im Fluss wuerde das Fenster am Rand abgeschnitten.
@@ -63,7 +74,16 @@ const NotizFenster: React.FC<FensterProps> = ({ titel, wert, anker, speichern, s
    */
   useLayoutEffect(() => {
     const hoehe = kasten.current?.offsetHeight ?? 220;
-    const links = Math.max(8, Math.min(anker.left, window.innerWidth - FENSTER_BREITE - 8));
+    /*
+     * Passt es nach rechts nicht mehr, wird es NICHT einfach an den Rand
+     * geschoben, sondern rechtsbuendig unter den Knopf gehaengt - sonst
+     * stuende es bei einem Knopf am rechten Rand (Notiz zur Veranstaltung
+     * in der Kopfzeile) irgendwo weit links daneben, waehrend es in der
+     * Tabelle sauber am Knopf klebt.
+     */
+    const links = anker.left + FENSTER_BREITE <= window.innerWidth - 8
+      ? anker.left
+      : Math.max(8, anker.right - FENSTER_BREITE);
     const untenPasst = anker.bottom + 6 + hoehe <= window.innerHeight - 8;
     setPos({
       top: untenPasst ? anker.bottom + 6 : Math.max(8, anker.top - hoehe - 6),
@@ -203,19 +223,45 @@ interface KnopfProps {
    * rund wie das "i" daneben aussehen soll. Die gelbe Kennzeichnung bleibt.
    */
   className?: string;
+  /**
+   * Dasselbe fuer Ansichten, die ihre Knoepfe inline stylen: hier gehoert
+   * der Stil der NACHBARKNOEPFE hinein ("Zuweisen", "Bearbeiten"). Dann
+   * hat das Notizzeichen dieselbe Hoehe und sitzt in einer Linie mit
+   * ihnen - vorher war es sichtbar flacher.
+   */
+  stil?: React.CSSProperties;
 }
 
 /**
  * Das ✎ in der Zeile. Gelb, sobald eine Notiz dransteht - so sieht man
  * beim Ueberfliegen, wo etwas vermerkt ist.
  */
-export const NotizKnopf: React.FC<KnopfProps> = ({ titel, notiz, speichern, zahl, klein, className }) => {
+export const NotizKnopf: React.FC<KnopfProps> = ({
+  titel, notiz, speichern, zahl, klein, className, stil,
+}) => {
   const [anker, setAnker] = useState<DOMRect | null>(null);
   const hat = !!(notiz && notiz.trim());
 
   const gelb = hat
     ? { backgroundColor: GELB_HINTERGRUND, color: GELB_TEXT, borderColor: 'var(--c-warning)' }
     : {};
+
+  // Eingebaute Form nur, wenn die Ansicht keine eigene vorgibt.
+  const grundform: React.CSSProperties = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.2rem',
+    padding: klein ? '0.2rem 0.4rem' : '0.25rem 0.5rem',
+    minHeight: 'auto',
+    lineHeight: 1.2,
+    fontSize: klein ? '0.75rem' : '0.8125rem',
+    borderRadius: 6,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+    border: '1px solid var(--c-border)',
+    backgroundColor: 'transparent',
+    color: 'var(--c-text-muted)',
+  };
 
   return (
     <>
@@ -228,21 +274,7 @@ export const NotizKnopf: React.FC<KnopfProps> = ({ titel, notiz, speichern, zahl
           e.stopPropagation();
           setAnker(anker ? null : (e.currentTarget as HTMLElement).getBoundingClientRect());
         }}
-        style={className ? gelb : {
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '0.2rem',
-          padding: klein ? '0.2rem 0.4rem' : '0.25rem 0.5rem',
-          minHeight: 'auto',
-          lineHeight: 1.2,
-          fontSize: klein ? '0.75rem' : '0.8125rem',
-          borderRadius: 6,
-          cursor: 'pointer',
-          whiteSpace: 'nowrap',
-          border: `1px solid ${hat ? 'var(--c-warning)' : 'var(--c-border)'}`,
-          backgroundColor: hat ? GELB_HINTERGRUND : 'transparent',
-          color: hat ? GELB_TEXT : 'var(--c-text-muted)',
-        }}
+        style={{ ...(className ? {} : stil ?? grundform), ...gelb }}
       >
         ✎{zahl ? <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{zahl}</span> : null}
       </button>
@@ -270,6 +302,10 @@ interface TextProps {
  * Die Notiz in der Liste: zwei Zeilen, der Rest abgeschnitten. Ein Klick
  * klappt sie auf und zeigt alles, ein zweiter wieder zu - eine lange Notiz
  * soll die Liste nicht auseinanderziehen, aber auch nicht unlesbar sein.
+ *
+ * Zeilenumbrueche aus dem Schreibfenster bleiben erhalten (pre-wrap), auch
+ * im gekuerzten Zustand: wer seine Notiz in Zeilen schreibt, will sie auch
+ * in Zeilen wiederfinden.
  */
 export const NotizText: React.FC<TextProps> = ({ notiz, style }) => {
   const [offen, setOffen] = useState(false);
@@ -296,6 +332,7 @@ export const NotizText: React.FC<TextProps> = ({ notiz, style }) => {
         lineHeight: 1.45,
         cursor: 'pointer',
         textAlign: 'left',
+        maxWidth: NOTIZ_BREITE,
         ...style,
       }}
     >
@@ -306,6 +343,9 @@ export const NotizText: React.FC<TextProps> = ({ notiz, style }) => {
           WebkitLineClamp: 2,
           WebkitBoxOrient: 'vertical',
           overflow: 'hidden',
+          // Zeilenumbrueche des Verfassers bleiben stehen - sie zaehlen
+          // dann als die zwei sichtbaren Zeilen.
+          whiteSpace: 'pre-wrap',
           // Ohne das bricht ein langes Wort nicht um und sprengt die Zeile.
           overflowWrap: 'anywhere',
         }}

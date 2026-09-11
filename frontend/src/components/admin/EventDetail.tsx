@@ -452,16 +452,6 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
         </div>
       )}
 
-      {/*
-        Die Notiz steht unter der Kopfzeile statt in ihr: dort ist es am
-        Handy ohnehin eng, und eine Notiz ist oft laenger als ein Wort.
-        Gekuerzt auf zwei Zeilen, ein Klick zeigt sie ganz.
-      */}
-      {event.note && (
-        <div style={{ margin: '-0.25rem 0 1rem' }}>
-          <NotizText notiz={event.note} />
-        </div>
-      )}
 
       {/* Durchführungen nur zeigen, wenn es wirklich mehrere gibt - bei
           einer einzigen ist die Auswahl reine Platzverschwendung. */}
@@ -1259,7 +1249,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
             <NotizKnopf
               titel={gruppe.title}
               notiz={gruppe.note}
-              klein
+              className={styles.gruppenAktion}
               zahl={eintraege.filter((t: any) => t?.note && String(t.note).trim() !== '').length}
               speichern={(text) => gruppenNotizSpeichern(gruppe.id, text)}
             />
@@ -1539,7 +1529,9 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                   <NotizKnopf
                     titel={task.title}
                     notiz={task.note}
-                    klein
+                    // Dieselbe Klasse wie "Bearbeiten" daneben - sonst ist
+                    // das Notizzeichen flacher als seine Nachbarn.
+                    className={styles.editButton}
                     speichern={(text) => notizSpeichern(task.id, text)}
                   />
                   <button onClick={() => onEditTask(task)} className={styles.editButton}>
