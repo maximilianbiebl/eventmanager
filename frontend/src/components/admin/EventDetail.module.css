@@ -830,9 +830,6 @@
 .titleRow {
   display: flex;
   align-items: center;
-  /* Umbruch erlaubt: am Handy rutscht die Notiz-Plakette in eine eigene
-     Zeile, statt den Namen zusammenzuquetschen. */
-  flex-wrap: wrap;
   gap: 0.625rem;
   margin-bottom: 1rem;
   padding-bottom: 0.75rem;
@@ -855,12 +852,46 @@
 
 /*
  * Anfang der Notiz in der Kopfzeile (siehe components/admin/Notiz).
- * Sie steht an der Stelle des ✎ und darf schrumpfen - der Name geht vor.
+ *
+ * Sie steht an der Stelle des ✎ und gibt als Erste nach: der Name der
+ * Veranstaltung und die Knöpfe haben Vorrang. min-width 0 heißt, dass sie
+ * bis auf das ✎ zusammenschrumpfen darf - so bleibt die Kopfzeile auch auf
+ * einem schmalen Gerät EINE Zeile, statt umzubrechen.
  */
 .notizVorschau {
-  flex: 0 1 auto;
-  min-width: 3.5rem;
+  /*
+   * Schrumpffaktor 100: wenn der Platz knapp wird, gibt die Notiz nach -
+   * und zwar weit vor dem Namen der Veranstaltung. Mit dem üblichen
+   * Faktor 1 hätte sie sich ihre volle Breite genommen und den Namen auf
+   * "Somm…" zusammengedrückt.
+   */
+  flex: 0 100 auto;
+  min-width: 0;
   max-width: 22rem;
+}
+
+@media (max-width: 640px) {
+  /*
+   * Am Handy bewusst sehr kurz: ein, zwei Wörter genügen als Anriss. Je
+   * schmaler die Plakette hier beginnt, desto weniger muss der Name
+   * daneben nachgeben - bei 9rem verlor er sichtbar Zeichen.
+   */
+  /*
+   * Am Handy nimmt die Plakette NUR den Platz, der übrig bleibt: sie
+   * startet bei null und wächst in die Lücke (flex: 1 1 0), höchstens bis
+   * 6rem. So bekommt der Name der Veranstaltung zuerst seine Breite, und
+   * die Notiz zeigt, was danach noch hineingeht - auf einem sehr schmalen
+   * Gerät nur noch das ✎ (min-width).
+   *
+   * Über Schrumpffaktoren ging das nicht zuverlässig: ein Kind, dessen
+   * Inhalt breiter ist als sein max-width, wird beim Verteilen eingefroren,
+   * und dann gab der Name nach statt der Notiz.
+   */
+  .notizVorschau {
+    flex: 1 1 0;
+    min-width: 1.75rem;
+    max-width: 6rem;
+  }
 }
 
 .titleRowActions {
@@ -920,18 +951,24 @@
 @media (max-width: 640px) {
   .titleRow .title {
     font-size: 1.25rem;
+    /*
+     * Auf schmalen Geräten kürzen statt umbrechen: mit overflow-wrap
+     * anywhere brach der Name mitten im Wort um ("Sommerf / est") und die
+     * Kopfzeile wurde zweizeilig. Ein "…" am Ende ist das kleinere Übel -
+     * der volle Name steht eine Zeile höher in der Übersicht und hier im
+     * title-Attribut.
+     */
+    min-width: 3.5rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* Breite nach dem Namen, nicht nach dem freien Platz - die Notiz
+       daneben bekommt, was danach übrig ist. */
+    flex: 0 1 auto;
   }
 
-  /*
-   * Am Handy ist neben Zurück, Name, "i" und Aktionen kein Platz mehr für
-   * einen Textanfang. Die Plakette bekommt deshalb eine eigene Zeile -
-   * order sorgt dafür, dass sie UNTER der Knopfzeile landet und nicht
-   * "Aktionen" vor sich her schiebt.
-   */
-  .notizVorschau {
-    order: 10;
-    flex: 1 0 100%;
-    max-width: 100%;
+  .titleRow {
+    gap: 0.375rem;
   }
 }
 

@@ -1191,7 +1191,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
           benutzt exakt dieselben Klassen, damit beide gleich aussehen. */}
       <div className="tv-toolbar">
         {eventDays && eventDays > 1 && (
-          <div className="tv-group">
+          <div className="tv-group" role="group" aria-label="Tage">
             <span className="tv-label">Tage</span>
             <button
               onClick={() => handleDayChange('all')}
@@ -1213,7 +1213,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
           </div>
         )}
 
-        <div className="tv-group">
+        <div className="tv-group" role="group" aria-label="Status">
           <span className="tv-label">Status</span>
           <StatusFilter value={statusFilter} onChange={setStatusFilter} />
           {/* Gleiche Form wie die Tages-Chips, mit der Zahl der offenen

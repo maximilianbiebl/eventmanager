@@ -344,7 +344,8 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
         <button onClick={onBack} className={styles.backButton} type="button">
           Zurück
         </button>
-        <h2 className={styles.title}>{event.name}</h2>
+        {/* title-Attribut: am Handy wird der Name gekuerzt (siehe CSS). */}
+        <h2 className={styles.title} title={event.name}>{event.name}</h2>
 
         {(
           <button
@@ -1659,7 +1660,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
           wie in der Tabellenansicht, damit beide Ansichten gleich wirken. */}
       <div className="tv-toolbar">
         {eventDays && eventDays > 1 && onDayChange && (
-          <div className="tv-group">
+          <div className="tv-group" role="group" aria-label="Tage">
             <span className="tv-label">Tage</span>
             <button
               onClick={() => onDayChange('all')}
@@ -1681,7 +1682,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
           </div>
         )}
 
-        <div className="tv-group">
+        <div className="tv-group" role="group" aria-label="Status">
           <span className="tv-label">Status</span>
           <StatusFilter value={statusFilter} onChange={setStatusFilter} />
           {/* Gleiche Plakette wie in der Tabellenansicht. */}
@@ -1698,7 +1699,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
           </button>
         </div>
 
-        <div className="tv-group">
+        <div className="tv-group" role="group" aria-label="Sortieren">
           <span className="tv-label">Sortieren</span>
           {([
             ['manual', 'Manuell'],

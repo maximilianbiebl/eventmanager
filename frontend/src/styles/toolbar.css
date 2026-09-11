@@ -83,6 +83,31 @@
 
   .tv-group {
     width: 100%;
+    /* Enger zusammen: "Sortieren" mit vier Plaketten passt sonst auf einem
+       360px-Gerät nicht mehr in eine Zeile und bricht um, obwohl nur ein
+       paar Pixel fehlen. */
+    gap: 0.25rem;
+  }
+
+  .tv-label {
+    font-size: 0.6875rem;
+    letter-spacing: 0.02em;
+    margin-right: 0;
+  }
+
+  .tv-chip,
+  .tv-chip-active {
+    padding: 0.25rem 0.4375rem;
+  }
+}
+
+/* Unter 380px ist auch das zu viel - dort trägt die Zeile nur noch ihre
+   Plaketten. Welche Sortierung gemeint ist, sagt die aktive selbst
+   ("Manuell", "Zeit" …); für die Vorlesehilfe bleibt die Beschriftung
+   über aria-label an der Gruppe. */
+@media (max-width: 380px) {
+  .tv-label {
+    display: none;
   }
 }
 

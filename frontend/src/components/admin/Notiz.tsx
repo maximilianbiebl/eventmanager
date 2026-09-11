@@ -69,39 +69,56 @@ const NotizFenster: React.FC<FensterProps> = ({ titel, wert, anker, speichern, s
   }, []);
 
   /*
-   * Ins Bild ruecken: am rechten Rand wuerde das Fenster sonst hinausragen,
-   * am unteren Rand unter die Kante rutschen. Dann klappt es nach oben.
+   * Wo das Fenster steht.
+   *
+   * Am Schreibtisch haengt es RECHTSBUENDIG unter seinem Knopf - immer,
+   * nicht nur wenn der Platz knapp wird. Alle Notizknoepfe sitzen am
+   * rechten Ende ihrer Zeile; mal links- und mal rechtsbuendig zu oeffnen
+   * sah aus wie zwei verschiedene Fenster.
+   *
+   * Am Handy hilft das nicht: dort ist das Fenster fast so breit wie das
+   * Bild, und sobald die Tastatur aufgeht, bleibt nur die obere Haelfte
+   * uebrig. Deshalb steht es dort OBEN im sichtbaren Bereich - dort, wo
+   * die Tastatur es nicht verdecken kann. window.visualViewport meldet
+   * genau diesen Bereich, samt Verschiebung beim Scrollen.
    */
   useLayoutEffect(() => {
-    const hoehe = kasten.current?.offsetHeight ?? 220;
-    /*
-     * Passt es nach rechts nicht mehr, wird es NICHT einfach an den Rand
-     * geschoben, sondern rechtsbuendig unter den Knopf gehaengt - sonst
-     * stuende es bei einem Knopf am rechten Rand (Notiz zur Veranstaltung
-     * in der Kopfzeile) irgendwo weit links daneben, waehrend es in der
-     * Tabelle sauber am Knopf klebt.
-     */
-    const gewuenscht = anker.left + FENSTER_BREITE <= window.innerWidth - 8
-      ? anker.left
-      : anker.right - FENSTER_BREITE;
-    /*
-     * Und in jedem Fall ins Bild: die Tabelle rollt waagerecht, ihr Knopf
-     * kann also rechts ausserhalb des Fensters stehen. Ohne diese Klemme
-     * folgte das Notizfenster ihm hinaus und war nicht mehr zu sehen. Auf
-     * schmalen Geraeten klebt es dann am Rand statt am Knopf - dort ist es
-     * fast so breit wie das Bild, eine andere Wahl gibt es nicht.
-     */
-    const klemme = (wert: number, hoechstens: number) =>
-      Math.max(8, Math.min(wert, Math.max(8, hoechstens)));
+    const setzen = () => {
+      const sicht = window.visualViewport;
+      const breite = sicht?.width ?? window.innerWidth;
+      const hoehe = kasten.current?.offsetHeight ?? 220;
+      const schmal = breite <= 640;
 
-    const untenPasst = anker.bottom + 6 + hoehe <= window.innerHeight - 8;
-    setPos({
-      top: klemme(
-        untenPasst ? anker.bottom + 6 : anker.top - hoehe - 6,
-        window.innerHeight - hoehe - 8
-      ),
-      left: klemme(gewuenscht, window.innerWidth - FENSTER_BREITE - 8),
-    });
+      const klemme = (wert: number, hoechstens: number) =>
+        Math.max(8, Math.min(wert, Math.max(8, hoechstens)));
+
+      if (schmal) {
+        setPos({
+          top: (sicht?.offsetTop ?? 0) + 8,
+          left: (sicht?.offsetLeft ?? 0) + 8,
+        });
+        return;
+      }
+
+      const sichtHoehe = sicht?.height ?? window.innerHeight;
+      const untenPasst = anker.bottom + 6 + hoehe <= sichtHoehe - 8;
+      setPos({
+        top: klemme(untenPasst ? anker.bottom + 6 : anker.top - hoehe - 6, sichtHoehe - hoehe - 8),
+        // Die Tabelle rollt waagerecht: ihr Knopf kann rechts ausserhalb
+        // des Bildes stehen. Die Klemme haelt das Fenster trotzdem drin.
+        left: klemme(anker.right - FENSTER_BREITE, breite - FENSTER_BREITE - 8),
+      });
+    };
+
+    setzen();
+    // Tastatur auf oder zu, Geraet gedreht: neu setzen.
+    const sicht = window.visualViewport;
+    sicht?.addEventListener('resize', setzen);
+    sicht?.addEventListener('scroll', setzen);
+    return () => {
+      sicht?.removeEventListener('resize', setzen);
+      sicht?.removeEventListener('scroll', setzen);
+    };
   }, [anker]);
 
   // Klick daneben schliesst - wie bei den anderen kleinen Menues.
@@ -131,6 +148,7 @@ const NotizFenster: React.FC<FensterProps> = ({ titel, wert, anker, speichern, s
         position: 'fixed',
         top: pos.top,
         left: pos.left,
+        // Am Handy so breit wie das Bild hergibt, sonst die feste Breite.
         width: FENSTER_BREITE,
         maxWidth: 'calc(100vw - 16px)',
         zIndex: 1200,
@@ -371,7 +389,15 @@ export const NotizText: React.FC<TextProps> = ({ notiz, style, offen: vonAussen,
     >
       <span aria-hidden style={{ flexShrink: 0 }}>✎</span>
       <span
-        style={offen ? { whiteSpace: 'pre-wrap' } : {
+        style={offen ? {
+          // Auch aufgeklappt in der Box bleiben: ohne minWidth 0 wehrt sich
+          // ein Flex-Kind gegen das Schrumpfen, und ohne overflowWrap
+          // laeuft ein langes Wort (oder eine lange URL) rechts hinaus.
+          minWidth: 0,
+          whiteSpace: 'pre-wrap',
+          overflowWrap: 'anywhere',
+        } : {
+          minWidth: 0,
           display: '-webkit-box',
           WebkitLineClamp: 2,
           WebkitBoxOrient: 'vertical',
@@ -411,8 +437,21 @@ interface VorschauProps {
  *
  * Einzeilig mit "…" am Ende: die Kopfzeile soll nicht umbrechen. Wie viel
  * zu sehen ist, entscheidet der Platz neben Name und Knoepfen - am Handy
- * sind das ein paar Woerter.
+ * sind das ein paar Woerter, und auf einem sehr schmalen Geraet bleibt am
+ * Ende nur das ✎ stehen. Es tut dann dasselbe wie der Text: aufklappen.
+ *
+ * Gezeigt wird die ERSTE ZEILE der Notiz, nicht ihr Anfang ueber alle
+ * Zeilen hinweg. Wer eine Liste schreibt, setzt das Wichtigste nach oben;
+ * mehrere Zeilen zu einer zusammenzuziehen ergaebe Saetze, die so nie
+ * dastanden.
  */
+const ersteZeile = (text: string): string => {
+  const zeilen = text.split('\n').map((z) => z.trim()).filter((z) => z !== '');
+  const erste = zeilen[0] ?? '';
+  // "…" nur, wenn wirklich mehr kommt - sonst verspricht es einen zweiten
+  // Teil, den es nicht gibt. Kuerzung innerhalb der Zeile macht CSS.
+  return zeilen.length > 1 ? `${erste} …` : erste;
+};
 export const NotizVorschau: React.FC<VorschauProps> = ({ notiz, oeffnen, className }) => (
   <button
     type="button"
@@ -438,10 +477,13 @@ export const NotizVorschau: React.FC<VorschauProps> = ({ notiz, oeffnen, classNa
     }}
   >
     <span aria-hidden style={{ flexShrink: 0 }}>✎</span>
-    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-      {/* Umbrueche als Leerzeichen: in einer Zeile waeren sie sonst weg
-          und Woerter klebten aneinander. */}
-      {notiz.replace(/\s+/g, ' ')}
+    {/*
+      Der Text darf bis auf null schrumpfen - dann steht nur noch das ✎ da,
+      und der Knopf sieht aus wie vor der ersten Notiz. Das ist die
+      Notloesung fuer sehr schmale Geraete; er tut weiterhin dasselbe.
+    */}
+    <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      {ersteZeile(notiz)}
     </span>
   </button>
 );
