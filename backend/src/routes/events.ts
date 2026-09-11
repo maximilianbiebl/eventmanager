@@ -6,6 +6,8 @@ import { broadcastUpdate } from './sse';
 import { darfEventVerwalten } from '../middleware/eventAccess';
 import multer from 'multer';
 import { CSV_BOM, ohneBom, parseCsvLine, csvFeld } from '../utils/csv';
+import { kopiereInhalte } from '../utils/eventKopie';
+import { notizOderNull } from '../utils/notizen';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -357,6 +359,38 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req: Auth
   }
 });
 
+/*
+ * Notiz an der Veranstaltung - das Gegenstueck zu den Notizen an Gruppe und
+ * Aufgabe (siehe utils/notizen.ts). Sie steht in der Kopfzeile der
+ * Verwaltung neben dem "i" und geht den Mitarbeiterbereich nichts an;
+ * dessen Abfragen holen die Veranstaltung ohnehin nur ueber
+ * /tasks/my-tasks, wo die Spalte herausfliegt.
+ */
+router.patch('/:id/note', authMiddleware, teamleiterOrAdminMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!(await darfEventVerwalten(req.user!, id))) {
+      return res.status(403).json({ error: 'Keine Berechtigung für diese Veranstaltung' });
+    }
+
+    const result = await query(
+      'UPDATE events SET note = $1 WHERE id = $2 RETURNING id, note',
+      [notizOderNull(req.body?.note), id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Event nicht gefunden' });
+    }
+
+    broadcastUpdate('task', { action: 'note_updated', eventId: Number(id) });
+    res.json({ id: result.rows[0].id, note: result.rows[0].note });
+  } catch (error) {
+    console.error('Update event note error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
 // Event zu Vorlage machen oder umgekehrt (nur Admin)
 router.put('/:id/toggle-template', authMiddleware, adminMiddleware, async (req: AuthRequest, res) => {
   try {
@@ -452,85 +486,13 @@ router.post('/:id/create-from-template', authMiddleware, teamleiterOrAdminMiddle
       instances.push(instanceResult.rows[0]);
     }
 
-    // Programmpunkte von der Vorlage kopieren mit Bulk INSERT
-    const templateProgram = await query('SELECT * FROM program_items WHERE event_id = $1 ORDER BY id', [id]);
-    const programItemIdMap = new Map<number, number>();
-
-    if (templateProgram.rows.length > 0) {
-      const programValues = templateProgram.rows.map((p, idx) =>
-        // Sechs Werte je Gruppe: Tag, Zeit, Titel, Beschreibung, Rang, Farbe.
-        `($1, $${idx * 6 + 2}, $${idx * 6 + 3}, $${idx * 6 + 4}, $${idx * 6 + 5}, $${idx * 6 + 6}, $${idx * 6 + 7})`
-      ).join(', ');
-      const programParams = [newEvent.id];
-      templateProgram.rows.forEach(p => {
-        // sort_order mit: ohne Uhrzeit ist sie die einzige Reihenfolge.
-        programParams.push(p.day_number, p.time, p.title, p.description, p.sort_order ?? 0, p.color ?? null);
-      });
-
-      const newProgramItems = await query(
-        /*
-         * Farbe mitkopieren. Sie gehoert zur Gruppe wie ihr Name - beim
-         * Kopieren fiel sie bisher still weg, und aus der farbig geordneten
-         * Vorlage wurde eine graue Liste.
-         *
-         * series_id bleibt bewusst aussen vor: Serien gehoeren zu genau
-         * einer Veranstaltung und werden hier nicht mitkopiert. Ein
-         * uebernommener Verweis zeigte auf die Serie der Vorlage.
-         */
-        `INSERT INTO program_items (event_id, day_number, time, title, description, sort_order, color)
-         VALUES ${programValues} RETURNING id`,
-        programParams
-      );
-
-      templateProgram.rows.forEach((program, idx) => {
-        programItemIdMap.set(program.id, newProgramItems.rows[idx].id);
-      });
-    }
-
-    // Alle Tasks von der Vorlage kopieren mit Bulk INSERT
-    const templateTasks = await query('SELECT * FROM tasks WHERE event_id = $1', [id]);
-
-    if (templateTasks.rows.length > 0) {
-      const taskValues = templateTasks.rows.map((t, idx) => {
-        const baseIdx = idx * 16 + 2;
-        return `($1, $${baseIdx}, $${baseIdx+1}, $${baseIdx+2}, $${baseIdx+3}, $${baseIdx+4}, $${baseIdx+5}, $${baseIdx+6}, $${baseIdx+7}, $${baseIdx+8}, $${baseIdx+9}, $${baseIdx+10}, $${baseIdx+11}, $${baseIdx+12}, $${baseIdx+13}, $${baseIdx+14}, $${baseIdx+15})`;
-      }).join(', ');
-
-      const taskParams = [newEvent.id];
-      templateTasks.rows.forEach(task => {
-        const newProgramItemId = task.program_item_id ? programItemIdMap.get(task.program_item_id) : null;
-        taskParams.push(
-          newProgramItemId || null,
-          task.day_number,
-          task.title,
-          task.description,
-          task.scheduled_time,
-          task.start_time,
-          task.end_time,
-          task.reminder_minutes,
-          task.is_public,
-          'not_started',
-          task.is_active !== undefined ? task.is_active : true,
-          task.sort_order || 0,
-          // Personalbedarf gehoert zur Aufgabe und muss beim Kopieren mit -
-          // sonst geht er beim Duplizieren oder beim Anlegen aus einer
-          // Vorlage verloren.
-          task.needed_staff ?? null,
-          task.needed_female ?? null,
-          task.needed_male ?? null,
-          task.auto_complete ?? false
-        );
-      });
-
-      await query(
-        `INSERT INTO tasks (
-          event_id, program_item_id, day_number, title, description,
-          scheduled_time, start_time, end_time, reminder_minutes, is_public, status, is_active, sort_order,
-          needed_staff, needed_female, needed_male, auto_complete
-        ) VALUES ${taskValues}`,
-        taskParams
-      );
-    }
+    /*
+     * Serien, Aufgabengruppen und Aufgaben in einem Rutsch - siehe
+     * utils/eventKopie. Der Block stand hier viermal fast gleich; eine
+     * Neuerung kam dadurch an einer Stelle an und fehlte an den
+     * anderen (zuletzt die Farbe der Gruppen).
+     */
+    await kopiereInhalte(id, newEvent.id);
 
     // SSE Broadcast für instant updates
     broadcastUpdate('event', { action: 'event_created', eventId: newEvent.id, fromTemplate: id });
@@ -579,90 +541,13 @@ router.post('/:id/copy-to-template', authMiddleware, adminMiddleware, async (req
       instances.push(instanceResult.rows[0]);
     }
 
-    // Programmpunkte kopieren mit Bulk INSERT
-    const originalProgram = await query('SELECT * FROM program_items WHERE event_id = $1 ORDER BY id', [id]);
-    console.log(`Copy to template: Found ${originalProgram.rows.length} program items for event ${id}`);
-    const programItemIdMap = new Map<number, number>();
-
-    if (originalProgram.rows.length > 0) {
-      // Bulk INSERT für Programmpunkte
-      const programValues = originalProgram.rows.map((p, idx) =>
-        // Sechs Werte je Gruppe: Tag, Zeit, Titel, Beschreibung, Rang, Farbe.
-        `($1, $${idx * 6 + 2}, $${idx * 6 + 3}, $${idx * 6 + 4}, $${idx * 6 + 5}, $${idx * 6 + 6}, $${idx * 6 + 7})`
-      ).join(', ');
-      const programParams = [template.id];
-      originalProgram.rows.forEach(p => {
-        // sort_order mit: ohne Uhrzeit ist sie die einzige Reihenfolge.
-        programParams.push(p.day_number, p.time, p.title, p.description, p.sort_order ?? 0, p.color ?? null);
-      });
-
-      const newProgramItems = await query(
-        /*
-         * Farbe mitkopieren. Sie gehoert zur Gruppe wie ihr Name - beim
-         * Kopieren fiel sie bisher still weg, und aus der farbig geordneten
-         * Vorlage wurde eine graue Liste.
-         *
-         * series_id bleibt bewusst aussen vor: Serien gehoeren zu genau
-         * einer Veranstaltung und werden hier nicht mitkopiert. Ein
-         * uebernommener Verweis zeigte auf die Serie der Vorlage.
-         */
-        `INSERT INTO program_items (event_id, day_number, time, title, description, sort_order, color)
-         VALUES ${programValues} RETURNING id`,
-        programParams
-      );
-
-      // ID-Mapping erstellen (Reihenfolge ist garantiert gleich)
-      originalProgram.rows.forEach((program, idx) => {
-        programItemIdMap.set(program.id, newProgramItems.rows[idx].id);
-      });
-    }
-
-    // Alle Tasks kopieren mit Bulk INSERT
-    const originalTasks = await query('SELECT * FROM tasks WHERE event_id = $1', [id]);
-    console.log(`Copy to template: Found ${originalTasks.rows.length} tasks for event ${id}`);
-
-    if (originalTasks.rows.length > 0) {
-      // Bulk INSERT für Tasks
-      const taskValues = originalTasks.rows.map((t, idx) => {
-        const baseIdx = idx * 16 + 2;
-        return `($1, $${baseIdx}, $${baseIdx+1}, $${baseIdx+2}, $${baseIdx+3}, $${baseIdx+4}, $${baseIdx+5}, $${baseIdx+6}, $${baseIdx+7}, $${baseIdx+8}, $${baseIdx+9}, $${baseIdx+10}, $${baseIdx+11}, $${baseIdx+12}, $${baseIdx+13}, $${baseIdx+14}, $${baseIdx+15})`;
-      }).join(', ');
-
-      const taskParams = [template.id];
-      originalTasks.rows.forEach(task => {
-        const newProgramItemId = task.program_item_id ? programItemIdMap.get(task.program_item_id) : null;
-        taskParams.push(
-          newProgramItemId || null,
-          task.day_number,
-          task.title,
-          task.description,
-          task.scheduled_time,
-          task.start_time,
-          task.end_time,
-          task.reminder_minutes,
-          task.is_public,
-          'not_started',
-          task.is_active !== undefined ? task.is_active : true,
-          task.sort_order || 0,
-          // Personalbedarf gehoert zur Aufgabe und muss beim Kopieren mit -
-          // sonst geht er beim Duplizieren oder beim Anlegen aus einer
-          // Vorlage verloren.
-          task.needed_staff ?? null,
-          task.needed_female ?? null,
-          task.needed_male ?? null,
-          task.auto_complete ?? false
-        );
-      });
-
-      await query(
-        `INSERT INTO tasks (
-          event_id, program_item_id, day_number, title, description,
-          scheduled_time, start_time, end_time, reminder_minutes, is_public, status, is_active, sort_order,
-          needed_staff, needed_female, needed_male, auto_complete
-        ) VALUES ${taskValues}`,
-        taskParams
-      );
-    }
+    /*
+     * Serien, Aufgabengruppen und Aufgaben in einem Rutsch - siehe
+     * utils/eventKopie. Der Block stand hier viermal fast gleich; eine
+     * Neuerung kam dadurch an einer Stelle an und fehlte an den
+     * anderen (zuletzt die Farbe der Gruppen).
+     */
+    await kopiereInhalte(id, template.id);
 
     // Prüfe ob Daten tatsächlich kopiert wurden
     const verifyTasks = await query('SELECT * FROM tasks WHERE event_id = $1', [template.id]);
@@ -753,87 +638,13 @@ router.post('/:id/approve-suggestion', authMiddleware, adminMiddleware, async (r
       instances.push(instanceResult.rows[0]);
     }
 
-    // Programmpunkte kopieren mit Bulk INSERT
-    const originalProgram = await query('SELECT * FROM program_items WHERE event_id = $1 ORDER BY id', [id]);
-    console.log(`Approve suggestion: Found ${originalProgram.rows.length} program items for event ${id}`);
-    const programItemIdMap = new Map<number, number>();
-
-    if (originalProgram.rows.length > 0) {
-      const programValues = originalProgram.rows.map((p, idx) =>
-        // Sechs Werte je Gruppe: Tag, Zeit, Titel, Beschreibung, Rang, Farbe.
-        `($1, $${idx * 6 + 2}, $${idx * 6 + 3}, $${idx * 6 + 4}, $${idx * 6 + 5}, $${idx * 6 + 6}, $${idx * 6 + 7})`
-      ).join(', ');
-      const programParams = [template.id];
-      originalProgram.rows.forEach(p => {
-        // sort_order mit: ohne Uhrzeit ist sie die einzige Reihenfolge.
-        programParams.push(p.day_number, p.time, p.title, p.description, p.sort_order ?? 0, p.color ?? null);
-      });
-
-      const newProgramItems = await query(
-        /*
-         * Farbe mitkopieren. Sie gehoert zur Gruppe wie ihr Name - beim
-         * Kopieren fiel sie bisher still weg, und aus der farbig geordneten
-         * Vorlage wurde eine graue Liste.
-         *
-         * series_id bleibt bewusst aussen vor: Serien gehoeren zu genau
-         * einer Veranstaltung und werden hier nicht mitkopiert. Ein
-         * uebernommener Verweis zeigte auf die Serie der Vorlage.
-         */
-        `INSERT INTO program_items (event_id, day_number, time, title, description, sort_order, color)
-         VALUES ${programValues} RETURNING id`,
-        programParams
-      );
-
-      originalProgram.rows.forEach((program, idx) => {
-        programItemIdMap.set(program.id, newProgramItems.rows[idx].id);
-      });
-    }
-
-    // Tasks kopieren mit Bulk INSERT
-    const originalTasks = await query('SELECT * FROM tasks WHERE event_id = $1', [id]);
-    console.log(`Approve suggestion: Found ${originalTasks.rows.length} tasks for event ${id}`);
-
-    if (originalTasks.rows.length > 0) {
-      const taskValues = originalTasks.rows.map((t, idx) => {
-        const baseIdx = idx * 16 + 2;
-        return `($1, $${baseIdx}, $${baseIdx+1}, $${baseIdx+2}, $${baseIdx+3}, $${baseIdx+4}, $${baseIdx+5}, $${baseIdx+6}, $${baseIdx+7}, $${baseIdx+8}, $${baseIdx+9}, $${baseIdx+10}, $${baseIdx+11}, $${baseIdx+12}, $${baseIdx+13}, $${baseIdx+14}, $${baseIdx+15})`;
-      }).join(', ');
-
-      const taskParams = [template.id];
-      originalTasks.rows.forEach(task => {
-        const newProgramItemId = task.program_item_id ? programItemIdMap.get(task.program_item_id) : null;
-        taskParams.push(
-          newProgramItemId || null,
-          task.day_number,
-          task.title,
-          task.description,
-          task.scheduled_time,
-          task.start_time,
-          task.end_time,
-          task.reminder_minutes,
-          task.is_public,
-          'not_started',
-          task.is_active !== undefined ? task.is_active : true,
-          task.sort_order || 0,
-          // Personalbedarf gehoert zur Aufgabe und muss beim Kopieren mit -
-          // sonst geht er beim Duplizieren oder beim Anlegen aus einer
-          // Vorlage verloren.
-          task.needed_staff ?? null,
-          task.needed_female ?? null,
-          task.needed_male ?? null,
-          task.auto_complete ?? false
-        );
-      });
-
-      await query(
-        `INSERT INTO tasks (
-          event_id, program_item_id, day_number, title, description,
-          scheduled_time, start_time, end_time, reminder_minutes, is_public, status, is_active, sort_order,
-          needed_staff, needed_female, needed_male, auto_complete
-        ) VALUES ${taskValues}`,
-        taskParams
-      );
-    }
+    /*
+     * Serien, Aufgabengruppen und Aufgaben in einem Rutsch - siehe
+     * utils/eventKopie. Der Block stand hier viermal fast gleich; eine
+     * Neuerung kam dadurch an einer Stelle an und fehlte an den
+     * anderen (zuletzt die Farbe der Gruppen).
+     */
+    await kopiereInhalte(id, template.id);
 
     // Prüfe ob Daten tatsächlich kopiert wurden
     const verifyTasks = await query('SELECT * FROM tasks WHERE event_id = $1', [template.id]);
@@ -905,85 +716,13 @@ router.post('/:id/duplicate', authMiddleware, teamleiterOrAdminMiddleware, async
       instances.push(instanceResult.rows[0]);
     }
 
-    // Programmpunkte kopieren mit Bulk INSERT
-    const originalProgram = await query('SELECT * FROM program_items WHERE event_id = $1 ORDER BY id', [id]);
-    const programItemIdMap = new Map<number, number>();
-
-    if (originalProgram.rows.length > 0) {
-      const programValues = originalProgram.rows.map((p, idx) =>
-        // Sechs Werte je Gruppe: Tag, Zeit, Titel, Beschreibung, Rang, Farbe.
-        `($1, $${idx * 6 + 2}, $${idx * 6 + 3}, $${idx * 6 + 4}, $${idx * 6 + 5}, $${idx * 6 + 6}, $${idx * 6 + 7})`
-      ).join(', ');
-      const programParams = [newEvent.id];
-      originalProgram.rows.forEach(p => {
-        // sort_order mit: ohne Uhrzeit ist sie die einzige Reihenfolge.
-        programParams.push(p.day_number, p.time, p.title, p.description, p.sort_order ?? 0, p.color ?? null);
-      });
-
-      const newProgramItems = await query(
-        /*
-         * Farbe mitkopieren. Sie gehoert zur Gruppe wie ihr Name - beim
-         * Kopieren fiel sie bisher still weg, und aus der farbig geordneten
-         * Vorlage wurde eine graue Liste.
-         *
-         * series_id bleibt bewusst aussen vor: Serien gehoeren zu genau
-         * einer Veranstaltung und werden hier nicht mitkopiert. Ein
-         * uebernommener Verweis zeigte auf die Serie der Vorlage.
-         */
-        `INSERT INTO program_items (event_id, day_number, time, title, description, sort_order, color)
-         VALUES ${programValues} RETURNING id`,
-        programParams
-      );
-
-      originalProgram.rows.forEach((program, idx) => {
-        programItemIdMap.set(program.id, newProgramItems.rows[idx].id);
-      });
-    }
-
-    // Alle Tasks kopieren mit Bulk INSERT
-    const originalTasks = await query('SELECT * FROM tasks WHERE event_id = $1', [id]);
-
-    if (originalTasks.rows.length > 0) {
-      const taskValues = originalTasks.rows.map((t, idx) => {
-        const baseIdx = idx * 16 + 2;
-        return `($1, $${baseIdx}, $${baseIdx+1}, $${baseIdx+2}, $${baseIdx+3}, $${baseIdx+4}, $${baseIdx+5}, $${baseIdx+6}, $${baseIdx+7}, $${baseIdx+8}, $${baseIdx+9}, $${baseIdx+10}, $${baseIdx+11}, $${baseIdx+12}, $${baseIdx+13}, $${baseIdx+14}, $${baseIdx+15})`;
-      }).join(', ');
-
-      const taskParams = [newEvent.id];
-      originalTasks.rows.forEach(task => {
-        const newProgramItemId = task.program_item_id ? programItemIdMap.get(task.program_item_id) : null;
-        taskParams.push(
-          newProgramItemId || null,
-          task.day_number,
-          task.title,
-          task.description,
-          task.scheduled_time,
-          task.start_time,
-          task.end_time,
-          task.reminder_minutes,
-          task.is_public,
-          'not_started', // Reset status for new event
-          task.is_active !== undefined ? task.is_active : true,
-          task.sort_order || 0,
-          // Personalbedarf gehoert zur Aufgabe und muss beim Kopieren mit -
-          // sonst geht er beim Duplizieren oder beim Anlegen aus einer
-          // Vorlage verloren.
-          task.needed_staff ?? null,
-          task.needed_female ?? null,
-          task.needed_male ?? null,
-          task.auto_complete ?? false
-        );
-      });
-
-      await query(
-        `INSERT INTO tasks (
-          event_id, program_item_id, day_number, title, description,
-          scheduled_time, start_time, end_time, reminder_minutes, is_public, status, is_active, sort_order,
-          needed_staff, needed_female, needed_male, auto_complete
-        ) VALUES ${taskValues}`,
-        taskParams
-      );
-    }
+    /*
+     * Serien, Aufgabengruppen und Aufgaben in einem Rutsch - siehe
+     * utils/eventKopie. Der Block stand hier viermal fast gleich; eine
+     * Neuerung kam dadurch an einer Stelle an und fehlte an den
+     * anderen (zuletzt die Farbe der Gruppen).
+     */
+    await kopiereInhalte(id, newEvent.id);
 
     res.status(201).json({
       ...newEvent,

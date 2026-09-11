@@ -28,6 +28,8 @@ export interface TaskGroup {
   /** Serie der Gruppe. Eine eigene Serie an der Aufgabe geht vor. */
   series_id?: number | null;
   series_name?: string | null;
+  /** Interne Notiz der Leitung - nur in der Verwaltung. Siehe api/tasks. */
+  note?: string | null;
 }
 
 /** Alter Name, solange noch Stellen darauf verweisen. */
@@ -85,6 +87,15 @@ export const programApi = {
     mit_zuweisungen?: boolean;
   }): Promise<{ gruppe: TaskGroup; kopierteAufgaben: number; kopierteZuweisungen: number; message: string }> => {
     const response = await client.post(`/program/${id}/duplicate`, daten);
+    return response.data;
+  },
+
+  /**
+   * Notiz der Leitung an einer Gruppe. Leerer Text löscht sie.
+   * Siehe api/tasks.setzeNotiz.
+   */
+  setzeNotiz: async (id: number, note: string): Promise<{ id: number; note: string | null }> => {
+    const response = await client.patch(`/program/${id}/note`, { note });
     return response.data;
   },
 

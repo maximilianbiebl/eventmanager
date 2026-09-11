@@ -7,6 +7,7 @@ import { broadcastUpdate } from './sse';
 import { verschiebeZeile, einsortierenNachZeit } from '../utils/reihenfolge';
 import { farbeOderNull } from '../utils/gruppenFarben';
 import { syncSeriesAssignments } from '../utils/serien';
+import { notizOderNull } from '../utils/notizen';
 
 /*
  * Aufgabengruppen.
@@ -278,6 +279,30 @@ router.put('/:id/tasks', authMiddleware, teamleiterOrAdminMiddleware,
     });
   } catch (error) {
     console.error('Set task group members error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+/*
+ * Notiz an einer Aufgabengruppe - wie an der Aufgabe, siehe tasks.ts.
+ */
+router.patch('/:id/note', authMiddleware, teamleiterOrAdminMiddleware,
+  eventZugriff(req => eventIdVonGruppe(req.params.id)), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await query(
+      'UPDATE program_items SET note = $1 WHERE id = $2 RETURNING id, event_id, note',
+      [notizOderNull(req.body?.note), id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Aufgabengruppe nicht gefunden' });
+    }
+
+    broadcastUpdate('task', { action: 'note_updated', eventId: result.rows[0].event_id });
+    res.json({ id: result.rows[0].id, note: result.rows[0].note });
+  } catch (error) {
+    console.error('Update group note error:', error);
     res.status(500).json({ error: 'Server Fehler' });
   }
 });

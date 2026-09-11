@@ -7,6 +7,7 @@ import { CSV_BOM, ohneBom, parseCsvLine, csvFeld } from '../utils/csv';
 import { verschiebeZeile, einsortierenNachZeit, einsortierenInGruppe } from '../utils/reihenfolge';
 import { farbeOderNull } from '../utils/gruppenFarben';
 import { AUFGABEN_DER_SERIE, syncSeriesAssignments } from '../utils/serien';
+import { ohneNotiz, ohneNotizen, notizOderNull } from '../utils/notizen';
 import {
   eventZugriff, eventIdVonTask, eventIdVonInstanz, eventIdVonZuweisung, eventIdVonSerie,
   darfEventVerwalten,
@@ -135,7 +136,8 @@ router.get('/my-tasks/:instanceId', authMiddleware, async (req: AuthRequest, res
       [instanceId, userId]
     );
 
-    res.json(result.rows);
+    // Die interne Notiz der Leitung geht den Mitarbeiterbereich nichts an.
+    res.json(ohneNotizen(result.rows));
   } catch (error) {
     console.error('Get my tasks error:', error);
     res.status(500).json({ error: 'Server Fehler' });
@@ -300,8 +302,8 @@ router.get('/my-tasks', authMiddleware, async (req: AuthRequest, res) => {
       [userId]
     );
 
-    // Kombiniere beide Listen
-    const allTasks = [...assignedTasks.rows, ...publicTasks.rows];
+    // Kombiniere beide Listen - ohne die interne Notiz der Leitung.
+    const allTasks = ohneNotizen([...assignedTasks.rows, ...publicTasks.rows]);
 
     // Sortiere nach Datum und Tag
     allTasks.sort((a, b) => {
@@ -426,7 +428,7 @@ router.post('/', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req =
     }
 
     // Broadcast update for live sync
-    broadcastUpdate('task', { action: 'create', task: result.rows[0] });
+    broadcastUpdate('task', { action: 'create', task: ohneNotiz(result.rows[0]) });
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -1054,7 +1056,7 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
      */
     if (currentTask.status_changed_at && gewaehltAm < new Date(currentTask.status_changed_at)) {
       return res.json({
-        ...currentTask,
+        ...ohneNotiz(currentTask),
         superseded: true,
         message: 'Der Status wurde inzwischen von anderer Seite geändert - die ältere Änderung wurde verworfen.',
       });
@@ -1347,9 +1349,9 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
     }
 
     // Broadcast update to all connected clients
-    broadcastUpdate('task', { action: 'status_update', task: result.rows[0] });
+    broadcastUpdate('task', { action: 'status_update', task: ohneNotiz(result.rows[0]) });
 
-    res.json(result.rows[0]);
+    res.json(ohneNotiz(result.rows[0]));
   } catch (error) {
     console.error('Update status error:', error);
     res.status(500).json({ error: 'Server Fehler' });
@@ -1617,11 +1619,45 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req
     }
 
     // Broadcast update for live sync
-    broadcastUpdate('task', { action: 'update', task: result.rows[0] });
+    broadcastUpdate('task', { action: 'update', task: ohneNotiz(result.rows[0]) });
 
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Update task error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+/*
+ * Notiz an einer Aufgabe setzen oder loeschen.
+ *
+ * Eigene Route statt eines Feldes im Bearbeiten-Dialog: eine Notiz ist ein
+ * Zuruf zwischendurch, kein Formular. Ein Klick aufs Notizzeichen, tippen,
+ * fertig - der grosse Dialog waere fuer zwei Worte der falsche Weg.
+ *
+ * Leerer Text loescht die Notiz (siehe notizOderNull). Die Meldung an die
+ * anderen Sitzungen traegt den Text NICHT mit sich: sie geht an alle
+ * offenen Sitzungen, auch an Mitarbeiter.
+ */
+router.patch('/:id/note', authMiddleware, teamleiterOrAdminMiddleware,
+  eventZugriff(req => eventIdVonTask(req.params.id)), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const notiz = notizOderNull(req.body?.note);
+
+    const result = await query(
+      'UPDATE tasks SET note = $1 WHERE id = $2 RETURNING id, event_id, note',
+      [notiz, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Aufgabe nicht gefunden' });
+    }
+
+    broadcastUpdate('task', { action: 'note_updated', eventId: result.rows[0].event_id });
+    res.json({ id: result.rows[0].id, note: result.rows[0].note });
+  } catch (error) {
+    console.error('Update task note error:', error);
     res.status(500).json({ error: 'Server Fehler' });
   }
 });
@@ -1691,7 +1727,7 @@ router.put('/:id/deactivate', authMiddleware, teamleiterOrAdminMiddleware, event
     }
 
     // Broadcast update for live sync
-    broadcastUpdate('task', { action: 'deactivate', task: result.rows[0] });
+    broadcastUpdate('task', { action: 'deactivate', task: ohneNotiz(result.rows[0]) });
 
     res.json({ message: 'Aufgabe wurde deaktiviert', task: result.rows[0] });
   } catch (error) {
@@ -1715,7 +1751,7 @@ router.put('/:id/activate', authMiddleware, teamleiterOrAdminMiddleware, eventZu
     }
 
     // Broadcast update for live sync
-    broadcastUpdate('task', { action: 'activate', task: result.rows[0] });
+    broadcastUpdate('task', { action: 'activate', task: ohneNotiz(result.rows[0]) });
 
     res.json({ message: 'Aufgabe wurde aktiviert', task: result.rows[0] });
   } catch (error) {

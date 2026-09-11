@@ -16,6 +16,8 @@ export interface Event {
    * angelegt. Nur in der Liste der Teamleitung gesetzt.
    */
   ist_mitleitung?: boolean;
+  /** Interne Notiz der Leitung - nur in der Verwaltung. Siehe api/tasks. */
+  note?: string | null;
 }
 
 export interface EventInstance {
@@ -97,6 +99,12 @@ export const eventsApi = {
 
   bulkApproveSuggestions: async (ids: number[]) => {
     const response = await client.post('/events/bulk-approve-suggestions', { ids });
+    return response.data;
+  },
+
+  /** Notiz der Leitung an der Veranstaltung. Siehe api/tasks.setzeNotiz. */
+  setzeNotiz: async (id: number, note: string): Promise<{ id: number; note: string | null }> => {
+    const response = await client.patch(`/events/${id}/note`, { note });
     return response.data;
   },
 

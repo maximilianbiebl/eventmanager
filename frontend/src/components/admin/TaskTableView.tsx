@@ -3,7 +3,8 @@ import client from '../../api/client';
 import { tasksApi } from '../../api/tasks';
 import { taskSeriesApi, TaskSeries } from '../../api/taskSeries';
 import { Leitung, eventBadgeColors, eventRolleVon, eventAssignmentTitle } from '../../utils/roleBadge';
-import { BedarfBadge } from './BedarfBadge';
+import { BedarfBadge, hatBedarf, bedarfGesamt } from './BedarfBadge';
+import { NotizKnopf, NotizText } from './Notiz';
 import { TaskGroup } from '../../api/program';
 import { zeilenMitGruppen, zugeklappteGruppen, merkeZugeklappt, gruppenZeit, Sortierung } from '../../utils/taskGroups';
 import { programApi } from '../../api/program';
@@ -46,6 +47,8 @@ interface TaskAssignment {
   needed_staff?: number | null;
   needed_female?: number | null;
   needed_male?: number | null;
+  /** Interne Notiz der Leitung - siehe components/admin/Notiz. */
+  note?: string | null;
 }
 
 interface Props {
@@ -161,6 +164,12 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  /*
+   * Filter "Nicht eingeteilt": zeigt nur, wo noch Leute fehlen. Oeffentliche
+   * Aufgaben zaehlen normal mit - sie sind an ihrer Plakette erkennbar, und
+   * der Filter soll zeigen, wo noch niemand steht.
+   */
+  const [nurNichtEingeteilt, setNurNichtEingeteilt] = useState(false);
   const [internalSelectedDay, setInternalSelectedDay] = useState<number | 'all'>('all');
   const [sortColumn, setSortColumn] = useState<string>('manual');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -502,6 +511,23 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
     filteredTasks = filteredTasks.filter(t => t.task.day_number === selectedDay);
   }
 
+  /*
+   * Dieselbe Regel, nach der sich auch die Plakette faerbt: weniger Leute
+   * eingeteilt als benoetigt - und ohne hinterlegten Bedarf: niemand
+   * eingeteilt. So bedeutet der Filter genau das, was das Gelb zeigt.
+   */
+  const nichtEingeteilt = (e: { task: TaskAssignment; assignedUsers: any[] }): boolean => {
+    const gesamt = bedarfGesamt(e.task);
+    return gesamt !== null ? e.assignedUsers.length < gesamt : e.assignedUsers.length === 0;
+  };
+
+  // Zahl auf der Plakette: wie viele der GERADE gezeigten Aufgaben betroffen
+  // sind - sonst verspraeche sie mehr, als der Klick zeigt.
+  const offeneStellen = filteredTasks.filter(nichtEingeteilt).length;
+  if (nurNichtEingeteilt) {
+    filteredTasks = filteredTasks.filter(nichtEingeteilt);
+  }
+
   const handleSort = (column: string) => {
     if (sortColumn === column) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -593,6 +619,35 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
     }
   };
 
+  /*
+   * Notiz speichern - und sofort in die Zeile eintragen.
+   *
+   * Ohne das Nachtragen von Hand haenge die Anzeige an der SSE-Meldung, die
+   * den Text absichtlich NICHT mitbringt (sie geht auch an Mitarbeiter).
+   * Die Liste laedt danach ohnehin nach; bis dahin steht schon der neue
+   * Stand da.
+   */
+  const notizSpeichern = async (taskId: number, text: string) => {
+    try {
+      const antwort = await tasksApi.setzeNotiz(taskId, text);
+      setAssignments((prev) => prev.map((a) => (a.id === taskId ? { ...a, note: antwort.note } : a)));
+    } catch (error) {
+      console.error('Save task note error:', error);
+      alert('Notiz konnte nicht gespeichert werden');
+    }
+  };
+
+  const gruppenNotizSpeichern = async (gruppenId: number, text: string) => {
+    try {
+      await programApi.setzeNotiz(gruppenId, text);
+      // Die Liste der Gruppen fuehrt die Elternansicht.
+      onTasksChanged?.();
+    } catch (error) {
+      console.error('Save group note error:', error);
+      alert('Notiz konnte nicht gespeichert werden');
+    }
+  };
+
   const getTaskDate = (dayNumber: number) => {
     if (!instanceStartDate) return '-';
     const startDate = new Date(instanceStartDate);
@@ -678,8 +733,8 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
       : undefined;
 
     return (
+    <React.Fragment key={task.id}>
     <tr
-      key={task.id}
       style={{
         ...styles.row,
         ...(selectedTaskIds.includes(task.id) ? styles.selectedRow : {}),
@@ -805,7 +860,15 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
                         beim Ueberfliegen sieht, wo noch jemand fehlt. */}
                     <BedarfBadge task={task} zugewiesen={assignedUsers.length} klein />
                     {assignedUsers.length === 0 ? (
-                      <span style={styles.noAssignments}>Nicht zugewiesen</span>
+                      /*
+                       * "Nicht zugewiesen" nur, wenn KEINE Plakette danebensteht:
+                       * neben "0/4" waere es dieselbe Aussage zweimal. Ohne
+                       * hinterlegten Bedarf gibt es keine Plakette - dort bleibt
+                       * der Text, sonst stuende die Zelle leer.
+                       */
+                      hatBedarf(task)
+                        ? null
+                        : <span style={styles.noAssignments}>Nicht zugewiesen</span>
                     ) : (
                       <div style={styles.usersList} className={responsiveStyles.usersList}>
                         {assignedUsers.map((user: any, idx: number) => {
@@ -868,6 +931,14 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
                     {!readOnly && (
                       <div style={styles.actions} className={responsiveStyles.actions}>
                         <div className={responsiveStyles.buttonGroup}>
+                          {/* Schmal und vorn: das Zeichen steht in jeder
+                              Zeile, der Text soll den Platz behalten. */}
+                          <NotizKnopf
+                            titel={task.title}
+                            notiz={task.note}
+                            klein
+                            speichern={(text) => notizSpeichern(task.id, text)}
+                          />
                           <button
                             onClick={() => onAssignTask(task.id)}
                             style={styles.assignButton}
@@ -905,6 +976,28 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
                     )}
                   </td>
                 </tr>
+    {/*
+      Die Notiz bekommt eine eigene Zeile unter der Aufgabe - im Titel
+      haette sie die Spalte gesprengt. Ohne Notiz faellt die Zeile weg, es
+      geht also nur dort Platz verloren, wo wirklich etwas steht.
+    */}
+    {task.note && task.note.trim() !== '' && (
+      <tr style={{ ...styles.row, ...(zuletztVerschoben === task.id ? styles.verschoben : {}) }}>
+        <td
+          colSpan={schmal ? GRUPPEN_SPALTEN_SCHMAL + 1 : GRUPPEN_SPALTEN + 1}
+          style={{
+            ...styles.td,
+            paddingTop: 0,
+            ...(inGruppe
+              ? { boxShadow: `inset 3px 0 0 ${gruppenFarbe ? gruppenFarbe.kraeftig : 'var(--c-border-strong)'}`, paddingLeft: '2rem' }
+              : {}),
+          }}
+        >
+          <NotizText notiz={task.note} />
+        </td>
+      </tr>
+    )}
+    </React.Fragment>
     );
   };
 
@@ -967,6 +1060,9 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
             </span>
           </button>
 
+          {/* Notiz der Gruppe direkt unter der Ueberschrift - sie gilt fuer
+              alles, was darunter steht, auch wenn es zugeklappt ist. */}
+          <NotizText notiz={gruppe.note} style={{ marginTop: '0.35rem' }} />
         </td>
         {/*
           Dieselben Aktionen wie in der Kartenansicht - vorher gab es sie
@@ -979,6 +1075,15 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
                dieselbe Anordnung greift: Knoepfe untereinander. */
             <div style={styles.gruppenAktionen} className={responsiveStyles.actions}>
               <div className={responsiveStyles.buttonGroup} style={styles.gruppenAktionenReihe}>
+                {/* Die Zahl sagt, wie viele Aufgaben DARIN eine Notiz haben -
+                    auch wenn die Gruppe zugeklappt ist. */}
+                <NotizKnopf
+                  titel={gruppe.title}
+                  notiz={gruppe.note}
+                  klein
+                  zahl={eintraege.filter((e) => e.task?.note && String(e.task.note).trim() !== '').length}
+                  speichern={(text) => gruppenNotizSpeichern(gruppe.id, text)}
+                />
                 <button type="button" style={styles.gruppenAktion}
                   onClick={() => setGruppeInBearbeitung(gruppe)} title="Gruppe bearbeiten">Bearbeiten</button>
 
@@ -1099,6 +1204,20 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
         <div className="tv-group">
           <span className="tv-label">Status</span>
           <StatusFilter value={statusFilter} onChange={setStatusFilter} />
+          {/* Gleiche Form wie die Tages-Chips, mit der Zahl der offenen
+              Stellen - so sieht man vor dem Klicken, ob ueberhaupt eine da
+              ist. Wirkt zusaetzlich zu Status und Tag. */}
+          <button
+            type="button"
+            onClick={() => setNurNichtEingeteilt((an) => !an)}
+            className={nurNichtEingeteilt ? 'tv-chip-active' : 'tv-chip'}
+            title="Nur Aufgaben zeigen, für die noch Leute fehlen"
+            aria-pressed={nurNichtEingeteilt}
+          >
+            Nicht eingeteilt{offeneStellen > 0 && (
+              <b style={{ marginLeft: '0.35rem', fontVariantNumeric: 'tabular-nums' }}>{offeneStellen}</b>
+            )}
+          </button>
         </div>
 
         {sortColumn !== 'manual' && (
@@ -1115,9 +1234,11 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
 
       {sortedTasks.length === 0 ? (
         <div style={styles.noTasks}>
-          {statusFilter === 'all'
-            ? 'Keine Aufgaben vorhanden'
-            : `Keine Aufgaben mit Status "${STATUS_LABELS[statusFilter]}"`}
+          {nurNichtEingeteilt
+            ? 'Keine Aufgaben ohne Einteilung - es fehlt niemand'
+            : statusFilter === 'all'
+              ? 'Keine Aufgaben vorhanden'
+              : `Keine Aufgaben mit Status "${STATUS_LABELS[statusFilter]}"`}
         </div>
       ) : (
         <div style={styles.tableWrapper} className={responsiveStyles.tableWrapper}>

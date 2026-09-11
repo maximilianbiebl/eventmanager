@@ -37,6 +37,12 @@ export interface Task {
    * Startzeit, sonst die geplante Zeit.
    */
   auto_complete?: boolean;
+  /**
+   * Interne Notiz der Leitung ("Filter der Maschine ist hin"). Nur in der
+   * Verwaltung; der Server liefert sie im Mitarbeiterbereich gar nicht erst
+   * mit. null/undefined heißt: keine Notiz.
+   */
+  note?: string | null;
 }
 
 export interface TaskAssignment extends Task {
@@ -186,6 +192,18 @@ export const tasksApi = {
 
   moveDown: async (taskId: number): Promise<VerschiebeAntwort> => {
     const response = await client.put(`/tasks/${taskId}/move-down`);
+    return response.data;
+  },
+
+  /*
+   * Notiz der Leitung an einer Aufgabe.
+   *
+   * Eigener Aufruf statt eines Feldes im Bearbeiten-Dialog: eine Notiz ist
+   * ein Zuruf zwischendurch. Leerer Text löscht sie; die Antwort trägt den
+   * gespeicherten Stand, damit die Zeile ihn übernehmen kann.
+   */
+  setzeNotiz: async (taskId: number, note: string): Promise<{ id: number; note: string | null }> => {
+    const response = await client.patch(`/tasks/${taskId}/note`, { note });
     return response.data;
   },
 

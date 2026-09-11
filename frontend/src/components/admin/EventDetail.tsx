@@ -23,7 +23,8 @@ import { Toast } from '../Toast';
 import client from '../../api/client';
 import { toLocalDate } from '../../utils/date';
 import { eventBadgeColors, eventRolleVon, eventAssignmentTitle } from '../../utils/roleBadge';
-import { BedarfBadge, hatBedarf } from './BedarfBadge';
+import { BedarfBadge, hatBedarf, bedarfGesamt } from './BedarfBadge';
+import { NotizKnopf, NotizText } from './Notiz';
 import { DaySelection, resolveInitialDayForEvent, storeDay } from '../../utils/dayPreference';
 import { zeilenMitGruppen, zugeklappteGruppen, merkeZugeklappt, gruppenZeit, Sortierung } from '../../utils/taskGroups';
 import styles from './EventDetail.module.css';
@@ -334,6 +335,28 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
           </button>
         )}
 
+        {/*
+          Notiz zur Veranstaltung - dieselbe runde Form wie das "i" daneben,
+          gelb sobald etwas dransteht. Nur fuer die Leitung; im
+          Mitarbeiterbereich gibt es sie nicht.
+        */}
+        {(isAdmin || (isTeamleiter && !event.is_template)) && (
+          <NotizKnopf
+            titel={event.name}
+            notiz={event.note}
+            className={styles.infoButton}
+            speichern={async (text) => {
+              try {
+                const antwort = await eventsApi.setzeNotiz(event.id, text);
+                setEvent((alt: any) => ({ ...alt, note: antwort.note }));
+              } catch (error) {
+                console.error('Save event note error:', error);
+                alert('Notiz konnte nicht gespeichert werden');
+              }
+            }}
+          />
+        )}
+
         <div className={styles.titleRowActions}>
           {event.is_template_suggestion && isAdmin && (
             <button
@@ -426,6 +449,17 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
             )}
           </dl>
           {event.description && <p className={styles.descriptionText}>{event.description}</p>}
+        </div>
+      )}
+
+      {/*
+        Die Notiz steht unter der Kopfzeile statt in ihr: dort ist es am
+        Handy ohnehin eng, und eine Notiz ist oft laenger als ein Wort.
+        Gekuerzt auf zwei Zeilen, ein Klick zeigt sie ganz.
+      */}
+      {event.note && (
+        <div style={{ margin: '-0.25rem 0 1rem' }}>
+          <NotizText notiz={event.note} />
         </div>
       )}
 
@@ -733,6 +767,8 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   const [sortBy, setSortBy] = React.useState<'manual' | 'time' | 'title' | 'status'>('manual');
   // Gleicher Filter wie in der Tabellenansicht, damit beide gleich bedienbar sind.
   const [statusFilter, setStatusFilter] = React.useState<string>('all');
+  /** Nur Aufgaben, fuer die noch Leute fehlen - wie in der Tabelle. */
+  const [nurNichtEingeteilt, setNurNichtEingeteilt] = React.useState(false);
   const [sortDirection, setSortDirection] = React.useState<'asc' | 'desc'>('asc');
   const [expandedDescriptions, setExpandedDescriptions] = React.useState<Set<number>>(new Set());
   const pendingActionsRef = React.useRef<number>(0);
@@ -846,6 +882,31 @@ const TaskListView: React.FC<TaskListViewProps> = ({
 
   const getAssignmentsForTask = (taskId: number) => {
     return assignments.filter(a => a.id === taskId && a.user_name);
+  };
+
+  /*
+   * Notiz speichern und sofort in die Karte eintragen - die SSE-Meldung
+   * bringt den Text absichtlich nicht mit (sie geht auch an Mitarbeiter).
+   */
+  const notizSpeichern = async (taskId: number, text: string) => {
+    try {
+      const antwort = await tasksApi.setzeNotiz(taskId, text);
+      setAssignments((prev) => prev.map((a) => (a.id === taskId ? { ...a, note: antwort.note } : a)));
+    } catch (error) {
+      console.error('Save task note error:', error);
+      alert('Notiz konnte nicht gespeichert werden');
+    }
+  };
+
+  const gruppenNotizSpeichern = async (gruppenId: number, text: string) => {
+    try {
+      await programApi.setzeNotiz(gruppenId, text);
+      // Die Liste der Gruppen fuehrt die Elternansicht.
+      onGruppenGeaendert?.();
+    } catch (error) {
+      console.error('Save group note error:', error);
+      alert('Notiz konnte nicht gespeichert werden');
+    }
   };
 
   /*
@@ -1019,16 +1080,51 @@ const TaskListView: React.FC<TaskListViewProps> = ({
     return Array.from(taskMap.values());
   }, [assignments]);
 
+  /*
+   * Dieselbe Regel wie in der Tabelle und dieselbe, nach der sich die
+   * Plakette faerbt: weniger Leute eingeteilt als benoetigt - ohne
+   * hinterlegten Bedarf: niemand eingeteilt. Oeffentliche Aufgaben zaehlen
+   * normal mit; sie sind an ihrer Plakette erkennbar.
+   */
+  const nichtEingeteilt = (t: any): boolean => {
+    const gesamt = bedarfGesamt(t);
+    const wie_viele = getAssignmentsForTask(t.id).length;
+    return gesamt !== null ? wie_viele < gesamt : wie_viele === 0;
+  };
+
   // Filter by selected day
   const filteredTasks = React.useMemo(() => {
     const byDay = selectedDay === 'all'
       ? uniqueTasks
       : uniqueTasks.filter(t => t.day_number === selectedDay);
-    if (statusFilter === 'all') return byDay;
-    // "Überfällig" greift quer über alle Status
-    if (statusFilter === 'overdue') return byDay.filter(t => isOverdue(t));
-    return byDay.filter(t => t.status === statusFilter);
-  }, [uniqueTasks, selectedDay, statusFilter]);
+    const nachStatus = statusFilter === 'all'
+      ? byDay
+      // "Überfällig" greift quer über alle Status
+      : statusFilter === 'overdue'
+        ? byDay.filter(t => isOverdue(t))
+        : byDay.filter(t => t.status === statusFilter);
+    return nurNichtEingeteilt ? nachStatus.filter(nichtEingeteilt) : nachStatus;
+    // getAssignmentsForTask haengt an assignments, die uniqueTasks speisen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uniqueTasks, selectedDay, statusFilter, nurNichtEingeteilt, assignments]);
+
+  /*
+   * Zahl auf der Plakette: wie viele der gerade gezeigten Aufgaben offen
+   * sind - ohne den Filter selbst, sonst zeigte sie immer die Gesamtzahl
+   * des eigenen Ergebnisses.
+   */
+  const offeneStellen = React.useMemo(() => {
+    const byDay = selectedDay === 'all'
+      ? uniqueTasks
+      : uniqueTasks.filter(t => t.day_number === selectedDay);
+    const nachStatus = statusFilter === 'all'
+      ? byDay
+      : statusFilter === 'overdue'
+        ? byDay.filter(t => isOverdue(t))
+        : byDay.filter(t => t.status === statusFilter);
+    return nachStatus.filter(nichtEingeteilt).length;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uniqueTasks, selectedDay, statusFilter, assignments]);
 
   const sortedTasks = React.useMemo(() => {
     return [...filteredTasks].sort((a, b) => {
@@ -1072,7 +1168,9 @@ const TaskListView: React.FC<TaskListViewProps> = ({
     : uniqueTasks.length === 0
       ? 'Keine Aufgaben vorhanden'
       : filteredTasks.length === 0
-        ? (statusFilter !== 'all'
+        ? (nurNichtEingeteilt
+            ? 'Keine Aufgaben ohne Einteilung - es fehlt niemand'
+            : statusFilter !== 'all'
             ? 'Keine Aufgaben mit diesem Status'
             : selectedDay === 'all'
               ? 'Keine Aufgaben vorhanden'
@@ -1118,7 +1216,8 @@ const TaskListView: React.FC<TaskListViewProps> = ({
     };
 
     return (
-      <div key={`gruppe-${gruppe.id}`} className={styles.gruppenKarte} style={gruppenLeisteStil(gruppe.color)}>
+      <React.Fragment key={`gruppe-${gruppe.id}`}>
+      <div className={styles.gruppenKarte} style={gruppenLeisteStil(gruppe.color)}>
         <button
           type="button"
           onClick={() => klappe(gruppe.id)}
@@ -1155,10 +1254,24 @@ const TaskListView: React.FC<TaskListViewProps> = ({
             fuer die Vorlesehilfe aendert sich also nichts.
           */
           <div className={styles.gruppenAktionen}>
+            {/* Die Zahl sagt, wie viele Aufgaben DARIN eine Notiz haben -
+                auch bei zugeklappter Gruppe. */}
+            <NotizKnopf
+              titel={gruppe.title}
+              notiz={gruppe.note}
+              klein
+              zahl={eintraege.filter((t: any) => t?.note && String(t.note).trim() !== '').length}
+              speichern={(text) => gruppenNotizSpeichern(gruppe.id, text)}
+            />
+            {/*
+              Zahnrad statt Stift: der Stift steht seit den Notizen fuer
+              "Notiz" - zwei gleiche Zeichen nebeneinander mit
+              verschiedener Bedeutung waeren nicht zu unterscheiden.
+            */}
             <button type="button" onClick={() => setGruppeInBearbeitung(gruppe)}
               className={styles.gruppenAktion} title="Gruppe bearbeiten" aria-label="Gruppe bearbeiten">
               <span className={styles.knopfWort}>Bearbeiten</span>
-              <span className={styles.knopfZeichen} aria-hidden="true">✎</span>
+              <span className={styles.knopfZeichen} aria-hidden="true">⚙</span>
             </button>
             {/* Pfeile nur bei "Manuell" - in einer Sortierung nach Zeit oder
                 Titel haetten sie keine sichtbare Wirkung und wuerden nur
@@ -1172,6 +1285,12 @@ const TaskListView: React.FC<TaskListViewProps> = ({
           </div>
         )}
       </div>
+      {/* Notiz der Gruppe unter ihrer Leiste - sie gilt fuer alles, was
+          darunter steht, auch zugeklappt. */}
+      {gruppe.note && (
+        <NotizText notiz={gruppe.note} style={{ margin: '0 0 0.5rem 1.25rem' }} />
+      )}
+      </React.Fragment>
     );
   };
 
@@ -1348,7 +1467,14 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                   )}
                 </div>
 
-                {(taskAssignments.length > 0 || hatBedarf(task)) && (
+                {/*
+                  Der Abschnitt steht jetzt IMMER da - vorher verschwand er,
+                  wenn weder Bedarf noch Zuweisung hinterlegt war, und man
+                  sah der Karte nicht an, dass niemand eingeteilt ist. Die
+                  Tabelle sagte es an derselben Stelle; beide Ansichten
+                  sprechen jetzt gleich.
+                */}
+                {(
                   <div className={styles.assignmentsSection}>
                     {/* Beschriftung und Bedarf in EINER Zeile - der Abschnitt
                         steht sonst untereinander, und das Zeichen bekam eine
@@ -1356,6 +1482,13 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                     <div className={styles.assignmentsHeader}>
                       <span className={styles.assignmentsLabel}>Zugewiesen an:</span>
                       <BedarfBadge task={task} zugewiesen={taskAssignments.length} klein />
+                      {/* "Nicht zugewiesen" nur ohne Plakette - neben "0/4"
+                          waere es dieselbe Aussage zweimal. */}
+                      {taskAssignments.length === 0 && !hatBedarf(task) && (
+                        <span style={{ fontSize: '0.75rem', color: 'var(--c-text-muted)', fontStyle: 'italic' }}>
+                          Nicht zugewiesen
+                        </span>
+                      )}
                     </div>
                     <div className={styles.assignmentsList}>
                       {taskAssignments.map((assignment, idx) => {
@@ -1392,12 +1525,23 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                     </div>
                   </div>
                 )}
+
+                {/* Notiz als eigener gelber Kasten unter den Angaben -
+                    dieselbe Farbe wie in der Tabelle, gekuerzt auf zwei
+                    Zeilen, ein Klick zeigt sie ganz. */}
+                <NotizText notiz={task.note} style={{ marginTop: '0.5rem' }} />
               </div>
             </div>
 
             <div className={styles.taskActions}>
               {!readOnly && (
                 <>
+                  <NotizKnopf
+                    titel={task.title}
+                    notiz={task.note}
+                    klein
+                    speichern={(text) => notizSpeichern(task.id, text)}
+                  />
                   <button onClick={() => onEditTask(task)} className={styles.editButton}>
                     Bearbeiten
                   </button>
@@ -1486,6 +1630,18 @@ const TaskListView: React.FC<TaskListViewProps> = ({
         <div className="tv-group">
           <span className="tv-label">Status</span>
           <StatusFilter value={statusFilter} onChange={setStatusFilter} />
+          {/* Gleiche Plakette wie in der Tabellenansicht. */}
+          <button
+            type="button"
+            onClick={() => setNurNichtEingeteilt((an) => !an)}
+            className={nurNichtEingeteilt ? 'tv-chip-active' : 'tv-chip'}
+            title="Nur Aufgaben zeigen, für die noch Leute fehlen"
+            aria-pressed={nurNichtEingeteilt}
+          >
+            Nicht eingeteilt{offeneStellen > 0 && (
+              <b style={{ marginLeft: '0.35rem', fontVariantNumeric: 'tabular-nums' }}>{offeneStellen}</b>
+            )}
+          </button>
         </div>
 
         <div className="tv-group">

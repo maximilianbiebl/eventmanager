@@ -28,7 +28,9 @@
     "migrate:021": "ts-node src/database/run-migration-021.ts",
     "migrate:021:prod": "node dist/database/run-migration-021.js",
     "migrate:022": "ts-node src/database/run-migration-022.ts",
-    "migrate:022:prod": "node dist/database/run-migration-022.js"
+    "migrate:022:prod": "node dist/database/run-migration-022.js",
+    "migrate:023": "ts-node src/database/run-migration-023.ts",
+    "migrate:023:prod": "node dist/database/run-migration-023.js"
   },
   "dependencies": {
     "@types/multer": "^2.0.0",
