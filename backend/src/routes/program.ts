@@ -206,8 +206,9 @@ const verschiebe = (richtung: 'hoch' | 'runter') =>
       if (ergebnis.bewegt) {
         broadcastUpdate('task', { action: 'group_moved', eventId: gruppe.event_id });
       }
-      // Mit der neuen Reihenfolge - siehe utils/reihenfolge.
-      res.json({ message: ergebnis.meldung, reihenfolge: ergebnis.reihenfolge });
+      // Mit der neuen Reihenfolge - siehe utils/reihenfolge. "bewegt"
+      // sagt, ob ueberhaupt etwas getauscht wurde.
+      res.json({ message: ergebnis.meldung, bewegt: ergebnis.bewegt, reihenfolge: ergebnis.reihenfolge });
     } catch (error) {
       console.error('Move task group error:', error);
       res.status(500).json({ error: 'Server Fehler' });

@@ -14,7 +14,7 @@ import React, { useState } from 'react';
 
 export const STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
   { value: 'all', label: 'Alle' },
-  { value: 'not_started', label: 'Nicht gestartet' },
+  { value: 'not_started', label: 'Offen' },
   { value: 'in_progress', label: 'In Arbeit' },
   { value: 'completed', label: 'Erledigt' },
   { value: 'overdue', label: 'Überfällig' },

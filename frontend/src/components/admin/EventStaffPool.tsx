@@ -907,7 +907,7 @@ const TaskListModal: React.FC<TaskListModalProps> = ({ staff, tasks, onClose, on
 
   const getStatusLabel = (status: string) => {
     const labels: { [key: string]: string } = {
-      not_started: 'Nicht gestartet',
+      not_started: 'Offen',
       in_progress: 'In Arbeit',
       completed: 'Erledigt',
       overdue: 'Überfällig',

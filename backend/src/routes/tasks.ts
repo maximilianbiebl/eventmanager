@@ -1031,7 +1031,7 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
 
       // Mitarbeiter dürfen nur zwischen 'not_started' und 'in_progress' wechseln
       if (status !== 'in_progress' && status !== 'not_started') {
-        return res.status(403).json({ error: 'Mitarbeiter können den Status nur auf "Nicht gestartet" oder "In Arbeit" setzen' });
+        return res.status(403).json({ error: 'Mitarbeiter können den Status nur auf "Offen" oder "In Arbeit" setzen' });
       }
     }
 
@@ -1087,7 +1087,7 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
       try {
         // Status-Labels für Benachrichtigungen
         const statusLabels: { [key: string]: string } = {
-          not_started: 'Nicht gestartet',
+          not_started: 'Offen',
           in_progress: 'In Arbeit',
           completed: 'Erledigt',
           overdue: 'Überfällig',
@@ -1228,7 +1228,7 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
       try {
         // Status-Labels für Benachrichtigungen
         const statusLabels: { [key: string]: string } = {
-          not_started: 'Nicht gestartet',
+          not_started: 'Offen',
           in_progress: 'In Arbeit',
           completed: 'Erledigt',
           overdue: 'Überfällig',
@@ -1473,7 +1473,7 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req
     if (status !== currentTask.status && !currentTask.auto_complete) {
       try {
         const statusLabels: { [key: string]: string } = {
-          not_started: 'Nicht gestartet',
+          not_started: 'Offen',
           in_progress: 'In Arbeit',
           completed: 'Erledigt',
           overdue: 'Überfällig',
@@ -1790,9 +1790,13 @@ router.put('/:id/move-up', authMiddleware, teamleiterOrAdminMiddleware, eventZug
       if (ergebnis.bewegt) {
         broadcastUpdate('task', { action: 'move', taskId: parseInt(id), eventId: event_id });
       }
-      // Die neue Reihenfolge geht mit zurueck - die Oberflaeche zeigt den
-      // Zug damit sofort, ohne alles neu zu holen.
-      return res.json({ message: ergebnis.meldung, reihenfolge: ergebnis.reihenfolge });
+      /*
+       * Die neue Reihenfolge geht mit zurueck - die Oberflaeche zeigt den
+       * Zug damit sofort, ohne alles neu zu holen. "bewegt" sagt, OB sich
+       * etwas geaendert hat: am Tagesrand tut sich nichts, und dann darf
+       * die Oberflaeche auch keinen Erfolg melden.
+       */
+      return res.json({ message: ergebnis.meldung, bewegt: ergebnis.bewegt, reihenfolge: ergebnis.reihenfolge });
     }
 
     const aboveResult = await query(
@@ -1807,6 +1811,7 @@ router.put('/:id/move-up', authMiddleware, teamleiterOrAdminMiddleware, eventZug
       // Oberflaeche nicht sicherheitshalber alles neu laedt.
       return res.json({
         message: 'Aufgabe steht bereits ganz oben',
+        bewegt: false,
         reihenfolge: await reihenfolgeDerGruppe(program_item_id),
       });
     }
@@ -1820,6 +1825,7 @@ router.put('/:id/move-up', authMiddleware, teamleiterOrAdminMiddleware, eventZug
 
     res.json({
       message: 'Reihenfolge aktualisiert',
+      bewegt: true,
       reihenfolge: await reihenfolgeDerGruppe(program_item_id),
     });
   } catch (error) {
@@ -1850,9 +1856,13 @@ router.put('/:id/move-down', authMiddleware, teamleiterOrAdminMiddleware, eventZ
       if (ergebnis.bewegt) {
         broadcastUpdate('task', { action: 'move', taskId: parseInt(id), eventId: event_id });
       }
-      // Die neue Reihenfolge geht mit zurueck - die Oberflaeche zeigt den
-      // Zug damit sofort, ohne alles neu zu holen.
-      return res.json({ message: ergebnis.meldung, reihenfolge: ergebnis.reihenfolge });
+      /*
+       * Die neue Reihenfolge geht mit zurueck - die Oberflaeche zeigt den
+       * Zug damit sofort, ohne alles neu zu holen. "bewegt" sagt, OB sich
+       * etwas geaendert hat: am Tagesrand tut sich nichts, und dann darf
+       * die Oberflaeche auch keinen Erfolg melden.
+       */
+      return res.json({ message: ergebnis.meldung, bewegt: ergebnis.bewegt, reihenfolge: ergebnis.reihenfolge });
     }
 
     const belowResult = await query(
@@ -1867,6 +1877,7 @@ router.put('/:id/move-down', authMiddleware, teamleiterOrAdminMiddleware, eventZ
       // Oberflaeche nicht sicherheitshalber alles neu laedt.
       return res.json({
         message: 'Aufgabe steht bereits ganz unten',
+        bewegt: false,
         reihenfolge: await reihenfolgeDerGruppe(program_item_id),
       });
     }
@@ -1880,6 +1891,7 @@ router.put('/:id/move-down', authMiddleware, teamleiterOrAdminMiddleware, eventZ
 
     res.json({
       message: 'Reihenfolge aktualisiert',
+      bewegt: true,
       reihenfolge: await reihenfolgeDerGruppe(program_item_id),
     });
   } catch (error) {

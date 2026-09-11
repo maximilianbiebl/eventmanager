@@ -97,19 +97,12 @@
 
   .tv-chip,
   .tv-chip-active {
-    padding: 0.25rem 0.4375rem;
+    /* Gerade so eng, dass "Sortieren" mit seinen vier Plaketten auch auf
+       einem 320px-Gerät in eine Zeile passt. */
+    padding: 0.25rem 0.375rem;
   }
 }
 
-/* Unter 380px ist auch das zu viel - dort trägt die Zeile nur noch ihre
-   Plaketten. Welche Sortierung gemeint ist, sagt die aktive selbst
-   ("Manuell", "Zeit" …); für die Vorlesehilfe bleibt die Beschriftung
-   über aria-label an der Gruppe. */
-@media (max-width: 380px) {
-  .tv-label {
-    display: none;
-  }
-}
 
 /* Erscheint nur, wenn eine Spaltensortierung aktiv ist. */
 .tv-reset {
@@ -182,6 +175,18 @@
   border:1px solid var(--c-border);
   border-radius: 8px;
   box-shadow: var(--shadow-lg);
+}
+
+/*
+ * Feste Lage im Bildschirm statt in der Zelle - für Menüs, die sonst vom
+ * rollenden Bereich beschnitten würden (Statuszelle in der letzten
+ * Tabellenzeile). Die Koordinaten rechnet die Komponente aus.
+ */
+.tv-menu-fest {
+  position: fixed;
+  top: auto;
+  left: auto;
+  z-index: 1100;
 }
 
 .tv-menuItem {

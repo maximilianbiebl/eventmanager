@@ -599,7 +599,7 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
                   onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                   style={styles.input}
                 >
-                  <option value="not_started">Nicht gestartet</option>
+                  <option value="not_started">Offen</option>
                   <option value="in_progress">In Arbeit</option>
                   <option value="completed">Erledigt</option>
                   <option value="overdue">Überfällig</option>

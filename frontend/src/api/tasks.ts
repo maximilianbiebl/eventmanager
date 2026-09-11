@@ -102,6 +102,12 @@ export interface Rangzeile {
 
 export interface VerschiebeAntwort {
   message: string;
+  /**
+   * Hat sich wirklich etwas bewegt? Am Rand des Tages passiert nichts -
+   * die Aufgabe wechselt nicht den Tag. Ohne diese Angabe meldete die
+   * Oberflaeche auch dann "verschoben".
+   */
+  bewegt?: boolean;
   reihenfolge?: Rangzeile[];
 }
 

@@ -307,6 +307,16 @@ export const NotizKnopf: React.FC<KnopfProps> = ({
         className={className}
         title={beschriftung ? 'Notiz bearbeiten' : hat ? `Notiz: ${notiz}` : 'Notiz hinzufügen'}
         aria-label={hat ? 'Notiz bearbeiten' : 'Notiz hinzufügen'}
+        /*
+         * Kein Fokus durch die Maus.
+         *
+         * Sonst bleibt der Knopf nach dem Klick fokussiert, und weil das
+         * Schreibfenster den Fokus uebernimmt und beim Schliessen wieder
+         * abgibt, wertet der Browser das als Tastaturfokus: der Ring blieb
+         * stehen, bis man die Seite neu lud. Per Tastatur bekommt der Knopf
+         * weiterhin Fokus und Ring.
+         */
+        onMouseDown={(e) => e.preventDefault()}
         onClick={(e) => {
           e.stopPropagation();
           setAnker(anker ? null : (e.currentTarget as HTMLElement).getBoundingClientRect());
@@ -399,7 +409,12 @@ export const NotizText: React.FC<TextProps> = ({ notiz, style, offen: vonAussen,
         } : {
           minWidth: 0,
           display: '-webkit-box',
-          WebkitLineClamp: 2,
+          /*
+           * EINE Zeile im Ruhezustand. Bei zwei Zeilen landete das "…"
+           * gern allein in der zweiten - und eine Notiz soll die Liste
+           * ohnehin nur anreissen, nicht erzaehlen.
+           */
+          WebkitLineClamp: 1,
           WebkitBoxOrient: 'vertical',
           overflow: 'hidden',
           // Zeilenumbrueche des Verfassers bleiben stehen - sie zaehlen
@@ -456,6 +471,8 @@ export const NotizVorschau: React.FC<VorschauProps> = ({ notiz, oeffnen, classNa
   <button
     type="button"
     className={className}
+    // Kein Fokus durch die Maus - siehe NotizKnopf.
+    onMouseDown={(e) => e.preventDefault()}
     onClick={(e) => { e.stopPropagation(); oeffnen(); }}
     title={`Notiz: ${notiz}`}
     aria-label="Notiz anzeigen"

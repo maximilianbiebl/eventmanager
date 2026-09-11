@@ -30,7 +30,7 @@ import { zeilenMitGruppen, zugeklappteGruppen, merkeZugeklappt, gruppenZeit, Sor
 import styles from './EventDetail.module.css';
 
 const STATUS_LABELS: { [key: string]: string } = {
-  not_started: 'Nicht gestartet',
+  not_started: 'Offen',
   in_progress: 'In Arbeit',
   completed: 'Erledigt',
   overdue: 'Überfällig',
@@ -1079,9 +1079,16 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       eigeneAktionRef.current = { art: 'aufgabe', id: taskId };
       const antwort = await tasksApi.moveUp(taskId);
       const angewandt = wendeReihenfolgeAn(antwort?.reihenfolge);
-      merkeVerschoben(taskId);
-      setSuccessMessage('Aufgabe wurde nach oben verschoben');
-      setTimeout(() => setSuccessMessage(''), 3000);
+      /*
+       * Nur melden, wenn sich wirklich etwas bewegt hat. Am Rand des Tages
+       * passiert nichts - die Aufgabe wechselt nicht den Tag -, und eine
+       * Erfolgsmeldung dazu waere schlicht falsch.
+       */
+      if (antwort?.bewegt !== false) {
+        merkeVerschoben(taskId);
+        setSuccessMessage('Aufgabe wurde nach oben verschoben');
+        setTimeout(() => setSuccessMessage(''), 3000);
+      }
       if (!angewandt) { loadAssignments(false); onGruppenGeaendert?.(); }
     } catch (error: any) {
       console.error('Move up error:', error);
@@ -1105,9 +1112,16 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       eigeneAktionRef.current = { art: 'aufgabe', id: taskId };
       const antwort = await tasksApi.moveDown(taskId);
       const angewandt = wendeReihenfolgeAn(antwort?.reihenfolge);
-      merkeVerschoben(taskId);
-      setSuccessMessage('Aufgabe wurde nach unten verschoben');
-      setTimeout(() => setSuccessMessage(''), 3000);
+      /*
+       * Nur melden, wenn sich wirklich etwas bewegt hat. Am Rand des Tages
+       * passiert nichts - die Aufgabe wechselt nicht den Tag -, und eine
+       * Erfolgsmeldung dazu waere schlicht falsch.
+       */
+      if (antwort?.bewegt !== false) {
+        merkeVerschoben(taskId);
+        setSuccessMessage('Aufgabe wurde nach unten verschoben');
+        setTimeout(() => setSuccessMessage(''), 3000);
+      }
       if (!angewandt) { loadAssignments(false); onGruppenGeaendert?.(); }
     } catch (error: any) {
       console.error('Move down error:', error);
@@ -1521,13 +1535,14 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                 </div>
 
                 {/*
-                  Der Abschnitt steht jetzt IMMER da - vorher verschwand er,
-                  wenn weder Bedarf noch Zuweisung hinterlegt war, und man
-                  sah der Karte nicht an, dass niemand eingeteilt ist. Die
-                  Tabelle sagte es an derselben Stelle; beide Ansichten
-                  sprechen jetzt gleich.
+                  Ohne Bedarf UND ohne Zuweisung bleibt der Abschnitt weg.
+                  Eine Zeile "Zugewiesen an: Nicht zugewiesen" sagt auf der
+                  Karte nichts, was das leere Feld nicht auch sagt - und auf
+                  dem Handy ist jede Zeile teuer. In der Tabelle steht der
+                  Text weiter, dort kostet er keinen Platz: die Spalte ist
+                  ohnehin da.
                 */}
-                {(
+                {(taskAssignments.length > 0 || hatBedarf(task)) && (
                   <div className={styles.assignmentsSection}>
                     {/* Beschriftung und Bedarf in EINER Zeile - der Abschnitt
                         steht sonst untereinander, und das Zeichen bekam eine
@@ -1535,13 +1550,6 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                     <div className={styles.assignmentsHeader}>
                       <span className={styles.assignmentsLabel}>Zugewiesen an:</span>
                       <BedarfBadge task={task} zugewiesen={taskAssignments.length} klein />
-                      {/* "Nicht zugewiesen" nur ohne Plakette - neben "0/4"
-                          waere es dieselbe Aussage zweimal. */}
-                      {taskAssignments.length === 0 && !hatBedarf(task) && (
-                        <span style={{ fontSize: '0.75rem', color: 'var(--c-text-muted)', fontStyle: 'italic' }}>
-                          Nicht zugewiesen
-                        </span>
-                      )}
                     </div>
                     <div className={styles.assignmentsList}>
                       {taskAssignments.map((assignment, idx) => {
@@ -1597,11 +1605,14 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                     className={styles.editButton}
                     speichern={(text) => notizSpeichern(task.id, text)}
                   />
-                  <button onClick={() => onEditTask(task)} className={styles.editButton}>
-                    Bearbeiten
-                  </button>
+                  {/* Gleiche Reihenfolge wie in der Tabelle: erst Zuweisen,
+                      dann Bearbeiten. Vorher war sie hier vertauscht, und
+                      wer zwischen den Ansichten wechselt, griff daneben. */}
                   <button onClick={() => onAssignTask(task.id)} className={styles.assignButton}>
                     Zuweisen
+                  </button>
+                  <button onClick={() => onEditTask(task)} className={styles.editButton}>
+                    Bearbeiten
                   </button>
                 </>
               )}

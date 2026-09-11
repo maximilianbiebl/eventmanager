@@ -978,9 +978,12 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    /* Breite nach dem Namen, nicht nach dem freien Platz - die Notiz
-       daneben bekommt, was danach übrig ist. */
-    flex: 0 1 auto;
+    /*
+     * Der Name füllt die Zeile aus - so stehen "i", Notiz und "Aktionen"
+     * rechts, genau wie am Schreibtisch. Mit "0 1 auto" wuchs er nicht,
+     * und die drei Knöpfe klebten mitten in der Zeile am Namen.
+     */
+    flex: 1 1 auto;
   }
 
   .titleRow {

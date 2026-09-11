@@ -1193,7 +1193,7 @@ const TaskCard: React.FC<{
 
   const getStatusLabel = (status: string) => {
     const labels: { [key: string]: string } = {
-      not_started: 'Nicht gestartet',
+      not_started: 'Offen',
       in_progress: 'In Arbeit',
       completed: 'Erledigt',
       overdue: 'Überfällig',
@@ -1364,7 +1364,7 @@ const TaskCard: React.FC<{
                         onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--c-surface-muted)'}
                         onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                       >
-                        Nicht gestartet
+                        Offen
                       </div>
                     )}
                   </div>
@@ -1603,7 +1603,7 @@ const StaffTableView: React.FC<{
 
   const getStatusLabel = (status: string) => {
     const labels: { [key: string]: string } = {
-      not_started: 'Nicht gestartet',
+      not_started: 'Offen',
       in_progress: 'In Arbeit',
       completed: 'Erledigt',
       overdue: 'Überfällig',
@@ -1800,7 +1800,7 @@ const StaffTableView: React.FC<{
                                 className={styles.statusOption}
                                 onClick={() => handleStatusChange(task, 'not_started')}
                               >
-                                Nicht gestartet
+                                Offen
                               </div>
                             )}
                             {task.status !== 'in_progress' && (

@@ -133,7 +133,7 @@ const STATUS_COLORS: { [key: string]: string } = {
 };
 
 const STATUS_LABELS: { [key: string]: string } = {
-  not_started: 'Nicht gestartet',
+  not_started: 'Offen',
   in_progress: 'In Arbeit',
   completed: 'Erledigt',
   overdue: 'Überfällig',
@@ -429,9 +429,16 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
       eigeneAktionRef.current = { art: 'aufgabe', id: taskId };
       const antwort = await tasksApi.moveUp(taskId);
       const angewandt = wendeReihenfolgeAn(antwort?.reihenfolge);
-      merkeVerschoben(taskId);
-      setSuccessMessage('Aufgabe wurde nach oben verschoben');
-      setTimeout(() => setSuccessMessage(''), 3000);
+      /*
+       * Nur melden, wenn sich wirklich etwas bewegt hat. Am Rand des Tages
+       * passiert nichts - die Aufgabe wechselt nicht den Tag -, und eine
+       * Erfolgsmeldung dazu waere schlicht falsch.
+       */
+      if (antwort?.bewegt !== false) {
+        merkeVerschoben(taskId);
+        setSuccessMessage('Aufgabe wurde nach oben verschoben');
+        setTimeout(() => setSuccessMessage(''), 3000);
+      }
       // Aeltere Serverfassungen antworten ohne Reihenfolge - dann bleibt
       // nur das Nachladen.
       if (!angewandt) { loadAssignments(false); onTasksChanged?.(); }
@@ -462,9 +469,16 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
       eigeneAktionRef.current = { art: 'aufgabe', id: taskId };
       const antwort = await tasksApi.moveDown(taskId);
       const angewandt = wendeReihenfolgeAn(antwort?.reihenfolge);
-      merkeVerschoben(taskId);
-      setSuccessMessage('Aufgabe wurde nach unten verschoben');
-      setTimeout(() => setSuccessMessage(''), 3000);
+      /*
+       * Nur melden, wenn sich wirklich etwas bewegt hat. Am Rand des Tages
+       * passiert nichts - die Aufgabe wechselt nicht den Tag -, und eine
+       * Erfolgsmeldung dazu waere schlicht falsch.
+       */
+      if (antwort?.bewegt !== false) {
+        merkeVerschoben(taskId);
+        setSuccessMessage('Aufgabe wurde nach unten verschoben');
+        setTimeout(() => setSuccessMessage(''), 3000);
+      }
       if (!angewandt) { loadAssignments(false); onTasksChanged?.(); }
     } catch (error: any) {
       console.error('Move down error:', error);
