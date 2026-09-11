@@ -1117,19 +1117,6 @@ const TaskListView: React.FC<TaskListViewProps> = ({
       }
     };
 
-    const loeschen = async () => {
-      if (!window.confirm(
-        `Aufgabengruppe "${gruppe.title}" entfernen?\n\n` +
-        `Die ${eintraege.length} ${eintraege.length === 1 ? 'Aufgabe bleibt' : 'Aufgaben bleiben'} erhalten und stehen danach ohne Gruppe da.`
-      )) return;
-      try {
-        await programApi.delete(gruppe.id);
-        onGruppenGeaendert?.();
-      } catch (error) {
-        console.error('Delete task group error:', error);
-      }
-    };
-
     return (
       <div key={`gruppe-${gruppe.id}`} className={styles.gruppenKarte} style={gruppenLeisteStil(gruppe.color)}>
         <button
@@ -1172,11 +1159,6 @@ const TaskListView: React.FC<TaskListViewProps> = ({
               className={styles.gruppenAktion} title="Gruppe bearbeiten" aria-label="Gruppe bearbeiten">
               <span className={styles.knopfWort}>Bearbeiten</span>
               <span className={styles.knopfZeichen} aria-hidden="true">✎</span>
-            </button>
-            <button type="button" onClick={loeschen}
-              className={styles.gruppenAktion} title="Gruppe entfernen, Aufgaben bleiben" aria-label="Gruppe entfernen">
-              <span className={styles.knopfWort}>Entfernen</span>
-              <span className={styles.knopfZeichen} aria-hidden="true">✕</span>
             </button>
             {/* Pfeile nur bei "Manuell" - in einer Sortierung nach Zeit oder
                 Titel haetten sie keine sichtbare Wirkung und wuerden nur

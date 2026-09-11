@@ -858,7 +858,13 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
                       </div>
                     )}
                   </td>
-                  <td style={styles.td}>
+                  {/*
+                    Nicht umbrechen: bei einem langen Titel schrumpfte die
+                    Spalte, und "Bearbeiten" rutschte unter "Zuweisen".
+                    Gemessen ab 1100px abwaerts. Die Tabelle rollt
+                    waagerecht, sie darf breiter werden.
+                  */}
+                  <td style={{ ...styles.td, ...styles.tdKurz }}>
                     {!readOnly && (
                       <div style={styles.actions} className={responsiveStyles.actions}>
                         <div className={responsiveStyles.buttonGroup}>
@@ -906,19 +912,6 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
    * Gruppe bearbeiten, entfernen, verschieben. Danach laedt die
    * Elternansicht die Gruppen neu - sie fuehrt die Liste.
    */
-  const gruppeLoeschen = async (gruppe: TaskGroup, anzahl: number) => {
-    if (!window.confirm(
-      `Aufgabengruppe "${gruppe.title}" entfernen?\n\n` +
-      `Die ${anzahl} ${anzahl === 1 ? 'Aufgabe bleibt' : 'Aufgaben bleiben'} erhalten und stehen danach ohne Gruppe da.`
-    )) return;
-    try {
-      await programApi.delete(gruppe.id);
-      onTasksChanged?.();
-    } catch (error) {
-      console.error('Delete task group error:', error);
-    }
-  };
-
   const gruppeVerschieben = async (gruppe: TaskGroup, richtung: 'hoch' | 'runter') => {
     try {
       const antwort = richtung === 'hoch'
@@ -988,8 +981,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
               <div className={responsiveStyles.buttonGroup} style={styles.gruppenAktionenReihe}>
                 <button type="button" style={styles.gruppenAktion}
                   onClick={() => setGruppeInBearbeitung(gruppe)} title="Gruppe bearbeiten">Bearbeiten</button>
-                <button type="button" style={styles.gruppenAktion}
-                  onClick={() => gruppeLoeschen(gruppe, eintraege.length)} title="Gruppe entfernen, Aufgaben bleiben">Entfernen</button>
+
               </div>
               <div className={responsiveStyles.moveButtonGroup} style={styles.gruppenAktionenReihe}>
                 {/* Gleiche Knopfform wie bei den Aufgaben - sonst sind die

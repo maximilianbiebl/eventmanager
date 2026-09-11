@@ -458,16 +458,26 @@ router.post('/:id/create-from-template', authMiddleware, teamleiterOrAdminMiddle
 
     if (templateProgram.rows.length > 0) {
       const programValues = templateProgram.rows.map((p, idx) =>
-        `($1, $${idx * 5 + 2}, $${idx * 5 + 3}, $${idx * 5 + 4}, $${idx * 5 + 5}, $${idx * 5 + 6})`
+        // Sechs Werte je Gruppe: Tag, Zeit, Titel, Beschreibung, Rang, Farbe.
+        `($1, $${idx * 6 + 2}, $${idx * 6 + 3}, $${idx * 6 + 4}, $${idx * 6 + 5}, $${idx * 6 + 6}, $${idx * 6 + 7})`
       ).join(', ');
       const programParams = [newEvent.id];
       templateProgram.rows.forEach(p => {
         // sort_order mit: ohne Uhrzeit ist sie die einzige Reihenfolge.
-        programParams.push(p.day_number, p.time, p.title, p.description, p.sort_order ?? 0);
+        programParams.push(p.day_number, p.time, p.title, p.description, p.sort_order ?? 0, p.color ?? null);
       });
 
       const newProgramItems = await query(
-        `INSERT INTO program_items (event_id, day_number, time, title, description, sort_order)
+        /*
+         * Farbe mitkopieren. Sie gehoert zur Gruppe wie ihr Name - beim
+         * Kopieren fiel sie bisher still weg, und aus der farbig geordneten
+         * Vorlage wurde eine graue Liste.
+         *
+         * series_id bleibt bewusst aussen vor: Serien gehoeren zu genau
+         * einer Veranstaltung und werden hier nicht mitkopiert. Ein
+         * uebernommener Verweis zeigte auf die Serie der Vorlage.
+         */
+        `INSERT INTO program_items (event_id, day_number, time, title, description, sort_order, color)
          VALUES ${programValues} RETURNING id`,
         programParams
       );
@@ -577,16 +587,26 @@ router.post('/:id/copy-to-template', authMiddleware, adminMiddleware, async (req
     if (originalProgram.rows.length > 0) {
       // Bulk INSERT für Programmpunkte
       const programValues = originalProgram.rows.map((p, idx) =>
-        `($1, $${idx * 5 + 2}, $${idx * 5 + 3}, $${idx * 5 + 4}, $${idx * 5 + 5}, $${idx * 5 + 6})`
+        // Sechs Werte je Gruppe: Tag, Zeit, Titel, Beschreibung, Rang, Farbe.
+        `($1, $${idx * 6 + 2}, $${idx * 6 + 3}, $${idx * 6 + 4}, $${idx * 6 + 5}, $${idx * 6 + 6}, $${idx * 6 + 7})`
       ).join(', ');
       const programParams = [template.id];
       originalProgram.rows.forEach(p => {
         // sort_order mit: ohne Uhrzeit ist sie die einzige Reihenfolge.
-        programParams.push(p.day_number, p.time, p.title, p.description, p.sort_order ?? 0);
+        programParams.push(p.day_number, p.time, p.title, p.description, p.sort_order ?? 0, p.color ?? null);
       });
 
       const newProgramItems = await query(
-        `INSERT INTO program_items (event_id, day_number, time, title, description, sort_order)
+        /*
+         * Farbe mitkopieren. Sie gehoert zur Gruppe wie ihr Name - beim
+         * Kopieren fiel sie bisher still weg, und aus der farbig geordneten
+         * Vorlage wurde eine graue Liste.
+         *
+         * series_id bleibt bewusst aussen vor: Serien gehoeren zu genau
+         * einer Veranstaltung und werden hier nicht mitkopiert. Ein
+         * uebernommener Verweis zeigte auf die Serie der Vorlage.
+         */
+        `INSERT INTO program_items (event_id, day_number, time, title, description, sort_order, color)
          VALUES ${programValues} RETURNING id`,
         programParams
       );
@@ -740,16 +760,26 @@ router.post('/:id/approve-suggestion', authMiddleware, adminMiddleware, async (r
 
     if (originalProgram.rows.length > 0) {
       const programValues = originalProgram.rows.map((p, idx) =>
-        `($1, $${idx * 5 + 2}, $${idx * 5 + 3}, $${idx * 5 + 4}, $${idx * 5 + 5}, $${idx * 5 + 6})`
+        // Sechs Werte je Gruppe: Tag, Zeit, Titel, Beschreibung, Rang, Farbe.
+        `($1, $${idx * 6 + 2}, $${idx * 6 + 3}, $${idx * 6 + 4}, $${idx * 6 + 5}, $${idx * 6 + 6}, $${idx * 6 + 7})`
       ).join(', ');
       const programParams = [template.id];
       originalProgram.rows.forEach(p => {
         // sort_order mit: ohne Uhrzeit ist sie die einzige Reihenfolge.
-        programParams.push(p.day_number, p.time, p.title, p.description, p.sort_order ?? 0);
+        programParams.push(p.day_number, p.time, p.title, p.description, p.sort_order ?? 0, p.color ?? null);
       });
 
       const newProgramItems = await query(
-        `INSERT INTO program_items (event_id, day_number, time, title, description, sort_order)
+        /*
+         * Farbe mitkopieren. Sie gehoert zur Gruppe wie ihr Name - beim
+         * Kopieren fiel sie bisher still weg, und aus der farbig geordneten
+         * Vorlage wurde eine graue Liste.
+         *
+         * series_id bleibt bewusst aussen vor: Serien gehoeren zu genau
+         * einer Veranstaltung und werden hier nicht mitkopiert. Ein
+         * uebernommener Verweis zeigte auf die Serie der Vorlage.
+         */
+        `INSERT INTO program_items (event_id, day_number, time, title, description, sort_order, color)
          VALUES ${programValues} RETURNING id`,
         programParams
       );
@@ -881,16 +911,26 @@ router.post('/:id/duplicate', authMiddleware, teamleiterOrAdminMiddleware, async
 
     if (originalProgram.rows.length > 0) {
       const programValues = originalProgram.rows.map((p, idx) =>
-        `($1, $${idx * 5 + 2}, $${idx * 5 + 3}, $${idx * 5 + 4}, $${idx * 5 + 5}, $${idx * 5 + 6})`
+        // Sechs Werte je Gruppe: Tag, Zeit, Titel, Beschreibung, Rang, Farbe.
+        `($1, $${idx * 6 + 2}, $${idx * 6 + 3}, $${idx * 6 + 4}, $${idx * 6 + 5}, $${idx * 6 + 6}, $${idx * 6 + 7})`
       ).join(', ');
       const programParams = [newEvent.id];
       originalProgram.rows.forEach(p => {
         // sort_order mit: ohne Uhrzeit ist sie die einzige Reihenfolge.
-        programParams.push(p.day_number, p.time, p.title, p.description, p.sort_order ?? 0);
+        programParams.push(p.day_number, p.time, p.title, p.description, p.sort_order ?? 0, p.color ?? null);
       });
 
       const newProgramItems = await query(
-        `INSERT INTO program_items (event_id, day_number, time, title, description, sort_order)
+        /*
+         * Farbe mitkopieren. Sie gehoert zur Gruppe wie ihr Name - beim
+         * Kopieren fiel sie bisher still weg, und aus der farbig geordneten
+         * Vorlage wurde eine graue Liste.
+         *
+         * series_id bleibt bewusst aussen vor: Serien gehoeren zu genau
+         * einer Veranstaltung und werden hier nicht mitkopiert. Ein
+         * uebernommener Verweis zeigte auf die Serie der Vorlage.
+         */
+        `INSERT INTO program_items (event_id, day_number, time, title, description, sort_order, color)
          VALUES ${programValues} RETURNING id`,
         programParams
       );
@@ -1065,12 +1105,13 @@ router.post('/bulk-approve-suggestions', authMiddleware, adminMiddleware, async 
 
       if (originalProgram.rows.length > 0) {
         const programValues = originalProgram.rows.map((p, idx) =>
-          `($1, $${idx * 5 + 2}, $${idx * 5 + 3}, $${idx * 5 + 4}, $${idx * 5 + 5}, $${idx * 5 + 6})`
+          // Sechs Werte je Gruppe: Tag, Zeit, Titel, Beschreibung, Rang, Farbe.
+        `($1, $${idx * 6 + 2}, $${idx * 6 + 3}, $${idx * 6 + 4}, $${idx * 6 + 5}, $${idx * 6 + 6}, $${idx * 6 + 7})`
         ).join(', ');
         const programParams = [template.id];
         originalProgram.rows.forEach(p => {
           // sort_order mit: ohne Uhrzeit ist sie die einzige Reihenfolge.
-          programParams.push(p.day_number, p.time, p.title, p.description, p.sort_order ?? 0);
+          programParams.push(p.day_number, p.time, p.title, p.description, p.sort_order ?? 0, p.color ?? null);
         });
 
         const newProgramItems = await query(
