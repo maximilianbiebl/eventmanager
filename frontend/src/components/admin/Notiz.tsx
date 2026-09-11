@@ -164,7 +164,7 @@ const NotizFenster: React.FC<FensterProps> = ({ titel, wert, anker, speichern, s
         fontSize: '0.8125rem', fontWeight: 600, color: 'var(--c-text)',
         marginBottom: '0.5rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
       }}>
-        ✎ Notiz zu „{titel}“
+        Notiz zu „{titel}“
       </div>
 
       <textarea
@@ -397,7 +397,6 @@ export const NotizText: React.FC<TextProps> = ({ notiz, style, offen: vonAussen,
         ...style,
       }}
     >
-      <span aria-hidden style={{ flexShrink: 0 }}>✎</span>
       <span
         style={offen ? {
           // Auch aufgeklappt in der Box bleiben: ohne minWidth 0 wehrt sich

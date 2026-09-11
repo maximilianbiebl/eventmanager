@@ -347,22 +347,12 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
         {/* title-Attribut: am Handy wird der Name gekuerzt (siehe CSS). */}
         <h2 className={styles.title} title={event.name}>{event.name}</h2>
 
-        {(
-          <button
-            onClick={() => setShowDescription(v => !v)}
-            className={showDescription ? styles.infoButtonActive : styles.infoButton}
-            aria-expanded={showDescription}
-            aria-label="Beschreibung anzeigen"
-            title="Beschreibung anzeigen"
-            type="button"
-          >
-            i
-          </button>
-        )}
-
         {/*
           Notiz zur Veranstaltung. Nur fuer die Leitung; im
           Mitarbeiterbereich gibt es sie nicht.
+
+          Sie steht LINKS vom "i" - dort stand sie von Anfang an, und der
+          Platz gehoert dem, was zur Veranstaltung selbst gehoert.
 
           Ohne Notiz steht hier das ✎, rund wie das "i" daneben. Gibt es
           eine, tritt das Zeichen zurueck und an seiner Stelle steht der
@@ -390,6 +380,19 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
                 />
               )
               : null
+        )}
+
+        {(
+          <button
+            onClick={() => setShowDescription(v => !v)}
+            className={showDescription ? styles.infoButtonActive : styles.infoButton}
+            aria-expanded={showDescription}
+            aria-label="Beschreibung anzeigen"
+            title="Beschreibung anzeigen"
+            type="button"
+          >
+            i
+          </button>
         )}
 
         <div className={styles.titleRowActions}>
