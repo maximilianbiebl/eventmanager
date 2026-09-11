@@ -243,6 +243,12 @@ interface KnopfProps {
    * ihnen - vorher war es sichtbar flacher.
    */
   stil?: React.CSSProperties;
+  /**
+   * Beschriftung statt des Zeichens - z.B. "Bearbeiten" unter der
+   * aufgeklappten Notiz der Veranstaltung, wo ein zweites ✎ neben dem
+   * gelben Kasten nur noch raten liesse, was es tut.
+   */
+  beschriftung?: string;
 }
 
 /**
@@ -250,7 +256,7 @@ interface KnopfProps {
  * beim Ueberfliegen, wo etwas vermerkt ist.
  */
 export const NotizKnopf: React.FC<KnopfProps> = ({
-  titel, notiz, speichern, zahl, klein, className, stil,
+  titel, notiz, speichern, zahl, klein, className, stil, beschriftung,
 }) => {
   const [anker, setAnker] = useState<DOMRect | null>(null);
   const hat = !!(notiz && notiz.trim());
@@ -281,15 +287,18 @@ export const NotizKnopf: React.FC<KnopfProps> = ({
       <button
         type="button"
         className={className}
-        title={hat ? `Notiz: ${notiz}` : 'Notiz hinzufügen'}
+        title={beschriftung ? 'Notiz bearbeiten' : hat ? `Notiz: ${notiz}` : 'Notiz hinzufügen'}
         aria-label={hat ? 'Notiz bearbeiten' : 'Notiz hinzufügen'}
         onClick={(e) => {
           e.stopPropagation();
           setAnker(anker ? null : (e.currentTarget as HTMLElement).getBoundingClientRect());
         }}
-        style={{ ...(className ? {} : stil ?? grundform), ...gelb }}
+        // Mit Beschriftung traegt der Knopf das Wort - dann faerbt ihn das
+        // Gelb nicht mit ein, er steht ohnehin am gelben Kasten.
+        style={{ ...(className ? {} : stil ?? grundform), ...(beschriftung ? {} : gelb) }}
       >
-        ✎{zahl ? <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{zahl}</span> : null}
+        {beschriftung || '✎'}
+        {zahl ? <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{zahl}</span> : null}
       </button>
 
       {anker && (
@@ -309,6 +318,15 @@ interface TextProps {
   notiz?: string | null;
   /** In der Tabelle sitzt der Text in einer eigenen Zeile ueber die ganze Breite. */
   style?: React.CSSProperties;
+  /**
+   * Auf- und Zuklappen von aussen steuern. Gebraucht in der Kopfzeile der
+   * Veranstaltung: dort ist die Notiz erst gar nicht da, sondern wird
+   * ueber ihre Plakette geoeffnet - und das Zuklappen muss dieselbe
+   * Plakette zurueckbringen. Ohne diese beiden fuehrt der Text seinen
+   * Zustand selbst, wie in Liste und Karten.
+   */
+  offen?: boolean;
+  onUmschalten?: () => void;
 }
 
 /**
@@ -320,8 +338,10 @@ interface TextProps {
  * im gekuerzten Zustand: wer seine Notiz in Zeilen schreibt, will sie auch
  * in Zeilen wiederfinden.
  */
-export const NotizText: React.FC<TextProps> = ({ notiz, style }) => {
-  const [offen, setOffen] = useState(false);
+export const NotizText: React.FC<TextProps> = ({ notiz, style, offen: vonAussen, onUmschalten }) => {
+  const [selbst, setSelbst] = useState(false);
+  const offen = vonAussen ?? selbst;
+  const umschalten = () => (onUmschalten ? onUmschalten() : setSelbst((o) => !o));
   if (!notiz || !notiz.trim()) return null;
 
   return (
@@ -329,9 +349,9 @@ export const NotizText: React.FC<TextProps> = ({ notiz, style }) => {
       role="button"
       tabIndex={0}
       title={offen ? 'Zuklappen' : 'Ganze Notiz anzeigen'}
-      onClick={(e) => { e.stopPropagation(); setOffen((o) => !o); }}
+      onClick={(e) => { e.stopPropagation(); umschalten(); }}
       onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOffen((o) => !o); }
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); umschalten(); }
       }}
       style={{
         display: 'flex',
@@ -368,3 +388,60 @@ export const NotizText: React.FC<TextProps> = ({ notiz, style }) => {
     </div>
   );
 };
+
+interface VorschauProps {
+  notiz: string;
+  oeffnen: () => void;
+  /**
+   * Platz in der Zeile - das entscheidet die Ansicht, nicht die Notiz.
+   * In der Kopfzeile der Veranstaltung steht die Plakette breit neben dem
+   * Namen und rutscht am Handy in eine eigene Zeile (siehe
+   * EventDetail.module.css).
+   */
+  className?: string;
+}
+
+/**
+ * Der Anfang der Notiz an der Stelle, an der sonst das ✎ steht.
+ *
+ * Gedacht fuer die Kopfzeile der Veranstaltung: dort ist kein Platz fuer
+ * Knopf UND Text, und von beidem ist der Text das Wichtigere. Gibt es
+ * keine Notiz, steht dort weiter das ✎; sobald eine da ist, tritt es
+ * zurueck und kommt beim Aufklappen als "Bearbeiten" wieder.
+ *
+ * Einzeilig mit "…" am Ende: die Kopfzeile soll nicht umbrechen. Wie viel
+ * zu sehen ist, entscheidet der Platz neben Name und Knoepfen - am Handy
+ * sind das ein paar Woerter.
+ */
+export const NotizVorschau: React.FC<VorschauProps> = ({ notiz, oeffnen, className }) => (
+  <button
+    type="button"
+    className={className}
+    onClick={(e) => { e.stopPropagation(); oeffnen(); }}
+    title={`Notiz: ${notiz}`}
+    aria-label="Notiz anzeigen"
+    style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '0.3rem',
+      minHeight: 'auto',
+      padding: '0.2rem 0.5rem',
+      borderRadius: 6,
+      border: '1px solid var(--c-warning)',
+      backgroundColor: GELB_HINTERGRUND,
+      color: GELB_TEXT,
+      fontSize: '0.75rem',
+      lineHeight: 1.3,
+      cursor: 'pointer',
+      overflow: 'hidden',
+      whiteSpace: 'nowrap',
+    }}
+  >
+    <span aria-hidden style={{ flexShrink: 0 }}>✎</span>
+    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      {/* Umbrueche als Leerzeichen: in einer Zeile waeren sie sonst weg
+          und Woerter klebten aneinander. */}
+      {notiz.replace(/\s+/g, ' ')}
+    </span>
+  </button>
+);

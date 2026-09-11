@@ -24,7 +24,7 @@ import client from '../../api/client';
 import { toLocalDate } from '../../utils/date';
 import { eventBadgeColors, eventRolleVon, eventAssignmentTitle } from '../../utils/roleBadge';
 import { BedarfBadge, hatBedarf, bedarfGesamt } from './BedarfBadge';
-import { NotizKnopf, NotizText } from './Notiz';
+import { NotizKnopf, NotizText, NotizVorschau } from './Notiz';
 import { DaySelection, resolveInitialDayForEvent, storeDay } from '../../utils/dayPreference';
 import { zeilenMitGruppen, zugeklappteGruppen, merkeZugeklappt, gruppenZeit, Sortierung } from '../../utils/taskGroups';
 import styles from './EventDetail.module.css';
@@ -77,6 +77,12 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
   // Beschreibungen sind oft lang - eingeklappt starten, damit Aufgaben
   // und Mitarbeiterpool ohne Scrollen erreichbar sind.
   const [showDescription, setShowDescription] = useState(false);
+  /*
+   * Ist die Notiz der Veranstaltung gerade aufgeklappt? Bewusst nicht
+   * gemerkt: die Notiz soll beim naechsten Besuch wieder als kurze
+   * Plakette in der Kopfzeile stehen, nicht als Block ueber der Liste.
+   */
+  const [notizOffen, setNotizOffen] = useState(false);
   const scrollPositionRef = useRef<number>(0);
   const tableRef = useRef<TaskTableViewHandle>(null);
   // Standardansicht und Tagesauswahl nur beim ersten Laden setzen - sonst
@@ -283,6 +289,24 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
     ? (Number(event.days) === 1 ? fmt(rangeStart) : `${fmt(rangeStart)} – ${fmt(rangeEnd)}`)
     : null;
 
+  /*
+   * Notiz der Veranstaltung - dieselbe Regel wie fuers Bearbeiten: Admin
+   * immer, Teamleitung ausser an Vorlagen.
+   */
+  const darfNotizSchreiben = !!event && (isAdmin || (isTeamleiter && !event.is_template));
+
+  const notizSpeichern = async (text: string) => {
+    try {
+      const antwort = await eventsApi.setzeNotiz(event.id, text);
+      setEvent((alt: any) => ({ ...alt, note: antwort.note }));
+      // Geloescht? Dann gibt es nichts mehr aufzuklappen.
+      if (!antwort.note) setNotizOffen(false);
+    } catch (error) {
+      console.error('Save event note error:', error);
+      alert('Notiz konnte nicht gespeichert werden');
+    }
+  };
+
   if (loading) {
     return <div>Lade Details...</div>;
   }
@@ -336,25 +360,35 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
         )}
 
         {/*
-          Notiz zur Veranstaltung - dieselbe runde Form wie das "i" daneben,
-          gelb sobald etwas dransteht. Nur fuer die Leitung; im
+          Notiz zur Veranstaltung. Nur fuer die Leitung; im
           Mitarbeiterbereich gibt es sie nicht.
+
+          Ohne Notiz steht hier das ✎, rund wie das "i" daneben. Gibt es
+          eine, tritt das Zeichen zurueck und an seiner Stelle steht der
+          ANFANG DES TEXTES - in der Kopfzeile ist kein Platz fuer beides,
+          und von beidem ist der Text das Wichtigere. Ein Klick darauf
+          klappt die ganze Notiz unter der Zeile auf; das Aendern sitzt
+          dann als "Bearbeiten" am Kasten (siehe unten).
         */}
-        {(isAdmin || (isTeamleiter && !event.is_template)) && (
-          <NotizKnopf
-            titel={event.name}
-            notiz={event.note}
-            className={styles.infoButton}
-            speichern={async (text) => {
-              try {
-                const antwort = await eventsApi.setzeNotiz(event.id, text);
-                setEvent((alt: any) => ({ ...alt, note: antwort.note }));
-              } catch (error) {
-                console.error('Save event note error:', error);
-                alert('Notiz konnte nicht gespeichert werden');
-              }
-            }}
-          />
+        {darfNotizSchreiben && (
+          event.note && !notizOffen
+            ? (
+              <NotizVorschau
+                notiz={event.note}
+                className={styles.notizVorschau}
+                oeffnen={() => setNotizOffen(true)}
+              />
+            )
+            : !event.note
+              ? (
+                <NotizKnopf
+                  titel={event.name}
+                  notiz={event.note}
+                  className={styles.infoButton}
+                  speichern={notizSpeichern}
+                />
+              )
+              : null
         )}
 
         <div className={styles.titleRowActions}>
@@ -449,6 +483,34 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
             )}
           </dl>
           {event.description && <p className={styles.descriptionText}>{event.description}</p>}
+        </div>
+      )}
+
+      {/*
+        Die aufgeklappte Notiz - nur solange man sie aufhat; beim naechsten
+        Oeffnen der Veranstaltung steht wieder die Plakette in der
+        Kopfzeile. Zugeklappt wird durch einen Klick auf den Text, genau
+        wie in Tabelle und Karten. Daneben "Bearbeiten": das ✎ waere neben
+        dem gelben Kasten nicht mehr zu unterscheiden von dem Zeichen im
+        Kasten selbst.
+      */}
+      {darfNotizSchreiben && event.note && notizOffen && (
+        <div style={{
+          display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
+          margin: '-0.25rem 0 1rem',
+        }}>
+          <NotizText
+            notiz={event.note}
+            offen
+            onUmschalten={() => setNotizOffen(false)}
+            style={{ flex: '1 1 auto', fontSize: '0.8125rem' }}
+          />
+          <NotizKnopf
+            titel={event.name}
+            notiz={event.note}
+            beschriftung="Bearbeiten"
+            speichern={notizSpeichern}
+          />
         </div>
       )}
 

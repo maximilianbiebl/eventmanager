@@ -830,6 +830,9 @@
 .titleRow {
   display: flex;
   align-items: center;
+  /* Umbruch erlaubt: am Handy rutscht die Notiz-Plakette in eine eigene
+     Zeile, statt den Namen zusammenzuquetschen. */
+  flex-wrap: wrap;
   gap: 0.625rem;
   margin-bottom: 1rem;
   padding-bottom: 0.75rem;
@@ -838,11 +841,26 @@
 
 .titleRow .title {
   flex: 1;
-  min-width: 0;
+  /*
+   * Nicht unter diese Breite drücken lassen: mit min-width 0 und
+   * overflow-wrap:anywhere brach der Name sonst Buchstabe für Buchstabe
+   * untereinander, sobald die Notiz-Plakette daneben Platz brauchte.
+   */
+  min-width: 7rem;
   margin: 0;
   font-size: 1.5rem;
   line-height: 1.2;
   overflow-wrap: anywhere;
+}
+
+/*
+ * Anfang der Notiz in der Kopfzeile (siehe components/admin/Notiz).
+ * Sie steht an der Stelle des ✎ und darf schrumpfen - der Name geht vor.
+ */
+.notizVorschau {
+  flex: 0 1 auto;
+  min-width: 3.5rem;
+  max-width: 22rem;
 }
 
 .titleRowActions {
@@ -902,6 +920,18 @@
 @media (max-width: 640px) {
   .titleRow .title {
     font-size: 1.25rem;
+  }
+
+  /*
+   * Am Handy ist neben Zurück, Name, "i" und Aktionen kein Platz mehr für
+   * einen Textanfang. Die Plakette bekommt deshalb eine eigene Zeile -
+   * order sorgt dafür, dass sie UNTER der Knopfzeile landet und nicht
+   * "Aktionen" vor sich her schiebt.
+   */
+  .notizVorschau {
+    order: 10;
+    flex: 1 0 100%;
+    max-width: 100%;
   }
 }
 
