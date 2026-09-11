@@ -860,13 +860,13 @@
  */
 .notizVorschau {
   /*
-   * Schrumpffaktor 100: wenn der Platz knapp wird, gibt die Notiz nach -
-   * und zwar weit vor dem Namen der Veranstaltung. Mit dem üblichen
-   * Faktor 1 hätte sie sich ihre volle Breite genommen und den Namen auf
-   * "Somm…" zusammengedrückt.
+   * Sie nimmt, was neben dem Namen übrig bleibt - aber nicht weniger als
+   * 4rem: darunter blieben ein, zwei Buchstaben stehen, und die sagen
+   * nichts. Reicht der Platz dafür nicht, gibt der Name nach; ist gar
+   * kein Platz, zeigt der Knopf nur noch das ✎ (styles/notiz.css).
    */
-  flex: 0 100 auto;
-  min-width: 0;
+  flex: 0 1 auto;
+  min-width: 4rem;
   max-width: 22rem;
 }
 
@@ -887,10 +887,26 @@
    * Inhalt breiter ist als sein max-width, wird beim Verteilen eingefroren,
    * und dann gab der Name nach statt der Notiz.
    */
+  /*
+   * Am Handy nimmt sie den Rest der Zeile (flex: 1 1 0) statt ihrer
+   * Inhaltsbreite: ein Kind, dessen Inhalt breiter ist als sein
+   * max-width, wird beim Verteilen eingefroren - dann hätte der Name
+   * nachgegeben statt der Notiz.
+   */
   .notizVorschau {
     flex: 1 1 0;
-    min-width: 1.75rem;
-    max-width: 6rem;
+    max-width: 7rem;
+  }
+}
+
+/* Ganz schmal: der Knopf trägt nur noch das ✎ (siehe styles/notiz.css)
+   und braucht dann auch nicht mehr Platz als dieses - er schrumpft auf
+   seinen Inhalt und lässt dem Namen den Rest. */
+@media (max-width: 420px) {
+  .notizVorschau {
+    flex: 0 0 auto;
+    min-width: auto;
+    max-width: none;
   }
 }
 

@@ -1,0 +1,26 @@
+/*
+ * Anriss der Notiz in der Kopfzeile - Text ODER Zeichen, nie beides.
+ *
+ * Der Platz neben Name und Knöpfen ist schmal. Stünde dort "✎ A", hätte
+ * man das Schlechteste von beidem: ein Zeichen, das Platz kostet, und
+ * einen Buchstaben, der nichts sagt. Deshalb:
+ *
+ *   breiter Bildschirm  -> nur der Text (das Gelb sagt schon "Notiz")
+ *   sehr schmal         -> nur das ✎, wie vor der ersten Notiz
+ *
+ * Der Knopf tut in beiden Fällen dasselbe: die Notiz aufklappen.
+ */
+
+.notiz-anriss-zeichen {
+  display: none;
+}
+
+@media (max-width: 420px) {
+  .notiz-anriss-text {
+    display: none;
+  }
+
+  .notiz-anriss-zeichen {
+    display: inline;
+  }
+}

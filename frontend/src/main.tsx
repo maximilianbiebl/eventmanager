@@ -5,6 +5,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import './index.css';
 import './styles/modal.css';
 import './styles/toolbar.css';
+import './styles/notiz.css';
 
 /*
  * Service Worker beim Start registrieren, nicht erst beim Aktivieren der

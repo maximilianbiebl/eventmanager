@@ -462,6 +462,9 @@ export const NotizVorschau: React.FC<VorschauProps> = ({ notiz, oeffnen, classNa
     style={{
       display: 'inline-flex',
       alignItems: 'center',
+      // Links anfangen: die globale Knopfregel zentriert sonst, und der
+      // Anriss stuende mitten in einer breiten Plakette.
+      justifyContent: 'flex-start',
       gap: '0.3rem',
       minHeight: 'auto',
       padding: '0.2rem 0.5rem',
@@ -476,13 +479,13 @@ export const NotizVorschau: React.FC<VorschauProps> = ({ notiz, oeffnen, classNa
       whiteSpace: 'nowrap',
     }}
   >
-    <span aria-hidden style={{ flexShrink: 0 }}>✎</span>
     {/*
-      Der Text darf bis auf null schrumpfen - dann steht nur noch das ✎ da,
-      und der Knopf sieht aus wie vor der ersten Notiz. Das ist die
-      Notloesung fuer sehr schmale Geraete; er tut weiterhin dasselbe.
+      Text ODER Zeichen, nie beides - welches von beidem, entscheidet der
+      Platz (styles/notiz.css). Ein ✎ neben zwei Buchstaben Text waere das
+      Schlechteste aus beiden Welten.
     */}
-    <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+    <span className="notiz-anriss-zeichen" aria-hidden style={{ flexShrink: 0 }}>✎</span>
+    <span className="notiz-anriss-text" style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
       {ersteZeile(notiz)}
     </span>
   </button>
