@@ -81,13 +81,26 @@ const NotizFenster: React.FC<FensterProps> = ({ titel, wert, anker, speichern, s
      * in der Kopfzeile) irgendwo weit links daneben, waehrend es in der
      * Tabelle sauber am Knopf klebt.
      */
-    const links = anker.left + FENSTER_BREITE <= window.innerWidth - 8
+    const gewuenscht = anker.left + FENSTER_BREITE <= window.innerWidth - 8
       ? anker.left
-      : Math.max(8, anker.right - FENSTER_BREITE);
+      : anker.right - FENSTER_BREITE;
+    /*
+     * Und in jedem Fall ins Bild: die Tabelle rollt waagerecht, ihr Knopf
+     * kann also rechts ausserhalb des Fensters stehen. Ohne diese Klemme
+     * folgte das Notizfenster ihm hinaus und war nicht mehr zu sehen. Auf
+     * schmalen Geraeten klebt es dann am Rand statt am Knopf - dort ist es
+     * fast so breit wie das Bild, eine andere Wahl gibt es nicht.
+     */
+    const klemme = (wert: number, hoechstens: number) =>
+      Math.max(8, Math.min(wert, Math.max(8, hoechstens)));
+
     const untenPasst = anker.bottom + 6 + hoehe <= window.innerHeight - 8;
     setPos({
-      top: untenPasst ? anker.bottom + 6 : Math.max(8, anker.top - hoehe - 6),
-      left: links,
+      top: klemme(
+        untenPasst ? anker.bottom + 6 : anker.top - hoehe - 6,
+        window.innerHeight - hoehe - 8
+      ),
+      left: klemme(gewuenscht, window.innerWidth - FENSTER_BREITE - 8),
     });
   }, [anker]);
 
