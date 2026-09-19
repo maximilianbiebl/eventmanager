@@ -149,7 +149,9 @@
 
   /* Der Inhaltsrahmen sass mit vollen 1,5rem sehr weit vom Reiter weg. */
   .content {
-    padding: 0.875rem !important;
+    /* Kein eigener Innenabstand mehr - der Inhaltsbereich ist keine
+       Karte (siehe AdminDashboard.tsx), die Seite hat ihren eigenen. */
+    padding: 0 !important;
   }
 }
 

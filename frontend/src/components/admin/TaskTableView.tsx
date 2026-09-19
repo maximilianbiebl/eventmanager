@@ -180,6 +180,15 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
    * der Filter soll zeigen, wo noch niemand steht.
    */
   const [nurNichtEingeteilt, setNurNichtEingeteilt] = useState(false);
+  /*
+   * Deaktivierte Aufgaben stehen normalerweise nicht in der Liste.
+   *
+   * Sie sind ausdruecklich aus dem Betrieb genommen - sie sollen weder
+   * die Liste fuellen noch in den Zaehlern auftauchen ("Nicht eingeteilt"
+   * zaehlte sie mit, obwohl niemand sie je einteilen wird). Wer sie
+   * braucht, blendet sie mit der Plakette ein.
+   */
+  const [zeigeDeaktivierte, setZeigeDeaktivierte] = useState(false);
   const [internalSelectedDay, setInternalSelectedDay] = useState<number | 'all'>('all');
   const [sortColumn, setSortColumn] = useState<string>('manual');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -520,7 +529,17 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
     return acc;
   }, {} as { [key: number]: { task: TaskAssignment; assignedUsers: { name: string; completed: boolean; assignmentId?: number; userId?: number; role?: string }[] } });
 
-  const tasks = Object.values(groupedTasks);
+  const alleAufgaben = Object.values(groupedTasks);
+
+  /*
+   * Deaktivierte zuerst heraus - vor JEDEM anderen Filter und vor allen
+   * Zaehlern. Sonst zaehlt die Plakette "Nicht eingeteilt" Aufgaben mit,
+   * die gar nicht mehr laufen.
+   */
+  const deaktivierte = alleAufgaben.filter((t) => t.task.is_active === false);
+  const tasks = zeigeDeaktivierte
+    ? alleAufgaben
+    : alleAufgaben.filter((t) => t.task.is_active !== false);
 
   // Filter nach Status und Tag
   let filteredTasks = statusFilter === 'all'
@@ -782,7 +801,14 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
                   <td style={{ ...styles.td, ...styles.tdKurz }} className={responsiveStyles.hideOnMobile}>{getTaskDate(task.day_number)}</td>
                   <td style={{ ...styles.td, ...styles.tdTitel, ...(inGruppe ? styles.eingerueckt : {}) }}>
                     <div style={styles.taskTitle} className={responsiveStyles.taskTitle}>
-                      {task.title}
+                      {/*
+                        Der Titel bricht nicht mehr um: mit jeder Plakette
+                        daneben ("Öffentlich", "Deaktiviert", Serie) wurde
+                        der Platz fuer den Text kleiner, und die Zeile
+                        wuchs auf zwei bis vier Zeilen. Die Spalte darf
+                        stattdessen breiter werden - die Tabelle rollt.
+                      */}
+                      <span style={styles.titelText}>{task.title}</span>
                       {task.is_public && (
                         <span style={styles.publicBadge} className={responsiveStyles.publicBadge}>Öffentlich</span>
                       )}
@@ -809,7 +835,8 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
                           color: 'var(--c-danger-strong)',
                           borderRadius: '9999px',
                           fontWeight: '500',
-                          marginLeft: '0.5rem'
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0,
                         }}>Deaktiviert</span>
                       )}
                       {task.series_id && taskSeries.find(s => s.id === task.series_id) && (
@@ -832,7 +859,8 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
                           color: 'var(--c-accent-text)',
                           borderRadius: '9999px',
                           fontWeight: '500',
-                          marginLeft: '0.5rem'
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0,
                         }} title={`Gehört zur Serie "${taskSeries.find(s => s.id === task.series_id)?.name}"`}>{taskSeries.find(s => s.id === task.series_id)?.name}</span>
                       )}
                     </div>
@@ -1244,6 +1272,20 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
               <b style={{ marginLeft: '0.35rem', fontVariantNumeric: 'tabular-nums' }}>{offeneStellen}</b>
             )}
           </button>
+          {/* Nur zeigen, wenn es ueberhaupt deaktivierte gibt - sonst ist
+              es eine Plakette fuer einen Fall, den es nicht gibt. */}
+          {deaktivierte.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setZeigeDeaktivierte((an) => !an)}
+              className={zeigeDeaktivierte ? 'tv-chip-active' : 'tv-chip'}
+              title="Deaktivierte Aufgaben mit anzeigen"
+              aria-pressed={zeigeDeaktivierte}
+            >
+              Deaktivierte
+              <b style={{ marginLeft: '0.35rem', fontVariantNumeric: 'tabular-nums' }}>{deaktivierte.length}</b>
+            </button>
+          )}
         </div>
 
         {sortColumn !== 'manual' && (
@@ -1770,7 +1812,8 @@ const styles: { [key: string]: React.CSSProperties } = {
    * breiter werden, statt sich die Spalten zusammenzuquetschen.
    */
   th: {
-    padding: '0.75rem',
+    // Einstellbare Luft - siehe utils/darstellung.
+    padding: 'calc(0.75rem * var(--ui-abstand, 1))',
     textAlign: 'left',
     fontSize: '0.875rem',
     fontWeight: '600',
@@ -1781,7 +1824,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderBottom: '1px solid var(--c-border)',
   },
   td: {
-    padding: '0.75rem',
+    // Einstellbare Luft - siehe utils/darstellung.
+    padding: 'calc(0.75rem * var(--ui-abstand, 1))',
     fontSize: '0.875rem',
     color: 'var(--c-text)',
   },
@@ -1802,6 +1846,11 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     alignItems: 'center',
     gap: '0.5rem',
+    // Keine zweite Zeile: Titel und Plaketten bleiben nebeneinander.
+    flexWrap: 'nowrap' as const,
+  },
+  titelText: {
+    whiteSpace: 'nowrap' as const,
   },
   taskDescription: {
     fontSize: '0.75rem',
@@ -1815,6 +1864,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: 'var(--c-accent-text)',
     borderRadius: '9999px',
     fontWeight: '500',
+    whiteSpace: 'nowrap' as const,
+    flexShrink: 0,
   },
   statusBadge: {
     display: 'inline-block',
@@ -1874,6 +1925,9 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'flex-end',
   },
   editButton: {
+    // Feste Zeilenhoehe: so sind Text- und Zeichenknoepfe gleich hoch,
+    // egal aus welcher Schrift das Zeichen kommt.
+    lineHeight: 1.2,
     padding: '0.3125rem 0.625rem',
     backgroundColor: 'transparent',
     color: 'var(--c-text-muted)',
@@ -1885,6 +1939,9 @@ const styles: { [key: string]: React.CSSProperties } = {
     whiteSpace: 'nowrap',
   },
   assignButton: {
+    // Feste Zeilenhoehe: so sind Text- und Zeichenknoepfe gleich hoch,
+    // egal aus welcher Schrift das Zeichen kommt.
+    lineHeight: 1.2,
     padding: '0.3125rem 0.625rem',
     backgroundColor: 'transparent',
     color: 'var(--c-accent-text)',

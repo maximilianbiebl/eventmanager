@@ -14,9 +14,9 @@
 .tv-toolbar {
   display: flex;
   align-items: center;
-  gap: 1.25rem;
+  gap: calc(1.25rem * var(--ui-abstand, 1));
   flex-wrap: wrap;
-  padding: 0.5rem 0.75rem;
+  padding: calc(0.5rem * var(--ui-abstand, 1)) calc(0.75rem * var(--ui-abstand, 1));
   margin-bottom: 1rem;
   background-color:var(--c-surface-muted);
   border:1px solid var(--c-border);
@@ -317,4 +317,53 @@
 .theme-switch-option-active {
   background-color: var(--c-accent);
   color: var(--c-text-inverse);
+}
+
+/* ---- Regler für Schriftgröße und Abstand --------------------------------
+   Liegen neben dem Farbschema-Umschalter, deshalb dieselbe Hülle
+   (.theme-switch). Siehe components/AnsichtRegler. */
+
+.ansicht-regler {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.ansicht-regler-kopf {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--c-text-muted);
+}
+
+.ansicht-regler-wert {
+  font-variant-numeric: tabular-nums;
+  color: var(--c-text);
+  font-weight: 600;
+}
+
+.ansicht-regler input[type='range'] {
+  width: 100%;
+  min-height: 0;
+  accent-color: var(--c-accent);
+  cursor: pointer;
+}
+
+.ansicht-regler-zurueck {
+  align-self: flex-start;
+  padding: 0.1875rem 0.5rem;
+  background: none;
+  border: 1px solid var(--c-border);
+  border-radius: 6px;
+  font-size: 0.6875rem;
+  color: var(--c-text-muted);
+  cursor: pointer;
+  min-height: 0;
+}
+
+.ansicht-regler-zurueck:hover {
+  border-color: var(--c-border-strong);
+  color: var(--c-text);
 }

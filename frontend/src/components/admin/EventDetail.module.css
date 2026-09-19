@@ -335,7 +335,7 @@
 .tasksList {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: calc(0.5rem * var(--ui-abstand, 1));
 }
 
 .taskItem {
@@ -353,7 +353,7 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  padding: 1.25rem;
+  padding: calc(1.25rem * var(--ui-abstand, 1));
   background-color:var(--c-surface);
   border:1px solid var(--c-border);
   border-radius: 8px;
@@ -364,6 +364,37 @@
 
 .taskItemExtended:hover {
   box-shadow: var(--shadow-md);
+}
+
+/*
+ * Knopfspalte der Aufgabenkarte.
+ *
+ * Eigene Klasse, weil ".taskActions" schon der Knopfzeile ÜBER der Liste
+ * gehört ("Serien & Gruppen", "Neue Aufgabe"). Beide teilten sich den
+ * Namen - und eine Regel für die eine verstellte still die andere: auf
+ * dem Tablet standen dadurch beide untereinander und mittig statt
+ * rechtsbündig.
+ *
+ * align-items: stretch lässt die gestapelten Knöpfe gleich breit werden;
+ * so steht ihre rechte Kante auf einer Linie, auch die der Pfeile.
+ */
+.kartenAktionen {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.375rem;
+  flex-shrink: 0;
+  min-width: 7rem;
+}
+
+/* Die Pfeile bleiben nebeneinander und füllen dieselbe Breite. */
+.kartenAktionen > div {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.kartenAktionen > div > button {
+  flex: 1 1 0;
 }
 
 .taskMainInfo {
@@ -513,6 +544,7 @@
   /* Masse aus der Tabellenansicht - dieselbe Aktion soll nicht in zwei
      Grössen auftreten. */
   padding: 0.3125rem 0.625rem;
+  line-height: 1.2;
   background-color: transparent;
   color:var(--c-text-muted);
   border:1px solid var(--c-border);
@@ -526,6 +558,7 @@
 
 .assignButton {
   padding: 0.3125rem 0.625rem;
+  line-height: 1.2;
   background-color: transparent;
   color:var(--c-accent-text);
   border:1px solid var(--c-accent-border);
@@ -628,16 +661,23 @@
     font-size: 0.8rem;
   }
 
-  .taskActions {
+  /* Am Handy nebeneinander und ueber die ganze Breite - untereinander
+     waere die Karte doppelt so hoch. Die Masse bleiben die der Tabelle. */
+  .kartenAktionen {
     width: 100%;
     flex-direction: row;
     gap: 0.5rem;
   }
 
-  .editButton, .assignButton {
-    flex: 1;
-    padding: 0.625rem;
-    font-size: 0.8125rem;
+  .kartenAktionen > button,
+  .kartenAktionen > div {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .taskActions {
+    width: 100%;
+    gap: 0.5rem;
   }
 }
 
@@ -645,10 +685,6 @@
 @media (min-width: 641px) and (max-width: 1024px) {
   .title {
     font-size: 1.625rem;
-  }
-
-  .taskActions {
-    flex-direction: column;
   }
 }
 
@@ -800,11 +836,13 @@
     padding-right: 0.5rem;
   }
 
-  .taskActions {
+  .taskActions,
+  .kartenAktionen {
     width: 100%;
   }
 
-  .taskActions > button {
+  .kartenAktionen > button,
+  .kartenAktionen > div {
     flex: 1 1 0;
     min-width: 0;
   }
@@ -819,11 +857,14 @@
 }
 
 /* Aktionen der Aufgaben-Sektion: eigene Zeile, damit sie nicht mit dem
-   vollbreiten Ansichts-Umschalter um dieselbe Flex-Zeile konkurrieren. */
+   vollbreiten Ansichts-Umschalter um dieselbe Flex-Zeile konkurrieren.
+   Rechtsbündig - sie stehen unter dem Umschalter, der rechts endet. */
 .taskActions {
   display: flex;
   gap: 0.5rem;
   align-items: center;
+  justify-content: flex-end;
+  margin-left: auto;
 }
 
 /* ---- Kopfbereich: Zurück-Zeile, dann Titelzeile -------------------------- */
@@ -1075,7 +1116,8 @@
     padding-right: 0.625rem;
   }
 
-  .taskActions {
+  .taskActions,
+  .kartenAktionen {
     gap: 0.375rem;
   }
 

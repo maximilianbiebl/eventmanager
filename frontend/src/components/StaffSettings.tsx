@@ -5,6 +5,7 @@ import { useNotifications } from '../hooks/useNotifications';
 import { signalApi } from '../api/signal';
 import { SignalSetup } from './settings/SignalSetup';
 import { ThemeSwitch } from './ThemeSwitch';
+import { AnsichtRegler } from './AnsichtRegler';
 
 interface Settings {
   default_reminder_minutes: number;
@@ -319,6 +320,7 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
                 kein Menü hat - dort gibt es nur diesen Dialog. */}
             <div style={styles.formGroup}>
               <ThemeSwitch />
+              <AnsichtRegler />
               <p style={styles.hint}>
                 "System" folgt der Einstellung deines Geräts.
               </p>

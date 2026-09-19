@@ -323,7 +323,20 @@ export const NotizKnopf: React.FC<KnopfProps> = ({
         }}
         // Mit Beschriftung traegt der Knopf das Wort - dann faerbt ihn das
         // Gelb nicht mit ein, er steht ohnehin am gelben Kasten.
-        style={{ ...(className ? {} : stil ?? grundform), ...(beschriftung ? {} : gelb) }}
+        /*
+         * Zeilenhoehe fest: das ✎ kommt je nach Geraet aus einer anderen
+         * Schrift (auf dem Handy oft der Emoji-Satz) und ist dort hoeher
+         * als lateinische Buchstaben. Ohne feste Hoehe war der Knopf
+         * dadurch groesser als "Zuweisen" und "Bearbeiten" daneben.
+         */
+        style={{
+          ...(className ? {} : stil ?? grundform),
+          ...(beschriftung ? {} : gelb),
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          lineHeight: 1.2,
+        }}
       >
         {beschriftung || '✎'}
         {zahl ? <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{zahl}</span> : null}

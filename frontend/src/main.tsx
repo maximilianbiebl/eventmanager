@@ -6,6 +6,10 @@ import './index.css';
 import './styles/modal.css';
 import './styles/toolbar.css';
 import './styles/notiz.css';
+import { leseDarstellung, wendeDarstellungAn } from './utils/darstellung';
+
+// Vor dem ersten Zeichnen setzen, sonst springt die Schrift beim Laden.
+wendeDarstellungAn(leseDarstellung());
 
 /*
  * Service Worker beim Start registrieren, nicht erst beim Aktivieren der

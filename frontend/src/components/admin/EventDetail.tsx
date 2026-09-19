@@ -825,6 +825,8 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   const [statusFilter, setStatusFilter] = React.useState<string>('all');
   /** Nur Aufgaben, fuer die noch Leute fehlen - wie in der Tabelle. */
   const [nurNichtEingeteilt, setNurNichtEingeteilt] = React.useState(false);
+  /** Deaktivierte bleiben draussen, bis man sie einblendet - wie in der Tabelle. */
+  const [zeigeDeaktivierte, setZeigeDeaktivierte] = React.useState(false);
   const [sortDirection, setSortDirection] = React.useState<'asc' | 'desc'>('asc');
   const [expandedDescriptions, setExpandedDescriptions] = React.useState<Set<number>>(new Set());
   const pendingActionsRef = React.useRef<number>(0);
@@ -1140,7 +1142,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   };
 
   // Group assignments by task ID and get unique tasks
-  const uniqueTasks = React.useMemo(() => {
+  const alleAufgaben = React.useMemo(() => {
     const taskMap = new Map<number, any>();
     assignments.forEach(a => {
       if (!taskMap.has(a.id)) {
@@ -1149,6 +1151,17 @@ const TaskListView: React.FC<TaskListViewProps> = ({
     });
     return Array.from(taskMap.values());
   }, [assignments]);
+
+  /*
+   * Deaktivierte vor allen anderen Filtern heraus - sie sind aus dem
+   * Betrieb genommen und sollen weder die Liste fuellen noch in den
+   * Zaehlern stehen. Die Plakette blendet sie bei Bedarf ein.
+   */
+  const deaktivierte = React.useMemo(
+    () => alleAufgaben.filter((t) => t.is_active === false), [alleAufgaben]);
+  const uniqueTasks = React.useMemo(
+    () => (zeigeDeaktivierte ? alleAufgaben : alleAufgaben.filter((t) => t.is_active !== false)),
+    [alleAufgaben, zeigeDeaktivierte]);
 
   /*
    * Dieselbe Regel wie in der Tabelle und dieselbe, nach der sich die
@@ -1597,7 +1610,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
               </div>
             </div>
 
-            <div className={styles.taskActions}>
+            <div className={styles.kartenAktionen}>
               {!readOnly && (
                 <>
                   <NotizKnopf
@@ -1620,7 +1633,10 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                 </>
               )}
               {!readOnly && sortBy === 'manual' && (
-                <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.25rem' }}>
+                /* Kein marginLeft:auto mehr - in der gestapelten Spalte
+                   soll die Pfeilzeile so breit sein wie die Knoepfe
+                   darueber, damit alle Kanten auf einer Linie stehen. */
+                <div style={{ display: 'flex', gap: '0.25rem' }}>
                   <button
                     onClick={() => handleMoveUp(task.id)}
                     style={{
@@ -1711,6 +1727,18 @@ const TaskListView: React.FC<TaskListViewProps> = ({
               <b style={{ marginLeft: '0.35rem', fontVariantNumeric: 'tabular-nums' }}>{offeneStellen}</b>
             )}
           </button>
+          {deaktivierte.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setZeigeDeaktivierte((an) => !an)}
+              className={zeigeDeaktivierte ? 'tv-chip-active' : 'tv-chip'}
+              title="Deaktivierte Aufgaben mit anzeigen"
+              aria-pressed={zeigeDeaktivierte}
+            >
+              Deaktivierte
+              <b style={{ marginLeft: '0.35rem', fontVariantNumeric: 'tabular-nums' }}>{deaktivierte.length}</b>
+            </button>
+          )}
         </div>
 
         <div className="tv-group" role="group" aria-label="Sortieren">

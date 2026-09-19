@@ -7,6 +7,7 @@ import { StaffSettings } from '../StaffSettings';
 import { StaffDashboard, ADMIN_BADGE_PLATZ } from '../StaffDashboard';
 import { tasksApi } from '../../api/tasks';
 import { ThemeSwitch } from '../ThemeSwitch';
+import { AnsichtRegler } from '../AnsichtRegler';
 import responsiveStyles from './AdminDashboard.module.css';
 
 type Tab = 'events' | 'users' | 'mytasks';
@@ -114,6 +115,7 @@ export const AdminDashboard: React.FC = () => {
                 <div style={styles.menuOverlay} onClick={() => setShowMenu(false)} />
                 <div style={styles.dropdown}>
                   <ThemeSwitch />
+                  <AnsichtRegler />
                   <button
                     onClick={() => {
                       setShowSettings(true);
@@ -163,6 +165,7 @@ export const AdminDashboard: React.FC = () => {
               />
               <div className={responsiveStyles.mobileMenu}>
                 <ThemeSwitch />
+                <AnsichtRegler />
                 <button
                   onClick={() => {
                     setShowSettings(true);
@@ -372,10 +375,16 @@ const styles: { [key: string]: React.CSSProperties } = {
     cursor: 'pointer',
     fontWeight: '500',
   },
+  /*
+   * Der Inhaltsbereich ist KEINE Karte mehr.
+   *
+   * Vorher lag ueber der ganzen Seite eine weisse Karte mit Schatten, und
+   * darin lagen die eigentlichen Karten (Mitarbeiter-Pool, Aufgaben) -
+   * Kasten im Kasten im Kasten. Jetzt traegt die Seite nur noch ihren
+   * ruhigen Hintergrund, und die Karten darin heben sich davon ab.
+   */
   content: {
-    backgroundColor: 'var(--c-surface)',
-    borderRadius: '8px',
-    padding: '1.5rem',
-    boxShadow: 'var(--shadow-md)',
+    backgroundColor: 'transparent',
+    padding: 0,
   },
 };

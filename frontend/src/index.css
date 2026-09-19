@@ -289,6 +289,15 @@ textarea::placeholder {
   color: var(--c-text-subtle);
 }
 
+/*
+ * Schriftgröße der ganzen Oberfläche - einstellbar (utils/darstellung).
+ * Alles, was in rem gerechnet ist, folgt diesem Faktor; die Verhältnisse
+ * zwischen Überschrift, Text und Plakette bleiben also erhalten.
+ */
+html {
+  font-size: calc(100% * var(--ui-skala, 1));
+}
+
 /* Einheitlicher Fokus-Ring auf Eingaben statt Browser-Default */
 input:focus,
 textarea:focus,

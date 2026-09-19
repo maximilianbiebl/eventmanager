@@ -8,6 +8,7 @@ import { StaffSettings } from './StaffSettings';
 import { ChangePasswordDialog } from './admin/ChangePasswordDialog';
 import { DescriptionModal } from './DescriptionModal';
 import { ThemeSwitch } from './ThemeSwitch';
+import { AnsichtRegler } from './AnsichtRegler';
 import client from '../api/client';
 import styles from './StaffDashboard.module.css';
 import { toLocalDate } from '../utils/date';
@@ -819,6 +820,7 @@ export const StaffDashboard: React.FC<Props> = ({ embedded = false }) => {
               />
               <div className={styles.mobileMenu}>
                 <ThemeSwitch />
+                <AnsichtRegler />
                 <button
                   onClick={() => {
                     setShowSettings(true);
