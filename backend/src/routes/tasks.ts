@@ -121,6 +121,8 @@ router.get('/my-tasks/:instanceId', authMiddleware, async (req: AuthRequest, res
         ta.completed_at,
         ta.id as assignment_id,
         ta.reminder_minutes as assignment_reminder_minutes,
+        -- Eigener fester Zeitpunkt (einmalig), siehe Migration 024.
+        ta.reminder_at,
         COALESCE(ta.reminder_minutes, t.reminder_minutes) as reminder_minutes,
         e.name as event_name,
         ei.start_date as instance_start_date,
@@ -244,6 +246,8 @@ router.get('/my-tasks', authMiddleware, async (req: AuthRequest, res) => {
         ta.id as assignment_id,
         ta.event_instance_id,
         ta.reminder_minutes as assignment_reminder_minutes,
+        -- Eigener fester Zeitpunkt (einmalig), siehe Migration 024.
+        ta.reminder_at,
         COALESCE(ta.reminder_minutes, t.reminder_minutes) as reminder_minutes,
         e.name as event_name,
         ei.start_date as instance_start_date,
@@ -822,6 +826,112 @@ router.put('/:taskId/complete-public', authMiddleware, async (req: AuthRequest, 
     res.json({ success: true, taskId: parseInt(taskId) });
   } catch (error) {
     console.error('Complete public task error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+/*
+ * Eigene Erinnerung an einer Zuweisung - drei Arten.
+ *
+ *   vorher : X Minuten vor der Aufgabe. Braucht eine Uhrzeit an der
+ *            Aufgabe und bleibt dauerhaft stehen.
+ *   in     : X Minuten ab jetzt. Einmalig.
+ *   um     : ein fester Zeitpunkt (Tag und Uhrzeit). Einmalig.
+ *   keine  : gar keine Erinnerung fuer diese Aufgabe.
+ *
+ * "in" und "um" landen beide als fester Zeitpunkt in reminder_at - fuer
+ * den Wecker ist das dasselbe, nur die Eingabe unterscheidet sich. Sie
+ * gelten auch fuer Aufgaben OHNE Uhrzeit; "vorher" haette dort keinen
+ * Bezugspunkt.
+ *
+ * Persoenlich: nur die eigene Zuweisung, und niemand sonst sieht sie.
+ */
+const ERINNERUNG_HOECHSTENS_MINUTEN = 30 * 24 * 60; // 30 Tage
+
+router.put('/assignment/:assignmentId/erinnerung', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { assignmentId } = req.params;
+    const { art, minuten, zeitpunkt } = req.body ?? {};
+    const userId = req.user!.id;
+
+    const zuweisung = await query(
+      `SELECT ta.id, ta.completed, t.title, t.scheduled_time, t.start_time
+       FROM task_assignments ta JOIN tasks t ON t.id = ta.task_id
+       WHERE ta.id = $1 AND ta.user_id = $2`,
+      [assignmentId, userId]
+    );
+    if (zuweisung.rows.length === 0) {
+      return res.status(404).json({ error: 'Zuweisung nicht gefunden' });
+    }
+    const aufgabe = zuweisung.rows[0];
+
+    const zahl = Number(minuten);
+    const jetzt = new Date();
+
+    if (art === 'keine') {
+      // 0 heisst "aus" - dieselbe Bedeutung wie an der Aufgabe selbst.
+      const r = await query(
+        'UPDATE task_assignments SET reminder_minutes = 0, reminder_at = NULL WHERE id = $1 RETURNING reminder_minutes, reminder_at',
+        [assignmentId]
+      );
+      return res.json(r.rows[0]);
+    }
+
+    if (art === 'vorher') {
+      if (!Number.isFinite(zahl) || zahl < 1 || zahl > 1440) {
+        return res.status(400).json({ error: 'Zwischen 1 und 1440 Minuten' });
+      }
+      if (!aufgabe.scheduled_time && !aufgabe.start_time) {
+        return res.status(400).json({
+          error: 'Diese Aufgabe hat keine Uhrzeit - "vorher" hat keinen Bezugspunkt',
+        });
+      }
+      const r = await query(
+        'UPDATE task_assignments SET reminder_minutes = $1, reminder_at = NULL WHERE id = $2 RETURNING reminder_minutes, reminder_at',
+        [Math.round(zahl), assignmentId]
+      );
+      return res.json(r.rows[0]);
+    }
+
+    if (art === 'in' || art === 'um') {
+      let ziel: Date;
+      if (art === 'in') {
+        if (!Number.isFinite(zahl) || zahl < 1 || zahl > ERINNERUNG_HOECHSTENS_MINUTEN) {
+          return res.status(400).json({ error: 'Zwischen 1 Minute und 30 Tagen' });
+        }
+        ziel = new Date(jetzt.getTime() + Math.round(zahl) * 60000);
+      } else {
+        ziel = new Date(String(zeitpunkt ?? ''));
+        if (isNaN(ziel.getTime())) {
+          return res.status(400).json({ error: 'Zeitpunkt nicht lesbar' });
+        }
+      }
+
+      /*
+       * Ein Zeitpunkt in der Vergangenheit wird abgelehnt statt still zu
+       * verfallen - sonst wartet jemand auf eine Erinnerung, die nie kommt.
+       * Eine Minute Spielraum, damit "um 09:30" um 09:30:20 noch geht.
+       */
+      if (ziel.getTime() < jetzt.getTime() - 60000) {
+        return res.status(400).json({ error: 'Dieser Zeitpunkt ist schon vorbei' });
+      }
+      if (ziel.getTime() > jetzt.getTime() + ERINNERUNG_HOECHSTENS_MINUTEN * 60000) {
+        return res.status(400).json({ error: 'Höchstens 30 Tage im Voraus' });
+      }
+      if (aufgabe.completed) {
+        return res.status(400).json({ error: 'Die Aufgabe ist schon erledigt' });
+      }
+
+      const r = await query(
+        'UPDATE task_assignments SET reminder_at = $1 WHERE id = $2 RETURNING reminder_minutes, reminder_at',
+        [ziel, assignmentId]
+      );
+      return res.json(r.rows[0]);
+    }
+
+    return res.status(400).json({ error: 'Unbekannte Art' });
+  } catch (error) {
+    console.error('Set own reminder error:', error);
     res.status(500).json({ error: 'Server Fehler' });
   }
 });

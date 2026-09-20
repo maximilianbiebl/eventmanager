@@ -9,6 +9,7 @@ import { ChangePasswordDialog } from './admin/ChangePasswordDialog';
 import { DescriptionModal } from './DescriptionModal';
 import { ThemeSwitch } from './ThemeSwitch';
 import { AnsichtRegler } from './AnsichtRegler';
+import { ErinnerungWahl, erinnerungText } from './ErinnerungWahl';
 import client from '../api/client';
 import styles from './StaffDashboard.module.css';
 import { toLocalDate } from '../utils/date';
@@ -192,11 +193,21 @@ export const StaffDashboard: React.FC<Props> = ({ embedded = false }) => {
       setStandVon(Date.now());
       setOffline(false);
 
-      // Only update state if data has actually changed (prevent flicker)
+      /*
+       * Nur uebernehmen, wenn sich wirklich etwas geaendert hat - sonst
+       * flackert die Liste bei jeder Meldung.
+       *
+       * In die Unterschrift gehoert ALLES, was die Karte zeigt. Vorher
+       * standen dort nur Nummer, Status und Zuweisung: eine gerade
+       * gespeicherte Erinnerung kam damit nie in der Liste an, weil die
+       * Unterschrift gleich blieb und die frischen Daten verworfen wurden.
+       */
+      const unterschrift = (t: TaskAssignment) =>
+        `${t.id}-${t.status}-${t.assignment_id}-${t.completed}-${t.reminder_minutes}-${t.reminder_at ?? ''}`;
+
       setTasks(prevTasks => {
-        // Compare by creating a simple signature
-        const prevSignature = prevTasks.map(t => `${t.id}-${t.status}-${t.assignment_id}`).sort().join(',');
-        const newSignature = data.map(t => `${t.id}-${t.status}-${t.assignment_id}`).sort().join(',');
+        const prevSignature = prevTasks.map(unterschrift).sort().join(',');
+        const newSignature = data.map(unterschrift).sort().join(',');
 
         // Only update if something changed
         if (prevSignature !== newSignature) {
@@ -1116,8 +1127,6 @@ const TaskCard: React.FC<{
   pending?: boolean;
 }> = ({ task, onComplete, onCompletePublic, onStatusUpdate, onReminderUpdate, isOverdue, pending }) => {
   const [showReminderEdit, setShowReminderEdit] = React.useState(false);
-  const [reminderMinutes, setReminderMinutes] = React.useState(task.reminder_minutes || 15);
-  const [saving, setSaving] = React.useState(false);
   const [updatingStatus, setUpdatingStatus] = React.useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = React.useState(false);
   const [showFullDescription, setShowFullDescription] = React.useState(false);
@@ -1147,29 +1156,10 @@ const TaskCard: React.FC<{
     setShowStatusDropdown(!showStatusDropdown);
   };
 
-  // Update reminder state when task prop changes
-  React.useEffect(() => {
-    setReminderMinutes(task.reminder_minutes || 15);
-  }, [task.reminder_minutes]);
-
   const getEventDate = () => {
     const startDate = toLocalDate(task.instance_start_date) ?? new Date();
     startDate.setDate(startDate.getDate() + task.day_number - 1);
     return startDate.toLocaleDateString('de-DE');
-  };
-
-  const handleSaveReminder = async () => {
-    setSaving(true);
-    try {
-      await tasksApi.updateReminder(task.assignment_id, reminderMinutes);
-      setShowReminderEdit(false);
-      onReminderUpdate(); // Reload tasks to get updated value
-    } catch (error) {
-      console.error('Update reminder error:', error);
-      alert('Fehler beim Speichern');
-    } finally {
-      setSaving(false);
-    }
   };
 
   const handleSetInProgress = async () => {
@@ -1391,6 +1381,15 @@ const TaskCard: React.FC<{
         </div>
       </div>
 
+      {/*
+        Was gerade eingestellt ist - sonst weiss man nach dem Speichern
+        nicht, ob und wann erinnert wird. Nur bei eigenen Zuweisungen: an
+        einer oeffentlichen Aufgabe ohne Eintrag gibt es nichts zu stellen.
+      */}
+      {task.assignment_id && !showReminderEdit && erinnerungText(task) && (
+        <div className={styles.erinnerungHinweis}>{erinnerungText(task)}</div>
+      )}
+
       {/* Eigene Zeile, damit die Namen die Status-Zeile nicht auseinander-
           schieben - genau daran ist der Hinweis "wird gesendet" gescheitert. */}
       <MitEingeteilte namen={task.mitarbeiter} />
@@ -1465,36 +1464,18 @@ const TaskCard: React.FC<{
               </button>
             )}
           </div>
-          {/* Erinnerung bearbeiten - nur für zugewiesene Aufgaben */}
+          {/*
+            Erinnerung stellen - vier Arten (siehe ErinnerungWahl). Steht
+            an derselben Stelle wie vorher das einzelne Minutenfeld, nur
+            kann sie jetzt auch "in X Minuten", "um X Uhr" und "keine" -
+            und damit auch Aufgaben ohne Uhrzeit.
+          */}
           {task.assignment_id && showReminderEdit && (
-            <div className={styles.reminderEdit} style={{ marginTop: '0.5rem' }}>
-              <label className={styles.reminderLabel}>
-                Erinnerungszeit (Minuten vorher):
-              </label>
-              <div className={styles.reminderControls}>
-                <input
-                  type="number"
-                  min="0"
-                  max="1440"
-                  value={reminderMinutes}
-                  onChange={(e) => setReminderMinutes(parseInt(e.target.value))}
-                  className={styles.reminderInput}
-                />
-                <button
-                  onClick={handleSaveReminder}
-                  disabled={saving}
-                  className={styles.reminderSave}
-                >
-                  {saving ? '...' : '✓'}
-                </button>
-                <button
-                  onClick={() => setShowReminderEdit(false)}
-                  className={styles.reminderCancel}
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
+            <ErinnerungWahl
+              task={task}
+              fertig={() => { setShowReminderEdit(false); onReminderUpdate(); }}
+              abbrechen={() => setShowReminderEdit(false)}
+            />
           )}
         </>
       ) : (

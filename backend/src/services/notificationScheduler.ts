@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import { query } from '../database/connection';
 import webpush from 'web-push';
+import jwt from 'jsonwebtoken';
 import config from '../config';
 import { signalService } from './signal';
 import { broadcastUpdate } from '../routes/sse';
@@ -22,6 +23,8 @@ export function startNotificationScheduler() {
       // selbstabhakende Aufgabe fuer einen Moment "ueberfaellig".
       await selbstAbhakendeAufgaben();
       await sendTaskReminders();
+      // Selbst gesetzte Erinnerungen zu einem festen Zeitpunkt.
+      await sendeEigeneErinnerungen();
       await updateOverdueTasks();
     } catch (error) {
       console.error('Notification scheduler error:', error);
@@ -116,6 +119,26 @@ export async function selbstAbhakendeAufgaben() {
   }
 }
 
+/*
+ * Wie weit der Wecker zurueckschaut.
+ *
+ * Er lief bisher strikt auf die Minute: nur wenn der Erinnerungszeitpunkt
+ * in den naechsten 60 Sekunden lag, ging etwas raus. Stand der Server in
+ * genau dieser Minute still - Neustart, Aufspielen einer neuen Fassung,
+ * kurze Last -, fiel die Erinnerung ersatzlos aus.
+ *
+ * Jetzt zaehlt auch, was in den letzten Minuten faellig war. Doppelt kann
+ * dabei nichts werden: jede verschickte Erinnerung steht in
+ * notifications_log und wird dort eine Stunde lang gesperrt.
+ */
+const NACHHOLFENSTER_MS = 10 * 60 * 1000;
+
+/** Ist dieser Zeitpunkt gerade faellig - oder war er es eben? */
+const istFaellig = (zeitpunkt: Date, jetzt: Date): boolean => {
+  const abstand = zeitpunkt.getTime() - jetzt.getTime();
+  return abstand < 60000 && abstand > -NACHHOLFENSTER_MS;
+};
+
 export async function sendTaskReminders() {
   const now = new Date();
   const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
@@ -195,7 +218,7 @@ export async function sendTaskReminders() {
         const timeDiff = reminderTime.getTime() - now.getTime();
         console.log(`[Notification Scheduler] scheduled_time check - taskTime: ${taskTime.toLocaleTimeString()}, reminderTime: ${reminderTime.toLocaleTimeString()}, timeDiff: ${Math.floor(timeDiff/1000)}s`);
 
-        if (timeDiff > 0 && timeDiff < 60000) {
+        if (istFaellig(reminderTime, now)) {
           console.log(`[Notification Scheduler] Sending scheduled_time reminder for task "${task.title}" to user ${task.user_id}`);
 
           const alreadySent = await query(
@@ -227,7 +250,7 @@ export async function sendTaskReminders() {
         const timeDiff = reminderTime.getTime() - now.getTime();
         console.log(`[Notification Scheduler] start_time check - taskTime: ${taskTime.toLocaleTimeString()}, reminderTime: ${reminderTime.toLocaleTimeString()}, timeDiff: ${Math.floor(timeDiff/1000)}s`);
 
-        if (timeDiff > 0 && timeDiff < 60000) {
+        if (istFaellig(reminderTime, now)) {
           console.log(`[Notification Scheduler] ✓ Sending start_time reminder (${reminderMinutes} min before) for task "${task.title}" to user ${task.user_id}`);
 
           const alreadySent = await query(
@@ -272,7 +295,7 @@ export async function sendTaskReminders() {
           // Prüfe ob jetzt genau die start_time ist (innerhalb der nächsten Minute)
           const startTimeDiff = startTime.getTime() - now.getTime();
 
-          if (startTimeDiff > 0 && startTimeDiff < 60000) {
+          if (istFaellig(startTime, now)) {
             console.log(`[Notification Scheduler] Sending start_time reminder for task "${task.title}" to user ${task.user_id}`);
 
             // Prüfe ob bereits gesendet (mit speziellem Tag für start_time)
@@ -300,6 +323,78 @@ export async function sendTaskReminders() {
   }
 }
 
+/*
+ * Marke fuer "spaeter nochmal" direkt aus der Benachrichtigung.
+ *
+ * Der Service Worker laeuft ohne angemeldete Sitzung - er kommt an das
+ * gespeicherte Anmeldetoken nicht heran. Deshalb bekommt jede
+ * Benachrichtigung eine eigene, kurzlebige Marke mit: sie gilt nur fuer
+ * diese eine Zuweisung und nur fuer das Verschieben der Erinnerung.
+ */
+export const schlummerMarke = (assignmentId: number, userId: number): string =>
+  jwt.sign({ typ: 'schlummer', assignmentId, userId }, config.jwt.secret, { expiresIn: '12h' });
+
+/*
+ * Eigene Erinnerungen zu einem festen Zeitpunkt.
+ *
+ * Sie haengen an der ZUWEISUNG, nicht an der Aufgabe: "in 20 Minuten" und
+ * "um 09:30" sind persoenlich. Anders als "X Minuten vorher" brauchen sie
+ * keine Uhrzeit an der Aufgabe - deshalb erreichen sie auch Aufgaben, die
+ * gar keine haben.
+ *
+ * Einmalig: nach dem Verschicken wird der Zeitpunkt geloescht, danach gilt
+ * wieder, was an der Aufgabe steht.
+ */
+export async function sendeEigeneErinnerungen() {
+  const jetzt = new Date();
+  const bis = new Date(jetzt.getTime() + 60000);
+  const ab = new Date(jetzt.getTime() - NACHHOLFENSTER_MS);
+
+  const faellig = await query(
+    `SELECT t.*, ta.id AS assignment_id, ta.user_id, ta.reminder_at,
+            ei.id AS instance_id, e.name AS event_name
+     FROM task_assignments ta
+     JOIN tasks t ON t.id = ta.task_id
+     JOIN event_instances ei ON ei.id = ta.event_instance_id
+     JOIN events e ON e.id = t.event_id
+     WHERE ta.reminder_at IS NOT NULL
+       AND ta.completed = false
+       AND ta.reminder_at <= $1
+       AND ta.reminder_at > $2`,
+    [bis, ab]
+  );
+
+  for (const zeile of faellig.rows) {
+    console.log(`[Wecker] Eigene Erinnerung fuer "${zeile.title}" an Nutzer ${zeile.user_id}`);
+    await sendTaskNotification(
+      zeile.user_id, zeile, { id: zeile.instance_id, event_name: zeile.event_name }, 0, 'eigene'
+    );
+
+    // Verbraucht - danach gilt wieder, was an der Aufgabe steht.
+    await query('UPDATE task_assignments SET reminder_at = NULL WHERE id = $1', [zeile.assignment_id]);
+    await query(
+      `INSERT INTO notifications_log (user_id, task_id, event_instance_id, notification_type)
+       VALUES ($1, $2, $3, 'eigene')`,
+      [zeile.user_id, zeile.id, zeile.instance_id]
+    );
+  }
+
+  /*
+   * Was laenger als das Nachholfenster zurueckliegt, ist nicht mehr
+   * zuzustellen - sonst kaeme Stunden spaeter eine Erinnerung an etwas
+   * laengst Vergangenes. Es wird aufgeraeumt, damit es nicht ewig liegen
+   * bleibt.
+   */
+  const verfallen = await query(
+    `UPDATE task_assignments SET reminder_at = NULL
+     WHERE reminder_at IS NOT NULL AND reminder_at <= $1 RETURNING id`,
+    [ab]
+  );
+  if (verfallen.rows.length > 0) {
+    console.log(`[Wecker] ${verfallen.rows.length} eigene Erinnerung(en) verfallen`);
+  }
+}
+
 async function sendTaskNotification(userId: number, task: any, instance: any, reminderMinutes: number, timeType: string = 'scheduled_time') {
   try {
     console.log(`[sendTaskNotification] Called for user ${userId}, task ${task.id}, reminder ${reminderMinutes} minutes, type ${timeType}`);
@@ -322,7 +417,9 @@ async function sendTaskNotification(userId: number, task: any, instance: any, re
 
     const title = timeType === 'start_time'
       ? 'Erinnerung: Aufgabe startet bald'
-      : 'Aufgaben-Erinnerung';
+      : timeType === 'eigene'
+        ? 'Erinnerung'
+        : 'Aufgaben-Erinnerung';
 
     // Zeit-Informationen für body formatieren
     let timeInfo = '';
@@ -332,7 +429,10 @@ async function sendTaskNotification(userId: number, task: any, instance: any, re
 
     const body = timeType === 'start_time'
       ? `Aufgabe startet in ${reminderMinutes} Minuten: ${task.title}${timeInfo ? '\n' + timeInfo : ''}`
-      : `In ${reminderMinutes} Minuten: ${task.title}${timeInfo ? '\n' + timeInfo : ''}`;
+      // Selbst gesetzt: die Minutenzahl waere hier eine Erfindung.
+      : timeType === 'eigene'
+        ? `${task.title}${timeInfo ? '\n' + timeInfo : ''}`
+        : `In ${reminderMinutes} Minuten: ${task.title}${timeInfo ? '\n' + timeInfo : ''}`;
 
     // 1. Web Push Notifications (wenn aktiviert)
     if (user.web_push_enabled !== false) {
@@ -357,6 +457,13 @@ async function sendTaskNotification(userId: number, task: any, instance: any, re
           instanceId: instance.id,
           assignmentId: task.assignment_id,
           type: timeType,
+          /*
+           * Damit aus der Benachrichtigung heraus "in 30 Minuten nochmal"
+           * geht - ohne Anmeldung im Service Worker. Fehlt die Zuweisung
+           * (oeffentliche Aufgabe ohne Eintrag), fehlt auch die Marke, und
+           * der Knopf erscheint erst gar nicht.
+           */
+          schlummer: task.assignment_id ? schlummerMarke(task.assignment_id, userId) : null,
         },
       });
 

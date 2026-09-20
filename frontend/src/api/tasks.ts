@@ -59,6 +59,10 @@ export interface TaskAssignment extends Task {
   assignment_id: number;
   completed: boolean;
   completed_at?: string;
+  /** Eigener fester Erinnerungszeitpunkt (einmalig) - siehe api.setzeErinnerung. */
+  reminder_at?: string | null;
+  /** Was an der eigenen Zuweisung steht; null heisst "wie an der Aufgabe". */
+  assignment_reminder_minutes?: number | null;
   status: string;
   event_name: string;
   instance_start_date: string;
@@ -145,6 +149,22 @@ export const tasksApi = {
 
   updateReminder: async (assignmentId: number, reminderMinutes: number) => {
     const response = await client.put(`/tasks/assignment/${assignmentId}/reminder`, { reminder_minutes: reminderMinutes });
+    return response.data;
+  },
+
+  /*
+   * Eigene Erinnerung - vier Arten:
+   *   vorher : X Minuten vor der Aufgabe (bleibt stehen)
+   *   in     : X Minuten ab jetzt (einmalig)
+   *   um     : fester Zeitpunkt (einmalig), als ISO-Zeichenkette
+   *   keine  : aus
+   * Siehe backend/src/routes/tasks.ts.
+   */
+  setzeErinnerung: async (
+    assignmentId: number,
+    daten: { art: 'vorher' | 'in' | 'um' | 'keine'; minuten?: number; zeitpunkt?: string }
+  ): Promise<{ reminder_minutes: number | null; reminder_at: string | null }> => {
+    const response = await client.put(`/tasks/assignment/${assignmentId}/erinnerung`, daten);
     return response.data;
   },
 

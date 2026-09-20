@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { query } from '../database/connection';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import webpush from 'web-push';
+import jwt from 'jsonwebtoken';
 import config from '../config';
 
 const router = Router();
@@ -10,6 +11,59 @@ const router = Router();
 if (config.vapid.publicKey && config.vapid.privateKey) {
   webpush.setVapidDetails(config.vapid.subject, config.vapid.publicKey, config.vapid.privateKey);
 }
+
+/*
+ * "Spaeter nochmal" direkt aus der Benachrichtigung.
+ *
+ * Der Service Worker hat keine angemeldete Sitzung - er kommt an das
+ * Anmeldetoken im Browser nicht heran. Deshalb traegt jede
+ * Benachrichtigung eine eigene kurzlebige Marke bei sich, die genau zwei
+ * Dinge erlaubt: diese eine Zuweisung, dieses eine Verschieben. Sie laeuft
+ * nach zwoelf Stunden ab.
+ *
+ * Kein authMiddleware - die Marke IST der Ausweis.
+ */
+const SCHLUMMER_MINUTEN = [15, 30, 60, 120];
+
+router.post('/schlummer', async (req, res) => {
+  try {
+    const { marke, minuten } = req.body ?? {};
+    const zahl = Number(minuten);
+
+    if (!SCHLUMMER_MINUTEN.includes(zahl)) {
+      return res.status(400).json({ error: 'Nur 15, 30, 60 oder 120 Minuten' });
+    }
+
+    let inhalt: any;
+    try {
+      inhalt = jwt.verify(String(marke ?? ''), config.jwt.secret);
+    } catch {
+      return res.status(401).json({ error: 'Marke ungültig oder abgelaufen' });
+    }
+    if (inhalt?.typ !== 'schlummer' || !inhalt.assignmentId) {
+      return res.status(401).json({ error: 'Marke gilt nicht dafür' });
+    }
+
+    const ziel = new Date(Date.now() + zahl * 60000);
+    const ergebnis = await query(
+      `UPDATE task_assignments SET reminder_at = $1
+       WHERE id = $2 AND user_id = $3 AND completed = false
+       RETURNING id, reminder_at`,
+      [ziel, inhalt.assignmentId, inhalt.userId]
+    );
+
+    if (ergebnis.rows.length === 0) {
+      // Erledigt oder inzwischen weg - kein Fehler, nur nichts zu tun.
+      return res.status(404).json({ error: 'Zuweisung nicht gefunden oder schon erledigt' });
+    }
+
+    console.log(`[Schlummer] Zuweisung ${inhalt.assignmentId} erinnert erneut um ${ziel.toISOString()}`);
+    res.json({ reminder_at: ergebnis.rows[0].reminder_at });
+  } catch (error) {
+    console.error('Schlummer error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
 
 // Push Subscription speichern
 router.post('/subscribe', authMiddleware, async (req: AuthRequest, res) => {

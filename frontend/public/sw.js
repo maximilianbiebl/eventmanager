@@ -128,6 +128,19 @@ self.addEventListener('push', (event) => {
     }
   }
 
+  /*
+   * "Später nochmal" direkt in der Benachrichtigung.
+   *
+   * Die Marke dafür kommt vom Server mit (data.schlummer) und gilt nur für
+   * diese eine Zuweisung. Ohne Marke - etwa bei einer öffentlichen Aufgabe
+   * ohne Zuweisung - erscheinen die Knöpfe erst gar nicht.
+   *
+   * Android und der Schreibtisch zeigen bis zu zwei Knöpfe an; iOS zeigt
+   * gar keine. Deshalb bleibt "Öffnen" als erster stehen: ein Tippen auf
+   * die Nachricht selbst tut überall dasselbe.
+   */
+  const schlummerbar = !!(data.data && data.data.schlummer);
+
   const options = {
     body: data.body,
     icon: data.icon || '/icon-192.png',
@@ -136,16 +149,15 @@ self.addEventListener('push', (event) => {
     data: data.data || {},
     vibrate: [200, 100, 200],
     requireInteraction: true,
-    actions: [
-      {
-        action: 'open',
-        title: 'Öffnen',
-      },
-      {
-        action: 'close',
-        title: 'Schließen',
-      },
-    ],
+    actions: schlummerbar
+      ? [
+          { action: 'schlummer-30', title: 'In 30 Min' },
+          { action: 'schlummer-60', title: 'In 60 Min' },
+        ]
+      : [
+          { action: 'open', title: 'Öffnen' },
+          { action: 'close', title: 'Schließen' },
+        ],
   };
 
   event.waitUntil(self.registration.showNotification(data.title, options));
@@ -157,6 +169,46 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
   if (event.action === 'close') {
+    return;
+  }
+
+  /*
+   * Später nochmal erinnern, ohne die App zu öffnen.
+   *
+   * Der Aufruf geht an dieselbe Herkunft wie der Service Worker - in der
+   * Auslieferung liegt die API unter /api hinter demselben Server. Die
+   * Marke ist der Ausweis; eine Anmeldung hat der Service Worker nicht.
+   */
+  if (event.action && event.action.startsWith('schlummer-')) {
+    const minuten = Number(event.action.split('-')[1]);
+    const marke = event.notification.data && event.notification.data.schlummer;
+    if (!marke) return;
+
+    event.waitUntil(
+      fetch('/api/notifications/schlummer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ marke, minuten }),
+      })
+        .then((r) => {
+          if (!r.ok) throw new Error('Schlummer fehlgeschlagen: ' + r.status);
+          // Kurze Rückmeldung, sonst weiß niemand, ob es geklappt hat.
+          return self.registration.showNotification('Erinnerung verschoben', {
+            body: `Wir melden uns in ${minuten} Minuten wieder.`,
+            icon: '/icon-192.png',
+            badge: '/icon-192.png',
+            tag: 'schlummer-bestaetigung',
+          });
+        })
+        .catch((fehler) => {
+          console.error('[SW] Schlummer:', fehler);
+          return self.registration.showNotification('Verschieben nicht möglich', {
+            body: 'Bitte in der App erneut versuchen.',
+            icon: '/icon-192.png',
+            tag: 'schlummer-fehler',
+          });
+        })
+    );
     return;
   }
 
