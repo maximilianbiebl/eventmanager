@@ -136,7 +136,13 @@ router.post('/test', authMiddleware, async (req: AuthRequest, res) => {
               auth: sub.keys_auth,
             },
           },
-          payload
+          payload,
+          /*
+           * Eine Testnachricht ist nach fuenf Minuten wertlos - wer sie
+           * ausloest, schaut jetzt aufs Geraet. Und sie ersetzt eine
+           * aeltere Testnachricht, die noch wartet.
+           */
+          { TTL: 300, topic: 'test' }
         );
         results.push({ success: true, endpoint: sub.endpoint });
       } catch (error: any) {

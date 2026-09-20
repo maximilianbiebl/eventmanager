@@ -32,8 +32,14 @@ export interface Zustellung {
   topic?: string;
 }
 
-/** Art der Meldung - davon haengt ab, wie schnell sie altert. */
-export type Meldungsart = 'erinnerung' | 'start' | 'ueberfaellig' | 'eigene';
+/**
+ * Art der Meldung - davon haengt ab, wie schnell sie altert.
+ *
+ * "aenderung" sind die Meldungen, die durch Handeln entstehen: jemand
+ * wurde eingeteilt, ein Status hat sich geaendert. Sie altern wie die
+ * Aufgabe selbst - einen alten Status braucht hinterher niemand mehr.
+ */
+export type Meldungsart = 'erinnerung' | 'start' | 'ueberfaellig' | 'eigene' | 'aenderung';
 
 /*
  * Kuerzer als fuenf Minuten ist sinnlos - ein kurzer Funkloch-Moment
@@ -78,10 +84,15 @@ const verfaelltUm = (jetzt: Date, aufgabe: Aufgabenzeiten, art: Meldungsart): Da
   return new Date(heuteUm(jetzt, zeit).getTime() + GNADENFRIST_MS);
 };
 
+/**
+ * @param instanzId Durchfuehrung, falls bekannt. Ohne sie steht im Thema
+ *   nur die Aufgabe - richtig fuer Meldungen, die gar nicht an einer
+ *   Durchfuehrung haengen (der Status steht an der Aufgabe selbst).
+ */
 export const pushZustellung = (
   jetzt: Date,
   aufgabe: Aufgabenzeiten,
-  instanzId: number,
+  instanzId: number | null,
   art: Meldungsart
 ): Zustellung => {
   const sekunden = Math.round((verfaelltUm(jetzt, aufgabe, art).getTime() - jetzt.getTime()) / 1000);
@@ -89,6 +100,6 @@ export const pushZustellung = (
     TTL: Math.min(TTL_HOECHSTENS, Math.max(TTL_MINDESTENS, sekunden)),
     // Je Aufgabe und Durchfuehrung - nicht je Art: die neuere Meldung zu
     // derselben Aufgabe soll die aeltere ersetzen.
-    topic: `t${aufgabe.id}-i${instanzId}`,
+    topic: instanzId ? `t${aufgabe.id}-i${instanzId}` : `t${aufgabe.id}`,
   };
 };

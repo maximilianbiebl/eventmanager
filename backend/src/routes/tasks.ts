@@ -8,6 +8,7 @@ import { verschiebeZeile, einsortierenNachZeit, einsortierenInGruppe } from '../
 import { farbeOderNull } from '../utils/gruppenFarben';
 import { AUFGABEN_DER_SERIE, syncSeriesAssignments } from '../utils/serien';
 import { ohneNotiz, ohneNotizen, notizOderNull } from '../utils/notizen';
+import { pushZustellung } from '../utils/pushZustellung';
 import {
   eventZugriff, eventIdVonTask, eventIdVonInstanz, eventIdVonZuweisung, eventIdVonSerie,
   darfEventVerwalten,
@@ -602,7 +603,8 @@ router.put('/complete/:assignmentId', authMiddleware, async (req: AuthRequest, r
                     auth: sub.keys_auth,
                   },
                 },
-                webPushPayload
+                webPushPayload,
+                pushZustellung(new Date(), task, assignment.rows[0].event_instance_id, 'aenderung')
               );
               console.log(`Task complete Web Push sent to teamleiter ${sub.id}`);
             } catch (pushError: any) {
@@ -756,7 +758,8 @@ router.put('/:taskId/complete-public', authMiddleware, async (req: AuthRequest, 
                   auth: sub.keys_auth,
                 },
               },
-              webPushPayload
+              webPushPayload,
+              pushZustellung(new Date(), task, null, 'aenderung')
             );
             console.log(`Public task complete Web Push sent to teamleiter ${sub.id}`);
           } catch (pushError: any) {
@@ -1003,6 +1006,20 @@ router.put('/assignment/:assignmentId/reminder', authMiddleware, async (req: Aut
               vibrate: [200, 100, 200],
             });
 
+            /*
+             * Lebensdauer und Thema - siehe utils/pushZustellung. Eine
+             * neuere Meldung zu derselben Aufgabe ersetzt die aeltere, die
+             * beim Push-Dienst noch wartet: einen alten Stand braucht
+             * hinterher niemand.
+             */
+            const { task_id, scheduled_time, start_time, end_time, event_instance_id } = assignment.rows[0];
+            const zustellung = pushZustellung(
+              new Date(),
+              { id: task_id, scheduled_time, start_time, end_time },
+              event_instance_id,
+              'aenderung'
+            );
+
             for (const sub of subscriptions.rows) {
               try {
                 await webpush.sendNotification(
@@ -1013,7 +1030,8 @@ router.put('/assignment/:assignmentId/reminder', authMiddleware, async (req: Aut
                       auth: sub.keys_auth,
                     },
                   },
-                  payload
+                  payload,
+                  zustellung
                 );
                 console.log(`Reminder change Web Push sent to user ${affectedUserId}`);
               } catch (pushError: any) {
@@ -1260,7 +1278,8 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
                   auth: sub.keys_auth,
                 },
               },
-              webPushPayload
+              webPushPayload,
+              pushZustellung(new Date(), currentTask, null, 'aenderung')
             );
             console.log(`Status change Web Push sent to user ${sub.id} for task ${id}`);
           } catch (pushError: any) {
@@ -1391,7 +1410,8 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
                     auth: sub.keys_auth,
                   },
                 },
-                webPushPayload
+                webPushPayload,
+                pushZustellung(new Date(), currentTask, null, 'aenderung')
               );
               console.log(`Staff status change Web Push sent to teamleiter ${sub.id} for task ${id}`);
             } catch (pushError: any) {
@@ -1648,7 +1668,8 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req
                   auth: sub.keys_auth,
                 },
               },
-              webPushPayload
+              webPushPayload,
+              pushZustellung(new Date(), currentTask, null, 'aenderung')
             );
             console.log(`Task update status Web Push sent to user ${sub.id} for task ${id}`);
           } catch (pushError: any) {
