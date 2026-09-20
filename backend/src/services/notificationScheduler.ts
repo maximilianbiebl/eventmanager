@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import config from '../config';
 import { signalService } from './signal';
 import { broadcastUpdate } from '../routes/sse';
+import { pushZustellung, Meldungsart } from '../utils/pushZustellung';
 
 // Helper function to format time without seconds (hh:mm)
 function formatTime(time: string | null): string {
@@ -467,6 +468,15 @@ async function sendTaskNotification(userId: number, task: any, instance: any, re
         },
       });
 
+      /*
+       * Lebensdauer und Thema mitgeben - siehe utils/pushZustellung. Ohne
+       * das wartet die Nachricht vier Wochen beim Push-Dienst und trifft
+       * nach einem Funkloch gesammelt mit allen anderen ein.
+       */
+      const art: Meldungsart = timeType === 'eigene' ? 'eigene'
+        : timeType === 'start_time' ? 'start' : 'erinnerung';
+      const zustellung = pushZustellung(new Date(), task, instance.id, art);
+
       for (const sub of subscriptions.rows) {
         try {
           await webpush.sendNotification(
@@ -477,10 +487,11 @@ async function sendTaskNotification(userId: number, task: any, instance: any, re
                 auth: sub.keys_auth,
               },
             },
-            payload
+            payload,
+            zustellung
           );
 
-          console.log(`[sendTaskNotification] ✓ Web Push sent to user ${userId}`);
+          console.log(`[sendTaskNotification] ✓ Web Push sent to user ${userId} (TTL ${zustellung.TTL}s, topic ${zustellung.topic})`);
         } catch (error: any) {
           console.error('Push notification error:', error);
 
@@ -605,6 +616,9 @@ async function sendStartTimeNotification(userId: number, task: any, instance: an
         },
       });
 
+      // Lebensdauer und Thema - siehe utils/pushZustellung.
+      const zustellung = pushZustellung(new Date(), task, instance.id, 'start');
+
       for (const sub of subscriptions.rows) {
         try {
           await webpush.sendNotification(
@@ -615,10 +629,11 @@ async function sendStartTimeNotification(userId: number, task: any, instance: an
                 auth: sub.keys_auth,
               },
             },
-            payload
+            payload,
+            zustellung
           );
 
-          console.log(`[sendStartTimeNotification] ✓ Web Push sent to user ${userId} for task "${task.title}"`);
+          console.log(`[sendStartTimeNotification] ✓ Web Push sent to user ${userId} for task "${task.title}" (TTL ${zustellung.TTL}s)`);
         } catch (error: any) {
           console.error('Push notification error:', error);
 
@@ -773,6 +788,14 @@ export async function updateOverdueTasks() {
                 },
               });
 
+              /*
+               * "Ist jetzt ueberfaellig" altert schnell - eine halbe
+               * Stunde spaeter will das niemand mehr wissen. Dasselbe
+               * Thema wie die Erinnerung zur Aufgabe: die neuere Meldung
+               * ersetzt die aeltere, die noch wartet.
+               */
+              const zustellung = pushZustellung(new Date(), task, instance.id, 'ueberfaellig');
+
               for (const sub of subscriptions.rows) {
                 try {
                   await webpush.sendNotification(
@@ -783,9 +806,10 @@ export async function updateOverdueTasks() {
                         auth: sub.keys_auth,
                       },
                     },
-                    payload
+                    payload,
+                    zustellung
                   );
-                  console.log(`[updateOverdueTasks] ✓ Web Push sent to user ${task.user_id}`);
+                  console.log(`[updateOverdueTasks] ✓ Web Push sent to user ${task.user_id} (TTL ${zustellung.TTL}s)`);
                 } catch (error: any) {
                   console.error('Push notification error:', error);
                   if (error.statusCode === 410) {
