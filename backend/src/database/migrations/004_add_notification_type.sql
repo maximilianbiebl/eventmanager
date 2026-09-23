@@ -1,4 +1,5 @@
 -- Add notification_type column to notifications_log table
+-- Wiederholbar: ja
 ALTER TABLE notifications_log
 ADD COLUMN IF NOT EXISTS notification_type VARCHAR(50) DEFAULT 'reminder';
 

@@ -1,4 +1,5 @@
 -- Migration: Make event_instances.start_date nullable for templates
+-- Wiederholbar: ja
 -- Templates need event_instances to display tasks in frontend,
 -- but don't have a concrete start_date yet
 

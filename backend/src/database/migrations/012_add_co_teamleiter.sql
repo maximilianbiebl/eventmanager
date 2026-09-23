@@ -1,4 +1,5 @@
 -- Migration: Add Co-Teamleiter and Event Staff Pool
+-- Wiederholbar: ja
 -- This migration adds:
 -- 1. event_teamleiter table for multiple teamleiter per event
 -- 2. event_staff table for event-level staff pool
@@ -15,8 +16,8 @@ CREATE TABLE IF NOT EXISTS event_teamleiter (
     UNIQUE(event_id, user_id)
 );
 
-CREATE INDEX idx_event_teamleiter_event_id ON event_teamleiter(event_id);
-CREATE INDEX idx_event_teamleiter_user_id ON event_teamleiter(user_id);
+CREATE INDEX IF NOT EXISTS idx_event_teamleiter_event_id ON event_teamleiter(event_id);
+CREATE INDEX IF NOT EXISTS idx_event_teamleiter_user_id ON event_teamleiter(user_id);
 
 COMMENT ON TABLE event_teamleiter IS 'Multiple teamleiter (primary + co-teamleiter) per event';
 COMMENT ON COLUMN event_teamleiter.is_primary IS 'TRUE for the main/primary teamleiter, FALSE for co-teamleiter';
@@ -32,8 +33,8 @@ CREATE TABLE IF NOT EXISTS event_staff (
     UNIQUE(event_id, user_id)
 );
 
-CREATE INDEX idx_event_staff_event_id ON event_staff(event_id);
-CREATE INDEX idx_event_staff_user_id ON event_staff(user_id);
+CREATE INDEX IF NOT EXISTS idx_event_staff_event_id ON event_staff(event_id);
+CREATE INDEX IF NOT EXISTS idx_event_staff_user_id ON event_staff(user_id);
 
 COMMENT ON TABLE event_staff IS 'Staff pool for an event (includes teamleiter automatically)';
 

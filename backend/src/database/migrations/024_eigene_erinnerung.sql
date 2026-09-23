@@ -1,4 +1,5 @@
 -- Migration: Eigene Erinnerung je Zuweisung - zu einem festen Zeitpunkt
+-- Wiederholbar: ja
 --
 -- Bisher gab es nur "X Minuten vorher" (task_assignments.reminder_minutes),
 -- und das auch nur fuer Aufgaben MIT Uhrzeit. Eine Aufgabe ohne Zeit liess

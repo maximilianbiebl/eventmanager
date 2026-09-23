@@ -1,4 +1,5 @@
 -- Migration: Benutzernamen eindeutig machen
+-- Wiederholbar: ja
 --
 -- users.name ist der Anmeldename, hatte aber keine Eindeutigkeits-Zusicherung.
 -- Import und Anlegen pruefen von Hand auf vorhandene Namen, die Tabelle selbst

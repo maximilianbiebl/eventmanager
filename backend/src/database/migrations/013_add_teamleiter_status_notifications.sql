@@ -1,4 +1,5 @@
 -- Migration: Add teamleiter status notification preference
+-- Wiederholbar: ja
 -- This migration adds a preference for teamleiter/admin to receive notifications
 -- when staff members change task status (in_progress, completed, overdue)
 

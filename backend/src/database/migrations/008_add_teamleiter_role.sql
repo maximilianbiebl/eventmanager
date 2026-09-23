@@ -1,4 +1,5 @@
 -- Migration: Add Teamleiter role and template functionality
+-- Wiederholbar: ja
 -- This migration adds:
 -- 1. 'teamleiter' role to users
 -- 2. is_template field to events

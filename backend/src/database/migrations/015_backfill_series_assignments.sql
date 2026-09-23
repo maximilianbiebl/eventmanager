@@ -1,4 +1,5 @@
 -- Migration: Serien-Mitgliedschaften in echte Zuweisungen uebersetzen
+-- Wiederholbar: ja
 --
 -- Eine Serie hielt ihre Mitglieder nur in task_series_members. /my-tasks
 -- liest aber aus task_assignments - wer nur ueber eine Serie zugewiesen war,

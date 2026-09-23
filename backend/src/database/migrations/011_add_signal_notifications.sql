@@ -1,4 +1,5 @@
 -- Migration: Add Signal notification support
+-- Wiederholbar: ja
 -- This migration adds:
 -- 1. Signal notification preferences for all users
 -- 2. Signal account linking for Teamleiter/Admin

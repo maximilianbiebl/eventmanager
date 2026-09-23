@@ -1,4 +1,5 @@
 -- Migration 005: Add view preference and start notification preference
+-- Wiederholbar: ja
 
 -- Add default_view column to users table
 ALTER TABLE users

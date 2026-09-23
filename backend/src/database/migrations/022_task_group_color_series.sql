@@ -1,4 +1,5 @@
 -- Migration: Aufgabengruppen bekommen Farbe und Serie
+-- Wiederholbar: ja
 --
 -- FARBE
 --   Gespeichert wird ein NAME ('gelb'), kein Hexwert. Die Oberflaeche

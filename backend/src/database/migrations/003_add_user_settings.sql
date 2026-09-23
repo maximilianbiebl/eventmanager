@@ -1,4 +1,5 @@
 -- Migration 003: User Settings für Benachrichtigungen
+-- Wiederholbar: ja
 
 -- Füge default_reminder_minutes zu users Tabelle hinzu
 ALTER TABLE users

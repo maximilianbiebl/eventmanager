@@ -1,4 +1,5 @@
 -- Migration: Zeitpunkt der letzten Statusaenderung festhalten
+-- Wiederholbar: ja
 --
 -- Hintergrund: Aufgaben lassen sich seit dem Offline-Betrieb ohne Netz
 -- umstellen. Die Aenderung geht erst spaeter raus - moeglicherweise Stunden

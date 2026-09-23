@@ -1,4 +1,5 @@
 -- Migration: Personalbedarf je Aufgabe
+-- Wiederholbar: ja
 --
 -- An einer Aufgabe soll stehen, wie viele Leute es dafuer braucht - damit
 -- man beim Einteilen sieht, ob es reicht. Optional getrennt nach weiblich

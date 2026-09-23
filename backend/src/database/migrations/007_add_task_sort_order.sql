@@ -1,4 +1,5 @@
 -- Migration 007: Add sort_order field to tasks table
+-- Wiederholbar: nein (vergibt sort_order fuer ALLE Aufgaben neu)
 
 -- Add sort_order column to tasks table
 ALTER TABLE tasks

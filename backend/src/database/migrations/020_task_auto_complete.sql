@@ -1,4 +1,5 @@
 -- Migration: Aufgaben, die sich selbst abhaken
+-- Wiederholbar: ja
 --
 -- Manche Aufgaben sind mit dem Zeitpunkt erledigt, an dem sie stattfinden -
 -- "Zimmerkontrolle 22:00", "Nachtruhe", "Bus faehrt". Da muss niemand einen

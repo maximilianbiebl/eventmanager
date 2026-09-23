@@ -1,4 +1,5 @@
 -- Migration: Anmeldename ohne Ruecksicht auf Gross-/Kleinschreibung
+-- Wiederholbar: ja
 --
 -- Beim Anmelden soll "Max Mustermann" und "max mustermann" dasselbe Konto
 -- treffen. Auf dem Handy schreibt die Tastatur den ersten Buchstaben von

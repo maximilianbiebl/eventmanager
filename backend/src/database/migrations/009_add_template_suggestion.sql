@@ -1,4 +1,5 @@
 -- Migration: Add template suggestion functionality
+-- Wiederholbar: ja
 -- This migration adds:
 -- 1. is_template_suggestion field to events
 -- 2. Makes start_date nullable for templates

@@ -105,9 +105,30 @@ docker-compose up -d
 ### Schritt 5: Datenbank initialisieren
 
 ```bash
-# Migrations ausführen
+# Grundschema anlegen (nur beim allerersten Mal)
 docker-compose exec backend npm run migrate
 ```
+
+Alles Weitere macht der Server selbst: **bei jedem Start holt er offene
+Migrationen nach** und schreibt in der Tabelle `schema_migrations` mit, was
+gelaufen ist. Nach einem `docker-compose up -d` ist die Datenbank also auf
+Stand, ohne dass jemand daran denken muss.
+
+Wer vorher sehen will, was passiert:
+
+```bash
+./migrieren.sh --liste   # nur anzeigen, was offen ist
+./migrieren.sh           # anzeigen, nachfragen, ausführen
+```
+
+Beim `docker-compose build` kann das nicht passieren: dort wird nur das
+Abbild gebaut, eine Datenbank gibt es dabei nicht. Und beim `up -d` läuft
+alles im Hintergrund - da ist niemand da, der ein j/n beantworten könnte.
+Deshalb beim Start automatisch, und `./migrieren.sh` für die Rückfrage.
+
+Soll der Server nichts von allein ändern, in `docker-compose.yml` beim
+Backend `MIGRATIONEN_AUTOMATISCH: "nein"` setzen. Dann meldet der Start nur
+noch, was offen ist.
 
 ### Schritt 6: Admin-Benutzer erstellen
 

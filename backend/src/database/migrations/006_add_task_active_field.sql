@@ -1,4 +1,5 @@
 -- Migration 006: Add is_active field to tasks table
+-- Wiederholbar: ja
 
 -- Add is_active column to tasks table
 ALTER TABLE tasks

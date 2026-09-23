@@ -1,4 +1,5 @@
 -- Migration: Notizen fuer Veranstaltung, Aufgabengruppe und Aufgabe
+-- Wiederholbar: ja
 --
 -- Kurze Zurufe fuer die Leitung: "Filter der Maschine ist hin", "Schluessel
 -- liegt beim Hausmeister". Sie stehen NUR in der Verwaltung; im

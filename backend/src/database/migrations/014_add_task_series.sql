@@ -1,4 +1,5 @@
 -- Migration: Add task series support for recurring tasks
+-- Wiederholbar: ja
 -- This migration adds support for task series, where multiple tasks can be grouped
 -- together as a recurring series with shared team members
 

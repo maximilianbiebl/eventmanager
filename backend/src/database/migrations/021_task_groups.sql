@@ -1,4 +1,5 @@
 -- Migration: Aufgabengruppen
+-- Wiederholbar: ja
 --
 -- Eine Gruppe fasst Aufgaben zusammen, die zum selben Zeitpunkt oder Anlass
 -- gehoeren: "Fruehstueck" mit "Essensausgabe" und "Tische wischen", je mit

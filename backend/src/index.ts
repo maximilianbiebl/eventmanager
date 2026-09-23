@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import config from './config';
 import { startNotificationScheduler } from './services/notificationScheduler';
+import { migriereBeimStart } from './database/migrationen';
 import webpush from 'web-push';
 
 // Routes
@@ -48,9 +49,18 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 });
 
 // Server starten
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`Server läuft auf Port ${PORT}`);
   console.log(`Konfiguration geladen von: ${process.env.CONFIG_PATH || 'config.json'}`);
+
+  /*
+   * Offene Migrationen nachholen, bevor der Wecker loslaeuft.
+   *
+   * Eine vergessene Migration hat den Mitarbeiterbereich einmal
+   * vollstaendig lahmgelegt: ohne task_assignments.reminder_at scheiterte
+   * JEDER Abruf der eigenen Aufgaben. Siehe database/migrationen.
+   */
+  await migriereBeimStart();
 
   // Notification Scheduler starten
   startNotificationScheduler();
