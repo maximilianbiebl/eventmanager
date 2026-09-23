@@ -17,17 +17,26 @@
  */
 
 export interface Darstellung {
-  /** 0.85 bis 1.3 - 1 ist die gewohnte Groesse. */
+  /** 0.75 bis 1.75 - 1 ist die gewohnte Groesse. */
   skala: number;
-  /** 0.75 bis 1.3 - 1 ist der gewohnte Abstand. */
+  /** 0.6 bis 2 - 1 ist der gewohnte Abstand. */
   abstand: number;
 }
 
 export const STANDARD: Darstellung = { skala: 1, abstand: 1 };
 
+/*
+ * Die Spanne ist bewusst weit: am Schreibtisch will man oft mehr Zeilen
+ * sehen, in der Hand oder mit Brille deutlich groessere Schrift. Die
+ * Enden sind Absicht und keine Empfehlung - wer nichts anfasst, bleibt
+ * bei 100 %.
+ *
+ * Aeltere gespeicherte Werte liegen immer innerhalb dieser Spanne; die
+ * Grenzen sind nur weiter geworden, nie enger.
+ */
 export const GRENZEN = {
-  skala: { min: 0.85, max: 1.3, schritt: 0.05 },
-  abstand: { min: 0.75, max: 1.3, schritt: 0.05 },
+  skala: { min: 0.75, max: 1.75, schritt: 0.05 },
+  abstand: { min: 0.6, max: 2, schritt: 0.05 },
 };
 
 const SCHLUESSEL = 'uiDarstellung';

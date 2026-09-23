@@ -940,6 +940,14 @@ const styles: { [key: string]: React.CSSProperties } = {
     border: '1px solid var(--c-border-strong)',
     borderRadius: '4px',
     backgroundColor: 'var(--c-surface)',
+    /*
+     * Bei grosser Schrift auf einem schmalen Display passt ein langes Wort
+     * wie "Sommerfreizeit" irgendwann nicht mehr in eine Zeile. Dann darf
+     * es mitten im Wort umbrechen - vorher schob es die halbe Karte aus
+     * dem Bild. Wird vererbt, gilt also auch fuer Name und Beschreibung.
+     */
+    minWidth: 0,
+    overflowWrap: 'anywhere',
   },
   selectedCard: {
     backgroundColor: 'var(--c-accent-soft)',

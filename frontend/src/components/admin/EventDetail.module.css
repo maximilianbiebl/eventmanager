@@ -595,6 +595,12 @@
 
   .viewToggle {
     width: 100%;
+    /*
+     * Bei grosser Schrift passen "Karten | Tabelle | Aktualisieren" nicht
+     * mehr in eine Zeile - "Aktualisieren" wurde vorne und hinten
+     * abgeschnitten. Dann rutscht der dritte Knopf in eine zweite Reihe.
+     */
+    flex-wrap: wrap;
   }
 
   .viewButton, .viewButtonActive {
@@ -661,12 +667,24 @@
     width: 100%;
     flex-direction: row;
     gap: 0.5rem;
+    /*
+     * Vier Knoepfe nebeneinander - bei grosser Schrift passt das auf einem
+     * schmalen Gerät nicht mehr. Dann lieber eine zweite Reihe als eine
+     * Karte, die seitlich aus dem Bild laeuft.
+     */
+    flex-wrap: wrap;
   }
 
+  /*
+   * Sie teilen sich die Breite - aber keiner wird schmaler als sein
+   * Inhalt. Mit "min-width: 0" wurde das Pfeilpaar auf 30 px gequetscht,
+   * waehrend die beiden Pfeile darin ihre 44 px Mindestflaeche behielten:
+   * sie standen dann rechts aus der Karte heraus.
+   */
   .kartenAktionen > button,
   .kartenAktionen > div {
     flex: 1 1 0;
-    min-width: 0;
+    min-width: max-content;
   }
 
   .taskActions {
@@ -822,10 +840,19 @@
 
   .viewToggle {
     width: 100%;
+    /*
+     * Bei grosser Schrift passen "Karten | Tabelle | Aktualisieren" nicht
+     * mehr in eine Zeile - "Aktualisieren" wurde vorne und hinten
+     * abgeschnitten. Dann rutscht der dritte Knopf in eine zweite Reihe.
+     */
+    flex-wrap: wrap;
   }
 
   .viewToggle > button {
     flex: 1;
+    /* Nicht schmaler als die Beschriftung - sonst wurde "Aktualisieren"
+       an beiden Enden beschnitten, statt umzubrechen. */
+    min-width: max-content;
     padding-left: 0.5rem;
     padding-right: 0.5rem;
   }
@@ -833,12 +860,24 @@
   .taskActions,
   .kartenAktionen {
     width: 100%;
+    /*
+     * Umbrechen statt ueberstehen: die Leiste richtet sich rechts aus, ein
+     * zu breiter Knopf schob sich deshalb nach LINKS aus dem Bild - bei
+     * grosser Schrift war "Serien & Gruppen" nicht mehr ganz zu lesen.
+     */
+    flex-wrap: wrap;
   }
 
+  /*
+   * Sie teilen sich die Breite - aber keiner wird schmaler als sein
+   * Inhalt. Mit "min-width: 0" wurde das Pfeilpaar auf 30 px gequetscht,
+   * waehrend die beiden Pfeile darin ihre 44 px Mindestflaeche behielten:
+   * sie standen dann rechts aus der Karte heraus.
+   */
   .kartenAktionen > button,
   .kartenAktionen > div {
     flex: 1 1 0;
-    min-width: 0;
+    min-width: max-content;
   }
 
   .title {
@@ -868,6 +907,14 @@
   display: flex;
   align-items: center;
   gap: 0.625rem;
+  /*
+   * Umbrechen als letzter Ausweg. Alles ausser dem Namen hat eine feste
+   * Breite, und der Name ist irgendwann bei seinem Mindestmass - bei
+   * grosser Schrift (Einstellungen: Groesse & Abstand) lief die Zeile
+   * deshalb seitlich aus dem Bild. Solange alles hineinpasst, aendert
+   * "wrap" nichts; es greift erst, wenn es sonst ueberlaufen wuerde.
+   */
+  flex-wrap: wrap;
   margin-bottom: 1rem;
   padding-bottom: 0.75rem;
   border-bottom:1px solid var(--c-border);
@@ -1019,8 +1066,14 @@
      * Der Name füllt die Zeile aus - so stehen "i", Notiz und "Aktionen"
      * rechts, genau wie am Schreibtisch. Mit "0 1 auto" wuchs er nicht,
      * und die drei Knöpfe klebten mitten in der Zeile am Namen.
+     *
+     * Grundbreite 0, nicht "auto": sonst beansprucht der Name erst einmal
+     * seine volle Textbreite, und statt ihn zu kürzen schob die Zeile
+     * "Aktionen" nach unten (siehe flex-wrap bei .titleRow). So gibt
+     * wieder der Name zuerst nach, und umgebrochen wird erst, wenn auch
+     * sein Mindestmaß nicht mehr passt.
      */
-    flex: 1 1 auto;
+    flex: 1 1 0;
   }
 
   .titleRow {

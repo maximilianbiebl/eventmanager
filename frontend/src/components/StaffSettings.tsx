@@ -321,9 +321,6 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
             <div style={styles.formGroup}>
               <ThemeSwitch />
               <AnsichtRegler />
-              <p style={styles.hint}>
-                "System" folgt der Einstellung deines Geräts.
-              </p>
             </div>
 
             <div style={styles.formGroup}>
