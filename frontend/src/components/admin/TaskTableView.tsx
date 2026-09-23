@@ -18,6 +18,7 @@ import { GruppeBearbeitenModal } from './GruppeBearbeitenModal';
 import { CSVExportModal } from './CSVExportModal';
 import { CSVImportModal } from './CSVImportModal';
 import { StatusFilter } from './StatusFilter';
+import { DeaktiviertFilter, DeaktiviertWahl } from './DeaktiviertFilter';
 import { StatusCell } from './StatusCell';
 
 interface TaskAssignment {
@@ -186,9 +187,10 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
    * Sie sind ausdruecklich aus dem Betrieb genommen - sie sollen weder
    * die Liste fuellen noch in den Zaehlern auftauchen ("Nicht eingeteilt"
    * zaehlte sie mit, obwohl niemand sie je einteilen wird). Wer sie
-   * braucht, blendet sie mit der Plakette ein.
+   * braucht, holt sie sich ueber das Menue dazu - oder laesst sich nur
+   * noch sie zeigen.
    */
-  const [zeigeDeaktivierte, setZeigeDeaktivierte] = useState(false);
+  const [deaktiviertFilter, setDeaktiviertFilter] = useState<DeaktiviertWahl>('aus');
   const [internalSelectedDay, setInternalSelectedDay] = useState<number | 'all'>('all');
   const [sortColumn, setSortColumn] = useState<string>('manual');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -536,23 +538,39 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
    * Zaehlern. Sonst zaehlt die Plakette "Nicht eingeteilt" Aufgaben mit,
    * die gar nicht mehr laufen.
    */
-  const deaktivierte = alleAufgaben.filter((t) => t.task.is_active === false);
-  const tasks = zeigeDeaktivierte
+  const tasks = deaktiviertFilter === 'mit'
     ? alleAufgaben
-    : alleAufgaben.filter((t) => t.task.is_active !== false);
+    : deaktiviertFilter === 'nur'
+      ? alleAufgaben.filter((t) => t.task.is_active === false)
+      : alleAufgaben.filter((t) => t.task.is_active !== false);
 
-  // Filter nach Status und Tag
-  let filteredTasks = statusFilter === 'all'
-    ? tasks
-    : statusFilter === 'overdue'
-      // Quer über alle Status: alles, was zeitlich überfällig ist
-      ? tasks.filter(t => isTaskOverdue(t.task))
-      : tasks.filter(t => t.task.status === statusFilter);
+  /*
+   * Tag und Status - die beiden Filter, die fuer jede Zahl in der Leiste
+   * gelten. Einmal hier, damit die Zaehler nicht auseinanderlaufen: die
+   * Zahl der deaktivierten stand vorher fuer alle Tage, obwohl daneben
+   * ein einzelner Tag gewaehlt war.
+   */
+  const nachTagUndStatus = <T extends { task: TaskAssignment }>(liste: T[]): T[] => {
+    const nachStatus = statusFilter === 'all'
+      ? liste
+      : statusFilter === 'overdue'
+        // Quer über alle Status: alles, was zeitlich überfällig ist
+        ? liste.filter(t => isTaskOverdue(t.task))
+        : liste.filter(t => t.task.status === statusFilter);
+    return selectedDay === 'all'
+      ? nachStatus
+      : nachStatus.filter(t => t.task.day_number === selectedDay);
+  };
 
-  // Filter nach Tag
-  if (selectedDay !== 'all') {
-    filteredTasks = filteredTasks.filter(t => t.task.day_number === selectedDay);
-  }
+  /*
+   * Zahl am Menue der deaktivierten: wie viele in der aktuellen Auswahl
+   * stecken - unabhaengig davon, ob sie gerade gezeigt werden. Deshalb
+   * aus alleAufgaben und nicht aus tasks.
+   */
+  const deaktivierteAnzahl =
+    nachTagUndStatus(alleAufgaben.filter((t) => t.task.is_active === false)).length;
+
+  let filteredTasks = nachTagUndStatus(tasks);
 
   /*
    * Dieselbe Regel, nach der sich auch die Plakette faerbt: weniger Leute
@@ -1272,19 +1290,16 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
               <b style={{ marginLeft: '0.35rem', fontVariantNumeric: 'tabular-nums' }}>{offeneStellen}</b>
             )}
           </button>
-          {/* Nur zeigen, wenn es ueberhaupt deaktivierte gibt - sonst ist
-              es eine Plakette fuer einen Fall, den es nicht gibt. */}
-          {deaktivierte.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setZeigeDeaktivierte((an) => !an)}
-              className={zeigeDeaktivierte ? 'tv-chip-active' : 'tv-chip'}
-              title="Deaktivierte Aufgaben mit anzeigen"
-              aria-pressed={zeigeDeaktivierte}
-            >
-              Deaktivierte
-              <b style={{ marginLeft: '0.35rem', fontVariantNumeric: 'tabular-nums' }}>{deaktivierte.length}</b>
-            </button>
+          {/* Nur zeigen, wenn es in der Auswahl ueberhaupt deaktivierte
+              gibt - sonst ist es ein Menue fuer einen Fall, den es nicht
+              gibt. Ist der Filter gesetzt, bleibt es stehen: sonst
+              verschwaende mit dem letzten Treffer auch der Weg zurueck. */}
+          {(deaktivierteAnzahl > 0 || deaktiviertFilter !== 'aus') && (
+            <DeaktiviertFilter
+              value={deaktiviertFilter}
+              onChange={setDeaktiviertFilter}
+              anzahl={deaktivierteAnzahl}
+            />
           )}
         </div>
 

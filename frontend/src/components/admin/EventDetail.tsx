@@ -18,6 +18,7 @@ import { CreateFromTemplateModal } from './CreateFromTemplateModal';
 import { EventEditModal } from './EventEditModal';
 import { EventStaffPool } from './EventStaffPool';
 import { StatusFilter } from './StatusFilter';
+import { DeaktiviertFilter, DeaktiviertWahl } from './DeaktiviertFilter';
 import { StatusCell } from './StatusCell';
 import { Toast } from '../Toast';
 import client from '../../api/client';
@@ -825,8 +826,8 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   const [statusFilter, setStatusFilter] = React.useState<string>('all');
   /** Nur Aufgaben, fuer die noch Leute fehlen - wie in der Tabelle. */
   const [nurNichtEingeteilt, setNurNichtEingeteilt] = React.useState(false);
-  /** Deaktivierte bleiben draussen, bis man sie einblendet - wie in der Tabelle. */
-  const [zeigeDeaktivierte, setZeigeDeaktivierte] = React.useState(false);
+  /** Deaktivierte: ausblenden, mit anzeigen oder nur diese - wie in der Tabelle. */
+  const [deaktiviertFilter, setDeaktiviertFilter] = React.useState<DeaktiviertWahl>('aus');
   const [sortDirection, setSortDirection] = React.useState<'asc' | 'desc'>('asc');
   const [expandedDescriptions, setExpandedDescriptions] = React.useState<Set<number>>(new Set());
   const pendingActionsRef = React.useRef<number>(0);
@@ -1155,13 +1156,14 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   /*
    * Deaktivierte vor allen anderen Filtern heraus - sie sind aus dem
    * Betrieb genommen und sollen weder die Liste fuellen noch in den
-   * Zaehlern stehen. Die Plakette blendet sie bei Bedarf ein.
+   * Zaehlern stehen. Das Menue holt sie bei Bedarf dazu oder zeigt nur
+   * noch sie.
    */
-  const deaktivierte = React.useMemo(
-    () => alleAufgaben.filter((t) => t.is_active === false), [alleAufgaben]);
-  const uniqueTasks = React.useMemo(
-    () => (zeigeDeaktivierte ? alleAufgaben : alleAufgaben.filter((t) => t.is_active !== false)),
-    [alleAufgaben, zeigeDeaktivierte]);
+  const uniqueTasks = React.useMemo(() => {
+    if (deaktiviertFilter === 'mit') return alleAufgaben;
+    if (deaktiviertFilter === 'nur') return alleAufgaben.filter((t) => t.is_active === false);
+    return alleAufgaben.filter((t) => t.is_active !== false);
+  }, [alleAufgaben, deaktiviertFilter]);
 
   /*
    * Dieselbe Regel wie in der Tabelle und dieselbe, nach der sich die
@@ -1175,21 +1177,32 @@ const TaskListView: React.FC<TaskListViewProps> = ({
     return gesamt !== null ? wie_viele < gesamt : wie_viele === 0;
   };
 
-  // Filter by selected day
-  const filteredTasks = React.useMemo(() => {
+  /*
+   * Tag und Status - die beiden Filter, die fuer JEDE Zahl in der Leiste
+   * gelten. Einmal hier, damit die Zaehler nicht auseinanderlaufen: die
+   * Zahl der deaktivierten stand vorher fuer alle Tage, obwohl daneben ein
+   * einzelner Tag gewaehlt war.
+   */
+  const nachTagUndStatus = React.useCallback((liste: any[]) => {
     const byDay = selectedDay === 'all'
-      ? uniqueTasks
-      : uniqueTasks.filter(t => t.day_number === selectedDay);
-    const nachStatus = statusFilter === 'all'
+      ? liste
+      : liste.filter(t => t.day_number === selectedDay);
+    return statusFilter === 'all'
       ? byDay
       // "Überfällig" greift quer über alle Status
       : statusFilter === 'overdue'
         ? byDay.filter(t => isOverdue(t))
         : byDay.filter(t => t.status === statusFilter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDay, statusFilter]);
+
+  // Filter by selected day
+  const filteredTasks = React.useMemo(() => {
+    const nachStatus = nachTagUndStatus(uniqueTasks);
     return nurNichtEingeteilt ? nachStatus.filter(nichtEingeteilt) : nachStatus;
     // getAssignmentsForTask haengt an assignments, die uniqueTasks speisen.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uniqueTasks, selectedDay, statusFilter, nurNichtEingeteilt, assignments]);
+  }, [uniqueTasks, nachTagUndStatus, nurNichtEingeteilt, assignments]);
 
   /*
    * Zahl auf der Plakette: wie viele der gerade gezeigten Aufgaben offen
@@ -1197,17 +1210,18 @@ const TaskListView: React.FC<TaskListViewProps> = ({
    * des eigenen Ergebnisses.
    */
   const offeneStellen = React.useMemo(() => {
-    const byDay = selectedDay === 'all'
-      ? uniqueTasks
-      : uniqueTasks.filter(t => t.day_number === selectedDay);
-    const nachStatus = statusFilter === 'all'
-      ? byDay
-      : statusFilter === 'overdue'
-        ? byDay.filter(t => isOverdue(t))
-        : byDay.filter(t => t.status === statusFilter);
-    return nachStatus.filter(nichtEingeteilt).length;
+    return nachTagUndStatus(uniqueTasks).filter(nichtEingeteilt).length;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uniqueTasks, selectedDay, statusFilter, assignments]);
+  }, [uniqueTasks, nachTagUndStatus, assignments]);
+
+  /*
+   * Zahl am Menue der deaktivierten: wie viele in der aktuellen Auswahl
+   * stecken - unabhaengig davon, ob sie gerade gezeigt werden. Deshalb
+   * aus alleAufgaben und nicht aus uniqueTasks.
+   */
+  const deaktivierteAnzahl = React.useMemo(
+    () => nachTagUndStatus(alleAufgaben.filter((t) => t.is_active === false)).length,
+    [alleAufgaben, nachTagUndStatus]);
 
   const sortedTasks = React.useMemo(() => {
     return [...filteredTasks].sort((a, b) => {
@@ -1727,17 +1741,14 @@ const TaskListView: React.FC<TaskListViewProps> = ({
               <b style={{ marginLeft: '0.35rem', fontVariantNumeric: 'tabular-nums' }}>{offeneStellen}</b>
             )}
           </button>
-          {deaktivierte.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setZeigeDeaktivierte((an) => !an)}
-              className={zeigeDeaktivierte ? 'tv-chip-active' : 'tv-chip'}
-              title="Deaktivierte Aufgaben mit anzeigen"
-              aria-pressed={zeigeDeaktivierte}
-            >
-              Deaktivierte
-              <b style={{ marginLeft: '0.35rem', fontVariantNumeric: 'tabular-nums' }}>{deaktivierte.length}</b>
-            </button>
+          {/* Auch bei 0 zeigen, solange der Filter gesetzt ist - sonst
+              verschwaende mit dem letzten Treffer auch der Weg zurueck. */}
+          {(deaktivierteAnzahl > 0 || deaktiviertFilter !== 'aus') && (
+            <DeaktiviertFilter
+              value={deaktiviertFilter}
+              onChange={setDeaktiviertFilter}
+              anzahl={deaktivierteAnzahl}
+            />
           )}
         </div>
 

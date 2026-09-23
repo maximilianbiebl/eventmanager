@@ -178,6 +178,16 @@
 }
 
 /*
+ * Am rechten Rand des Auslösers ausgerichtet - für Menüs, die weit rechts
+ * in der Leiste stehen. Mit "left: 0" stand das Menü sonst am Handy ein
+ * paar Pixel über den Bildschirmrand hinaus.
+ */
+.tv-menu-rechts {
+  left: auto;
+  right: 0;
+}
+
+/*
  * Feste Lage im Bildschirm statt in der Zelle - für Menüs, die sonst vom
  * rollenden Bereich beschnitten würden (Statuszelle in der letzten
  * Tabellenzeile). Die Koordinaten rechnet die Komponente aus.

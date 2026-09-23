@@ -869,6 +869,18 @@
   }
 
   /*
+   * "Neue Aufgabe" ist sonst 100 % breit (.addButton weiter oben) - mit
+   * Umbruch hiesse das: immer eine eigene Zeile, auch wenn beide Knoepfe
+   * bequem nebeneinander passen. Hier teilen sie sich die Zeile und
+   * brechen erst um, wenn sie es wirklich muessen.
+   */
+  .taskActions > button {
+    width: auto;
+    flex: 1 1 auto;
+    min-width: max-content;
+  }
+
+  /*
    * Sie teilen sich die Breite - aber keiner wird schmaler als sein
    * Inhalt. Mit "min-width: 0" wurde das Pfeilpaar auf 30 px gequetscht,
    * waehrend die beiden Pfeile darin ihre 44 px Mindestflaeche behielten:
