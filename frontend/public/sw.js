@@ -80,31 +80,17 @@ self.addEventListener('fetch', (event) => {
   if (istApi(url)) return;
 
   /*
-   * Anleitung (public/anleitung/): eigene Seiten, nicht die App.
+   * Anleitung (public/anleitung/): eine eigene Seite, nicht die App - und
+   * bewusst nur ueber ihren Link erreichbar. Der Service Worker fasst sie
+   * nicht an: kein Zwischenspeichern, kein Offline-Abruf. So bleibt sie
+   * ganz aus dem Cache der App heraus.
    *
    * Ohne diese Ausnahme liefe ihr Aufruf durch den Zweig fuer Seitenaufrufe
-   * darunter - und der legt JEDE Seite als "/index.html" ab. Wer einmal die
-   * Anleitung geoeffnet hat, haette ohne Netz statt der App die Anleitung
-   * gesehen. Ihre Bilder tragen ausserdem keinen Hash im Namen; "erst
-   * Cache" wuerde sie nach einer Aenderung nie mehr erneuern.
-   *
-   * Deshalb: erst Netz, unter der eigenen Adresse gemerkt, ohne Netz das
-   * zuletzt Gemerkte.
+   * darunter, und der legt JEDE Seite als "/index.html" ab: wer einmal die
+   * Anleitung geoeffnet hatte, haette ohne Netz statt der App die Anleitung
+   * gesehen.
    */
-  if (url.pathname.startsWith('/anleitung/')) {
-    event.respondWith(
-      fetch(req)
-        .then((res) => {
-          if (res && res.status === 200 && res.type === 'basic') {
-            const kopie = res.clone();
-            caches.open(CACHE).then((c) => c.put(req, kopie));
-          }
-          return res;
-        })
-        .catch(() => caches.match(req).then((r) => r || Response.error()))
-    );
-    return;
-  }
+  if (url.pathname.startsWith('/anleitung/')) return;
 
   // Seitenaufrufe: erst Netz, sonst die gespeicherte Startseite. So sieht
   // man ohne Empfang die App statt der Browser-Fehlerseite.

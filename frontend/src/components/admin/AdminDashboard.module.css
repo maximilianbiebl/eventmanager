@@ -72,14 +72,6 @@
   color:var(--c-text);
 }
 
-/* Der Menuepunkt "Anleitung" ist ein Link, kein Knopf - ohne das waere er
-   eine Inline-Zeile in Linkfarbe mit Unterstrich. */
-a.mobileMenuItem {
-  display: block;
-  box-sizing: border-box;
-  text-decoration: none;
-}
-
 .mobileMenuItem:hover {
   background-color:var(--c-surface-muted);
 }
