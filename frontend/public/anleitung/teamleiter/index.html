@@ -1,0 +1,780 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Anleitung für Teamleiter</title>
+<meta name="description" content="Wie Teamleiter im Event Manager Veranstaltungen planen, Aufgaben anlegen und ihr Team einteilen – mit Bildern und Spickzettel.">
+<link rel="icon" href="/icon.svg">
+<!--
+  Anleitung fuer Teamleiter - eigenstaendige Seite, unabhaengig von der App.
+
+  Liegt unter public/, Vite kopiert sie unveraendert nach dist/; nginx
+  liefert sie unter /anleitung/teamleiter/ aus. Farben und Schrift sind die
+  der App (src/index.css), damit sie sich wie ein Teil davon anfuehlt.
+
+  Die Bilder sind echte Bildschirmfotos mit erfundenen Beispieldaten. Die
+  orangen Nummern im Text gehoeren zu den orangen Markierungen im Bild
+  darueber.
+-->
+<style>
+  :root {
+    --bg: #F8FAFC;
+    --surface: #FFFFFF;
+    --border: #E2E8F0;
+    --border-strong: #CBD5E1;
+    --text: #1E293B;
+    --muted: #64748B;
+    --accent: #1E40AF;
+    --accent-soft: #EFF6FF;
+    --marke: #E8590C;
+    --marke-text: #FFFFFF;
+    --gelb: #FEF3C7;
+    --gelb-text: #92400E;
+    --code: #F1F5F9;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0E1525;
+      --surface: #141D2E;
+      --border: #27334A;
+      --border-strong: #34425C;
+      --text: #E7EDF7;
+      --muted: #9CABC2;
+      --accent: #7AA2F7;
+      --accent-soft: #1A2742;
+      --marke: #F76707;
+      --marke-text: #FFFFFF;
+      --gelb: #3A2E12;
+      --gelb-text: #F7D58A;
+      --code: #1C2739;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0E1525;
+    --surface: #141D2E;
+    --border: #27334A;
+    --border-strong: #34425C;
+    --text: #E7EDF7;
+    --muted: #9CABC2;
+    --accent: #7AA2F7;
+    --accent-soft: #1A2742;
+    --marke: #F76707;
+    --marke-text: #FFFFFF;
+    --gelb: #3A2E12;
+    --gelb-text: #F7D58A;
+    --code: #1C2739;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 1rem; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+    font-size: 1rem;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); }
+  a:focus-visible, button:focus-visible { outline: 3px solid var(--marke); outline-offset: 2px; border-radius: 4px; }
+
+  .rahmen {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2rem;
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 4rem;
+  }
+  @media (min-width: 1000px) {
+    .rahmen { grid-template-columns: 15rem minmax(0, 46rem); padding-top: 2.5rem; justify-content: center; }
+  }
+
+  /* ---- Kopf ---- */
+  .kopf { grid-column: 1 / -1; }
+  @media (min-width: 1000px) { .kopf { grid-column: 2; } }
+  .eyebrow {
+    margin: 0 0 .5rem;
+    font-size: .75rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .eyebrow a { color: inherit; text-decoration: none; }
+  .eyebrow a:hover { color: var(--accent); }
+  h1 { margin: 0 0 .75rem; font-size: clamp(1.75rem, 4vw, 2.375rem); line-height: 1.15; letter-spacing: -.01em; text-wrap: balance; }
+  .lead { margin: 0; font-size: 1.125rem; color: var(--muted); max-width: 40rem; }
+  .stand { margin: .75rem 0 0; font-size: .8125rem; color: var(--muted); }
+
+  /* ---- Inhaltsverzeichnis ---- */
+  .inhalt { align-self: start; }
+  @media (min-width: 1000px) { .inhalt { position: sticky; top: 1.5rem; grid-row: 2; } }
+  .inhalt details { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+  .inhalt summary {
+    padding: .75rem 1rem; cursor: pointer; font-weight: 600; font-size: .875rem;
+    list-style: none;
+  }
+  .inhalt summary::-webkit-details-marker { display: none; }
+  .inhalt summary::after { content: '▾'; float: right; color: var(--muted); }
+  .inhalt details[open] summary::after { content: '▴'; }
+  .inhalt ol { margin: 0; padding: 0 .5rem .75rem; list-style: none; counter-reset: k; }
+  .inhalt li a {
+    display: block; padding: .3rem .5rem; border-radius: 6px;
+    color: var(--text); text-decoration: none; font-size: .875rem; line-height: 1.35;
+  }
+  .inhalt li a:hover { background: var(--accent-soft); color: var(--accent); }
+  @media (min-width: 1000px) {
+    .inhalt details { background: transparent; border: 0; }
+    .inhalt summary { padding: 0 .5rem .5rem; pointer-events: none; color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; }
+    .inhalt summary::after,
+    .inhalt details[open] summary::after { content: none; }
+    .inhalt ol { padding: 0; }
+  }
+
+  /* ---- Text ---- */
+  main { min-width: 0; }
+  section { padding-top: 1rem; margin-top: 2.5rem; border-top: 1px solid var(--border); }
+  section:first-child { margin-top: 0; border-top: 0; padding-top: 0; }
+  h2 { margin: 0 0 .75rem; font-size: 1.5rem; line-height: 1.25; text-wrap: balance; }
+  h3 { margin: 2rem 0 .5rem; font-size: 1.125rem; line-height: 1.3; }
+  p { margin: 0 0 1rem; }
+  ul, ol { margin: 0 0 1rem; padding-left: 1.25rem; }
+  li { margin: .25rem 0; }
+  strong { font-weight: 650; }
+  .hinweis {
+    margin: 1rem 0; padding: .75rem 1rem;
+    background: var(--accent-soft); border-radius: 8px;
+    font-size: .9375rem;
+  }
+
+  /* Nummern im Text = die orangen Markierungen im Bild */
+  ol.marken { list-style: none; padding-left: 0; counter-reset: m; }
+  ol.marken > li { counter-increment: m; position: relative; padding-left: 2.25rem; margin: .5rem 0; }
+  ol.marken > li::before {
+    content: counter(m);
+    position: absolute; left: 0; top: .1rem;
+    width: 1.5rem; height: 1.5rem; border-radius: 50%;
+    background: var(--marke); color: var(--marke-text);
+    font-size: .8125rem; font-weight: 700; line-height: 1.5rem; text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+  /* Echte Reihenfolgen (Schritte) - schlichte Zahlen, keine Markierungen */
+  ol.schritte { padding-left: 1.5rem; }
+
+  /* ---- Bilder ---- */
+  figure { margin: 1.25rem 0 1.25rem; }
+  figure a { display: block; }
+  figure img {
+    display: block; width: 100%; height: auto;
+    border: 1px solid var(--border-strong); border-radius: 8px;
+    background: #fff;
+  }
+  figure.mitte img { margin: 0 auto; }
+  figcaption { margin-top: .5rem; font-size: .8125rem; color: var(--muted); text-align: center; }
+
+  /* ---- Tabellen ---- */
+  .tabelle { overflow-x: auto; margin: 1rem 0 1.25rem; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+  table { width: 100%; border-collapse: collapse; font-size: .9375rem; line-height: 1.45; }
+  th, td { padding: .6rem .8rem; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: 0; }
+  th { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 700; background: var(--bg); }
+  td:first-child { font-weight: 600; }
+  .tabelle.zahlen td:not(:first-child) { white-space: nowrap; }
+
+  /* ---- Zeichnung ---- */
+  .zeichnung { margin: 1.25rem 0; padding: 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+  .zeichnung svg { display: block; width: 100%; height: auto; }
+  .zeichnung .hoch { display: none; max-width: 360px; margin: 0 auto; }
+  @media (max-width: 599px) {
+    .zeichnung .quer { display: none; }
+    .zeichnung .hoch { display: block; }
+  }
+  @media print {
+    .zeichnung .quer { display: block; }
+    .zeichnung .hoch { display: none; }
+  }
+
+  /* ---- Spickzettel ---- */
+  .farben { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1rem 0; padding: 0; list-style: none; }
+  .farben li {
+    display: inline-flex; align-items: center; gap: .4rem; margin: 0;
+    padding: .25rem .6rem; border: 1px solid var(--border); border-radius: 999px;
+    background: var(--surface); font-size: .8125rem;
+  }
+  .farbe { width: .75rem; height: .75rem; border-radius: 3px; flex: none; }
+
+  .fuss { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); font-size: .8125rem; color: var(--muted); }
+  .druck { font: inherit; font-size: .875rem; padding: .4rem .9rem; border-radius: 6px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); cursor: pointer; }
+  .druck:hover { border-color: var(--accent); color: var(--accent); }
+
+  @media print {
+    :root { --bg: #fff; --surface: #fff; --text: #000; --muted: #444; --border: #bbb; --border-strong: #999; }
+    body { font-size: 10.5pt; }
+    .inhalt, .druck, .eyebrow a { display: none; }
+    .rahmen { display: block; max-width: none; padding: 0; }
+    section { break-inside: auto; }
+    h2, h3 { break-after: avoid; }
+    figure, .tabelle, .zeichnung { break-inside: avoid; }
+    figure img { max-height: 11cm; width: auto; max-width: 100%; }
+    #spickzettel { break-before: page; }
+    a { color: inherit; text-decoration: none; }
+  }
+</style>
+</head>
+<body>
+<div class="rahmen">
+
+<header class="kopf">
+  <p class="eyebrow"><a href="/">Event Manager</a> · Anleitung</p>
+  <h1>Anleitung für Teamleiter</h1>
+  <p class="lead">Als Teamleiter planst du eine Veranstaltung, legst ihre Aufgaben an und teilst dein Team ein – im Event Manager an einer Stelle, für alle live sichtbar. Diese Anleitung zeigt jede Funktion dort, wo du sie auf dem Bildschirm findest; am Ende steht ein Spickzettel zum Ausdrucken.</p>
+  <p class="stand">Stand: Oktober 2026 · Die Bilder zeigen eine Beispiel-Freizeit mit erfundenen Namen.</p>
+</header>
+
+<nav class="inhalt" aria-label="Inhalt">
+  <details open>
+    <summary>Inhalt</summary>
+    <ol>
+      <li><a href="#auf-einen-blick">Auf einen Blick</a></li>
+      <li><a href="#erste-schritte">Erste Schritte</a></li>
+      <li><a href="#veranstaltungen">Veranstaltungen</a></li>
+      <li><a href="#veranstaltungsseite">Die Veranstaltungsseite</a></li>
+      <li><a href="#aufgaben">Aufgaben anlegen und bearbeiten</a></li>
+      <li><a href="#einteilen">Leute einteilen</a></li>
+      <li><a href="#ansichten">Karten oder Tabelle</a></li>
+      <li><a href="#status">Status und Überblick</a></li>
+      <li><a href="#gruppen-serien">Gruppen und Serien</a></li>
+      <li><a href="#notizen">Notizen der Leitung</a></li>
+      <li><a href="#mitarbeiter">Mitarbeiter verwalten</a></li>
+      <li><a href="#eigene-aufgaben">Eigene Aufgaben und Erinnerungen</a></li>
+      <li><a href="#einstellungen">Einstellungen</a></li>
+      <li><a href="#spickzettel">Spickzettel</a></li>
+    </ol>
+  </details>
+</nav>
+
+<main>
+
+<section id="auf-einen-blick">
+  <h2>Auf einen Blick</h2>
+  <div class="zeichnung">
+    <svg class="quer" viewBox="0 0 760 336" role="img" aria-label="Ohne Pool keine Einteilung: so läuft eine Veranstaltung" font-family="inherit" font-size="13">
+      <defs>
+        <marker id="pfeil" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0L10 5L0 10z" style="fill: var(--muted)"/>
+        </marker>
+      </defs>
+      <text x="24" y="34" font-size="15" font-weight="600" style="fill: var(--text)">Ohne Pool keine Einteilung: so läuft eine Veranstaltung</text>
+      <g fill="none" stroke-width="1.25" style="stroke: var(--muted)">
+        <path d="M240 112H272" marker-end="url(#pfeil)"/>
+        <path d="M488 112H520" marker-end="url(#pfeil)"/>
+        <path d="M628 160V188H132V216" marker-end="url(#pfeil)"/>
+        <path d="M240 264H272" marker-end="url(#pfeil)"/>
+        <path d="M488 264H520" marker-end="url(#pfeil)"/>
+      </g>
+      <g>
+        <rect x="24" y="64" width="216" height="96" rx="8" fill="none" stroke-width="1.25" style="stroke: var(--border-strong)"/>
+        <text x="40" y="88" font-weight="600" style="fill: var(--text)">1 Veranstaltung anlegen</text>
+        <text x="40" y="108" font-size="12" style="fill: var(--muted)">neu, aus Vorlage oder als</text>
+        <text x="40" y="124" font-size="12" style="fill: var(--muted)">Duplikat; Co-Leitung eintragen</text>
+      </g>
+      <g>
+        <rect x="272" y="64" width="216" height="96" rx="8" stroke-width="2" style="stroke: var(--accent); fill: var(--accent-soft)"/>
+        <text x="288" y="88" font-weight="600" style="fill: var(--text)">2 Mitarbeiter-Pool füllen</text>
+        <text x="288" y="108" font-size="12" style="fill: var(--text)">Nur wer im Pool ist, kann</text>
+        <text x="288" y="124" font-size="12" style="fill: var(--text)">Aufgaben bekommen</text>
+      </g>
+      <g>
+        <rect x="520" y="64" width="216" height="96" rx="8" fill="none" stroke-width="1.25" style="stroke: var(--border-strong)"/>
+        <text x="536" y="88" font-weight="600" style="fill: var(--text)">3 Aufgaben anlegen</text>
+        <text x="536" y="108" font-size="12" style="fill: var(--muted)">Tag, Zeiten, Personalbedarf;</text>
+        <text x="536" y="124" font-size="12" style="fill: var(--muted)">Gruppen gliedern den Tag</text>
+      </g>
+      <g>
+        <rect x="24" y="216" width="216" height="96" rx="8" fill="none" stroke-width="1.25" style="stroke: var(--border-strong)"/>
+        <text x="40" y="240" font-weight="600" style="fill: var(--text)">4 Leute einteilen</text>
+        <text x="40" y="260" font-size="12" style="fill: var(--muted)">Zuweisen an der Aufgabe oder</text>
+        <text x="40" y="276" font-size="12" style="fill: var(--muted)">feste Teams über Serien</text>
+      </g>
+      <g>
+        <rect x="272" y="216" width="216" height="96" rx="8" fill="none" stroke-width="1.25" style="stroke: var(--border-strong)"/>
+        <text x="288" y="240" font-weight="600" style="fill: var(--text)">5 Das Team erledigt</text>
+        <text x="288" y="260" font-size="12" style="fill: var(--muted)">Mitarbeiter sehen ihre</text>
+        <text x="288" y="276" font-size="12" style="fill: var(--muted)">Aufgaben, werden erinnert</text>
+        <text x="288" y="292" font-size="12" style="fill: var(--muted)">und haken sie ab</text>
+      </g>
+      <g>
+        <rect x="520" y="216" width="216" height="96" rx="8" fill="none" stroke-width="1.25" style="stroke: var(--border-strong)"/>
+        <text x="536" y="240" font-weight="600" style="fill: var(--text)">6 Im Blick behalten</text>
+        <text x="536" y="260" font-size="12" style="fill: var(--muted)">Status kommt live an; Filter</text>
+        <text x="536" y="276" font-size="12" style="fill: var(--muted)">Nicht eingeteilt, Überfällig</text>
+      </g>
+    </svg>
+    <!-- Dieselbe Zeichnung hochkant fuer schmale Bildschirme: quer waere
+         die Schrift dort nur etwa 6 px gross. -->
+    <svg class="hoch" viewBox="0 0 360 640" role="img" aria-label="Ohne Pool keine Einteilung: so läuft eine Veranstaltung" font-family="inherit" font-size="13">
+      <defs>
+        <marker id="pfeil-hoch" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0L10 5L0 10z" style="fill: var(--muted)"/>
+        </marker>
+      </defs>
+      <text x="24" y="26" font-size="15" font-weight="600" style="fill: var(--text)">Ohne Pool keine Einteilung:</text>
+      <text x="24" y="46" font-size="15" font-weight="600" style="fill: var(--text)">so läuft eine Veranstaltung</text>
+      <g>
+        <rect x="24" y="66" width="312" height="72" rx="8" fill="none" stroke-width="1.25" style="stroke: var(--border-strong)"/>
+        <text x="40" y="90" font-weight="600" style="fill: var(--text)">1 Veranstaltung anlegen</text>
+        <text x="40" y="110" font-size="12" style="fill: var(--muted)">neu, aus Vorlage oder als Duplikat;</text>
+        <text x="40" y="126" font-size="12" style="fill: var(--muted)">Co-Leitung eintragen</text>
+        <path d="M180 138V162" fill="none" stroke-width="1.25" style="stroke: var(--muted)" marker-end="url(#pfeil-hoch)"/>
+      </g>
+      <g>
+        <rect x="24" y="162" width="312" height="72" rx="8" stroke-width="2" style="stroke: var(--accent); fill: var(--accent-soft)"/>
+        <text x="40" y="186" font-weight="600" style="fill: var(--text)">2 Mitarbeiter-Pool füllen</text>
+        <text x="40" y="206" font-size="12" style="fill: var(--text)">Nur wer im Pool ist, kann Aufgaben</text>
+        <text x="40" y="222" font-size="12" style="fill: var(--text)">bekommen</text>
+        <path d="M180 234V258" fill="none" stroke-width="1.25" style="stroke: var(--muted)" marker-end="url(#pfeil-hoch)"/>
+      </g>
+      <g>
+        <rect x="24" y="258" width="312" height="72" rx="8" fill="none" stroke-width="1.25" style="stroke: var(--border-strong)"/>
+        <text x="40" y="282" font-weight="600" style="fill: var(--text)">3 Aufgaben anlegen</text>
+        <text x="40" y="302" font-size="12" style="fill: var(--muted)">Tag, Zeiten, Personalbedarf;</text>
+        <text x="40" y="318" font-size="12" style="fill: var(--muted)">Gruppen gliedern den Tag</text>
+        <path d="M180 330V354" fill="none" stroke-width="1.25" style="stroke: var(--muted)" marker-end="url(#pfeil-hoch)"/>
+      </g>
+      <g>
+        <rect x="24" y="354" width="312" height="72" rx="8" fill="none" stroke-width="1.25" style="stroke: var(--border-strong)"/>
+        <text x="40" y="378" font-weight="600" style="fill: var(--text)">4 Leute einteilen</text>
+        <text x="40" y="398" font-size="12" style="fill: var(--muted)">Zuweisen an der Aufgabe oder</text>
+        <text x="40" y="414" font-size="12" style="fill: var(--muted)">feste Teams über Serien</text>
+        <path d="M180 426V450" fill="none" stroke-width="1.25" style="stroke: var(--muted)" marker-end="url(#pfeil-hoch)"/>
+      </g>
+      <g>
+        <rect x="24" y="450" width="312" height="72" rx="8" fill="none" stroke-width="1.25" style="stroke: var(--border-strong)"/>
+        <text x="40" y="474" font-weight="600" style="fill: var(--text)">5 Das Team erledigt</text>
+        <text x="40" y="494" font-size="12" style="fill: var(--muted)">Mitarbeiter sehen ihre Aufgaben,</text>
+        <text x="40" y="510" font-size="12" style="fill: var(--muted)">werden erinnert und haken sie ab</text>
+        <path d="M180 522V546" fill="none" stroke-width="1.25" style="stroke: var(--muted)" marker-end="url(#pfeil-hoch)"/>
+      </g>
+      <g>
+        <rect x="24" y="546" width="312" height="72" rx="8" fill="none" stroke-width="1.25" style="stroke: var(--border-strong)"/>
+        <text x="40" y="570" font-weight="600" style="fill: var(--text)">6 Im Blick behalten</text>
+        <text x="40" y="590" font-size="12" style="fill: var(--muted)">Status kommt live an; Filter</text>
+        <text x="40" y="606" font-size="12" style="fill: var(--muted)">Nicht eingeteilt, Überfällig</text>
+        
+      </g>
+    </svg>
+  </div>
+  <p>Der Pool ist der Dreh- und Angelpunkt: Aufgaben kannst du jederzeit anlegen, eingeteilt werden kann aber nur, wer im Pool der Veranstaltung steht.</p>
+
+  <h3>Was du als Teamleiter darfst</h3>
+  <div class="tabelle">
+    <table>
+      <thead><tr><th></th><th>Eigene Veranstaltung</th><th>Co-Leitung</th><th>Vorlage</th></tr></thead>
+      <tbody>
+        <tr><td>Aufgaben, Gruppen, Serien, Pool, Einteilung, Notizen</td><td>ja</td><td>ja</td><td>nur ansehen</td></tr>
+        <tr><td>Name, Datum, Tage ändern, löschen, duplizieren</td><td>ja</td><td>nein</td><td>nein</td></tr>
+        <tr><td>Als Vorlage vorschlagen</td><td>ja</td><td>nein</td><td>–</td></tr>
+        <tr><td>Daraus eine neue Veranstaltung machen</td><td>Duplizieren</td><td>–</td><td>Vorlage verwenden</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Veranstaltungen anderer Teamleiter siehst du nicht, solange sie dich nicht als Co-Teamleiter eintragen.</p>
+</section>
+
+<section id="erste-schritte">
+  <h2>Erste Schritte</h2>
+  <p>Melde dich mit deinem Namen und Passwort an; Groß- und Kleinschreibung beim Namen spielen keine Rolle. Mit <strong>Eingeloggt bleiben</strong> bleibst du angemeldet, bis du dich abmeldest – sonst nur, solange die App offen ist.</p>
+  <p>Nach der Anmeldung landest du in der Übersicht deiner Veranstaltungen:</p>
+  <figure><a href="bilder/start.webp"><img src="bilder/start.webp" width="1600" height="900" loading="lazy" alt="Startseite für Teamleiter mit nummerierten Bedienelementen"></a></figure>
+  <ol class="marken">
+    <li><strong>Hauptreiter</strong> – <em>Veranstaltungen</em>, <em>Mitarbeiter</em> und <em>Meine Aufgaben</em>. Den dritten Reiter siehst du nur, wenn du selbst irgendwo eingeteilt bist; die Zahl daran sind deine offenen Aufgaben.</li>
+    <li><strong>Menü</strong> – Farbschema, Schriftgröße und Abstand, Einstellungen, Passwort ändern, Anleitung, Abmelden. Am Handy ist es das ☰-Zeichen.</li>
+    <li><strong>Importieren / Exportieren</strong> – Veranstaltungen als CSV-Datei, auf Wunsch mit ihren Aufgaben.</li>
+    <li><strong>Vorlage verwenden</strong> – eine neue Veranstaltung aus einer Vorlage anlegen.</li>
+    <li><strong>Neue Veranstaltung</strong> – eine Veranstaltung von Grund auf anlegen.</li>
+    <li><strong>Unterreiter</strong> – <em>Eigene Veranstaltungen</em>, <em>Co-Leitung</em> (wo du mitleitest) und <em>Vorlagen</em>. Am Handy ist das eine Auswahlliste.</li>
+    <li><strong>Zeitraum</strong> – nur laufende, bevorstehende oder vergangene Veranstaltungen zeigen. Laufende stehen immer oben.</li>
+    <li><strong>Details</strong> – die Veranstaltung öffnen.</li>
+    <li><strong>Vorschlagen</strong> – die eigene Veranstaltung der Verwaltung als Vorlage vorschlagen.</li>
+  </ol>
+  <p>Mit dem Häkchen links auf einer Karte wählst du Veranstaltungen aus, um mehrere auf einmal zu löschen oder zu exportieren.</p>
+</section>
+
+<section id="veranstaltungen">
+  <h2>Veranstaltungen</h2>
+  <p>Eine Veranstaltung legst du mit <strong>Neue Veranstaltung</strong> an; Name, Startdatum und Anzahl der Tage sind Pflicht. Du stehst danach automatisch als Leitung drin und bist im Mitarbeiter-Pool.</p>
+  <figure class="mitte"><a href="bilder/neue-veranstaltung.webp"><img src="bilder/neue-veranstaltung.webp" width="1016" height="1508" loading="lazy" alt="Dialog „Neue Veranstaltung“" style="max-width: 380px"></a></figure>
+  <p><strong>Co-Teamleiter</strong> sind weitere Teamleiter oder Admins, die mitleiten. Sie sehen die Veranstaltung unter <em>Co-Leitung</em> und dürfen alles rund um Aufgaben, Pool und Notizen. Name, Datum und Löschen der Veranstaltung selbst bleiben bei dir als Ersteller.</p>
+
+  <h3>Schneller starten</h3>
+  <div class="tabelle">
+    <table>
+      <thead><tr><th>Weg</th><th>Wo</th><th>Was übernommen wird</th></tr></thead>
+      <tbody>
+        <tr><td>Vorlage verwenden</td><td>Startseite, Knopf <strong>Vorlage verwenden</strong></td><td>Aufgaben, Aufgabengruppen, Serien (ohne Mitglieder)</td></tr>
+        <tr><td>Duplizieren</td><td>Veranstaltung → <strong>Aktionen</strong> → <strong>Duplizieren</strong></td><td>dasselbe aus einer eigenen Veranstaltung</td></tr>
+        <tr><td>Als Vorlage vorschlagen</td><td>Startseite, <strong>Vorschlagen</strong> auf der Karte</td><td>ein Admin entscheidet, ob daraus eine Vorlage wird</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Nie mitkopiert werden Menschen (Pool, Zuweisungen, Serien-Teams) und Notizen; alle Aufgaben starten wieder als <em>Offen</em>.</p>
+
+  <h3>Was du ändern darfst</h3>
+  <ul>
+    <li><strong>Bearbeiten</strong> und <strong>Löschen</strong> gehen nur bei Veranstaltungen, die du selbst angelegt hast. Gelöscht wird im Bearbeiten-Dialog oder über die Häkchen auf der Startseite.</li>
+    <li>Vorlagen kannst du verwenden, aber nicht ändern oder löschen; das macht ein Admin.</li>
+    <li>Eine als Vorlage vorgeschlagene Veranstaltung kannst du nicht mehr löschen.</li>
+  </ul>
+</section>
+
+<section id="veranstaltungsseite">
+  <h2>Die Veranstaltungsseite</h2>
+  <p>Über <strong>Details</strong> öffnest du eine Veranstaltung. Oben stehen ihr Kopf und der Mitarbeiter-Pool, darunter die Aufgaben.</p>
+  <figure><a href="bilder/veranstaltung-kopf.webp"><img src="bilder/veranstaltung-kopf.webp" width="1600" height="294" loading="lazy" alt="Kopfzeile und Mitarbeiter-Pool einer Veranstaltung"></a></figure>
+  <ol class="marken">
+    <li><strong>Zurück</strong> zur Übersicht.</li>
+    <li><strong>Notiz zur Veranstaltung</strong> – der Anfang deiner Notiz; ein Klick zeigt sie ganz, dort kannst du sie bearbeiten. Ohne Notiz steht hier ein ✎. Mehr unter <a href="#notizen">Notizen der Leitung</a>.</li>
+    <li><strong>i</strong> – Dauer, Zeitraum und Beschreibung aufklappen.</li>
+    <li><strong>Aktionen</strong> – Bearbeiten und Duplizieren (siehe Bild unten).</li>
+    <li><strong>+ Hinzufügen</strong> – Leute in den Pool holen.</li>
+    <li><strong>✕</strong> – jemanden aus dem Pool nehmen.</li>
+    <li><strong>Aufgabenzahl</strong> – öffnet die Aufgaben dieser Person; <em>2 Serie</em> heißt: zwei davon kommen über eine Serie.</li>
+  </ol>
+  <figure class="mitte"><a href="bilder/aktionen.webp"><img src="bilder/aktionen.webp" width="462" height="304" loading="lazy" alt="Das Menü Aktionen" style="max-width: 231px"></a></figure>
+
+  <h3>Der Mitarbeiter-Pool</h3>
+  <p>Nur wer im Pool ist, kann Aufgaben dieser Veranstaltung bekommen – der Pool ist also immer der erste Schritt. Grüne Namen sind Leitung (Teamleiter oder Admin), blaue sind Mitarbeiter. Ein Klick auf die Überschrift klappt den Pool zu.</p>
+  <figure class="mitte"><a href="bilder/pool-hinzufuegen.webp"><img src="bilder/pool-hinzufuegen.webp" width="1008" height="914" loading="lazy" alt="Dialog „Mitarbeiter hinzufügen“" style="max-width: 420px"></a></figure>
+  <p>Im Dialog <strong>Mitarbeiter hinzufügen</strong> suchst du nach Namen und filterst nach Rolle. Wer im selben Zeitraum schon bei einer anderen Veranstaltung eingeplant ist, steht mit dem Hinweis darauf in der Liste; <strong>Frei im Zeitraum</strong> blendet diese Leute aus.</p>
+  <figure class="mitte"><a href="bilder/pool-person.webp"><img src="bilder/pool-person.webp" width="1408" height="1296" loading="lazy" alt="Aufgaben einer Person aus dem Pool" style="max-width: 520px"></a></figure>
+  <p>Ein Klick auf die Aufgabenzahl zeigt alles, was eine Person in dieser Veranstaltung hat:</p>
+  <ul>
+    <li><strong>Entfernen</strong> nimmt ihr eine einzelne Aufgabe ab; mit den Häkchen geht das für mehrere auf einmal.</li>
+    <li><strong>Zuweisen</strong> gibt ihr weitere Aufgaben, gefiltert nach Tag und offenen Aufgaben.</li>
+    <li><strong>Mitarbeiter austauschen</strong> überträgt ihre Aufgaben an jemand anderen aus dem Pool – etwa wenn jemand krank wird.</li>
+  </ul>
+  <p>Nimmst du jemanden mit offenen Aufgaben aus dem Pool, fragt die App, wer sie übernimmt. Du kannst sie übertragen oder die Zuweisungen aufheben.</p>
+
+  <h3>Am Handy</h3>
+  <figure class="mitte"><a href="bilder/handy.webp"><img src="bilder/handy.webp" width="1170" height="2532" loading="lazy" alt="Die Veranstaltungsseite am Handy" style="max-width: 300px"></a></figure>
+  <p>Am Handy ist alles da, nur enger: der Name wird gekürzt, die Notiz ist das gelbe ✎, und an Gruppen steht statt <em>Bearbeiten</em> ein ⚙.</p>
+</section>
+
+<section id="aufgaben">
+  <h2>Aufgaben anlegen und bearbeiten</h2>
+  <p><strong>Neue Aufgabe</strong> öffnet ein leeres Formular, <strong>Bearbeiten</strong> an einer Aufgabe dasselbe Formular mit ihren Werten. Pflicht sind nur Titel und Tag.</p>
+  <figure class="mitte"><a href="bilder/formular-1.webp"><img src="bilder/formular-1.webp" width="1208" height="1988" loading="lazy" alt="Formular „Aufgabe bearbeiten“, oberer Teil" style="max-width: 440px"></a></figure>
+  <div class="tabelle">
+    <table>
+      <thead><tr><th>Feld</th><th>Wofür</th></tr></thead>
+      <tbody>
+        <tr><td>Titel, Beschreibung</td><td>Was zu tun ist. Die Beschreibung sehen alle Eingeteilten.</td></tr>
+        <tr><td>Tag</td><td>Der Tag der Veranstaltung (1, 2, 3 …), nicht das Datum.</td></tr>
+        <tr><td>Startzeit, Endzeit</td><td>Das Zeitfenster. Erinnerungen richten sich nach der Startzeit; nach der Endzeit kann eine Aufgabe überfällig werden.</td></tr>
+        <tr><td>Geplante Zeit</td><td>Erscheint nur ohne Start- und Endzeit – ein einzelner Zeitpunkt wie „Nachtruhe 22:30“.</td></tr>
+        <tr><td>Aufgabengruppe</td><td>Die Zwischenüberschrift, unter der die Aufgabe steht, etwa „Frühstück“. Nur Gruppen desselben Tages; <em>Neue Gruppe anlegen</em> geht direkt aus der Liste.</td></tr>
+        <tr><td>Serie</td><td>Ordnet die Aufgabe einer Serie zu, deren Team sie automatisch bekommt.</td></tr>
+        <tr><td>Benötigte Mitarbeiter</td><td>Wie viele Leute, optional aufgeteilt in weiblich und männlich. Nur ein Anhaltspunkt: mehr oder weniger sind erlaubt.</td></tr>
+        <tr><td>Mitarbeiter zuweisen</td><td>Leute direkt im Formular einteilen – dasselbe wie der Knopf <em>Zuweisen</em>.</td></tr>
+        <tr><td>Öffentliche Aufgabe</td><td>Alle im Pool sehen sie unter <em>Meine Aufgaben</em> und können sie übernehmen und abhaken, auch ohne Einteilung.</td></tr>
+        <tr><td>Erledigt sich von selbst</td><td>Für Aufgaben ohne Knopfdruck („Bus fährt“, „Nachtruhe“): wird zum Ende ihres Zeitfensters abgehakt und nie überfällig. Ohne jede Zeitangabe passiert nichts.</td></tr>
+        <tr><td>Status</td><td>Nur beim Bearbeiten: Offen, In Arbeit, Erledigt, Überfällig.</td></tr>
+        <tr><td>Erinnerung (Minuten vorher)</td><td>Wie lange vor dem Start die Eingeteilten erinnert werden. 0 = keine Erinnerung.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <figure class="mitte"><a href="bilder/formular-2.webp"><img src="bilder/formular-2.webp" width="1208" height="1988" loading="lazy" alt="Formular, unterer Teil mit Gefahrenbereich" style="max-width: 440px"></a></figure>
+  <p>Ganz unten liegt der <strong>Gefahrenbereich</strong>:</p>
+  <ul>
+    <li><strong>Deaktivieren</strong> nimmt eine Aufgabe aus dem Betrieb, ohne sie zu löschen – etwa die Kanutour bei Sturm. Sie verschwindet aus den Listen und bei den Mitarbeitern; über den Filter <em>Deaktivierte</em> holst du sie zurück und aktivierst sie wieder.</li>
+    <li><strong>Löschen</strong> entfernt die Aufgabe endgültig, samt Zuweisungen.</li>
+  </ul>
+  <p>In der Tabellenansicht kannst du mehrere Aufgaben ankreuzen und gemeinsam löschen. Dort gibt es auch <strong>Importieren</strong> und <strong>Exportieren</strong> von Aufgaben als CSV.</p>
+</section>
+
+<section id="einteilen">
+  <h2>Leute einteilen</h2>
+  <p><strong>Zuweisen</strong> an einer Aufgabe öffnet die Liste aller Leute im Pool. Setze Haken bei denen, die die Aufgabe übernehmen, und entferne sie bei denen, die nicht mehr dabei sind – gespeichert wird genau die Auswahl.</p>
+  <figure class="mitte"><a href="bilder/zuweisen.webp"><img src="bilder/zuweisen.webp" width="1008" height="1324" loading="lazy" alt="Dialog „Aufgabe zuweisen“" style="max-width: 400px"></a></figure>
+  <p>Die Plakette neben dem Titel zeigt <em>eingeteilt / benötigt</em>. <strong>Gelb</strong> heißt: es fehlt noch jemand. <strong>Grün</strong> heißt: die Zahl ist erreicht. Gesperrt wird nichts – du darfst mehr oder weniger Leute einteilen. Die Aufteilung <em>1 w · 1 m</em> ist nur ein Hinweis für dich; die App führt kein Geschlecht in den Profilen und prüft das nicht nach.</p>
+  <p>Die <strong>Erinnerung</strong> gilt für die Leute, die du hier einteilst (Standard 15 Minuten vor dem Start). Jeder kann sie später für sich selbst anders stellen.</p>
+
+  <h3>Vier Wege zur Einteilung</h3>
+  <div class="tabelle">
+    <table>
+      <thead><tr><th>Weg</th><th>Gut für</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Zuweisen</strong> an der Aufgabe</td><td>eine Aufgabe, mehrere Leute</td></tr>
+        <tr><td>Feld <em>Mitarbeiter zuweisen</em> im Aufgabenformular</td><td>gleich beim Anlegen</td></tr>
+        <tr><td>Pool → Aufgabenzahl einer Person → <strong>Zuweisen</strong></td><td>eine Person, mehrere Aufgaben</td></tr>
+        <tr><td>Serie</td><td>ein festes Team für wiederkehrende Dienste (siehe <a href="#gruppen-serien">Gruppen und Serien</a>)</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Was noch offen ist, zeigt der Filter <strong>Nicht eingeteilt</strong>: die Zahl daran sind die Aufgaben mit weniger Leuten als benötigt – oder, ohne Bedarfsangabe, ganz ohne Leute. Einzelne Zuweisungen entfernst du in der Tabellenansicht mit dem ✕ am Namen.</p>
+</section>
+
+<section id="ansichten">
+  <h2>Karten oder Tabelle</h2>
+  <p>Dieselben Aufgaben gibt es in zwei Ansichten: Karten zeigen viel zu jeder Aufgabe, die Tabelle viele Aufgaben auf einen Blick. Welche beim Öffnen kommt, stellst du in den <a href="#einstellungen">Einstellungen</a> ein.</p>
+  <figure><a href="bilder/werkzeugleiste.webp"><img src="bilder/werkzeugleiste.webp" width="1600" height="170" loading="lazy" alt="Werkzeugleiste über den Aufgaben"></a></figure>
+  <ol class="marken">
+    <li><strong>Karten / Tabelle</strong> – Ansicht wechseln.</li>
+    <li><strong>Aktualisieren</strong> – neu laden. Meist unnötig: Änderungen anderer erscheinen von selbst.</li>
+    <li><strong>Serien &amp; Gruppen</strong> – siehe <a href="#gruppen-serien">Gruppen und Serien</a>.</li>
+    <li><strong>Neue Aufgabe</strong>.</li>
+    <li><strong>Tage</strong> – alle Tage oder einen einzelnen. Die Auswahl bleibt beim nächsten Öffnen erhalten.</li>
+    <li><strong>Status</strong> – <em>Alle</em>, <em>Offen</em>, <em>In Arbeit</em>, <em>Erledigt</em>, <em>Überfällig</em>. Daneben <strong>Nicht eingeteilt</strong> und <strong>Deaktivierte</strong> mit drei Möglichkeiten: <em>Ausblenden</em>, <em>Mit anzeigen</em>, <em>Nur deaktivierte</em>. Die Zahlen beziehen sich immer auf den gewählten Tag und Status.</li>
+    <li><strong>Sortieren</strong> – <em>Manuell</em> ist deine eigene Reihenfolge; <em>Zeit</em>, <em>Titel</em>, <em>Status</em> sortieren automatisch, ein zweiter Klick dreht die Richtung um.</li>
+  </ol>
+
+  <h3>Eine Aufgabenkarte</h3>
+  <figure><a href="bilder/aufgabenkarte.webp"><img src="bilder/aufgabenkarte.webp" width="1600" height="936" loading="lazy" alt="Aufgabengruppe und Aufgabenkarten"></a></figure>
+  <ol class="marken">
+    <li><strong>Aufgabengruppe</strong> – Zwischenüberschrift mit Uhrzeit und Zähler. Der Pfeil links klappt sie zu; rechts sitzen Notiz, <em>Bearbeiten</em> und ▲▼ zum Verschieben der ganzen Gruppe.</li>
+    <li><strong>Status</strong> – ein Klick öffnet das Statusmenü (siehe <a href="#status">Status und Überblick</a>).</li>
+    <li><strong>Personalbedarf</strong> – <em>eingeteilt / benötigt</em>, gelb solange jemand fehlt.</li>
+    <li><strong>Notiz</strong> – ✎ öffnet die Notiz; gelb, wenn es eine gibt.</li>
+    <li><strong>Zuweisen</strong>.</li>
+    <li><strong>Bearbeiten</strong>.</li>
+    <li><strong>▲ ▼</strong> – die Aufgabe in deiner manuellen Reihenfolge nach oben oder unten schieben.</li>
+    <li><strong>Notiztext</strong> – erste Zeile der Notiz; ein Klick zeigt sie ganz.</li>
+  </ol>
+  <p>Der farbige Rand links verrät den Stand: grün = erledigt, rot = überfällig.</p>
+
+  <h3>Die Tabelle</h3>
+  <figure><a href="bilder/tabelle.webp"><img src="bilder/tabelle.webp" width="1600" height="873" loading="lazy" alt="Tabellenansicht mit Gruppen"></a></figure>
+  <ol class="marken">
+    <li><strong>Spaltenüberschriften</strong> – ein Klick sortiert nach dieser Spalte.</li>
+    <li><strong>Häkchen</strong> – Aufgaben auswählen, um sie gemeinsam zu löschen oder zu exportieren.</li>
+    <li><strong>Gruppenzeile</strong> – wie in der Kartenansicht, zuklappbar.</li>
+  </ol>
+  <p>In der Tabelle hat jeder Name ein ✕ zum Austragen; lange Beschreibungen klappst du mit <em>mehr</em> auf.</p>
+</section>
+
+<section id="status">
+  <h2>Status und Überblick</h2>
+  <p>Jede Aufgabe hat einen Status. Die Mitarbeiter setzen ihn selbst auf <em>In Arbeit</em> und <em>Erledigt</em>; als Leitung kannst du jeden Status jederzeit ändern – mit einem Klick auf die Statusplakette oder im Formular.</p>
+  <figure class="mitte"><a href="bilder/statusmenue.webp"><img src="bilder/statusmenue.webp" width="716" height="408" loading="lazy" alt="Statusmenü an einer Aufgabe" style="max-width: 358px"></a></figure>
+  <div class="tabelle">
+    <table>
+      <thead><tr><th>Status</th><th>Bedeutung</th></tr></thead>
+      <tbody>
+        <tr><td>Offen</td><td>noch nicht begonnen</td></tr>
+        <tr><td>In Arbeit</td><td>jemand ist dran</td></tr>
+        <tr><td>Erledigt</td><td>fertig</td></tr>
+        <tr><td>Überfällig</td><td>die Endzeit ist vorbei, und die Aufgabe ist nicht erledigt</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p><strong>Überfällig</strong> setzt die App von selbst, sobald die Endzeit verstrichen ist; die Eingeteilten bekommen dann eine Meldung. Das geht nur bei Aufgaben mit Endzeit. Aufgaben mit <em>Erledigt sich von selbst</em> werden stattdessen zu ihrer Zeit abgehakt und nie überfällig.</p>
+  <p class="hinweis"><strong>Alles live:</strong> Was andere ändern – ein Mitarbeiter hakt ab, die Co-Leitung teilt jemanden ein –, erscheint ohne Neuladen. Ist die Verbindung weg, steht oben ein Hinweis <em>Offline</em> mit dem Stand der Daten. Wenn du willst, meldet die App dir Statusänderungen deiner Mitarbeiter auch als Benachrichtigung (siehe <a href="#einstellungen">Einstellungen</a>).</p>
+</section>
+
+<section id="gruppen-serien">
+  <h2>Gruppen und Serien</h2>
+  <p>Gruppen ordnen den Tag, Serien verteilen Arbeit an ein festes Team. Beides findest du unter <strong>Serien &amp; Gruppen</strong>.</p>
+  <div class="tabelle">
+    <table>
+      <thead><tr><th></th><th>Aufgabengruppe</th><th>Serie</th></tr></thead>
+      <tbody>
+        <tr><td>Was ist das?</td><td>Zwischenüberschrift für einen Tagesabschnitt, z. B. „Frühstück 07:30“</td><td>ein Team, das eine Reihe von Aufgaben automatisch bekommt, z. B. „Küchenteam“</td></tr>
+        <tr><td>Gilt für</td><td>genau einen Tag</td><td>beliebig viele Tage</td></tr>
+        <tr><td>Enthält</td><td>Aufgaben desselben Tages</td><td>ganze Gruppen und einzelne Aufgaben</td></tr>
+        <tr><td>Wirkung</td><td>sortiert und gliedert die Liste</td><td>teilt das Team allen ihren Aufgaben zu – auch denen, die später in eine ihrer Gruppen kommen</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Aufgabengruppen</h3>
+  <figure><a href="bilder/gruppen.webp"><img src="bilder/gruppen.webp" width="1408" height="892" loading="lazy" alt="Reiter Aufgabengruppen" style="max-width: 600px"></a></figure>
+  <p>Wähle den Tag, gib einen Namen und optional eine Uhrzeit ein und klicke <strong>Anlegen</strong>. Eine Gruppe darf leer bleiben – dann ist sie einfach eine Überschrift im Tagesablauf. Unter <strong>Bearbeiten</strong> stellst du Name, Uhrzeit, Tag, Farbe und Serie ein und hakst ab, welche Aufgaben dazugehören. Dort kannst du eine Gruppe auch auf einen anderen Tag <strong>duplizieren</strong>, wahlweise mit ihren Aufgaben und Zuweisungen. Aufgaben ordnest du alternativ direkt im Aufgabenformular einer Gruppe zu.</p>
+
+  <h3>Serien</h3>
+  <figure><a href="bilder/serien.webp"><img src="bilder/serien.webp" width="1408" height="736" loading="lazy" alt="Reiter Serien" style="max-width: 600px"></a></figure>
+  <p>Eine Serie legst du mit einem Namen an und öffnest sie mit <strong>Bearbeiten</strong>:</p>
+  <figure class="mitte"><a href="bilder/serie-bearbeiten.webp"><img src="bilder/serie-bearbeiten.webp" width="1128" height="1678" loading="lazy" alt="Dialog „Serie bearbeiten“" style="max-width: 440px"></a></figure>
+  <ul>
+    <li><strong>Team</strong> – Leute aus dem Pool, die alle Aufgaben der Serie bekommen.</li>
+    <li><strong>Inhalt</strong> – ganze Aufgabengruppen und einzelne Aufgaben, nach Tagen gefiltert. Eine Aufgabe, die schon über ihre Gruppe dabei ist, braucht keinen eigenen Haken.</li>
+  </ul>
+  <p>Änderst du das Team, zieht die App die Zuweisungen sofort nach. Beim <strong>Entfernen</strong> einer Serie entscheidest du, was mit ihren Aufgaben passiert:</p>
+  <ol class="schritte">
+    <li><strong>Nur die Serie auflösen</strong> – Aufgaben und Zuweisungen bleiben, als normale Einzelzuweisungen.</li>
+    <li><strong>Zuweisungen aufheben</strong> – die Aufgaben bleiben, das Team verliert sie.</li>
+    <li><strong>Aufgaben mitlöschen</strong> – endgültig.</li>
+  </ol>
+</section>
+
+<section id="notizen">
+  <h2>Notizen der Leitung</h2>
+  <p>Notizen sind kurze Zurufe nur für die Leitung – „Schlüssel liegt beim Hausmeister“, „Bus zurück 16:45“. <strong>Mitarbeiter sehen sie nie</strong>, weder in ihrer Ansicht noch in Benachrichtigungen. Was alle Eingeteilten wissen sollen, gehört in die Beschreibung.</p>
+  <p>Es gibt sie an drei Stellen: an der Veranstaltung (Kopfzeile), an jeder Aufgabengruppe und an jeder Aufgabe. Ein Klick auf ✎ öffnet das Schreibfenster:</p>
+  <figure><a href="bilder/notiz.webp"><img src="bilder/notiz.webp" width="1600" height="386" loading="lazy" alt="Notiz an einer Aufgabe bearbeiten"></a></figure>
+  <ul>
+    <li>In der Liste steht die erste Zeile; ein Klick darauf zeigt die ganze Notiz. Zeilenumbrüche bleiben erhalten.</li>
+    <li>Ein gelbes ✎ heißt: hier gibt es eine Notiz.</li>
+    <li>Sehen und schreiben dürfen alle, die die Veranstaltung leiten, und Admins.</li>
+    <li>Beim Duplizieren und bei Vorlagen werden Notizen nicht mitkopiert.</li>
+  </ul>
+</section>
+
+<section id="mitarbeiter">
+  <h2>Mitarbeiter verwalten</h2>
+  <p>Im Reiter <strong>Mitarbeiter</strong> stehen alle Konten. Als Teamleiter verwaltest du die Mitarbeiter; Admins und andere Teamleiter kannst du sehen, aber nicht ändern.</p>
+  <figure><a href="bilder/mitarbeiter.webp"><img src="bilder/mitarbeiter.webp" width="1600" height="800" loading="lazy" alt="Mitarbeiterliste aus Sicht eines Teamleiters"></a></figure>
+  <ol class="marken">
+    <li><strong>Neuer Mitarbeiter</strong> – Name und Startpasswort vergeben. Der Name ist zugleich der Anmeldename und muss eindeutig sein.</li>
+    <li><strong>Suche</strong> – nach Namen filtern; links daneben nach Rolle.</li>
+    <li><strong>Passwort ändern</strong> – ein neues Passwort setzen, mindestens 4 Zeichen. Geht für Mitarbeiter und für dich selbst.</li>
+    <li><strong>Löschen</strong> – nur bei Mitarbeitern, nicht bei dir selbst.</li>
+    <li><strong>–</strong> – bei Admins und anderen Teamleitern gibt es keine Aktionen.</li>
+  </ol>
+  <div class="tabelle">
+    <table>
+      <thead><tr><th>Du darfst</th><th>Du darfst nicht</th></tr></thead>
+      <tbody>
+        <tr><td>Mitarbeiter anlegen, löschen, ihr Passwort setzen</td><td>Admins oder Teamleiter anlegen, ändern oder löschen</td></tr>
+        <tr><td>dein eigenes Passwort ändern</td><td>Rollen vergeben, auch nicht deine eigene</td></tr>
+        <tr><td>Mitarbeiter als CSV importieren und exportieren</td><td>per Import andere Rollen als Mitarbeiter anlegen</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Dein eigenes Passwort änderst du auch über <strong>Menü → Passwort ändern</strong>. Wer zur Leitung werden soll, wendet sich an einen Admin.</p>
+</section>
+
+<section id="eigene-aufgaben">
+  <h2>Eigene Aufgaben und Erinnerungen</h2>
+  <p>Sobald du selbst irgendwo eingeteilt bist, erscheint der Reiter <strong>Meine Aufgaben</strong>. Er zeigt dir dieselbe Ansicht wie deinen Mitarbeitern: deine Aufgaben aus allen Veranstaltungen, dazu die öffentlichen Aufgaben, bei denen du im Pool bist.</p>
+  <figure><a href="bilder/meine-aufgaben.webp"><img src="bilder/meine-aufgaben.webp" width="1600" height="800" loading="lazy" alt="Meine Aufgaben aus Sicht eines Teamleiters"></a></figure>
+  <ul>
+    <li><strong>In Arbeit</strong> und <strong>Erledigt</strong> setzen den Status mit einem Tipp.</li>
+    <li><em>Mit Jonas</em> zeigt, wer die Aufgabe noch hat.</li>
+    <li>Sortieren nach <em>Standard</em>, <em>Event-Tag</em>, <em>Veranstaltung</em> oder <em>Datum</em>; <strong>Erledigte ausblenden</strong> räumt die Liste auf.</li>
+    <li>Der Hinweis oben erscheint, solange Benachrichtigungen auf diesem Gerät noch nicht erlaubt sind.</li>
+  </ul>
+
+  <h3>Erinnerung für dich stellen</h3>
+  <p>An jeder eigenen Aufgabe steht <strong>Erinnerung</strong>. Damit stellst du dir persönlich ein, wann du erinnert wirst – die Leitung sieht das nicht.</p>
+  <figure><a href="bilder/erinnerung.webp"><img src="bilder/erinnerung.webp" width="1600" height="522" loading="lazy" alt="Erinnerung an einer Aufgabe stellen"></a></figure>
+  <div class="tabelle">
+    <table>
+      <thead><tr><th>Art</th><th>Beispiel</th><th>Hinweis</th></tr></thead>
+      <tbody>
+        <tr><td>In … Min</td><td>in 20 Minuten</td><td>einmalig, ab jetzt gerechnet</td></tr>
+        <tr><td>… Min vorher</td><td>15 Minuten vor 21:30</td><td>nur bei Aufgaben mit Uhrzeit</td></tr>
+        <tr><td>Um … Uhr</td><td>am 7.10. um 09:00</td><td>einmalig, Tag frei wählbar</td></tr>
+        <tr><td>Keine</td><td>–</td><td>keine Erinnerung für diese Aufgabe</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Unter dem Feld steht, was herauskommt (<em>Ergibt: heute 21:15 Uhr</em>). In der Benachrichtigung selbst kannst du sie um 30 oder 60 Minuten verschieben; auf dem iPhone fehlen diese Knöpfe. Warst du länger offline, kommen alte Erinnerungen nicht gesammelt nach.</p>
+</section>
+
+<section id="einstellungen">
+  <h2>Einstellungen</h2>
+  <p>Alles Persönliche erreichst du über <strong>Menü</strong> oben rechts (am Handy ☰).</p>
+  <figure class="mitte"><a href="bilder/menue.webp"><img src="bilder/menue.webp" width="456" height="798" loading="lazy" alt="Das Menü" style="max-width: 228px"></a></figure>
+  <ul>
+    <li><strong>Darstellung</strong> – <em>System</em> folgt dem Gerät, <em>Hell</em> und <em>Dunkel</em> legen es fest.</li>
+    <li><strong>Größe &amp; Abstand</strong> – Schrift von 75 bis 175 %, Abstand von 60 bis 200 %. Gilt nur für dieses Gerät; <em>Zurücksetzen</em> erscheint, sobald du etwas verstellt hast.</li>
+    <li><strong>Einstellungen</strong>, <strong>Passwort ändern</strong>, <strong>Anleitung</strong> (diese Seite), <strong>Abmelden</strong>.</li>
+  </ul>
+  <figure class="mitte"><a href="bilder/einstellungen.webp"><img src="bilder/einstellungen.webp" width="1008" height="2348" loading="lazy" alt="Einstellungen mit den Reitern Allgemein und Signal Setup" style="max-width: 400px"></a></figure>
+  <div class="tabelle">
+    <table>
+      <thead><tr><th>Einstellung</th><th>Was sie bewirkt</th></tr></thead>
+      <tbody>
+        <tr><td>Browser-Benachrichtigungen</td><td>Erinnerungen als Push-Meldung. Pro Gerät einmal <strong>Browser-Berechtigung erteilen</strong>; danach prüft <strong>Test-Nachricht senden</strong>, ob es ankommt.</td></tr>
+        <tr><td>Standard-Erinnerungszeit</td><td>Wie viele Minuten vorher du erinnert wirst, wenn die Aufgabe nichts anderes sagt. 0 = keine.</td></tr>
+        <tr><td>„Aufgabe startet jetzt“</td><td>zusätzliche Meldung zur Startzeit, wenn du noch nicht angefangen hast</td></tr>
+        <tr><td>Status-Änderungen von Mitarbeitern</td><td>Meldung, wenn jemand in deinen Veranstaltungen eine Aufgabe auf <em>In Arbeit</em>, <em>Erledigt</em> oder <em>Überfällig</em> setzt</td></tr>
+        <tr><td>Signal Benachrichtigungen</td><td>dieselben Meldungen zusätzlich per Signal an deine Telefonnummer (+49 …)</td></tr>
+        <tr><td>Standard-Ansicht</td><td>ob Aufgaben als Karten oder Tabelle aufgehen</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Signal für dein Team einrichten</h3>
+  <p>Signal-Nachrichten an Mitarbeiter verschickt die App über das Signal-Konto der Leitung. Damit deine Mitarbeiter sie bekommen, verknüpfst du einmal dein Signal:</p>
+  <ol class="schritte">
+    <li><strong>Menü → Einstellungen → Signal Setup → Signal einrichten</strong>.</li>
+    <li>Auf dem Handy in Signal: <em>Einstellungen → Verknüpfte Geräte → Gerät hinzufügen</em>.</li>
+    <li>Den angezeigten QR-Code scannen und mit einer Test-Nachricht prüfen.</li>
+  </ol>
+  <p>Ist bei einer Veranstaltung niemand aus der Leitung mit Signal verbunden, gehen dort keine Signal-Nachrichten raus – Push-Meldungen kommen trotzdem.</p>
+</section>
+
+<section id="spickzettel">
+  <h2>Spickzettel</h2>
+  <p>Die häufigsten Handgriffe auf einen Blick. <button class="druck" type="button" onclick="window.print()">Drucken</button></p>
+  <div class="tabelle">
+    <table>
+      <thead><tr><th>Ich will …</th><th>So geht's</th></tr></thead>
+      <tbody>
+        <tr><td>eine Veranstaltung anlegen</td><td>Veranstaltungen → <strong>Neue Veranstaltung</strong></td></tr>
+        <tr><td>aus einer Vorlage starten</td><td>Veranstaltungen → <strong>Vorlage verwenden</strong></td></tr>
+        <tr><td>eine Veranstaltung kopieren</td><td>Veranstaltung öffnen → <strong>Aktionen</strong> → <strong>Duplizieren</strong></td></tr>
+        <tr><td>jemanden mitleiten lassen</td><td>Veranstaltung bearbeiten → <strong>Co-Teamleiter</strong> anhaken</td></tr>
+        <tr><td>Leute in die Veranstaltung holen</td><td>Mitarbeiter-Pool → <strong>+ Hinzufügen</strong></td></tr>
+        <tr><td>eine Aufgabe anlegen</td><td><strong>Neue Aufgabe</strong> → Titel, Tag, Zeiten</td></tr>
+        <tr><td>jemanden einteilen</td><td>an der Aufgabe <strong>Zuweisen</strong> → Haken setzen</td></tr>
+        <tr><td>jemandem mehrere Aufgaben geben</td><td>Pool → Aufgabenzahl der Person → <strong>Zuweisen</strong></td></tr>
+        <tr><td>ein festes Team für wiederkehrende Dienste</td><td><strong>Serien &amp; Gruppen</strong> → Serien → anlegen → <strong>Bearbeiten</strong> → Team und Inhalt</td></tr>
+        <tr><td>den Tag in Abschnitte gliedern</td><td><strong>Serien &amp; Gruppen</strong> → Aufgabengruppen</td></tr>
+        <tr><td>sehen, wo noch Leute fehlen</td><td>Filter <strong>Nicht eingeteilt</strong></td></tr>
+        <tr><td>nur einen Tag sehen</td><td>Filter <strong>Tage</strong> → Zahl</td></tr>
+        <tr><td>Aufgaben umsortieren</td><td>Sortieren <strong>Manuell</strong>, dann ▲ ▼ an der Aufgabe</td></tr>
+        <tr><td>einen Status ändern</td><td>Klick auf die Statusplakette</td></tr>
+        <tr><td>eine Aufgabe vorübergehend streichen</td><td><strong>Bearbeiten</strong> → Gefahrenbereich → <strong>Deaktivieren</strong></td></tr>
+        <tr><td>deaktivierte Aufgaben wiederfinden</td><td>Filter <strong>Deaktivierte</strong> → <em>Nur deaktivierte</em></td></tr>
+        <tr><td>mir etwas nur für die Leitung merken</td><td>✎ an Veranstaltung, Gruppe oder Aufgabe</td></tr>
+        <tr><td>jemanden ersetzen, der ausfällt</td><td>Pool → Aufgabenzahl → <strong>Mitarbeiter austauschen</strong></td></tr>
+        <tr><td>ein Passwort zurücksetzen</td><td>Reiter <strong>Mitarbeiter</strong> → <strong>Passwort ändern</strong></td></tr>
+        <tr><td>an meine eigenen Aufgaben erinnert werden</td><td><strong>Meine Aufgaben</strong> → <strong>Erinnerung</strong></td></tr>
+        <tr><td>Benachrichtigungen auf diesem Gerät</td><td><strong>Menü → Einstellungen</strong> → Browser-Berechtigung erteilen</td></tr>
+        <tr><td>größere Schrift</td><td><strong>Menü</strong> → Größe &amp; Abstand</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Farben</h3>
+  <ul class="farben">
+    <li><span class="farbe" style="background:#FEF3C7;border:1px solid #F59E0B"></span>gelbe Plakette: es fehlen Leute</li>
+    <li><span class="farbe" style="background:#D1FAE5;border:1px solid #10B981"></span>grüne Plakette: Bedarf erreicht</li>
+    <li><span class="farbe" style="background:#059669"></span>grüner Rand: erledigt</li>
+    <li><span class="farbe" style="background:#DC2626"></span>roter Rand: überfällig</li>
+    <li><span class="farbe" style="background:#FEF3C7;border:1px solid #F59E0B"></span>gelbes ✎: Notiz vorhanden</li>
+    <li><span class="farbe" style="background:#D1FAE5"></span>grüne Namen: Leitung</li>
+  </ul>
+</section>
+
+<p class="fuss">Event Manager · Anleitung für Teamleiter · <a href="/">Zur App</a></p>
+
+</main>
+</div>
+<script>
+  /* Am Handy startet das Inhaltsverzeichnis zugeklappt - aufgeklappt stuende
+     erst eine lange Liste vor dem eigentlichen Text. Ohne Skript bleibt es
+     offen, dann fehlt nichts. */
+  if (window.matchMedia('(max-width: 999px)').matches) {
+    document.querySelector('.inhalt details').removeAttribute('open');
+  }
+  /* Ein Klick auf einen Eintrag klappt es am Handy wieder zu. */
+  document.querySelectorAll('.inhalt a').forEach(function (a) {
+    a.addEventListener('click', function () {
+      if (window.matchMedia('(max-width: 999px)').matches) {
+        document.querySelector('.inhalt details').removeAttribute('open');
+      }
+    });
+  });
+</script>
+</body>
+</html>

@@ -79,6 +79,33 @@ self.addEventListener('fetch', (event) => {
   // gespeichert hat.
   if (istApi(url)) return;
 
+  /*
+   * Anleitung (public/anleitung/): eigene Seiten, nicht die App.
+   *
+   * Ohne diese Ausnahme liefe ihr Aufruf durch den Zweig fuer Seitenaufrufe
+   * darunter - und der legt JEDE Seite als "/index.html" ab. Wer einmal die
+   * Anleitung geoeffnet hat, haette ohne Netz statt der App die Anleitung
+   * gesehen. Ihre Bilder tragen ausserdem keinen Hash im Namen; "erst
+   * Cache" wuerde sie nach einer Aenderung nie mehr erneuern.
+   *
+   * Deshalb: erst Netz, unter der eigenen Adresse gemerkt, ohne Netz das
+   * zuletzt Gemerkte.
+   */
+  if (url.pathname.startsWith('/anleitung/')) {
+    event.respondWith(
+      fetch(req)
+        .then((res) => {
+          if (res && res.status === 200 && res.type === 'basic') {
+            const kopie = res.clone();
+            caches.open(CACHE).then((c) => c.put(req, kopie));
+          }
+          return res;
+        })
+        .catch(() => caches.match(req).then((r) => r || Response.error()))
+    );
+    return;
+  }
+
   // Seitenaufrufe: erst Netz, sonst die gespeicherte Startseite. So sieht
   // man ohne Empfang die App statt der Browser-Fehlerseite.
   if (req.mode === 'navigate') {

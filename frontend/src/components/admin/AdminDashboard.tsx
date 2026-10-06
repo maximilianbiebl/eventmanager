@@ -12,6 +12,12 @@ import responsiveStyles from './AdminDashboard.module.css';
 
 type Tab = 'events' | 'users' | 'mytasks';
 
+/*
+ * Anleitung fuer Teamleiter: eine eigenstaendige Seite unter public/, nicht
+ * Teil der App. Mit Schraegstrich am Ende - sonst leitet nginx erst um.
+ */
+const ANLEITUNG = '/anleitung/teamleiter/';
+
 export const AdminDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     // Load last active tab from localStorage
@@ -134,6 +140,17 @@ export const AdminDashboard: React.FC = () => {
                   >
                     Passwort ändern
                   </button>
+                  {/* Eigene Seite ausserhalb der App (public/anleitung) - im
+                      neuen Tab, damit man daneben weiterarbeiten kann. */}
+                  <a
+                    href={ANLEITUNG}
+                    target="_blank"
+                    rel="noopener"
+                    onClick={() => setShowMenu(false)}
+                    style={styles.dropdownLink}
+                  >
+                    Anleitung
+                  </a>
                   <button onClick={logout} style={styles.dropdownItemDanger}>
                     Abmelden
                   </button>
@@ -184,6 +201,15 @@ export const AdminDashboard: React.FC = () => {
                 >
                   Passwort ändern
                 </button>
+                <a
+                  href={ANLEITUNG}
+                  target="_blank"
+                  rel="noopener"
+                  onClick={() => setShowMenu(false)}
+                  className={responsiveStyles.mobileMenuItem}
+                >
+                  Anleitung
+                </a>
                 <button
                   onClick={logout}
                   className={responsiveStyles.mobileMenuItemLogout}
@@ -322,6 +348,17 @@ const styles: { [key: string]: React.CSSProperties } = {
     textAlign: 'left',
     cursor: 'pointer',
     fontSize: '1rem',
+  },
+  // Wie dropdownItem, nur als Link: Farbe und Unterstrich des Browsers weg.
+  dropdownLink: {
+    display: 'block',
+    width: '100%',
+    padding: '0.75rem 1rem',
+    textAlign: 'left',
+    fontSize: '1rem',
+    color: 'inherit',
+    textDecoration: 'none',
+    boxSizing: 'border-box',
   },
   dropdownItemDanger: {
     width: '100%',
