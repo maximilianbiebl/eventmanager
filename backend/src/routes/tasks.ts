@@ -184,6 +184,18 @@ const MITARBEITER_DER_AUFGABE = (instanzSpalte: string) => `(
  * nichts entscheiden, und Wegnehmen waere der schlimmere Fehler.
  */
 const NACHLAUF_TAGE = 30;
+/*
+ * Leite ich die Veranstaltung dieser Aufgabe - als Ersteller oder
+ * Co-Leitung? Fuer den Filter "Eigene Leitung ausblenden" unter "Meine
+ * Aufgaben" im Leitungsbereich: wer eine Veranstaltung leitet, steht in
+ * ihrem Pool und sieht deshalb auch ihre oeffentlichen Aufgaben dort.
+ * nutzerParam = der Platzhalter, unter dem die eigene Nutzer-ID steht.
+ */
+const ICH_LEITE = (nutzerParam: string) => `(
+  e.created_by = ${nutzerParam}
+  OR EXISTS (SELECT 1 FROM event_teamleiter et WHERE et.event_id = e.id AND et.user_id = ${nutzerParam})
+)`;
+
 const NOCH_AKTUELL = `(
   ei.start_date IS NULL
   OR ei.start_date + (GREATEST(COALESCE(e.days, 1), 1) - 1) >= CURRENT_DATE - ${NACHLAUF_TAGE}
@@ -259,7 +271,8 @@ router.get('/my-tasks', authMiddleware, async (req: AuthRequest, res) => {
         pi.time as group_time,
         pi.color as group_color,
         pi.sort_order as group_sort_order,
-        ${MITARBEITER_DER_AUFGABE('ta.event_instance_id')} as mitarbeiter
+        ${MITARBEITER_DER_AUFGABE('ta.event_instance_id')} as mitarbeiter,
+        ${ICH_LEITE('$1')} as ich_leite
        FROM task_assignments ta
        JOIN tasks t ON ta.task_id = t.id
        JOIN events e ON t.event_id = e.id
@@ -289,7 +302,8 @@ router.get('/my-tasks', authMiddleware, async (req: AuthRequest, res) => {
         pi.time as group_time,
         pi.color as group_color,
         pi.sort_order as group_sort_order,
-        ${MITARBEITER_DER_AUFGABE('ei.id')} as mitarbeiter
+        ${MITARBEITER_DER_AUFGABE('ei.id')} as mitarbeiter,
+        ${ICH_LEITE('$1')} as ich_leite
        FROM tasks t
        JOIN events e ON t.event_id = e.id
        JOIN event_instances ei ON ei.event_id = e.id

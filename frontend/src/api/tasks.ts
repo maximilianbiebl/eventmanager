@@ -76,6 +76,11 @@ export interface TaskAssignment extends Task {
    * eigene. Zeigt im Mitarbeiterbereich, mit wem man zusammen dran ist.
    */
   mitarbeiter?: string[];
+  /**
+   * Leite ich die Veranstaltung (Ersteller oder Co-Leitung)? Nur fuer den
+   * Filter "Eigene Leitung ausblenden" im Leitungsbereich.
+   */
+  ich_leite?: boolean;
 }
 
 export interface CreateTaskData {

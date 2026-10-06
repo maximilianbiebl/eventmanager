@@ -34,6 +34,13 @@ interface Props {
   embedded?: boolean;
 }
 
+const leseSchalter = (schluessel: string): boolean => {
+  try { return localStorage.getItem(schluessel) === '1'; } catch { return false; }
+};
+const merkeSchalter = (schluessel: string, an: boolean) => {
+  try { localStorage.setItem(schluessel, an ? '1' : '0'); } catch { /* privates Fenster */ }
+};
+
 export const StaffDashboard: React.FC<Props> = ({ embedded = false }) => {
   const [tasks, setTasks] = useState<TaskAssignment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,6 +49,14 @@ export const StaffDashboard: React.FC<Props> = ({ embedded = false }) => {
   const [showSettings, setShowSettings] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [hideCompleted, setHideCompleted] = useState(false);
+  /*
+   * Zwei Filter nur fuer den Leitungsbereich (embedded): wer leitet, steht
+   * im Pool seiner Veranstaltungen und sieht deshalb hier auch deren
+   * oeffentliche Aufgaben - nuetzlich, wenn man mit anpackt, sonst Laerm.
+   * Pro Geraet gemerkt; wer sie einmal setzt, will sie meist dauerhaft.
+   */
+  const [hidePublic, setHidePublic] = useState(() => leseSchalter('meineAufgaben.oeffentlicheAus'));
+  const [hideLeitung, setHideLeitung] = useState(() => leseSchalter('meineAufgaben.eigeneLeitungAus'));
   /*
    * Gespeichert werden die AUSGEBLENDETEN Veranstaltungen, nicht die
    * ausgewaehlten. Vorher hielt der Speicher die Auswahl - dabei zaehlte der
@@ -600,6 +615,15 @@ export const StaffDashboard: React.FC<Props> = ({ embedded = false }) => {
         return false;
       }
 
+      // Nur im Leitungsbereich wirksam - im Mitarbeiterbereich gibt es die
+      // Knoepfe nicht, und ein gemerkter Wert soll dort nichts verstecken.
+      if (embedded) {
+        // Oeffentliche, die einem nicht zugewiesen sind - die tauchen nur
+        // auf, weil man im Pool steht. Zugewiesene bleiben sichtbar.
+        if (hidePublic && t.is_public && !t.assignment_id) return false;
+        if (hideLeitung && t.ich_leite) return false;
+      }
+
       // Ausgeblendete Veranstaltungen. Vorher stand hier eine Bedingung auf
       // die Größe der Auswahl - war nichts ausgewählt, wurde der Filter
       // übersprungen und es kam wieder alles durch.
@@ -609,7 +633,7 @@ export const StaffDashboard: React.FC<Props> = ({ embedded = false }) => {
 
       return true;
     });
-  }, [tasks, hideCompleted, hiddenEvents]);
+  }, [tasks, hideCompleted, hiddenEvents, embedded, hidePublic, hideLeitung]);
 
   /*
    * Die Tagesauswahl gilt für beide Ansichten. Die Tag-Leiste selbst wird
@@ -977,6 +1001,30 @@ export const StaffDashboard: React.FC<Props> = ({ embedded = false }) => {
         >
           Erledigte ausblenden
         </button>
+
+        {embedded && tasks.some(t => t.is_public && !t.assignment_id) && (
+          <button
+            type="button"
+            onClick={() => { setHidePublic(!hidePublic); merkeSchalter('meineAufgaben.oeffentlicheAus', !hidePublic); }}
+            className={hidePublic ? styles.filterChipActive : styles.filterChip}
+            aria-pressed={hidePublic}
+            title="Öffentliche Aufgaben ausblenden, die dir nicht zugewiesen sind"
+          >
+            Öffentliche ausblenden
+          </button>
+        )}
+
+        {embedded && tasks.some(t => t.ich_leite) && (
+          <button
+            type="button"
+            onClick={() => { setHideLeitung(!hideLeitung); merkeSchalter('meineAufgaben.eigeneLeitungAus', !hideLeitung); }}
+            className={hideLeitung ? styles.filterChipActive : styles.filterChip}
+            aria-pressed={hideLeitung}
+            title="Aufgaben aus Veranstaltungen ausblenden, die du leitest oder mitleitest"
+          >
+            Eigene Leitung ausblenden
+          </button>
+        )}
 
         {uniqueEvents.length > 1 && (
           <div className="tv-dropdown">
