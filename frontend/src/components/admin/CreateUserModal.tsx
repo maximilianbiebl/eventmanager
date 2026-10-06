@@ -65,28 +65,28 @@ export const CreateUserModal: React.FC<Props> = ({ onClose, onSuccess }) => {
             />
             <p style={styles.hint}>Mindestens 4 Zeichen</p>
           </div>
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Rolle *</label>
-            <select
-              value={formData.role}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-              style={styles.select}
-              required
-            >
-              {isAdmin ? (
-                <>
-                  <option value="staff">Mitarbeiter</option>
-                  <option value="teamleiter">Teamleiter</option>
-                  <option value="admin">Admin</option>
-                </>
-              ) : (
-                <>
-                  <option value="staff">Mitarbeiter</option>
-                  <option value="teamleiter">Teamleiter</option>
-                </>
-              )}
-            </select>
-          </div>
+          {/*
+            Rollen vergibt nur ein Admin. Teamleiter legen ausschliesslich
+            Mitarbeiter an - der Server lehnt alles andere ab. Vorher stand
+            hier fuer sie trotzdem "Teamleiter" zur Auswahl: man waehlte es,
+            und das Anlegen scheiterte. Mit nur einer moeglichen Rolle gibt
+            es nichts zu waehlen, das Feld entfaellt; die Rolle bleibt "staff".
+          */}
+          {isAdmin && (
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Rolle *</label>
+              <select
+                value={formData.role}
+                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                style={styles.select}
+                required
+              >
+                <option value="staff">Mitarbeiter</option>
+                <option value="teamleiter">Teamleiter</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+          )}
           <div className="app-modal-actions" style={styles.actions}>
             <button type="button" onClick={onClose} style={styles.cancelButton}>
               Abbrechen
