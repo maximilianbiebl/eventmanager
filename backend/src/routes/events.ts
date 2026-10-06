@@ -7,6 +7,7 @@ import { darfEventVerwalten } from '../middleware/eventAccess';
 import multer from 'multer';
 import { CSV_BOM, ohneBom, parseCsvLine, csvFeld } from '../utils/csv';
 import { kopiereInhalte } from '../utils/eventKopie';
+import { trageLeitungEin } from '../utils/eventLeitung';
 import { notizOderNull } from '../utils/notizen';
 
 const router = Router();
@@ -198,34 +199,8 @@ router.post('/', authMiddleware, teamleiterOrAdminMiddleware, async (req: AuthRe
 
     const event = eventResult.rows[0];
 
-    // Ersteller als primären Teamleiter hinzufügen
-    await query(
-      'INSERT INTO event_teamleiter (event_id, user_id, is_primary) VALUES ($1, $2, $3)',
-      [event.id, req.user!.id, true]
-    );
-
-    // Ersteller zu event_staff hinzufügen
-    await query(
-      'INSERT INTO event_staff (event_id, user_id) VALUES ($1, $2)',
-      [event.id, req.user!.id]
-    );
-
-    // Co-Teamleiter hinzufügen (falls vorhanden)
-    if (co_teamleiter_ids && Array.isArray(co_teamleiter_ids) && co_teamleiter_ids.length > 0) {
-      for (const coTeamleiterId of co_teamleiter_ids) {
-        // Als Co-Teamleiter hinzufügen
-        await query(
-          'INSERT INTO event_teamleiter (event_id, user_id, is_primary) VALUES ($1, $2, $3) ON CONFLICT (event_id, user_id) DO NOTHING',
-          [event.id, coTeamleiterId, false]
-        );
-
-        // Zu event_staff hinzufügen
-        await query(
-          'INSERT INTO event_staff (event_id, user_id) VALUES ($1, $2) ON CONFLICT (event_id, user_id) DO NOTHING',
-          [event.id, coTeamleiterId]
-        );
-      }
-    }
+    // Ersteller leitet und steht im Pool, dazu die Co-Leitung - siehe utils/eventLeitung.
+    await trageLeitungEin(event.id, req.user!.id, co_teamleiter_ids);
 
     // Event Instanzen erstellen
     const instances = [];
@@ -442,34 +417,8 @@ router.post('/:id/create-from-template', authMiddleware, teamleiterOrAdminMiddle
 
     const newEvent = newEventResult.rows[0];
 
-    // Ersteller als primären Teamleiter hinzufügen
-    await query(
-      'INSERT INTO event_teamleiter (event_id, user_id, is_primary) VALUES ($1, $2, $3)',
-      [newEvent.id, req.user!.id, true]
-    );
-
-    // Ersteller zu event_staff hinzufügen
-    await query(
-      'INSERT INTO event_staff (event_id, user_id) VALUES ($1, $2)',
-      [newEvent.id, req.user!.id]
-    );
-
-    // Co-Teamleiter hinzufügen (falls vorhanden)
-    if (co_teamleiter_ids && Array.isArray(co_teamleiter_ids) && co_teamleiter_ids.length > 0) {
-      for (const coTeamleiterId of co_teamleiter_ids) {
-        // Als Co-Teamleiter hinzufügen
-        await query(
-          'INSERT INTO event_teamleiter (event_id, user_id, is_primary) VALUES ($1, $2, $3) ON CONFLICT (event_id, user_id) DO NOTHING',
-          [newEvent.id, coTeamleiterId, false]
-        );
-
-        // Zu event_staff hinzufügen
-        await query(
-          'INSERT INTO event_staff (event_id, user_id) VALUES ($1, $2) ON CONFLICT (event_id, user_id) DO NOTHING',
-          [newEvent.id, coTeamleiterId]
-        );
-      }
-    }
+    // Ersteller leitet und steht im Pool, dazu die Co-Leitung - siehe utils/eventLeitung.
+    await trageLeitungEin(newEvent.id, req.user!.id, co_teamleiter_ids);
 
     // Event Instanzen erstellen
     const instanceCountToCreate = instance_count || 1;
@@ -700,6 +649,13 @@ router.post('/:id/duplicate', authMiddleware, teamleiterOrAdminMiddleware, async
     );
 
     const newEvent = newEventResult.rows[0];
+
+    /*
+     * Wer dupliziert, leitet die Kopie und steht in ihrem Pool. Das fehlte:
+     * die Kopie hatte keine Leitung und einen leeren Pool. Das restliche
+     * Team wird weiterhin nicht mitkopiert (siehe utils/eventKopie).
+     */
+    await trageLeitungEin(newEvent.id, req.user!.id);
 
     // Event Instanzen erstellen
     const instanceCountToCreate = instance_count || 1;
@@ -1085,6 +1041,9 @@ router.post('/import-csv', authMiddleware, teamleiterOrAdminMiddleware, upload.f
       );
 
       const newEvent = eventResult.rows[0];
+
+      // Wer importiert, leitet die Veranstaltung - wie beim Anlegen.
+      await trageLeitungEin(newEvent.id, req.user!.id);
 
       // Store mapping of old ID to new ID
       if (oldEventId) {
