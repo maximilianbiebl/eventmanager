@@ -214,6 +214,50 @@
   .druck { font: inherit; font-size: .875rem; padding: .4rem .9rem; border-radius: 6px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); cursor: pointer; }
   .druck:hover { border-color: var(--accent); color: var(--accent); }
 
+  /* ---- Bild gross (Tippen auf ein Bild) ---- */
+  figure img { cursor: zoom-in; }
+  .lupe {
+    position: fixed; inset: 0; z-index: 100;
+    background: #0F172A;
+    overflow: auto; overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  .lupe[hidden] { display: none; }
+  .lupe-buehne {
+    min-width: 100%; min-height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    padding: 3.5rem .75rem 3rem;
+    box-sizing: border-box;
+  }
+  .lupe img {
+    display: block; border-radius: 6px; background: #fff;
+    max-width: 100%; max-height: calc(100dvh - 6.5rem);
+    width: auto; height: auto;
+    cursor: zoom-in;
+    box-shadow: 0 8px 32px rgba(0,0,0,.45);
+  }
+  /* Originalgroesse: breiter als der Bildschirm, zum Herumschieben */
+  .lupe.gross .lupe-buehne { justify-content: flex-start; align-items: flex-start; width: max-content; }
+  /* margin auto statt align-items: center - so steht das Bild mittig,
+     solange es passt, und wird bei sehr hohen Bildern oben nicht
+     abgeschnitten. */
+  .lupe.gross img { max-width: none; max-height: none; cursor: zoom-out; margin: auto 0; }
+  .lupe-zu {
+    position: fixed; top: .75rem; right: .75rem; z-index: 101;
+    width: 2.75rem; height: 2.75rem; border-radius: 50%;
+    border: 0; background: rgba(255,255,255,.95); color: #1E293B;
+    font-size: 1.375rem; line-height: 1; cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,.35);
+  }
+  .lupe-tipp {
+    position: fixed; left: 50%; bottom: .75rem; transform: translateX(-50%); z-index: 101;
+    margin: 0; padding: .35rem .8rem; border-radius: 999px;
+    background: rgba(255,255,255,.14); color: #E7EDF7;
+    font-size: .8125rem; white-space: nowrap; pointer-events: none;
+  }
+  body.lupe-offen { overflow: hidden; }
+  @media print { .lupe { display: none !important; } }
+
   @media print {
     :root { --bg: #fff; --surface: #fff; --text: #000; --muted: #444; --border: #bbb; --border-strong: #999; }
     body { font-size: 10.5pt; }
@@ -463,7 +507,7 @@
   <p>Nimmst du jemanden mit offenen Aufgaben aus dem Pool, fragt die App, wer sie übernimmt. Du kannst sie übertragen oder die Zuweisungen aufheben.</p>
 
   <h3>Am Handy</h3>
-  <figure class="mitte"><a href="bilder/handy.webp"><img src="bilder/handy.webp" width="1170" height="2532" loading="lazy" alt="Die Veranstaltungsseite am Handy" style="max-width: 300px"></a></figure>
+  <figure class="mitte"><a href="bilder/handy.webp"><img src="bilder/handy.webp" width="1170" height="2532" loading="lazy" alt="Die Veranstaltungsseite am Handy" style="max-width: 300px" data-dichte="3"></a></figure>
   <p>Am Handy ist alles da, nur enger: der Name wird gekürzt, die Notiz ist das gelbe ✎, und an Gruppen steht statt <em>Bearbeiten</em> ein ⚙.</p>
 </section>
 
@@ -760,6 +804,92 @@
 
 </main>
 </div>
+<div class="lupe" id="lupe" hidden role="dialog" aria-modal="true" aria-label="Bild vergrößert">
+  <button class="lupe-zu" type="button" aria-label="Schließen">✕</button>
+  <div class="lupe-buehne"><img alt=""></div>
+  <p class="lupe-tipp">Bild antippen: Originalgröße · daneben tippen: schließen</p>
+</div>
+<script>
+  /*
+   * Bild gross: ein Tipp auf ein Bild oeffnet es ueber der Seite.
+   * Nochmal tippen schaltet zwischen "ganz sichtbar" und Originalgroesse um
+   * - breite Bildschirmfotos sind am Handy auch formatfuellend noch klein,
+   * in Originalgroesse laesst man sie mit dem Finger verschieben.
+   * Schliessen: X, Tippen neben das Bild, Zurueck des Handys, Esc.
+   * Ohne Skript oeffnet der Link um das Bild die Bilddatei selbst.
+   */
+  (function () {
+    var lupe = document.getElementById('lupe');
+    var bild = lupe.querySelector('img');
+    var zu = lupe.querySelector('.lupe-zu');
+    var tipp = lupe.querySelector('.lupe-tipp');
+    var vorher = null;
+
+    function oeffnen(img) {
+      vorher = document.activeElement;
+      bild.src = img.currentSrc || img.src;
+      bild.alt = img.alt;
+      /* Die Fotos sind mit doppelter (Handy: dreifacher) Pixeldichte
+         aufgenommen - Originalgroesse heisst so gross wie in der App. */
+      var dichte = Number(img.getAttribute('data-dichte')) || 2;
+      bild.style.width = '';
+      bild.dataset.breite = Math.round(img.naturalWidth / dichte);
+      lupe.classList.remove('gross');
+      lupe.hidden = false;
+      document.body.classList.add('lupe-offen');
+      bild.dataset.lohnt = '';
+      bild.style.cursor = 'default';
+      tipp.textContent = 'Daneben tippen oder ✕: schließen';
+      /*
+       * Umschalten nur, wenn die Originalgroesse spuerbar groesser ist als
+       * die Vollbildansicht. Beim hohen Handy-Foto waren es nur ein paar
+       * Pixel - dann waere ein Tipp knapp neben das Bild als "groesser"
+       * gelandet statt als "schliessen".
+       */
+      (bild.decode ? bild.decode() : Promise.resolve()).catch(function () {}).then(function () {
+        var gezeigt = bild.getBoundingClientRect().width;
+        var lohnt = gezeigt > 0 && Number(bild.dataset.breite) > gezeigt * 1.2;
+        bild.dataset.lohnt = lohnt ? '1' : '';
+        bild.style.cursor = lohnt ? '' : 'default';
+        if (lohnt) tipp.textContent = 'Bild antippen: Originalgröße · daneben tippen: schließen';
+      });
+      history.pushState({ lupe: true }, '');
+      zu.focus();
+    }
+
+    function schliessen(ausVerlauf) {
+      if (lupe.hidden) return;
+      lupe.hidden = true;
+      document.body.classList.remove('lupe-offen');
+      bild.removeAttribute('src');
+      if (!ausVerlauf && history.state && history.state.lupe) history.back();
+      if (vorher && vorher.focus) vorher.focus();
+    }
+
+    document.querySelectorAll('figure img').forEach(function (img) {
+      var link = img.closest('a');
+      (link || img).addEventListener('click', function (e) {
+        e.preventDefault();
+        oeffnen(img);
+      });
+    });
+
+    bild.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (!bild.dataset.lohnt) return;
+      var gross = lupe.classList.toggle('gross');
+      bild.style.width = gross ? bild.dataset.breite + 'px' : '';
+      tipp.textContent = gross
+        ? 'Mit dem Finger verschieben · Bild antippen: ganz zeigen'
+        : 'Bild antippen: Originalgröße · daneben tippen: schließen';
+      if (gross) lupe.scrollTo(0, 0);
+    });
+    lupe.addEventListener('click', function () { schliessen(false); });
+    zu.addEventListener('click', function (e) { e.stopPropagation(); schliessen(false); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') schliessen(false); });
+    window.addEventListener('popstate', function () { schliessen(true); });
+  })();
+</script>
 <script>
   /* Am Handy startet das Inhaltsverzeichnis zugeklappt - aufgeklappt stuende
      erst eine lange Liste vor dem eigentlichen Text. Ohne Skript bleibt es
