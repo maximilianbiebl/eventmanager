@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 /*
  * Notizen der Leitung - Knopf, kleines Schreibfenster und die Anzeige.
@@ -342,14 +343,23 @@ export const NotizKnopf: React.FC<KnopfProps> = ({
         {zahl ? <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{zahl}</span> : null}
       </button>
 
-      {anker && (
+      {/*
+        Direkt an <body>, nicht neben den Knopf. Das Fenster liegt ohnehin
+        fest im Bildschirm - aber im Dokument stand es mitten in der
+        Knopfspalte der Aufgabenkarte, und deren Regel fuer das Pfeilpaar
+        (".kartenAktionen > div": nebeneinander) griff auch auf das Fenster.
+        Das Textfeld wurde dabei auf einen Buchstaben Breite gequetscht.
+        Ausserhalb kann keine Regel der Umgebung mehr durchschlagen.
+      */}
+      {anker && createPortal(
         <NotizFenster
           titel={titel}
           wert={notiz || ''}
           anker={anker}
           speichern={speichern}
           schliessen={() => setAnker(null)}
-        />
+        />,
+        document.body,
       )}
     </>
   );
