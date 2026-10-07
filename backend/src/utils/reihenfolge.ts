@@ -186,29 +186,43 @@ export const einsortierenNachZeit = async (
  * Reihenfolge sonst bleibt, wie sie ist.
  *
  *   - Ohne Uhrzeit: ans Ende.
- *   - Mit Uhrzeit: direkt hinter die letzte Zeile, deren Zeit nicht
- *     spaeter ist. Gibt es keine solche, vor die erste Zeile mit Zeit.
- *     Zeilen OHNE Zeit dazwischen bleiben, wo sie stehen - an ihnen wird
- *     nicht gemessen.
+ *   - Mit Uhrzeit: hinter die letzte Zeile, deren Zeit nicht spaeter ist;
+ *     gibt es keine, vor die erste Zeile mit Zeit.
  *
- * Vorher kam eine neue Zeile vor die erste, die spaeter ODER ohne Zeit
- * war. Stand oben in einer Gruppe eine Aufgabe ohne Uhrzeit, landete jede
- * neue Aufgabe mit Uhrzeit ganz oben - egal, was ihre Zeit war. Darum
- * "nicht immer": nur in Gruppen, die so anfingen.
+ * Gemessen wird nur an Zeilen, die zeitlich in Ordnung stehen: der
+ * laengsten Folge von Zeilen mit Uhrzeit, deren Zeiten aufsteigen. Zeilen
+ * ohne Zeit zaehlen nicht, Ausreisser auch nicht.
+ *
+ * Die frueheren Fassungen stolperten genau darueber:
+ *   - Eine Aufgabe ohne Uhrzeit oben in der Gruppe galt als "spaeter" -
+ *     jede neue Aufgabe kam ganz nach oben.
+ *   - Eine 07:00, die aus aelteren Fassungen ganz unten haengen geblieben
+ *     war, galt als "nicht spaeter" - eine neue Gruppe um 10:00 kam hinter
+ *     sie, ganz nach unten.
  */
 export const stelleNachZeit = (zeilen: { zeit?: string | null }[], zeit: string | null | undefined): number => {
   if (!zeit) return zeilen.length;
   const t = String(zeit);
-  let letzteFruehere = -1;
-  let ersteMitZeit = -1;
-  zeilen.forEach((z, i) => {
-    if (!z.zeit) return;
-    if (ersteMitZeit === -1) ersteMitZeit = i;
-    if (String(z.zeit) <= t) letzteFruehere = i;
+
+  // Laengste aufsteigende Folge der Zeilen mit Zeit (die Listen sind kurz).
+  const mitZeit = zeilen.map((z, i) => ({ i, z: z.zeit ? String(z.zeit) : null })).filter((x) => x.z !== null) as { i: number; z: string }[];
+  const laenge: number[] = [];
+  const vorgaenger: number[] = [];
+  mitZeit.forEach((x, a) => {
+    laenge[a] = 1; vorgaenger[a] = -1;
+    for (let b = 0; b < a; b++) {
+      if (mitZeit[b].z <= x.z && laenge[b] + 1 > laenge[a]) { laenge[a] = laenge[b] + 1; vorgaenger[a] = b; }
+    }
   });
-  if (letzteFruehere !== -1) return letzteFruehere + 1;
-  if (ersteMitZeit !== -1) return ersteMitZeit;
-  return zeilen.length;
+  let ende = -1;
+  laenge.forEach((l, a) => { if (ende === -1 || l >= laenge[ende]) ende = a; });
+  const geordnet: { i: number; z: string }[] = [];
+  for (let a = ende; a !== -1; a = vorgaenger[a]) geordnet.unshift(mitZeit[a]);
+
+  if (geordnet.length === 0) return zeilen.length;
+  const frueher = geordnet.filter((x) => x.z <= t);
+  if (frueher.length > 0) return frueher[frueher.length - 1].i + 1;
+  return geordnet[0].i;
 };
 
 /**
