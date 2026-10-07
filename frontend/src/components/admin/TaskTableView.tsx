@@ -426,7 +426,38 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
     verschobenRef.current = window.setTimeout(() => setZuletztVerschoben(null), 1600);
   };
 
+  /*
+   * Mehrere markierte Aufgaben mit den Pfeilen verschieben - ein Druck auf
+   * den Pfeil einer markierten Aufgabe nimmt alle markierten mit, als Block
+   * (backend utils/reihenfolge). Die Markierung bleibt stehen, damit man
+   * mehrmals druecken kann.
+   */
+  const verschiebeMarkierte = async (richtung: 'hoch' | 'runter') => {
+    if (!eventId) return;
+    pendingActionsRef.current++;
+    try {
+      const antwort = await tasksApi.bulkReorder(eventId, selectedTaskIds, richtung);
+      if (antwort.bewegt) {
+        selectedTaskIds.forEach((id) => merkeVerschoben(id));
+        setSuccessMessage(`${selectedTaskIds.length} Aufgaben ${richtung === 'hoch' ? 'nach oben' : 'nach unten'} verschoben`);
+        setTimeout(() => setSuccessMessage(''), 3000);
+      }
+      await loadAssignments(false);
+      onTasksChanged?.();
+    } catch (error) {
+      console.error('Bulk reorder error:', error);
+      alert('Fehler beim Verschieben der Aufgaben');
+    } finally {
+      pendingActionsRef.current--;
+      if (pendingActionsRef.current === 0) nachholenWennFremd();
+    }
+  };
+
   const handleMoveUp = async (taskId: number) => {
+    // Ist die Aufgabe markiert (und mehr als eine), gehen alle markierten mit.
+    if (eventId && selectedTaskIds.length > 1 && selectedTaskIds.includes(taskId)) {
+      return verschiebeMarkierte('hoch');
+    }
     pendingActionsRef.current++; // Increment pending actions counter
     try {
       /*
@@ -476,6 +507,10 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
   };
 
   const handleMoveDown = async (taskId: number) => {
+    // Ist die Aufgabe markiert (und mehr als eine), gehen alle markierten mit.
+    if (eventId && selectedTaskIds.length > 1 && selectedTaskIds.includes(taskId)) {
+      return verschiebeMarkierte('runter');
+    }
     pendingActionsRef.current++; // Increment pending actions counter
     try {
       // Kein vorgezogenes Umsortieren - siehe handleMoveUp.

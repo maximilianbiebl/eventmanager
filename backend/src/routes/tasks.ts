@@ -4,7 +4,7 @@ import { authMiddleware, teamleiterOrAdminMiddleware, AuthRequest } from '../mid
 import { CreateTaskRequest, AssignTaskRequest } from '../types';
 import { broadcastUpdate } from './sse';
 import { CSV_BOM, ohneBom, parseCsvLine, csvFeld } from '../utils/csv';
-import { verschiebeZeile, einsortierenNachZeit, einsortierenInGruppe } from '../utils/reihenfolge';
+import { verschiebeZeile, einsortierenNachZeit, einsortierenInGruppe, verschiebeLoseAufgaben, verschiebeInGruppe } from '../utils/reihenfolge';
 import { farbeOderNull } from '../utils/gruppenFarben';
 import { AUFGABEN_DER_SERIE, syncSeriesAssignments } from '../utils/serien';
 import { ohneNotiz, ohneNotizen, notizOderNull } from '../utils/notizen';
@@ -2063,6 +2063,50 @@ router.post('/event/:eventId/bulk-delete', authMiddleware, teamleiterOrAdminMidd
     res.json({ message: `${task_ids.length} Aufgaben gelöscht`, deleted: task_ids.length });
   } catch (error) {
     console.error('Bulk delete tasks error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+/*
+ * Mehrere markierte Aufgaben mit den Pfeilen um eine Stelle verschieben.
+ *
+ * Jede bleibt in ihrem Bereich - wie beim einzelnen Pfeil: Aufgaben in
+ * einer Gruppe innerhalb ihrer Gruppe, lose Aufgaben auf der Ebene des
+ * Tages (dort tauschen sie auch mit Gruppen). Zusammenhaengende bewegen
+ * sich als Block (utils/reihenfolge, verschiebeMarkierte).
+ */
+router.post('/event/:eventId/bulk-reorder', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req => req.params.eventId), async (req, res) => {
+  try {
+    const eventId = Number(req.params.eventId);
+    const richtung = req.body.richtung === 'runter' ? 'runter' : 'hoch';
+    const ids: number[] = Array.isArray(req.body.task_ids)
+      ? req.body.task_ids.map((n: unknown) => Number(n)).filter((n: number) => Number.isInteger(n))
+      : [];
+    if (ids.length === 0) return res.status(400).json({ error: 'Keine Aufgaben ausgewählt' });
+
+    const r = await query(
+      'SELECT id, day_number, program_item_id FROM tasks WHERE id = ANY($1::int[]) AND event_id = $2',
+      [ids, eventId]
+    );
+
+    // Nach Bereich sortieren: je Gruppe bzw. je Tag (lose) ein Zug.
+    const gruppen = new Map<number, Set<number>>();
+    const tage = new Map<number, Set<number>>();
+    for (const t of r.rows) {
+      const ziel = t.program_item_id ? gruppen : tage;
+      const schluessel = t.program_item_id ?? t.day_number;
+      if (!ziel.has(schluessel)) ziel.set(schluessel, new Set());
+      ziel.get(schluessel)!.add(t.id);
+    }
+
+    let bewegt = false;
+    for (const [gruppenId, aus] of gruppen) bewegt = (await verschiebeInGruppe(gruppenId, aus, richtung)) || bewegt;
+    for (const [tag, aus] of tage) bewegt = (await verschiebeLoseAufgaben(eventId, tag, aus, richtung)) || bewegt;
+
+    if (bewegt) broadcastUpdate('task', { action: 'move', eventId });
+    res.json({ bewegt, message: bewegt ? 'Reihenfolge aktualisiert' : 'Die Auswahl steht bereits am Rand' });
+  } catch (error) {
+    console.error('Bulk reorder error:', error);
     res.status(500).json({ error: 'Server Fehler' });
   }
 });

@@ -214,3 +214,63 @@ export const einsortierenInGruppe = async (gruppenId: number, taskId: number): P
   andere.splice(stelle, 0, neue);
   await nummerieren(andere);
 };
+
+/*
+ * Mehrere markierte Zeilen auf einmal um eine Stelle verschieben.
+ *
+ * Zusammenhaengende Markierungen bewegen sich als Block: [x, A, B] wird
+ * mit "hoch" zu [A, B, x]. Steht der Block schon am Rand, bewegt er sich
+ * nicht - und eine Markierung springt nie ueber eine andere.
+ *
+ * Arbeitet auf einer beliebigen Liste (Zeilen eines Tages oder Aufgaben
+ * einer Gruppe); zurueck kommt sie in neuer Reihenfolge, und ob sich etwas
+ * bewegt hat.
+ */
+export const verschiebeMarkierte = <T>(
+  liste: T[],
+  markiert: (eintrag: T) => boolean,
+  richtung: 'hoch' | 'runter'
+): { liste: T[]; bewegt: boolean } => {
+  const neu = [...liste];
+  let bewegt = false;
+  const tausche = (i: number, j: number) => { [neu[i], neu[j]] = [neu[j], neu[i]]; bewegt = true; };
+  if (richtung === 'hoch') {
+    for (let i = 1; i < neu.length; i++) {
+      if (markiert(neu[i]) && !markiert(neu[i - 1])) tausche(i - 1, i);
+    }
+  } else {
+    for (let i = neu.length - 2; i >= 0; i--) {
+      if (markiert(neu[i]) && !markiert(neu[i + 1])) tausche(i, i + 1);
+    }
+  }
+  return { liste: neu, bewegt };
+};
+
+/** Lose Aufgaben eines Tages gemeinsam verschieben (sie tauschen auch mit Gruppen). */
+export const verschiebeLoseAufgaben = async (
+  eventId: number,
+  dayNumber: number,
+  taskIds: Set<number>,
+  richtung: 'hoch' | 'runter'
+): Promise<boolean> => {
+  const zeilen = await zeilenDesTages(eventId, dayNumber);
+  const { liste, bewegt } = verschiebeMarkierte(zeilen, (z) => z.art === 'aufgabe' && taskIds.has(z.id), richtung);
+  if (bewegt) await nummerieren(liste);
+  return bewegt;
+};
+
+/** Aufgaben innerhalb einer Gruppe gemeinsam verschieben. */
+export const verschiebeInGruppe = async (
+  gruppenId: number,
+  taskIds: Set<number>,
+  richtung: 'hoch' | 'runter'
+): Promise<boolean> => {
+  const r = await query(
+    'SELECT id, COALESCE(sort_order, 0) AS rang FROM tasks WHERE program_item_id = $1 ORDER BY sort_order, id',
+    [gruppenId]
+  );
+  const zeilen: Zeile[] = r.rows.map((x: any) => ({ art: 'aufgabe' as const, id: x.id, rang: Number(x.rang) }));
+  const { liste, bewegt } = verschiebeMarkierte(zeilen, (z) => taskIds.has(z.id), richtung);
+  if (bewegt) await nummerieren(liste);
+  return bewegt;
+};

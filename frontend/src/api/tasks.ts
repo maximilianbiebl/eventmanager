@@ -238,6 +238,12 @@ export const tasksApi = {
     return response.data;
   },
 
+  /** Markierte Aufgaben gemeinsam um eine Stelle verschieben (Pfeile). */
+  bulkReorder: async (eventId: number, taskIds: number[], richtung: 'hoch' | 'runter'): Promise<{ bewegt: boolean }> => {
+    const response = await client.post(`/tasks/event/${eventId}/bulk-reorder`, { task_ids: taskIds, richtung });
+    return response.data;
+  },
+
   /** Mehrere Aufgaben auf einen anderen Tag und/oder in eine andere Gruppe. */
   bulkMove: async (
     eventId: number,
