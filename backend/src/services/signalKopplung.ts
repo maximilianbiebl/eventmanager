@@ -67,3 +67,20 @@ export const pruefeKopplungenGedrosselt = async (): Promise<void> => {
   if (Date.now() - letztePruefung < 60_000) return;
   await pruefeKopplungen();
 };
+
+/*
+ * Alle gekoppelten Konten wach halten - siehe signalService.lebenszeichen.
+ * Laeuft alle 12 Stunden; meldet ein Konto "nicht registriert", ist die
+ * Kopplung weg und wird wie oben festgehalten.
+ */
+export const halteKopplungenWach = async (): Promise<void> => {
+  const r = await query(
+    `SELECT DISTINCT signal_account_number AS nummer FROM users
+     WHERE signal_linked = true AND signal_account_number IS NOT NULL
+       AND signal_account_number NOT LIKE '+temp%'`
+  );
+  for (const { nummer } of r.rows) {
+    const lebt = await signalService.lebenszeichen(nummer);
+    if (lebt === false) await markiereGetrennt(nummer);
+  }
+};

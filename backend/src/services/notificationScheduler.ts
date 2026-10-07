@@ -4,7 +4,7 @@ import webpush from 'web-push';
 import jwt from 'jsonwebtoken';
 import config from '../config';
 import { signalService } from './signal';
-import { pruefeKopplungen } from './signalKopplung';
+import { pruefeKopplungen, halteKopplungenWach } from './signalKopplung';
 import { broadcastUpdate } from '../routes/sse';
 import { pushZustellung, Meldungsart } from '../utils/pushZustellung';
 
@@ -41,6 +41,13 @@ export function startNotificationScheduler() {
     pruefeKopplungen().catch((e) => console.error('Signal-Pruefung:', e));
   });
   setTimeout(() => pruefeKopplungen().catch((e) => console.error('Signal-Pruefung:', e)), 30_000);
+
+  // Gekoppelte Signal-Konten wach halten, sonst entkoppelt Signal sie nach
+  // langer Ruhe - siehe signalService.lebenszeichen.
+  cron.schedule('41 */12 * * *', () => {
+    halteKopplungenWach().catch((e) => console.error('Signal-Lebenszeichen:', e));
+  });
+  setTimeout(() => halteKopplungenWach().catch((e) => console.error('Signal-Lebenszeichen:', e)), 90_000);
 
   // Aenderungsprotokoll: nach einem Jahr wird es nicht mehr gebraucht.
   cron.schedule('17 3 * * *', () => {

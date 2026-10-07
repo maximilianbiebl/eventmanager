@@ -123,6 +123,42 @@ class SignalService {
   }
 
   /**
+   * Lebenszeichen fuer ein gekoppeltes Konto: neue Nachrichten abholen.
+   *
+   * Signal entkoppelt verknuepfte Geraete, die sich lange nicht melden
+   * (rund 30 Tage). Im normalen Modus meldet sich signal-cli nur, wenn
+   * jemand etwas von ihm will - zwischen zwei Freizeiten also womoeglich
+   * wochenlang gar nicht. Genau so ging die Kopplung verloren.
+   *
+   * Das Abholen zaehlt als Aktivitaet. Es nimmt dem Handy nichts weg (jedes
+   * Geraet bekommt seine eigene Kopie) und verschickt keine Lesebestaetigung.
+   *
+   * Rueckgabe: true = Konto antwortet, false = nicht mehr registriert,
+   * null = Dienst nicht erreichbar (dann ist ueber die Kopplung nichts gesagt).
+   */
+  async lebenszeichen(nummer: string): Promise<boolean | null> {
+    if (!this.enabled) return null;
+    try {
+      await axios.get(`${this.apiUrl}/v1/receive/${encodeURIComponent(nummer)}`, {
+        params: {
+          timeout: 5,
+          ignore_attachments: true,
+          ignore_stories: true,
+          send_read_receipts: false,
+          max_messages: 500,
+        },
+        timeout: 60000,
+      });
+      return true;
+    } catch (error: any) {
+      const text = JSON.stringify(error.response?.data || error.message || '');
+      if (/not registered/i.test(text)) return false;
+      console.error(`Signal Lebenszeichen ${nummer}:`, text);
+      return null;
+    }
+  }
+
+  /**
    * Sendet eine Signal-Nachricht
    */
   async sendMessage(fromNumber: string, toNumber: string, message: string): Promise<boolean> {
