@@ -3,7 +3,7 @@ import { query } from '../database/connection';
 import { authMiddleware, teamleiterOrAdminMiddleware, AuthRequest } from '../middleware/auth';
 import { CreateTaskRequest, AssignTaskRequest } from '../types';
 import { broadcastUpdate } from './sse';
-import { CSV_BOM, ohneBom, parseCsvLine, csvFeld } from '../utils/csv';
+import { CSV_BOM, csvTextAus, trennzeichenVon, parseCsvLine, csvFeld } from '../utils/csv';
 import { verschiebeZeile, einsortierenNachZeit, einsortierenInGruppe, verschiebeLoseAufgaben, verschiebeInGruppe, aufgabenDerGruppe } from '../utils/reihenfolge';
 import { farbeOderNull } from '../utils/gruppenFarben';
 import { AUFGABEN_DER_SERIE, syncSeriesAssignments } from '../utils/serien';
@@ -2459,14 +2459,15 @@ router.post('/event/:eventId/import-csv', authMiddleware, teamleiterOrAdminMiddl
       return res.status(400).json({ error: 'Keine Datei hochgeladen' });
     }
 
-    const csvText = ohneBom(req.file.buffer.toString('utf-8'));
+    const csvText = csvTextAus(req.file.buffer);
     const lines = csvText.split('\n').filter(line => line.trim());
 
     if (lines.length < 2) {
       return res.status(400).json({ error: 'CSV ist leer oder ungültig' });
     }
 
-    const headers = parseCsvLine(lines[0]);
+    const trenner = trennzeichenVon(lines[0]);
+    const headers = parseCsvLine(lines[0], trenner);
     let imported = 0;
 
     // Get max sort_order for this event
@@ -2558,7 +2559,7 @@ router.post('/event/:eventId/import-csv', authMiddleware, teamleiterOrAdminMiddl
      * sucht.
      */
     const zeilen = lines.slice(1).map((zeile) => {
-      const values = parseCsvLine(zeile);
+      const values = parseCsvLine(zeile, trenner);
       const satz: any = {};
       headers.forEach((header, idx) => { satz[header] = values[idx]; });
       return satz;

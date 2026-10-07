@@ -5,7 +5,7 @@ import { CreateEventRequest } from '../types';
 import { broadcastUpdate } from './sse';
 import { darfEventVerwalten } from '../middleware/eventAccess';
 import multer from 'multer';
-import { CSV_BOM, ohneBom, parseCsvLine, csvFeld } from '../utils/csv';
+import { CSV_BOM, csvTextAus, trennzeichenVon, parseCsvLine, csvFeld } from '../utils/csv';
 import { kopiereInhalte } from '../utils/eventKopie';
 import { trageLeitungEin } from '../utils/eventLeitung';
 import { notizOderNull } from '../utils/notizen';
@@ -1001,20 +1001,21 @@ router.post('/import-csv', authMiddleware, teamleiterOrAdminMiddleware, upload.f
     // Check if import as template is requested via query param
     const forceAsTemplate = req.query.asTemplate === 'true';
 
-    const csvText = ohneBom(eventsFile.buffer.toString('utf-8'));
+    const csvText = csvTextAus(eventsFile.buffer);
     const lines = csvText.split('\n').filter(line => line.trim());
 
     if (lines.length < 2) {
       return res.status(400).json({ error: 'CSV ist leer oder ungültig' });
     }
 
-    const headers = parseCsvLine(lines[0]);
+    const trenner = trennzeichenVon(lines[0]);
+    const headers = parseCsvLine(lines[0], trenner);
     let imported = 0;
     const eventIdMapping: { [oldId: string]: number } = {}; // Map old ID to new ID
 
     for (let i = 1; i < lines.length; i++) {
       // Parse CSV line with quoted strings
-      const values = parseCsvLine(lines[i]);
+      const values = parseCsvLine(lines[i], trenner);
 
       const event: any = {};
       headers.forEach((header, idx) => {
@@ -1066,16 +1067,17 @@ router.post('/import-csv', authMiddleware, teamleiterOrAdminMiddleware, upload.f
     // Import tasks if tasksFile is provided
     let tasksImported = 0;
     if (tasksFile) {
-      const tasksCSVText = ohneBom(tasksFile.buffer.toString('utf-8'));
+      const tasksCSVText = csvTextAus(tasksFile.buffer);
       const serienCache = new Map<string, number>();
       const tasksLines = tasksCSVText.split('\n').filter(line => line.trim());
 
       if (tasksLines.length >= 2) {
-        const tasksHeaders = parseCsvLine(tasksLines[0]);
+        const tasksTrenner = trennzeichenVon(tasksLines[0]);
+        const tasksHeaders = parseCsvLine(tasksLines[0], tasksTrenner);
 
         for (let i = 1; i < tasksLines.length; i++) {
           // Parse CSV line with quoted strings
-          const values = parseCsvLine(tasksLines[i]);
+          const values = parseCsvLine(tasksLines[i], tasksTrenner);
 
           const task: any = {};
           tasksHeaders.forEach((header, idx) => {

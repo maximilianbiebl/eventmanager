@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { query } from '../database/connection';
-import { CSV_BOM, ohneBom, parseCsvLine } from '../utils/csv';
+import { CSV_BOM, csvTextAus, trennzeichenVon, parseCsvLine } from '../utils/csv';
 import { authMiddleware, adminMiddleware, teamleiterOrAdminMiddleware, AuthRequest } from '../middleware/auth';
 import { broadcastUpdate } from './sse';
 import bcrypt from 'bcrypt';
@@ -565,14 +565,15 @@ router.post('/import-csv', authMiddleware, teamleiterOrAdminMiddleware, upload.s
     }
 
     // BOM entfernen (Excel schreibt eines) und CRLF wie LF behandeln
-    const csvText = ohneBom(req.file.buffer.toString('utf-8'));
+    const csvText = csvTextAus(req.file.buffer);
     const lines = csvText.split(/\r?\n/).filter(line => line.trim());
 
     if (lines.length < 2) {
       return res.status(400).json({ error: 'CSV ist leer oder ungültig' });
     }
 
-    const headers = parseCsvLine(lines[0]).map(h => h.toLowerCase());
+    const trenner = trennzeichenVon(lines[0]);
+    const headers = parseCsvLine(lines[0], trenner).map(h => h.toLowerCase());
     let imported = 0;
     let skipped = 0;
     const rejected: { name: string; reason: string }[] = [];
@@ -580,7 +581,7 @@ router.post('/import-csv', authMiddleware, teamleiterOrAdminMiddleware, upload.s
     const credentials: { name: string; password: string; generated: boolean }[] = [];
 
     for (let i = 1; i < lines.length; i++) {
-      const values = parseCsvLine(lines[i]);
+      const values = parseCsvLine(lines[i], trenner);
       const user: any = {};
       headers.forEach((header, idx) => {
         user[header] = values[idx];

@@ -12,11 +12,11 @@ interface Props {
 }
 
 /*
- * Dieselbe Trennlogik wie im Server: an Kommas trennen, aber
- * Anfuehrungszeichen beachten. Sonst zeigt die Vorschau etwas anderes an,
- * als beim Import tatsaechlich ankommt.
+ * Dieselbe Trennlogik wie im Server (backend utils/csv): am Trennzeichen
+ * trennen, aber Anfuehrungszeichen beachten. Sonst zeigt die Vorschau etwas
+ * anderes an, als beim Import tatsaechlich ankommt.
  */
-const parseCsvLine = (line: string): string[] => {
+const parseCsvLine = (line: string, trenner: ',' | ';' = ','): string[] => {
   const out: string[] = [];
   let cur = '';
   let inQuotes = false;
@@ -29,7 +29,7 @@ const parseCsvLine = (line: string): string[] => {
       } else cur += c;
     } else if (c === '"') {
       inQuotes = true;
-    } else if (c === ',') {
+    } else if (c === trenner) {
       out.push(cur.trim());
       cur = '';
     } else {
@@ -38,6 +38,36 @@ const parseCsvLine = (line: string): string[] => {
   }
   out.push(cur.trim());
   return out;
+};
+
+/* Komma oder Semikolon (deutsches Excel) - wie trennzeichenVon im Server. */
+const trennzeichenVon = (kopfzeile: string): ',' | ';' => {
+  let komma = 0, semikolon = 0, inQuotes = false;
+  for (const c of kopfzeile) {
+    if (c === '"') inQuotes = !inQuotes;
+    else if (!inQuotes && c === ',') komma++;
+    else if (!inQuotes && c === ';') semikolon++;
+  }
+  return semikolon > komma ? ';' : ',';
+};
+
+/*
+ * Datei in ihrer eigenen Kodierung lesen.
+ *
+ * Excel unter Windows speichert CSV in Windows-1252, nicht in UTF-8.
+ * file.text() liest immer UTF-8 - aus "Jürgen" wurde "J\uFFFDrgen", und weil
+ * der Import die Datei aus diesem Text neu zusammensetzt, kam der kaputte
+ * Name so beim Server an: das Konto hiess falsch, die Anmeldung scheiterte.
+ */
+const leseCsv = async (datei: File): Promise<string> => {
+  const bytes = await datei.arrayBuffer();
+  let text: string;
+  try {
+    text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    text = new TextDecoder('windows-1252').decode(bytes);
+  }
+  return text.replace(/^\uFEFF/, '');
 };
 
 /*
@@ -127,16 +157,17 @@ export const CSVImportModal: React.FC<Props> = ({ type, onClose, onSuccess, even
 
     // Parse CSV for preview
     try {
-      const text = (await selectedFile.text()).replace(/^\uFEFF/, '');
+      const text = await leseCsv(selectedFile);
       const lines = text.split(/\r?\n/).filter(line => line.trim());
       if (lines.length === 0) {
         alert('CSV-Datei ist leer');
         return;
       }
 
-      const headers = parseCsvLine(lines[0]).map(h => h.toLowerCase());
+      const trenner = trennzeichenVon(lines[0]);
+      const headers = parseCsvLine(lines[0], trenner).map(h => h.toLowerCase());
       const items = lines.slice(1).map((line, idx) => {
-        const values = parseCsvLine(line);
+        const values = parseCsvLine(line, trenner);
         const item: any = { _index: idx };
         headers.forEach((header, i) => {
           item[header] = values[i];
@@ -185,7 +216,8 @@ export const CSVImportModal: React.FC<Props> = ({ type, onClose, onSuccess, even
       setLoading(true);
 
       // Create filtered CSV with only selected items
-      const text = (await file.text()).replace(/^\uFEFF/, '');
+      // Neu zusammengesetzt wird in UTF-8 - der Server liest das ohne Raten.
+      const text = await leseCsv(file);
       const lines = text.split(/\r?\n/).filter(line => line.trim());
       const headerLine = lines[0];
       const selectedLines = [headerLine];

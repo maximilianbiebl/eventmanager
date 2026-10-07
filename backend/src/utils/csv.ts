@@ -22,13 +22,50 @@ export const CSV_BOM = '﻿';
 export const ohneBom = (text: string): string => text.replace(/^﻿/, '');
 
 /*
+ * Hochgeladene Datei als Text - in der Kodierung, in der sie geschrieben ist.
+ *
+ * Excel unter Windows speichert "CSV (Trennzeichen-getrennt)" nicht in
+ * UTF-8, sondern in Windows-1252. Als UTF-8 gelesen wurde aus "Jürgen"
+ * "J�rgen" - das Konto hiess dann so, und die Anmeldung als "Jürgen"
+ * fand niemanden. Gueltiges UTF-8 bleibt UTF-8; alles andere wird als
+ * Windows-1252 gelesen (deckt Umlaute, ß und € ab).
+ */
+export const csvTextAus = (daten: Buffer): string => {
+  let text: string;
+  try {
+    text = new TextDecoder('utf-8', { fatal: true }).decode(daten);
+  } catch {
+    text = new TextDecoder('windows-1252').decode(daten);
+  }
+  return ohneBom(text);
+};
+
+/*
+ * Trennzeichen aus der Kopfzeile: Komma oder Semikolon.
+ *
+ * Das deutsche Excel trennt mit Semikolon. Bisher wurde nur am Komma
+ * getrennt - die Kopfzeile "name;role" war dann EINE Spalte, und jede
+ * Zeile wurde mit "Kein Name angegeben" abgelehnt. Gezaehlt wird nur
+ * ausserhalb von Anfuehrungszeichen.
+ */
+export const trennzeichenVon = (kopfzeile: string): ',' | ';' => {
+  let komma = 0, semikolon = 0, inQuotes = false;
+  for (const c of kopfzeile) {
+    if (c === '"') inQuotes = !inQuotes;
+    else if (!inQuotes && c === ',') komma++;
+    else if (!inQuotes && c === ';') semikolon++;
+  }
+  return semikolon > komma ? ';' : ',';
+};
+
+/*
  * Eine Zeile zerlegen.
  *
  * Beachtet Anfuehrungszeichen: ein Komma darin trennt nicht ("Mustermann,
  * Max" bleibt ein Feld), und "" innerhalb eines Feldes ist ein einzelnes
  * Anfuehrungszeichen - so schreibt es das Format vor.
  */
-export const parseCsvLine = (line: string): string[] => {
+export const parseCsvLine = (line: string, trenner: ',' | ';' = ','): string[] => {
   const out: string[] = [];
   let cur = '';
   let inQuotes = false;
@@ -42,7 +79,7 @@ export const parseCsvLine = (line: string): string[] => {
       } else cur += c;
     } else if (c === '"') {
       inQuotes = true;
-    } else if (c === ',') {
+    } else if (c === trenner) {
       out.push(cur.trim());
       cur = '';
     } else {
