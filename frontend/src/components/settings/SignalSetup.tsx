@@ -22,6 +22,9 @@ export const SignalSetup: React.FC = () => {
   const [testNumber, setTestNumber] = useState('');
   const [wartetLange, setWartetLange] = useState(false);
   const [abgelaufen, setAbgelaufen] = useState(false);
+  // Signal uebertraegt gerade die Daten vom Handy - siehe Backend
+  // signalService.kontenBeschaeftigt. Dann ist Warten richtig, nicht Hilfe.
+  const [richtetEin, setRichtetEin] = useState(false);
   const pruefe = useRef(false);
 
   useEffect(() => {
@@ -32,6 +35,7 @@ export const SignalSetup: React.FC = () => {
   useEffect(() => {
     if (!setup || status?.linked) return;
     setWartetLange(false);
+    setRichtetEin(false);
     const hilfe = setTimeout(() => setWartetLange(true), HILFE_NACH_MS);
     const interval = setInterval(checkLinkStatus, 3000);
     return () => { clearInterval(interval); clearTimeout(hilfe); };
@@ -75,6 +79,8 @@ export const SignalSetup: React.FC = () => {
       } else if (data.abgelaufen) {
         setSetup(null);
         setAbgelaufen(true);
+      } else if (data.beschaeftigt) {
+        setRichtetEin(true);
       }
     } catch (error) {
       console.error('Check link error:', error);
@@ -164,9 +170,15 @@ export const SignalSetup: React.FC = () => {
           </div>
           <div className={styles.checkingStatus}>
             <div className={styles.spinner}></div>
-            <span>Warte auf Verbindung…</span>
+            <span>{richtetEin ? 'Verbindung wird eingerichtet…' : 'Warte auf Verbindung…'}</span>
           </div>
-          {wartetLange && (
+          {richtetEin && (
+            <p className={styles.einrichtenHinweis}>
+              Dein Handy hat den Code gescannt. Signal überträgt jetzt die Daten – das kann ein, zwei Minuten
+              dauern. Lass diese Seite so lange offen.
+            </p>
+          )}
+          {wartetLange && !richtetEin && (
             <div className={styles.instructions}>
               <p><strong>Es dauert ungewöhnlich lange.</strong></p>
               <ul>

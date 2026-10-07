@@ -200,6 +200,19 @@ nummern() { grep -o '"+[0-9]*"' | tr -d '"' | sort; }
 
 bild_id() { docker image inspect -f '{{.Id}}' "$1" 2>/dev/null; }
 
+# signal-cli mit der aktuell markierten Fassung neu anlegen.
+#
+# Erst stoppen und entfernen, dann neu anlegen - nicht "up" allein. Das
+# benennt den alten Container waehrend des Austauschs kurz in
+# "<id>_eventmanager-signal" um, und die Synology (Container Manager) zeigte
+# danach noch diesen Namen, mit "No such container" beim Oeffnen. Die
+# Unterbrechung ist dieselbe; die Daten liegen im Volume signal_data.
+neu_anlegen() {
+  $DC stop signal-cli >>"$LOG" 2>&1
+  $DC rm -f signal-cli >>"$LOG" 2>&1
+  $DC up -d --no-deps signal-cli >>"$LOG" 2>&1
+}
+
 # Antwortet der Dienst - und sind alle Konten aus $1 (eine Nummer je Zeile) da?
 pruefe() {
   local erwartet="$1" i about konten fehlt
@@ -254,7 +267,7 @@ fi
 # --- 3. Sichern und neu starten ---------------------------------------------
 [ -n "$ALT" ] && docker image tag "$ALT" "$SICHERUNG"
 log "Neue Fassung ${NEU:7:12} (bisher ${ALT:7:12}) - starte neu."
-$DC up -d signal-cli >>"$LOG" 2>&1
+neu_anlegen
 
 # --- 4. Pruefen -------------------------------------------------------------
 if pruefe "$KONTEN_VORHER"; then
@@ -269,7 +282,7 @@ if [ -z "$ALT" ]; then
 fi
 log "FEHLER: neue Fassung besteht die Pruefung nicht - zurueck zur bisherigen."
 docker image tag "$SICHERUNG" "$BILD"
-$DC up -d --force-recreate signal-cli >>"$LOG" 2>&1
+neu_anlegen
 if pruefe "$KONTEN_VORHER"; then
   log "Bisherige Fassung laeuft wieder. Update beim naechsten Mal erneut versuchen."
 else

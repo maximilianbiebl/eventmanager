@@ -92,7 +92,11 @@ router.get('/check-link', authMiddleware, teamleiterOrAdminMiddleware, async (re
     }
 
     const jetzt = await signalService.getAccounts();
-    if (jetzt === null) return res.json({ linked: false });
+    if (jetzt === null) {
+      // Zu langsam statt weg: meist uebertraegt Signal gerade die Daten
+      // vom Handy - siehe signalService.kontenBeschaeftigt.
+      return res.json({ linked: false, beschaeftigt: signalService.kontenBeschaeftigt });
+    }
 
     // Neu ist, was vor dem QR-Code noch nicht da war.
     const neu = jetzt.filter((n) => !laufend.vorher.has(n));

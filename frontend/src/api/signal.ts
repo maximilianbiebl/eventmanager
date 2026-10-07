@@ -30,7 +30,7 @@ export const signalApi = {
   },
 
   // Teamleiter/Admin: Prüfe ob Account gelinkt ist
-  checkLink: async (): Promise<{ linked: boolean; accountNumber?: string; abgelaufen?: boolean }> => {
+  checkLink: async (): Promise<{ linked: boolean; accountNumber?: string; abgelaufen?: boolean; beschaeftigt?: boolean }> => {
     const response = await client.get('/signal/check-link');
     return response.data;
   },

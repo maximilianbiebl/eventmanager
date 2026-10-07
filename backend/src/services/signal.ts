@@ -48,17 +48,43 @@ class SignalService {
    * null = signal-cli nicht erreichbar. Das ist etwas anderes als eine
    * leere Liste und darf NICHT als "getrennt" gewertet werden.
    */
-  async getAccounts(): Promise<string[] | null> {
-    if (!this.enabled) return null;
-    try {
-      // Im normalen Modus startet signal-cli fuer jede Anfrage neu - das
-      // dauert ein paar Sekunden.
-      const response = await axios.get(`${this.apiUrl}/v1/accounts`, { timeout: 30000 });
-      return Array.isArray(response.data) ? response.data.map(String) : [];
-    } catch (error: any) {
-      console.error('Signal accounts error:', error.response?.data || error.message);
-      return null;
-    }
+  /*
+   * War die letzte Abfrage der Konten zu langsam (statt: Dienst nicht da)?
+   *
+   * Direkt nach dem Scannen des QR-Codes uebertraegt Signal die Daten vom
+   * Handy; so lange haelt signal-cli die Kontodaten fest ("Config file is
+   * in use by another instance"), und jede Abfrage wartet - gemessen ueber
+   * eine Minute. Das ist kein Fehler, sondern das Zeichen, dass das Koppeln
+   * gerade laeuft.
+   */
+  kontenBeschaeftigt = false;
+  private laufendeKontenAbfrage: Promise<string[] | null> | null = null;
+
+  /**
+   * Gueltige Konten in signal-cli; null = nicht erreichbar oder zu langsam.
+   *
+   * Laeuft schon eine Abfrage, wird auf deren Ergebnis gewartet statt eine
+   * zweite zu starten: im normalen Modus startet signal-cli fuer jede
+   * Anfrage neu, und waehrend des Koppelns stauten sich sonst alle drei
+   * Sekunden weitere Abfragen hinter der ersten.
+   */
+  getAccounts(): Promise<string[] | null> {
+    if (!this.enabled) return Promise.resolve(null);
+    if (this.laufendeKontenAbfrage) return this.laufendeKontenAbfrage;
+    this.laufendeKontenAbfrage = (async () => {
+      try {
+        const response = await axios.get(`${this.apiUrl}/v1/accounts`, { timeout: 30000 });
+        this.kontenBeschaeftigt = false;
+        return Array.isArray(response.data) ? response.data.map(String) : [];
+      } catch (error: any) {
+        this.kontenBeschaeftigt = error.code === 'ECONNABORTED' || /timeout/i.test(String(error.message));
+        console.error('Signal accounts error:', error.response?.data || error.message);
+        return null;
+      } finally {
+        this.laufendeKontenAbfrage = null;
+      }
+    })();
+    return this.laufendeKontenAbfrage;
   }
 
   /**

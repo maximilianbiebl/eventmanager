@@ -260,3 +260,11 @@
     font-size: 2rem;
   }
 }
+
+/* Nach dem Scannen: Signal uebertraegt die Daten - ruhig, kein Warnton. */
+.einrichtenHinweis {
+  margin: 0.75rem 0 0;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--c-text);
+}
