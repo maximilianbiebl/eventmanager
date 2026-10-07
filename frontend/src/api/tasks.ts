@@ -238,6 +238,16 @@ export const tasksApi = {
     return response.data;
   },
 
+  /** Mehrere Aufgaben auf einen anderen Tag und/oder in eine andere Gruppe. */
+  bulkMove: async (
+    eventId: number,
+    taskIds: number[],
+    ziel: { day_number?: number; program_item_id?: number | null }
+  ): Promise<{ verschoben: number }> => {
+    const response = await client.post(`/tasks/event/${eventId}/bulk-move`, { task_ids: taskIds, ...ziel });
+    return response.data;
+  },
+
   bulkDelete: async (eventId: number, taskIds: number[]) => {
     const response = await client.post(`/tasks/event/${eventId}/bulk-delete`, { task_ids: taskIds });
     return response.data;

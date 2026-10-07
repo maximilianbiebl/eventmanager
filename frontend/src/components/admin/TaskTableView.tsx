@@ -18,6 +18,7 @@ import { GruppeBearbeitenModal } from './GruppeBearbeitenModal';
 import { CSVExportModal } from './CSVExportModal';
 import { CSVImportModal } from './CSVImportModal';
 import { StatusFilter } from './StatusFilter';
+import { VerschiebenDialog } from './VerschiebenDialog';
 import { DeaktiviertFilter, DeaktiviertWahl } from './DeaktiviertFilter';
 import { StatusCell } from './StatusCell';
 
@@ -214,6 +215,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
   const pendingActionsRef = React.useRef<number>(0);
   const [selectedTaskIds, setSelectedTaskIds] = useState<number[]>([]);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showVerschieben, setShowVerschieben] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [taskSeries, setTaskSeries] = useState<TaskSeries[]>([]);
   const [seriesMembers, setSeriesMembers] = useState<{ [seriesId: number]: { id: number; name: string }[] }>({});
@@ -1218,6 +1220,11 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
       {selectedTaskIds.length > 0 && !readOnly && (
         <div style={styles.bulkActions}>
           <span style={styles.bulkActionsText}>{selectedTaskIds.length} ausgewählt</span>
+          {eventId && (
+            <button onClick={() => setShowVerschieben(true)} style={styles.bulkMoveButton}>
+              Verschieben
+            </button>
+          )}
           <button onClick={handleBulkDelete} style={styles.bulkDeleteButton}>
             Ausgewählte löschen
           </button>
@@ -1225,6 +1232,24 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
             Auswahl aufheben
           </button>
         </div>
+      )}
+
+      {showVerschieben && eventId && (
+        <VerschiebenDialog
+          eventId={eventId}
+          taskIds={selectedTaskIds}
+          eventDays={eventDays || 1}
+          gruppen={gruppen}
+          onClose={() => setShowVerschieben(false)}
+          onFertig={(anzahl) => {
+            setShowVerschieben(false);
+            setSelectedTaskIds([]);
+            setSuccessMessage(`${anzahl === 1 ? '1 Aufgabe' : `${anzahl} Aufgaben`} verschoben`);
+            setTimeout(() => setSuccessMessage(''), 3000);
+            loadAssignments(false);
+            onTasksChanged?.();
+          }}
+        />
       )}
 
       {showExportModal && eventId && (
@@ -1537,6 +1562,15 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '0.875rem',
     fontWeight: '500',
     color: 'var(--c-text)',
+  },
+  bulkMoveButton: {
+    padding: '0.5rem 1rem',
+    backgroundColor: 'var(--c-accent)',
+    color: 'var(--c-text-inverse)',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
   },
   bulkDeleteButton: {
     padding: '0.5rem 1rem',

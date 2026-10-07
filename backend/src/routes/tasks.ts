@@ -2067,6 +2067,95 @@ router.post('/event/:eventId/bulk-delete', authMiddleware, teamleiterOrAdminMidd
   }
 });
 
+/*
+ * Mehrere Aufgaben auf einmal verschieben - auf einen anderen Tag und/oder
+ * in eine andere Aufgabengruppe.
+ *
+ *   day_number        Zieltag; fehlt er, bleibt jede Aufgabe an ihrem Tag
+ *   program_item_id   Zielgruppe (Zahl), null = keine Gruppe,
+ *                     fehlt er = Gruppe behalten
+ *
+ * Eine Gruppe gehoert zu genau einem Tag. Wechselt eine Aufgabe den Tag und
+ * soll ihre Gruppe "behalten", verliert sie die Gruppe trotzdem - sonst
+ * stuende sie unter einer Ueberschrift eines anderen Tages und waere in
+ * keiner Ansicht mehr zu finden. Eine Zielgruppe muss zum Zieltag passen.
+ *
+ * Einsortiert wird wie beim Anlegen: in der Gruppe bzw. am Tag nach Uhrzeit.
+ * Gehoert die Zielgruppe zu einer Serie, bekommt deren Team die Aufgaben.
+ * "Ueberfaellig" wird beim Tageswechsel zurueckgesetzt - die Aufgabe hat
+ * jetzt einen neuen Termin.
+ */
+router.post('/event/:eventId/bulk-move', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req => req.params.eventId), async (req: AuthRequest, res) => {
+  try {
+    const eventId = Number(req.params.eventId);
+    const { task_ids, day_number } = req.body;
+    const gruppeAngegeben = Object.prototype.hasOwnProperty.call(req.body, 'program_item_id');
+    const zielGruppe = gruppeAngegeben && req.body.program_item_id !== null
+      ? Number(req.body.program_item_id) : null;
+
+    const ids: number[] = Array.isArray(task_ids)
+      ? task_ids.map((n: unknown) => Number(n)).filter((n: number) => Number.isInteger(n))
+      : [];
+    if (ids.length === 0) return res.status(400).json({ error: 'Keine Aufgaben ausgewählt' });
+
+    const ev = await query('SELECT days FROM events WHERE id = $1', [eventId]);
+    if (ev.rows.length === 0) return res.status(404).json({ error: 'Veranstaltung nicht gefunden' });
+
+    let zielTag: number | null = null;
+    if (day_number !== undefined && day_number !== null) {
+      zielTag = Number(day_number);
+      if (!Number.isInteger(zielTag) || zielTag < 1 || zielTag > Number(ev.rows[0].days)) {
+        return res.status(400).json({ error: `Tag ${day_number} gibt es in dieser Veranstaltung nicht` });
+      }
+    }
+
+    let gruppe: any = null;
+    if (zielGruppe !== null) {
+      const g = await query('SELECT * FROM program_items WHERE id = $1 AND event_id = $2', [zielGruppe, eventId]);
+      if (g.rows.length === 0) return res.status(400).json({ error: 'Aufgabengruppe nicht gefunden' });
+      gruppe = g.rows[0];
+      if (zielTag === null) zielTag = gruppe.day_number;
+      if (gruppe.day_number !== zielTag) {
+        return res.status(400).json({ error: 'Die Aufgabengruppe gehört zu einem anderen Tag' });
+      }
+    }
+
+    const vorher = await query(
+      'SELECT id, day_number, program_item_id, status FROM tasks WHERE id = ANY($1::int[]) AND event_id = $2 ORDER BY day_number, sort_order, id',
+      [ids, eventId]
+    );
+
+    for (const t of vorher.rows) {
+      const tag = zielTag ?? t.day_number;
+      const tagWechsel = tag !== t.day_number;
+      const neueGruppe = gruppeAngegeben
+        ? zielGruppe
+        : (tagWechsel ? null : t.program_item_id);
+      const neuerStatus = tagWechsel && t.status === 'overdue' ? 'not_started' : t.status;
+
+      await query(
+        `UPDATE tasks SET day_number = $1, program_item_id = $2, status = $3::varchar,
+                status_changed_at = CASE WHEN $3::varchar <> status THEN NOW() ELSE status_changed_at END
+         WHERE id = $4`,
+        [tag, neueGruppe, neuerStatus, t.id]
+      );
+      if (neueGruppe !== t.program_item_id || tagWechsel) {
+        if (neueGruppe) await einsortierenInGruppe(neueGruppe, t.id);
+        else await einsortierenNachZeit(eventId, tag, 'aufgabe', t.id);
+      }
+    }
+
+    if (gruppe?.series_id) await syncSeriesAssignments(gruppe.series_id);
+
+    broadcastUpdate('task', { action: 'bulk_move', taskIds: vorher.rows.map((t: any) => t.id), eventId });
+    const n = vorher.rows.length;
+    res.json({ message: `${n} ${n === 1 ? 'Aufgabe' : 'Aufgaben'} verschoben`, verschoben: n });
+  } catch (error) {
+    console.error('Bulk move tasks error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
 // Bulk Assign Tasks
 router.post('/instance/:instanceId/bulk-assign', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req => eventIdVonInstanz(req.params.instanceId)), async (req, res) => {
   try {
