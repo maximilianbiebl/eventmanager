@@ -7,7 +7,7 @@
 # den Signal-Dienst NICHT (er ist ein fertiges Abbild von Docker Hub,
 # bbernhard/signal-cli-rest-api) - das tut nur "docker-compose pull".
 #
-# Ablauf:
+# Ablauf eines Updates:
 #   1. Laeuft gerade eine Veranstaltung, wird nichts angefasst - mitten in
 #      der Freizeit soll kein Update etwas kaputt machen. (--jetzt erzwingt.)
 #   2. Neue Fassung holen. Docker prueft dabei die Pruefsummen jeder Schicht;
@@ -18,13 +18,16 @@
 #      noch da?
 #   5. Wenn nicht: zurueck zur gesicherten Fassung, Fehler melden.
 #
-# Aufruf:  ./signal-update.sh            normal (fuer den Zeitplan)
-#          ./signal-update.sh --jetzt    auch waehrend einer Veranstaltung
+# Aufruf:  ./signal-update.sh --einrichten   Zeitplan einrichten oder aendern
+#          ./signal-update.sh --status       Zeitplan, naechster Lauf, letzte Ergebnisse
+#          ./signal-update.sh                jetzt aktualisieren
+#          ./signal-update.sh --jetzt        jetzt, auch waehrend einer Veranstaltung
+#
+# Nach Zeitplan laeuft das Skript im Dienst "signal-updater"
+# (docker-compose.yml, Ordner signal-updater/).
 #
 # Rueckgabe: 0 = alles gut (aktualisiert, schon aktuell oder bewusst
 # uebersprungen), 1 = Problem - siehe signal-update.log.
-#
-# Einrichten auf der Synology: siehe README, "Signal-Dienst aktuell halten".
 
 set -u
 cd "$(dirname "$0")"
@@ -42,12 +45,153 @@ if [ -f .env ]; then
   WERT=$(grep -E '^SIGNAL_PORT=' .env | tail -1 | cut -d= -f2 | tr -d '"'"'"' ')
   [ -n "${WERT:-}" ] && SIGNAL_PORT="$WERT"
 fi
-API="http://localhost:${SIGNAL_PORT}"
+# Im Update-Dienst wird signal-cli ueber das Docker-Netz erreicht.
+API="${SIGNAL_API:-http://localhost:${SIGNAL_PORT}}"
 
 if docker compose version >/dev/null 2>&1; then DC="docker compose"; else DC="docker-compose"; fi
 
 JETZT=0
 [ "${1:-}" = "--jetzt" ] && JETZT=1
+
+KONF="signal-update.conf"
+TAGNAMEN=(Sonntag Montag Dienstag Mittwoch Donnerstag Freitag Samstag)
+
+lies_konf() {
+  AKTIV=ja; TAG=1; UHRZEIT=04:30; WAEHREND_VERANSTALTUNG=nein; EINGERICHTET=0
+  if [ -f "$KONF" ]; then
+    # shellcheck disable=SC1090
+    . "./$KONF"; EINGERICHTET=1
+  fi
+}
+
+plan_text() {
+  if [ "$AKTIV" != "ja" ]; then echo "ausgeschaltet"; return; fi
+  local wann
+  if [ "$TAG" = "*" ]; then wann="täglich"; else wann="jeden ${TAGNAMEN[$TAG]}"; fi
+  echo "$wann um $UHRZEIT Uhr$([ "$WAEHREND_VERANSTALTUNG" = "ja" ] && echo ", auch während Veranstaltungen" || echo ", nicht während Veranstaltungen")"
+}
+
+# Naechster Termin nach dem Plan, als lesbarer Text.
+naechster_lauf() {
+  [ "$AKTIV" = "ja" ] || return
+  local i t
+  for i in $(seq 0 7); do
+    t=$(date -d "today +$i day $UHRZEIT" +%s 2>/dev/null) || return
+    [ "$t" -le "$(date +%s)" ] && continue
+    if [ "$TAG" = "*" ] || [ "$(date -d "@$t" +%w)" = "$TAG" ]; then
+      echo "${TAGNAMEN[$(date -d "@$t" +%w)]}, $(date -d "@$t" '+%d.%m.%Y um %H:%M') Uhr"
+      return
+    fi
+  done
+}
+
+dienst_laeuft() { docker ps --filter name=eventmanager-signal-updater --filter status=running -q 2>/dev/null | grep -q .; }
+
+zeige_status() {
+  lies_konf
+  echo "Automatische Signal-Updates"
+  echo "  Zeitplan:        $(plan_text)$([ "$EINGERICHTET" = 0 ] && echo "  (Standard - noch nicht eingerichtet)")"
+  if dienst_laeuft; then
+    echo "  Update-Dienst:   läuft"
+    local n; n=$(naechster_lauf); [ -n "$n" ] && echo "  Nächster Lauf:   $n"
+  else
+    echo "  Update-Dienst:   läuft NICHT - einrichten mit: ./signal-update.sh --einrichten"
+  fi
+  if [ -f "$LOG" ]; then
+    echo
+    echo "Letzte Ergebnisse (aus $LOG):"
+    grep -E "Update erfolgreich|ist aktuell|uebersprungen|FEHLER|fehlgeschlagen" "$LOG" | tail -5 | sed 's/^/  /'
+  fi
+}
+
+# Frage mit Vorgabe; Enter uebernimmt die Vorgabe.
+frage() { local antwort; read -r -p "$1 [$2]: " antwort; echo "${antwort:-$2}"; }
+
+einrichten() {
+  if [ ! -t 0 ]; then echo "Der Assistent braucht ein Terminal."; exit 1; fi
+  lies_konf
+  echo "Automatische Signal-Updates einrichten"
+  echo "--------------------------------------"
+  if [ "$EINGERICHTET" = 1 ]; then echo "Bisher: $(plan_text)"; else echo "Noch nicht eingerichtet."; fi
+  echo "Enter übernimmt den Wert in Klammern."
+  echo
+
+  local ja_nein
+  ja_nein=$(frage "Signal automatisch aktuell halten? (j/n)" "$([ "$AKTIV" = "ja" ] && echo j || echo n)")
+  case "$ja_nein" in [nN]*) AKTIV=nein ;; *) AKTIV=ja ;; esac
+
+  if [ "$AKTIV" = "ja" ]; then
+    echo
+    echo "Wie oft? Einmal pro Woche reicht: signal-cli erscheint etwa monatlich neu,"
+    echo "und Signal sperrt alte Fassungen erst nach Monaten."
+    echo "  1 Montag  2 Dienstag  3 Mittwoch  4 Donnerstag  5 Freitag  6 Samstag  7 Sonntag"
+    echo "  t täglich"
+    local vorgabe wahl
+    if [ "$TAG" = "*" ]; then vorgabe=t; elif [ "$TAG" = 0 ]; then vorgabe=7; else vorgabe=$TAG; fi
+    while true; do
+      wahl=$(frage "Tag" "$vorgabe")
+      case "$wahl" in
+        [tT]*) TAG='*'; break ;;
+        [1-6]) TAG=$wahl; break ;;
+        7) TAG=0; break ;;
+        *) echo "  Bitte 1-7 oder t." ;;
+      esac
+    done
+    while true; do
+      wahl=$(frage "Uhrzeit (HH:MM) - am besten nachts" "$UHRZEIT")
+      if [[ "$wahl" =~ ^([01]?[0-9]|2[0-3]):([0-5][0-9])$ ]]; then
+        UHRZEIT=$(printf '%02d:%s' "$((10#${BASH_REMATCH[1]}))" "${BASH_REMATCH[2]}"); break
+      fi
+      echo "  Bitte als Uhrzeit, z. B. 04:30."
+    done
+    echo
+    echo "Während einer laufenden Veranstaltung wird normalerweise nicht aktualisiert -"
+    echo "damit mitten in der Freizeit nichts kaputtgehen kann."
+    ja_nein=$(frage "Trotzdem auch während Veranstaltungen aktualisieren? (j/n)" "$([ "$WAEHREND_VERANSTALTUNG" = "ja" ] && echo j || echo n)")
+    case "$ja_nein" in [jJ]*) WAEHREND_VERANSTALTUNG=ja ;; *) WAEHREND_VERANSTALTUNG=nein ;; esac
+  fi
+
+  cat > "$KONF" <<KONFIG
+# Zeitplan fuer automatische Signal-Updates.
+# Geschrieben von ./signal-update.sh --einrichten - am besten dort aendern.
+AKTIV=$AKTIV
+TAG='$TAG'        # 0=So, 1=Mo ... 6=Sa, * = taeglich
+UHRZEIT=$UHRZEIT
+WAEHREND_VERANSTALTUNG=$WAEHREND_VERANSTALTUNG
+KONFIG
+
+  echo
+  echo "Gespeichert: $(plan_text)"
+  echo "Update-Dienst wird gestartet bzw. neu gestartet ..."
+  if ! $DC up -d --build signal-updater >>"$LOG" 2>&1 || ! $DC restart signal-updater >>"$LOG" 2>&1; then
+    echo "FEHLER: Der Update-Dienst liess sich nicht starten - Details in $LOG."
+    echo "Laufen die anderen Dienste? (docker-compose up -d)"
+    exit 1
+  fi
+  sleep 2
+  if ! dienst_laeuft; then
+    echo "FEHLER: Der Update-Dienst laeuft nicht. Ausgabe:"
+    docker logs --tail 20 eventmanager-signal-updater 2>&1 | sed 's/^/  /'
+    exit 1
+  fi
+  echo "Fertig."
+  [ "$AKTIV" = "ja" ] && echo "Nächster Lauf: $(naechster_lauf)"
+  echo
+
+  if [ "$AKTIV" = "ja" ]; then
+    ja_nein=$(frage "Jetzt einmal prüfen, ob ein Update da ist? (j/n)" "n")
+    case "$ja_nein" in
+      [jJ]*) echo; $DC exec -T signal-updater signal-update-lauf ;;
+    esac
+  fi
+  echo
+  echo "Ändern: nochmal ./signal-update.sh --einrichten  ·  Stand: ./signal-update.sh --status"
+}
+
+case "${1:-}" in
+  --einrichten|--aendern) einrichten; exit 0 ;;
+  --status) zeige_status; exit 0 ;;
+esac
 
 log() { echo "$(date '+%Y-%m-%d %H:%M:%S') $*" | tee -a "$LOG"; }
 

@@ -285,22 +285,30 @@ Dafür gibt es `signal-update.sh`. Es
 4. prüft, ob der Dienst antwortet und alle gekoppelten Konten noch da sind,
 5. und kehrt sonst automatisch zur bisherigen Fassung zurück.
 
-Alles steht in `signal-update.log`. Von Hand: `./signal-update.sh`
-(während einer Veranstaltung: `./signal-update.sh --jetzt`).
+Alles steht in `signal-update.log`.
 
-**Automatisch, einmal pro Woche** – auf der Synology unter
-*Systemsteuerung → Aufgabenplanung → Erstellen → Geplante Aufgabe →
-Benutzerdefiniertes Skript*:
+**Automatisch nach Zeitplan** – dafür gibt es den kleinen Dienst
+`signal-updater` (in `docker-compose.yml`). Einrichten und später ändern
+mit demselben Assistenten:
 
-- Benutzer: `root`
-- Zeitplan: wöchentlich, z. B. montags 04:30
-- Befehl: `/volume1/docker/eventmanager/signal-update.sh`
-- *Ausführungsdetails per E-Mail senden* → *nur bei abnormalem Ende*: dann
-  meldet sich die NAS nur, wenn ein Update nicht geklappt hat.
+```bash
+sudo ./signal-update.sh --einrichten   # Zeitplan festlegen oder ändern, Dienst (neu) starten
+sudo ./signal-update.sh --status       # Zeitplan, nächster Lauf, letzte Ergebnisse
+sudo ./signal-update.sh                # jetzt aktualisieren (--jetzt: auch während einer Veranstaltung)
+```
+
+Der Assistent fragt: an/aus, Wochentag (oder täglich), Uhrzeit, und ob auch
+während einer Veranstaltung aktualisiert werden darf. Er speichert das in
+`signal-update.conf` und startet den Dienst neu. Ohne Einrichtung läuft der
+Dienst montags um 04:30.
 
 Wöchentlich reicht: signal-cli erscheint etwa monatlich neu, und Signal
 sperrt alte Fassungen erst nach Monaten. Täglich brächte nichts, kostet
 aber jedes Mal einen Neustart des Dienstes.
+
+Der Dienst braucht Zugriff auf Docker (`/var/run/docker.sock`), um
+signal-cli zu erneuern. Deshalb ist es ein eigener kleiner Dienst ohne
+offenen Port – und nicht das Backend, das aus dem Netz erreichbar ist.
 
 Bestehende Kopplungen bleiben bei Updates erhalten (Volume `signal_data`).
 Damit Signal die Kopplung nicht wegen Inaktivität löst, meldet sich der

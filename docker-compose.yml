@@ -75,6 +75,25 @@ services:
     networks:
       - eventmanager-network
 
+  # Haelt signal-cli aktuell (signal-update.sh nach Zeitplan).
+  # Einrichten / aendern: ./signal-update.sh --einrichten
+  # Braucht Zugriff auf Docker, um signal-cli zu erneuern - deshalb ein
+  # eigener kleiner Dienst und nicht das Backend, das im Netz erreichbar ist.
+  signal-updater:
+    build:
+      context: ./signal-updater
+    container_name: eventmanager-signal-updater
+    environment:
+      TZ: Europe/Berlin
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./:/projekt
+    depends_on:
+      - signal-cli
+    restart: unless-stopped
+    networks:
+      - eventmanager-network
+
 volumes:
   postgres_data:
   signal_data:
