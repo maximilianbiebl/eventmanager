@@ -254,3 +254,49 @@
     justify-content: flex-end;
   }
 }
+
+/*
+ * Auswahlleiste (angehakte Aufgaben).
+ * Breit: Anzahl, die Knoepfe, rechts "Auswahl aufheben".
+ * Handy: oben Anzahl und "Auswahl aufheben", darunter die drei Knoepfe
+ * gleich breit in einer Reihe - vorher brach jeder Knopf fuer sich um.
+ */
+.bulkKnoepfe {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.bulkAufheben {
+  margin-left: auto;
+}
+
+@media (max-width: 640px) {
+  .bulkLeiste {
+    display: grid !important;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "anzahl aufheben"
+      "knoepfe knoepfe";
+    padding: 0.75rem !important;
+    gap: 0.6rem !important;
+  }
+
+  .bulkAnzahl { grid-area: anzahl; }
+
+  .bulkAufheben {
+    grid-area: aufheben;
+    margin-left: 0;
+  }
+
+  .bulkKnoepfe {
+    grid-area: knoepfe;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  }
+
+  .bulkKnoepfe > button {
+    padding-left: 0.25rem !important;
+    padding-right: 0.25rem !important;
+    min-width: 0;
+  }
+}

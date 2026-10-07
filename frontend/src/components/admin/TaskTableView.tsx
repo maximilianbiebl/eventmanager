@@ -215,7 +215,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
   const pendingActionsRef = React.useRef<number>(0);
   const [selectedTaskIds, setSelectedTaskIds] = useState<number[]>([]);
   const [showExportModal, setShowExportModal] = useState(false);
-  const [showVerschieben, setShowVerschieben] = useState(false);
+  const [showVerschieben, setShowVerschieben] = useState<false | 'verschieben' | 'kopieren'>(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [taskSeries, setTaskSeries] = useState<TaskSeries[]>([]);
   const [seriesMembers, setSeriesMembers] = useState<{ [seriesId: number]: { id: number; name: string }[] }>({});
@@ -1255,17 +1255,26 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
           Export erhalten. */}
 
       {selectedTaskIds.length > 0 && !readOnly && (
-        <div style={styles.bulkActions}>
-          <span style={styles.bulkActionsText}>{selectedTaskIds.length} ausgewählt</span>
-          {eventId && (
-            <button onClick={() => setShowVerschieben(true)} style={styles.bulkMoveButton}>
-              Verschieben / Kopieren
+        <div style={styles.bulkActions} className={responsiveStyles.bulkLeiste}>
+          <span style={styles.bulkActionsText} className={responsiveStyles.bulkAnzahl}>{selectedTaskIds.length} ausgewählt</span>
+          {/* Kurze Namen, gleich breit - am Handy eine Reihe aus drei Knoepfen
+              statt eines Flickenteppichs aus umbrochenen Zeilen. */}
+          <div className={responsiveStyles.bulkKnoepfe}>
+            {eventId && (
+              <>
+                <button onClick={() => setShowVerschieben('verschieben')} style={styles.bulkMoveButton}>
+                  Verschieben
+                </button>
+                <button onClick={() => setShowVerschieben('kopieren')} style={styles.bulkMoveButton}>
+                  Kopieren
+                </button>
+              </>
+            )}
+            <button onClick={handleBulkDelete} style={styles.bulkDeleteButton}>
+              Löschen
             </button>
-          )}
-          <button onClick={handleBulkDelete} style={styles.bulkDeleteButton}>
-            Ausgewählte löschen
-          </button>
-          <button onClick={() => setSelectedTaskIds([])} style={styles.bulkCancelButton}>
+          </div>
+          <button onClick={() => setSelectedTaskIds([])} style={styles.bulkCancelButton} className={responsiveStyles.bulkAufheben}>
             Auswahl aufheben
           </button>
         </div>
@@ -1274,6 +1283,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
       {showVerschieben && eventId && (
         <VerschiebenDialog
           eventId={eventId}
+          startArt={showVerschieben}
           taskIds={selectedTaskIds}
           eventDays={eventDays || 1}
           gruppen={gruppen}
@@ -1589,7 +1599,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   bulkActions: {
     display: 'flex',
     alignItems: 'center',
-    // Vier Bedienelemente - am Handy passen sie nicht in eine Zeile.
+    // Anordnung am Handy: TaskTableView.module.css (bulkLeiste).
     flexWrap: 'wrap',
     gap: '0.5rem 1rem',
     padding: '0.75rem 1rem',
@@ -1623,9 +1633,9 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   bulkCancelButton: {
     padding: '0.5rem 1rem',
-    backgroundColor: 'var(--c-text-muted)',
-    color: 'var(--c-text-inverse)',
-    border: 'none',
+    backgroundColor: 'transparent',
+    color: 'var(--c-text)',
+    border: '1px solid var(--c-border-strong)',
     borderRadius: '4px',
     cursor: 'pointer',
     fontSize: '0.875rem',

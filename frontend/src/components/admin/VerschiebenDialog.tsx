@@ -8,8 +8,8 @@ import { tasksApi } from '../../api/tasks';
  * Auswahlleiste der Tabelle. (Die Reihenfolge aendern die Pfeile - sie
  * nehmen alle markierten mit.)
  *
- * Eine Kopie beginnt als "nicht begonnen", ohne Notiz; die Einteilungen
- * kommen nur mit, wenn das Haekchen gesetzt ist.
+ * Eine Kopie beginnt als "nicht begonnen"; Einteilungen und Notizen
+ * kommen nur mit, wenn das jeweilige Haekchen gesetzt ist.
  *
  * Eine Gruppe gehoert zu genau einem Tag. Deshalb bietet die Gruppenliste
  * nur die Gruppen des gewaehlten Tages an, und "Gruppe behalten" gibt es nur,
@@ -20,6 +20,8 @@ import { tasksApi } from '../../api/tasks';
 
 interface Props {
   eventId: number;
+  /** Womit das Fenster aufgeht - je nach Knopf in der Auswahlleiste. */
+  startArt?: 'verschieben' | 'kopieren';
   taskIds: number[];
   eventDays: number;
   gruppen: TaskGroup[];
@@ -30,8 +32,9 @@ interface Props {
 const BEHALTEN = 'behalten';
 const KEINE = 'keine';
 
-export const VerschiebenDialog: React.FC<Props> = ({ eventId, taskIds, eventDays, gruppen, onClose, onFertig }) => {
-  const [art, setArt] = useState<'verschieben' | 'kopieren'>('verschieben');
+export const VerschiebenDialog: React.FC<Props> = ({ eventId, startArt = 'verschieben', taskIds, eventDays, gruppen, onClose, onFertig }) => {
+  const [art, setArt] = useState<'verschieben' | 'kopieren'>(startArt);
+  const [mitNotiz, setMitNotiz] = useState(false);
   const [mitEinteilung, setMitEinteilung] = useState(false);
   const [tag, setTag] = useState<string>(BEHALTEN);
   const [gruppe, setGruppe] = useState<string>(BEHALTEN);
@@ -61,7 +64,7 @@ export const VerschiebenDialog: React.FC<Props> = ({ eventId, taskIds, eventDays
             ? `Von ${anzahl === 1 ? 'der Aufgabe' : `jeder der ${anzahl} Aufgaben`} entsteht eine Kopie am selben Tag, in derselben Gruppe.`
             : `Kopien entstehen am selben Tag${zielText}.`)
         : `Kopien entstehen auf Tag ${tagZahl}${zielText}.`)
-      + ` ${anzahl === 1 ? 'Sie beginnt' : 'Sie beginnen'} als „nicht begonnen“${mitEinteilung ? ', mit denselben Leuten eingeteilt' : ', ohne Einteilung'}.`
+      + ` ${anzahl === 1 ? 'Sie beginnt' : 'Sie beginnen'} als „nicht begonnen“${mitEinteilung ? ', mit denselben Leuten eingeteilt' : ', ohne Einteilung'}${mitNotiz ? ' und mit ihrer Notiz' : ''}.`
     : tagZahl === null
       ? (gruppe === BEHALTEN ? 'Es ändert sich nichts.' : `${aufgaben} bleiben an ihrem Tag und kommen ${gruppe === KEINE ? 'aus ihrer Gruppe heraus' : `in „${gruppenName}“`}.`)
       : `${aufgaben} kommen auf Tag ${tagZahl}${zielText}.`;
@@ -77,7 +80,7 @@ export const VerschiebenDialog: React.FC<Props> = ({ eventId, taskIds, eventDays
       if (gruppe === KEINE) daten.program_item_id = null;
       else if (gruppe !== BEHALTEN) daten.program_item_id = Number(gruppe);
       if (kopieren) {
-        const antwort = await tasksApi.bulkCopy(eventId, taskIds, { ...daten, mit_zuweisungen: mitEinteilung });
+        const antwort = await tasksApi.bulkCopy(eventId, taskIds, { ...daten, mit_zuweisungen: mitEinteilung, mit_notiz: mitNotiz });
         onFertig(antwort.kopiert ?? anzahl, true);
       } else {
         const antwort = await tasksApi.bulkMove(eventId, taskIds, daten);
@@ -132,6 +135,12 @@ export const VerschiebenDialog: React.FC<Props> = ({ eventId, taskIds, eventDays
           <label style={stil.haken}>
             <input type="checkbox" checked={mitEinteilung} onChange={(e) => setMitEinteilung(e.target.checked)} />
             Einteilungen mitkopieren
+          </label>
+        )}
+        {kopieren && (
+          <label style={{ ...stil.haken, marginTop: '0.4rem' }}>
+            <input type="checkbox" checked={mitNotiz} onChange={(e) => setMitNotiz(e.target.checked)} />
+            Notizen mitkopieren
           </label>
         )}
 

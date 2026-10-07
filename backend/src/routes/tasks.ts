@@ -2184,14 +2184,14 @@ router.post('/event/:eventId/bulk-move', authMiddleware, teamleiterOrAdminMiddle
 /*
  * Markierte Aufgaben kopieren - auf einen anderen Tag und/oder in eine
  * andere Gruppe, gleiche Regeln wie beim Verschieben oben. Die Kopie
- * beginnt frisch ("nicht begonnen"); die interne Notiz bleibt beim
- * Original, sie gilt fast immer nur dort. Zuweisungen werden auf Wunsch
- * mitgenommen (mit_zuweisungen), wie beim Kopieren einer ganzen Gruppe.
+ * beginnt frisch ("nicht begonnen"). Zuweisungen (mit_zuweisungen) und
+ * die interne Notiz (mit_notiz) kommen nur auf Wunsch mit - eine Notiz
+ * gilt oft nur fuer das Original.
  */
 router.post('/event/:eventId/bulk-copy', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req => req.params.eventId), async (req: AuthRequest, res) => {
   try {
     const eventId = Number(req.params.eventId);
-    const { task_ids, day_number, mit_zuweisungen = false } = req.body;
+    const { task_ids, day_number, mit_zuweisungen = false, mit_notiz = false } = req.body;
     const gruppeAngegeben = Object.prototype.hasOwnProperty.call(req.body, 'program_item_id');
     const zielGruppe = gruppeAngegeben && req.body.program_item_id !== null
       ? Number(req.body.program_item_id) : null;
@@ -2242,12 +2242,13 @@ router.post('/event/:eventId/bulk-copy', authMiddleware, teamleiterOrAdminMiddle
         `INSERT INTO tasks
            (event_id, program_item_id, day_number, title, description, scheduled_time,
             reminder_minutes, start_time, end_time, is_public, status, is_active,
-            sort_order, series_id, needed_staff, needed_female, needed_male, auto_complete)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'not_started', $11, $12, $13, $14, $15, $16, $17)
+            sort_order, series_id, needed_staff, needed_female, needed_male, auto_complete, note)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'not_started', $11, $12, $13, $14, $15, $16, $17, $18)
          RETURNING id`,
         [eventId, neueGruppe, tag, a.title, a.description, a.scheduled_time,
          a.reminder_minutes, a.start_time, a.end_time, a.is_public, a.is_active,
-         a.sort_order, a.series_id, a.needed_staff, a.needed_female, a.needed_male, a.auto_complete]
+         a.sort_order, a.series_id, a.needed_staff, a.needed_female, a.needed_male, a.auto_complete,
+         mit_notiz === true ? a.note : null]
       );
       const neueId = kopie.rows[0].id;
       neueIds.push(neueId);
