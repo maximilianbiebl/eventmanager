@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { query } from '../database/connection';
 import { authMiddleware, teamleiterOrAdminMiddleware, AuthRequest } from '../middleware/auth';
 import { signalService } from '../services/signal';
-import * as QRCode from 'qrcode';
+import { pruefeKopplungenGedrosselt } from '../services/signalKopplung';
 
 const router = Router();
 
@@ -25,42 +25,51 @@ router.get('/health', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
+/*
+ * Wer gerade koppelt, mit den Konten, die signal-cli VORHER schon kannte.
+ * Neu gekoppelt ist das Konto, das danach dazukommt. Nur im Speicher: nach
+ * einem Neustart des Servers wird einfach neu gekoppelt.
+ */
+const laufendeKopplungen = new Map<number, { vorher: Set<string>; seit: number }>();
+const KOPPLUNG_GUELTIG_MS = 10 * 60 * 1000;
+
 /**
- * Teamleiter/Admin: Signal-Account einrichten - Generiert QR-Code für Linking
+ * Teamleiter/Admin: Signal koppeln - erzeugt den QR-Code.
  */
 router.post('/setup', authMiddleware, teamleiterOrAdminMiddleware, async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id;
 
-    // Generiere temporäre Account-Nummer (wird später durch echte ersetzt)
-    const accountNumber = `+temp${userId}${Date.now()}`;
+    // Reste einer verlorenen Kopplung derselben Person zuerst aufraeumen -
+    // nur wenn signal-cli sie selbst nicht mehr fuer gueltig haelt.
+    const alt = await query('SELECT signal_account_number FROM users WHERE id = $1', [userId]);
+    const alteNummer = alt.rows[0]?.signal_account_number;
+    if (alteNummer && !String(alteNummer).startsWith('+temp')) {
+      await signalService.loescheLokaleDaten(alteNummer, false);
+    }
 
-    // Registriere Account und hole QR-Code-Bild direkt von Signal-CLI
-    const qrCodeDataUrl = await signalService.registerAccount(accountNumber);
+    const { qrCode, vorher } = await signalService.startLink();
+    laufendeKopplungen.set(userId, { vorher: new Set(vorher), seit: Date.now() });
 
-    // Speichere temporär in Datenbank
-    await query(
-      'UPDATE users SET signal_account_number = $1, signal_linked = false WHERE id = $2',
-      [accountNumber, userId]
-    );
+    await query('UPDATE users SET signal_linked = false WHERE id = $1', [userId]);
 
     res.json({
-      qrCode: qrCodeDataUrl,
-      linkUri: qrCodeDataUrl,  // Gleiche Data URL für Kompatibilität
-      accountNumber: accountNumber,
-      message: 'Scannen Sie den QR-Code mit Signal auf Ihrem Handy'
+      qrCode,
+      linkUri: qrCode,
+      accountNumber: '',
+      message: 'Scanne den QR-Code mit Signal auf deinem Handy',
     });
   } catch (error: any) {
     console.error('Signal setup error:', error);
     res.status(500).json({
-      error: 'Fehler beim Einrichten von Signal',
-      details: error.message
+      error: 'Signal konnte nicht eingerichtet werden',
+      details: error.message,
     });
   }
 });
 
 /**
- * Teamleiter/Admin: Prüfe ob Account erfolgreich gelinkt wurde
+ * Teamleiter/Admin: Ist die Kopplung inzwischen zustande gekommen?
  */
 router.get('/check-link', authMiddleware, teamleiterOrAdminMiddleware, async (req: AuthRequest, res) => {
   try {
@@ -70,32 +79,35 @@ router.get('/check-link', authMiddleware, teamleiterOrAdminMiddleware, async (re
       'SELECT signal_account_number, signal_linked FROM users WHERE id = $1',
       [userId]
     );
-
-    if (userResult.rows.length === 0 || !userResult.rows[0].signal_account_number) {
-      return res.json({ linked: false });
-    }
-
     const user = userResult.rows[0];
-
-    // Wenn bereits als gelinkt markiert, gib true zurück
+    if (!user) return res.json({ linked: false });
     if (user.signal_linked) {
       return res.json({ linked: true, accountNumber: user.signal_account_number });
     }
 
-    // Prüfe bei Signal-CLI ob ein Account gelinkt ist und hole echte Telefonnummer
-    const realAccountNumber = await signalService.getLinkedAccountNumber();
-
-    if (realAccountNumber) {
-      // Aktualisiere Datenbank mit echter Telefonnummer
-      await query(
-        'UPDATE users SET signal_account_number = $1, signal_linked = true, signal_linked_at = NOW() WHERE id = $2',
-        [realAccountNumber, userId]
-      );
-
-      return res.json({ linked: true, accountNumber: realAccountNumber });
+    const laufend = laufendeKopplungen.get(userId);
+    if (!laufend || Date.now() - laufend.seit > KOPPLUNG_GUELTIG_MS) {
+      laufendeKopplungen.delete(userId);
+      return res.json({ linked: false, abgelaufen: true });
     }
 
-    res.json({ linked: false });
+    const jetzt = await signalService.getAccounts();
+    if (jetzt === null) return res.json({ linked: false });
+
+    // Neu ist, was vor dem QR-Code noch nicht da war.
+    const neu = jetzt.filter((n) => !laufend.vorher.has(n));
+    if (neu.length === 0) return res.json({ linked: false });
+
+    const nummer = neu[0];
+    await query(
+      `UPDATE users SET signal_account_number = $1, signal_linked = true,
+                        signal_linked_at = NOW(), signal_getrennt_am = NULL
+       WHERE id = $2`,
+      [nummer, userId]
+    );
+    laufendeKopplungen.delete(userId);
+    console.log(`[Signal] ${nummer} gekoppelt`);
+    res.json({ linked: true, accountNumber: nummer });
   } catch (error: any) {
     console.error('Signal check-link error:', error);
     res.status(500).json({ error: 'Fehler beim Prüfen der Verbindung' });
@@ -103,27 +115,35 @@ router.get('/check-link', authMiddleware, teamleiterOrAdminMiddleware, async (re
 });
 
 /**
- * Teamleiter/Admin: Trenne Signal-Verbindung
+ * Teamleiter/Admin: Signal-Verbindung trennen.
+ *
+ * Ein gekoppeltes Geraet kann sich nicht selbst aus dem Handy austragen.
+ * Hier verschwinden die Daten in signal-cli; in Signal selbst entfernt man
+ * "Event Manager" unter "Verknuepfte Geraete".
  */
 router.post('/unlink', authMiddleware, teamleiterOrAdminMiddleware, async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id;
 
-    const userResult = await query(
-      'SELECT signal_account_number FROM users WHERE id = $1',
-      [userId]
-    );
+    const userResult = await query('SELECT signal_account_number FROM users WHERE id = $1', [userId]);
+    const nummer = userResult.rows[0]?.signal_account_number;
 
-    if (userResult.rows.length > 0 && userResult.rows[0].signal_account_number) {
-      // Trenne bei Signal-CLI
-      await signalService.unlinkAccount(userResult.rows[0].signal_account_number);
+    // Nur loeschen, wenn niemand sonst dieselbe Nummer gekoppelt hat.
+    if (nummer) {
+      const andere = await query(
+        'SELECT 1 FROM users WHERE signal_account_number = $1 AND id <> $2 AND signal_linked = true LIMIT 1',
+        [nummer, userId]
+      );
+      if (andere.rows.length === 0) await signalService.loescheLokaleDaten(nummer, true);
     }
 
-    // Lösche aus Datenbank
     await query(
-      'UPDATE users SET signal_account_number = NULL, signal_device_id = NULL, signal_linked = false, signal_linked_at = NULL WHERE id = $1',
+      `UPDATE users SET signal_account_number = NULL, signal_device_id = NULL, signal_linked = false,
+                        signal_linked_at = NULL, signal_getrennt_am = NULL
+       WHERE id = $1`,
       [userId]
     );
+    laufendeKopplungen.delete(userId);
 
     res.json({ message: 'Signal-Verbindung wurde getrennt' });
   } catch (error: any) {
@@ -133,27 +153,30 @@ router.post('/unlink', authMiddleware, teamleiterOrAdminMiddleware, async (req: 
 });
 
 /**
- * Teamleiter/Admin: Hole aktuellen Signal-Status
+ * Teamleiter/Admin: Aktueller Signal-Status.
+ *
+ * Prueft vorher (hoechstens einmal pro Minute), ob die Kopplungen noch
+ * bestehen - sonst stuende hier weiter "verbunden", obwohl das Geraet in
+ * Signal laengst entfernt ist.
  */
 router.get('/status', authMiddleware, teamleiterOrAdminMiddleware, async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id;
+    await pruefeKopplungenGedrosselt();
 
     const userResult = await query(
-      'SELECT signal_account_number, signal_linked, signal_linked_at FROM users WHERE id = $1',
+      'SELECT signal_account_number, signal_linked, signal_linked_at, signal_getrennt_am FROM users WHERE id = $1',
       [userId]
     );
-
-    if (userResult.rows.length === 0) {
-      return res.json({ linked: false });
-    }
-
     const user = userResult.rows[0];
+    if (!user) return res.json({ linked: false });
 
     res.json({
       linked: user.signal_linked || false,
-      accountNumber: user.signal_account_number,
-      linkedAt: user.signal_linked_at
+      accountNumber: user.signal_linked ? user.signal_account_number : undefined,
+      linkedAt: user.signal_linked ? user.signal_linked_at : undefined,
+      // Kopplung ging verloren und wurde noch nicht erneuert
+      getrenntAm: !user.signal_linked && user.signal_getrennt_am ? user.signal_getrennt_am : undefined,
     });
   } catch (error: any) {
     console.error('Signal status error:', error);

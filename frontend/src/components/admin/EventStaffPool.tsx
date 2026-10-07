@@ -269,7 +269,7 @@ export const EventStaffPool: React.FC<Props> = ({ eventId, leitung }) => {
   };
 
   const handleUnassignTask = async (assignmentId: number) => {
-    if (!confirm('Möchten Sie diese Zuweisung wirklich entfernen?')) {
+    if (!confirm('Möchtest du diese Zuweisung wirklich entfernen?')) {
       return;
     }
 
@@ -1174,7 +1174,7 @@ const ReplaceStaffModal: React.FC<ReplaceStaffModalProps> = ({
       <div className="app-modal" style={{...styles.modal, maxWidth: '500px', zIndex: 1001}}>
         <h2 style={styles.modalTitle}>Mitarbeiter austauschen</h2>
         <p style={{marginBottom: '1rem', color: 'var(--c-text-muted)'}}>
-          Wählen Sie einen Mitarbeiter aus, der <strong>{currentStaffName}</strong> ersetzen soll.
+          Wähle einen Mitarbeiter aus, der <strong>{currentStaffName}</strong> ersetzen soll.
           Alle Aufgaben werden automatisch neu zugewiesen.
         </p>
 

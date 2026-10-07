@@ -20,9 +20,11 @@ interface Settings {
 
 interface Props {
   onClose: () => void;
+  /** Direkt auf einem Reiter oeffnen - etwa "signal" aus dem Hinweis zur getrennten Kopplung. */
+  startReiter?: 'general' | 'signal';
 }
 
-export const StaffSettings: React.FC<Props> = ({ onClose }) => {
+export const StaffSettings: React.FC<Props> = ({ onClose, startReiter = 'general' }) => {
   const [settings, setSettings] = useState<Settings>({
     default_reminder_minutes: 15,
     push_enabled: true,
@@ -34,7 +36,7 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [testSuccess, setTestSuccess] = useState(false);
-  const [activeTab, setActiveTab] = useState<'general' | 'signal'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'signal'>(startReiter);
   const { user } = useAuth();
   const notifications = useNotifications();
 
@@ -195,7 +197,7 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
                       if (success) {
                         alert('Benachrichtigungen aktiviert!');
                       } else {
-                        alert('Benachrichtigungen konnten nicht aktiviert werden. Bitte prüfen Sie die Browser-Einstellungen.');
+                        alert('Benachrichtigungen konnten nicht aktiviert werden. Bitte prüfe die Einstellungen deines Browsers.');
                       }
                     }}
                     style={styles.subscribeButton}
@@ -203,7 +205,7 @@ export const StaffSettings: React.FC<Props> = ({ onClose }) => {
                     Browser-Berechtigung erteilen
                   </button>
                   <p style={{ ...styles.hint, marginTop: '0.5rem' }}>
-                    Klicken Sie hier, um dem Browser die Berechtigung zum Senden von Benachrichtigungen zu erteilen.
+                    Klick hier, damit dein Browser Benachrichtigungen anzeigen darf.
                   </p>
                 </div>
               )}

@@ -261,9 +261,26 @@ Siehe [PORTS.md](PORTS.md) für ausführliche Anleitung.
 cd /volume1/docker/eventmanager
 git pull
 docker-compose down
+docker-compose pull signal-cli
 docker-compose build
 docker-compose up -d
 ```
+
+**Signal-Dienst aktuell halten.** `signal-cli` ist ein fertiges Abbild von
+[bbernhard/signal-cli-rest-api](https://github.com/bbernhard/signal-cli-rest-api)
+und wird von `docker-compose build` **nicht** erneuert – nur `docker-compose
+pull` holt eine neue Fassung. Signal lässt veraltete Clients nach einigen
+Monaten nicht mehr zu; dann klappt das Koppeln nicht mehr (QR-Code wird
+angezeigt, bleibt aber bei „Warte auf Verbindung“) und Nachrichten gehen
+nicht mehr raus. Deshalb bei jedem Update mitziehen, oder einzeln:
+
+```bash
+docker-compose pull signal-cli
+docker-compose up -d signal-cli
+```
+
+Bestehende Kopplungen bleiben dabei erhalten (sie liegen im Volume
+`signal_data`).
 
 ## Backup
 

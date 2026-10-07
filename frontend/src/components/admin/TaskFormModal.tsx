@@ -250,7 +250,7 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
   };
 
   const handleDelete = async () => {
-    if (!window.confirm(`Möchten Sie die Aufgabe "${formData.title}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`)) {
+    if (!window.confirm(`Möchtest du die Aufgabe "${formData.title}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`)) {
       return;
     }
 
@@ -271,7 +271,7 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
     const isCurrentlyActive = task.is_active !== false;
     const action = isCurrentlyActive ? 'deaktivieren' : 'aktivieren';
 
-    if (!window.confirm(`Möchten Sie die Aufgabe "${formData.title}" wirklich ${action}?`)) {
+    if (!window.confirm(`Möchtest du die Aufgabe "${formData.title}" wirklich ${action}?`)) {
       return;
     }
 

@@ -55,7 +55,7 @@ export const NotificationSettings: React.FC = () => {
     <div className={styles.container}>
       <h2>Benachrichtigungseinstellungen</h2>
       <p className={styles.description}>
-        Wählen Sie, wie Sie Benachrichtigungen erhalten möchten:
+        Wähle, wie du Benachrichtigungen erhalten möchtest:
       </p>
 
       <div className={styles.settingsGroup}>

@@ -555,7 +555,7 @@ export const StaffDashboard: React.FC<Props> = ({ embedded = false }) => {
     if (success) {
       alert('Benachrichtigungen aktiviert!');
     } else {
-      alert('Benachrichtigungen konnten nicht aktiviert werden. Bitte prüfen Sie die Browser-Einstellungen.');
+      alert('Benachrichtigungen konnten nicht aktiviert werden. Bitte prüfe die Einstellungen deines Browsers.');
     }
   };
 

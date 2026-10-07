@@ -11,6 +11,8 @@ export interface SignalStatus {
   linked: boolean;
   accountNumber?: string;
   linkedAt?: string;
+  /** Kopplung ging verloren (am Handy entfernt) und wurde noch nicht erneuert. */
+  getrenntAm?: string;
 }
 
 export interface SignalSetupResponse {
@@ -28,7 +30,7 @@ export const signalApi = {
   },
 
   // Teamleiter/Admin: Prüfe ob Account gelinkt ist
-  checkLink: async (): Promise<{ linked: boolean; accountNumber?: string }> => {
+  checkLink: async (): Promise<{ linked: boolean; accountNumber?: string; abgelaufen?: boolean }> => {
     const response = await client.get('/signal/check-link');
     return response.data;
   },

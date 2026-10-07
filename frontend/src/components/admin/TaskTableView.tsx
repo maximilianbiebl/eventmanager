@@ -351,7 +351,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
   };
 
   const handleUnassign = async (assignmentId: number, userName: string) => {
-    if (!window.confirm(`Möchten Sie die Zuweisung von "${userName}" wirklich entfernen?`)) {
+    if (!window.confirm(`Möchtest du die Zuweisung von "${userName}" wirklich entfernen?`)) {
       return;
     }
 

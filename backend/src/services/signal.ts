@@ -9,11 +9,6 @@ const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
 const SIGNAL_API_URL = process.env.SIGNAL_API_URL || config.signal?.apiUrl || 'http://signal-cli:8080';
 const SIGNAL_ENABLED = config.signal?.enabled !== false;
 
-interface SignalAccount {
-  number: string;
-  deviceId?: string;
-}
-
 /**
  * Signal-CLI REST API Service
  */
@@ -43,96 +38,88 @@ class SignalService {
   }
 
   /**
-   * Registriert einen neuen Signal-Account (für Linking)
-   * Gibt den Link-URI zurück für QR-Code Generation
+   * Alle Konten, die signal-cli gerade als gueltig fuehrt.
+   *
+   * Ein Konto, dessen Kopplung am Handy entfernt wurde, fuehrt signal-cli
+   * zwar noch auf der Platte, laesst es hier aber weg ("Ignoring ...: User
+   * is not registered"). Damit ist diese Liste der Pruefstein, ob eine
+   * Kopplung noch steht.
+   *
+   * null = signal-cli nicht erreichbar. Das ist etwas anderes als eine
+   * leere Liste und darf NICHT als "getrennt" gewertet werden.
    */
-  async registerAccount(accountNumber: string): Promise<string> {
-    if (!this.enabled) {
-      throw new Error('Signal notifications are disabled in config');
-    }
-
-    try {
-      // Prüfe ob Signal-CLI erreichbar ist
-      const isHealthy = await this.checkHealth();
-      if (!isHealthy) {
-        throw new Error(`Signal-CLI service is not reachable at ${this.apiUrl}. Please ensure the signal-cli container is running.`);
-      }
-
-      console.log(`Attempting to register Signal account: ${accountNumber}`);
-
-      // Registriere Account für Linking (als Secondary Device)
-      // API verwendet GET und gibt PNG-Bild zurück!
-      const response = await axios.get(
-        `${this.apiUrl}/v1/qrcodelink`,
-        {
-          params: { device_name: `EventManager-${accountNumber}` },
-          timeout: 15000,
-          responseType: 'arraybuffer'  // Bild als Binary empfangen
-        }
-      );
-
-      // Konvertiere PNG zu Base64 Data URL
-      const base64Image = Buffer.from(response.data, 'binary').toString('base64');
-      const dataUrl = `data:image/png;base64,${base64Image}`;
-
-      console.log(`Signal account registration successful for ${accountNumber}`);
-      return dataUrl;  // Gib Data URL zurück statt sgnl:// Link
-    } catch (error: any) {
-      if (error.code === 'ECONNREFUSED') {
-        console.error('Signal register error: Connection refused to Signal-CLI');
-        throw new Error(`Cannot connect to Signal-CLI at ${this.apiUrl}. Please check if the signal-cli container is running.`);
-      }
-
-      if (error.code === 'ETIMEDOUT') {
-        console.error('Signal register error: Connection timeout');
-        throw new Error('Signal-CLI request timed out. The service may be overloaded or not responding.');
-      }
-
-      const errorMsg = error.response?.data?.error || error.response?.data?.message || error.message;
-      console.error('Signal register error:', {
-        status: error.response?.status,
-        data: error.response?.data,
-        message: error.message
-      });
-
-      throw new Error(`Signal setup failed: ${errorMsg}`);
-    }
-  }
-
-  /**
-   * Holt die echte Telefonnummer des gelinkten Accounts
-   * Gibt null zurück wenn kein Account gelinkt ist
-   */
-  async getLinkedAccountNumber(): Promise<string | null> {
+  async getAccounts(): Promise<string[] | null> {
     if (!this.enabled) return null;
-
     try {
-      // Liste alle registrierten Accounts
-      // Längerer Timeout weil Signal-CLI manchmal langsam ist
-      const response = await axios.get(`${this.apiUrl}/v1/accounts`, {
-        timeout: 30000  // 30 Sekunden
-      });
-
-      if (response.status === 200 && Array.isArray(response.data) && response.data.length > 0) {
-        // Gib die erste registrierte Telefonnummer zurück
-        const firstAccount = response.data[0];
-        console.log('Linked Signal account found:', firstAccount);
-        return firstAccount;
-      }
-
-      return null;
+      // Im normalen Modus startet signal-cli fuer jede Anfrage neu - das
+      // dauert ein paar Sekunden.
+      const response = await axios.get(`${this.apiUrl}/v1/accounts`, { timeout: 30000 });
+      return Array.isArray(response.data) ? response.data.map(String) : [];
     } catch (error: any) {
-      console.error('Get linked account error:', error.response?.data || error.message);
+      console.error('Signal accounts error:', error.response?.data || error.message);
       return null;
     }
   }
 
   /**
-   * Prüft ob ein Account erfolgreich gelinkt wurde
+   * QR-Code fuer das Koppeln als weiteres Geraet.
+   *
+   * Gibt ausserdem die Konten zurueck, die VOR dem Koppeln schon da waren.
+   * Neu gekoppelt ist dann genau das Konto, das danach dazukommt - vorher
+   * wurde einfach das erste Konto in signal-cli genommen, egal wem es
+   * gehoert.
    */
-  async checkAccountLinked(accountNumber: string): Promise<boolean> {
-    const linkedNumber = await this.getLinkedAccountNumber();
-    return linkedNumber !== null;
+  async startLink(): Promise<{ qrCode: string; vorher: string[] }> {
+    if (!this.enabled) {
+      throw new Error('Signal ist in der Konfiguration abgeschaltet');
+    }
+
+    const vorher = await this.getAccounts();
+    if (vorher === null) {
+      throw new Error(`Signal-Dienst unter ${this.apiUrl} nicht erreichbar. Laeuft der Container signal-cli?`);
+    }
+
+    try {
+      const response = await axios.get(`${this.apiUrl}/v1/qrcodelink`, {
+        // So steht das Geraet in Signal unter "Verknuepfte Geraete".
+        params: { device_name: 'Event Manager' },
+        timeout: 30000,
+        responseType: 'arraybuffer',
+      });
+      const qrCode = `data:image/png;base64,${Buffer.from(response.data, 'binary').toString('base64')}`;
+      console.log('Signal: QR-Code zum Koppeln erzeugt');
+      return { qrCode, vorher };
+    } catch (error: any) {
+      const daten = error.response?.data;
+      const text = daten ? Buffer.from(daten).toString('utf-8') : error.message;
+      console.error('Signal QR-Code error:', text);
+      throw new Error(`QR-Code konnte nicht erzeugt werden: ${text}`);
+    }
+  }
+
+  /**
+   * Lokale Daten eines Kontos in signal-cli loeschen.
+   *
+   * Ein gekoppeltes Geraet kann sich nicht selbst aus dem Handy austragen -
+   * das geht nur am Handy unter "Verknuepfte Geraete". Hier verschwindet nur
+   * die Kopie in signal-cli.
+   *
+   * auchWennGueltig=false: signal-cli verweigert das Loeschen, solange das
+   * Konto noch gueltig ist. So raeumt man gefahrlos alte Reste weg.
+   */
+  async loescheLokaleDaten(nummer: string, auchWennGueltig: boolean): Promise<boolean> {
+    if (!this.enabled || !nummer || nummer.startsWith('+temp')) return false;
+    try {
+      await axios.delete(`${this.apiUrl}/v1/devices/${encodeURIComponent(nummer)}/local-data`, {
+        data: { ignore_registered: auchWennGueltig },
+        timeout: 30000,
+      });
+      console.log(`Signal: lokale Daten von ${nummer} geloescht`);
+      return true;
+    } catch (error: any) {
+      console.error('Signal local-data error:', error.response?.data || error.message);
+      return false;
+    }
   }
 
   /**
@@ -157,26 +144,23 @@ class SignalService {
       console.log(`Signal message sent from ${fromNumber} to ${toNumber}`);
       return true;
     } catch (error: any) {
-      console.error('Signal send error:', error.response?.data || error.message);
+      const daten = error.response?.data;
+      console.error('Signal send error:', daten || error.message);
+      /*
+       * "User <Absender> is not registered": die Kopplung des Absenders ist
+       * weg (am Handy entfernt). Das sofort festhalten, nicht erst bei der
+       * naechsten Pruefung - siehe signalKopplung.
+       */
+      const text = typeof daten?.error === 'string' ? daten.error : '';
+      if (text.includes(`User ${fromNumber} is not registered`) && this.beiVerlorenerKopplung) {
+        await this.beiVerlorenerKopplung(fromNumber).catch(() => undefined);
+      }
       return false;
     }
   }
 
-  /**
-   * Trennt einen gelinkten Account
-   */
-  async unlinkAccount(accountNumber: string): Promise<boolean> {
-    if (!this.enabled) return false;
-
-    try {
-      await axios.delete(`${this.apiUrl}/v1/accounts/${accountNumber}`);
-      console.log(`Signal account ${accountNumber} unlinked`);
-      return true;
-    } catch (error: any) {
-      console.error('Signal unlink error:', error.response?.data || error.message);
-      return false;
-    }
-  }
+  /** Wird von signalKopplung gesetzt - vermeidet eine Ringabhaengigkeit. */
+  beiVerlorenerKopplung: ((nummer: string) => Promise<void>) | null = null;
 
   /**
    * Generiert eine Test-Nachricht zum Testen der Verbindung

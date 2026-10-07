@@ -184,7 +184,7 @@ export const EventEditModal: React.FC<Props> = ({ event, onClose, onSuccess, onD
           {showDeleteConfirm ? (
             <div style={styles.deleteConfirmBox}>
               <p style={styles.deleteWarning}>
-                Möchten Sie diese Veranstaltung wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+                Möchtest du diese Veranstaltung wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
               </p>
               <div style={styles.deleteActions}>
                 <button

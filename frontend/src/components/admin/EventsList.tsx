@@ -215,7 +215,7 @@ export const EventsList: React.FC = () => {
       const eventsToDelete = events.filter(e => selectedIds.includes(e.id));
       const hasTemplates = eventsToDelete.some(e => e.is_template);
       if (hasTemplates) {
-        alert('Teamleiter können keine Vorlagen löschen. Bitte wenden Sie sich an einen Administrator.');
+        alert('Teamleiter können keine Vorlagen löschen. Bitte wende dich an einen Admin.');
         return;
       }
     }

@@ -4,6 +4,7 @@ import webpush from 'web-push';
 import jwt from 'jsonwebtoken';
 import config from '../config';
 import { signalService } from './signal';
+import { pruefeKopplungen } from './signalKopplung';
 import { broadcastUpdate } from '../routes/sse';
 import { pushZustellung, Meldungsart } from '../utils/pushZustellung';
 
@@ -31,6 +32,15 @@ export function startNotificationScheduler() {
       console.error('Notification scheduler error:', error);
     }
   });
+
+  /*
+   * Signal-Kopplungen alle 15 Minuten gegen signal-cli pruefen - und einmal
+   * kurz nach dem Start. Siehe signalKopplung.
+   */
+  cron.schedule('*/15 * * * *', () => {
+    pruefeKopplungen().catch((e) => console.error('Signal-Pruefung:', e));
+  });
+  setTimeout(() => pruefeKopplungen().catch((e) => console.error('Signal-Pruefung:', e)), 30_000);
 }
 
 /*

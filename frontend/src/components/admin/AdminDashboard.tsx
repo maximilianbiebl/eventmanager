@@ -8,6 +8,7 @@ import { StaffDashboard, ADMIN_BADGE_PLATZ } from '../StaffDashboard';
 import { tasksApi } from '../../api/tasks';
 import { ThemeSwitch } from '../ThemeSwitch';
 import { AnsichtRegler } from '../AnsichtRegler';
+import { signalApi } from '../../api/signal';
 import responsiveStyles from './AdminDashboard.module.css';
 
 type Tab = 'events' | 'users' | 'mytasks';
@@ -59,6 +60,35 @@ export const AdminDashboard: React.FC = () => {
    * geschafft hat.
    */
   const zeigeEigene = eigeneGesamt > 0 || activeTab === 'mytasks';
+
+  /*
+   * Hinweis nach dem Anmelden: die Signal-Kopplung ist weg.
+   *
+   * Der Server merkt das selbst (am Handy entfernt, oder ein Versand
+   * scheiterte deshalb). Ohne Hinweis faellt es erst auf, wenn Mitarbeiter
+   * sich wundern, warum keine Erinnerung kam. "Spaeter" gilt fuer diese
+   * Sitzung; beim naechsten Anmelden kommt er wieder, bis neu gekoppelt ist.
+   */
+  const [signalGetrennt, setSignalGetrennt] = useState<string | null>(null);
+  const [settingsReiter, setSettingsReiter] = useState<'general' | 'signal'>('general');
+  React.useEffect(() => {
+    if (user?.role !== 'teamleiter' && user?.role !== 'admin') return;
+    let abgebrochen = false;
+    signalApi.getStatus()
+      .then((st) => {
+        if (abgebrochen || st.linked || !st.getrenntAm) return;
+        let gesehen = false;
+        try { gesehen = sessionStorage.getItem('signalHinweis') === st.getrenntAm; } catch { /* egal */ }
+        if (!gesehen) setSignalGetrennt(st.getrenntAm);
+      })
+      .catch(() => undefined);
+    return () => { abgebrochen = true; };
+  }, [user?.role]);
+
+  const signalHinweisWeg = () => {
+    try { if (signalGetrennt) sessionStorage.setItem('signalHinweis', signalGetrennt); } catch { /* egal */ }
+    setSignalGetrennt(null);
+  };
 
   const handleTabClick = (tab: Tab) => {
     // Wenn zu Mitarbeiter gewechselt wird, Event-ID merken (falls vorhanden)
@@ -236,7 +266,36 @@ export const AdminDashboard: React.FC = () => {
       </div>
 
       {showChangePassword && <ChangePasswordDialog onClose={() => setShowChangePassword(false)} />}
-      {showSettings && <StaffSettings onClose={() => setShowSettings(false)} />}
+      {showSettings && (
+        <StaffSettings
+          startReiter={settingsReiter}
+          onClose={() => { setShowSettings(false); setSettingsReiter('general'); }}
+        />
+      )}
+
+      {signalGetrennt && (
+        <div className="app-modal-overlay" style={styles.hinweisHintergrund} onClick={signalHinweisWeg}>
+          <div className="app-modal" style={styles.hinweis} role="alertdialog" aria-labelledby="signal-hinweis-titel" onClick={(e) => e.stopPropagation()}>
+            <h2 id="signal-hinweis-titel" style={styles.hinweisTitel}>Signal ist nicht mehr verbunden</h2>
+            <p style={styles.hinweisText}>
+              Deine Signal-Kopplung besteht seit{' '}
+              {new Date(signalGetrennt).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}{' '}
+              nicht mehr – vermutlich wurde „Event Manager“ in Signal unter „Verknüpfte Geräte“ entfernt.
+              Bis du neu koppelst, bekommen deine Mitarbeiter keine Erinnerungen per Signal.
+            </p>
+            <div className="app-modal-actions" style={styles.hinweisKnoepfe}>
+              <button type="button" onClick={signalHinweisWeg} style={styles.hinweisSpaeter}>Später</button>
+              <button
+                type="button"
+                onClick={() => { signalHinweisWeg(); setSettingsReiter('signal'); setShowSettings(true); }}
+                style={styles.hinweisJetzt}
+              >
+                Jetzt neu koppeln
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -333,6 +392,26 @@ const styles: { [key: string]: React.CSSProperties } = {
     cursor: 'pointer',
     fontSize: '1rem',
     color: 'var(--c-danger-text)',
+  },
+  hinweisHintergrund: {
+    position: 'fixed', inset: 0, zIndex: 3000,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.5)', padding: '1rem',
+  },
+  hinweis: {
+    maxWidth: '28rem', width: '100%', padding: '1.5rem',
+    backgroundColor: 'var(--c-surface)', borderRadius: '8px', boxShadow: 'var(--shadow-lg)',
+  },
+  hinweisTitel: { margin: '0 0 0.75rem', fontSize: '1.25rem', color: 'var(--c-text)' },
+  hinweisText: { margin: '0 0 1.25rem', color: 'var(--c-text-muted)', lineHeight: 1.5 },
+  hinweisKnoepfe: { display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', flexWrap: 'wrap' },
+  hinweisSpaeter: {
+    padding: '0.5rem 1rem', backgroundColor: 'transparent', color: 'var(--c-text)',
+    border: '1px solid var(--c-border-strong)', borderRadius: '4px', cursor: 'pointer',
+  },
+  hinweisJetzt: {
+    padding: '0.5rem 1rem', backgroundColor: 'var(--c-accent)', color: 'var(--c-text-inverse)',
+    border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 500,
   },
   tabCount: {
     marginLeft: '0.4375rem',
