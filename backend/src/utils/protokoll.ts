@@ -198,7 +198,7 @@ const REGELN: Regel[] = [
     nachher: async (k, v) => v?.titel.length ? { eventId: zahl(k.treffer[1]), art: 'aufgabe_geloescht', text: `${aufgaben(v.titel.length)} gelöscht: ${liste(v.titel)}` } : null,
   },
   {
-    methode: 'POST', pfad: /^\/tasks\/event\/(\d+)\/bulk-move$/,
+    methode: 'POST', pfad: /^\/tasks\/event\/(\d+)\/bulk-(move|copy)$/,
     vorher: (k) => titelVon(k.body.task_ids),
     nachher: async (k, v) => {
       if (!v?.titel.length) return null;
@@ -208,7 +208,12 @@ const REGELN: Regel[] = [
         const g = k.body.program_item_id ? await gruppe(zahl(k.body.program_item_id)) : null;
         ziel.push(g ? `in „${g.title}“` : 'ohne Gruppe');
       }
-      return { eventId: zahl(k.treffer[1]), art: 'aufgabe_verschoben', text: `${aufgaben(v.titel.length)} verschoben ${ziel.join(', ')}: ${liste(v.titel)}` };
+      const kopiert = k.treffer[2] === 'copy';
+      return {
+        eventId: zahl(k.treffer[1]),
+        art: kopiert ? 'aufgabe_kopiert' : 'aufgabe_verschoben',
+        text: `${aufgaben(v.titel.length)} ${kopiert ? 'kopiert' : 'verschoben'}${ziel.length ? ` ${ziel.join(', ')}` : ''}: ${liste(v.titel)}`,
+      };
     },
   },
   {

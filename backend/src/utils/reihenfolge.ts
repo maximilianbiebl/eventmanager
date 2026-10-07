@@ -265,12 +265,28 @@ export const verschiebeInGruppe = async (
   taskIds: Set<number>,
   richtung: 'hoch' | 'runter'
 ): Promise<boolean> => {
-  const r = await query(
-    'SELECT id, COALESCE(sort_order, 0) AS rang FROM tasks WHERE program_item_id = $1 ORDER BY sort_order, id',
-    [gruppenId]
-  );
-  const zeilen: Zeile[] = r.rows.map((x: any) => ({ art: 'aufgabe' as const, id: x.id, rang: Number(x.rang) }));
+  const zeilen = await aufgabenDerGruppe(gruppenId);
   const { liste, bewegt } = verschiebeMarkierte(zeilen, (z) => taskIds.has(z.id), richtung);
   if (bewegt) await nummerieren(liste);
   return bewegt;
+};
+
+/**
+ * Die Aufgaben einer Gruppe in der Reihenfolge, in der die Liste sie zeigt.
+ *
+ * Gleiche Nummern (nach Import oder Vorlage) und fehlende Nummern kommen
+ * vor. Frueher suchte der Pfeil den Nachbarn mit "sort_order < meine" -
+ * eine gleich nummerierte Aufgabe direkt darueber fand er so nicht, und die
+ * Aufgabe sprang ueber sie hinweg, zwei oder mehr Zeilen weit. Jetzt wird
+ * in dieser Liste getauscht und die Gruppe danach neu durchnummeriert;
+ * danach sind die Nummern wieder eindeutig.
+ */
+export const aufgabenDerGruppe = async (gruppenId: number): Promise<Zeile[]> => {
+  const r = await query(
+    `SELECT id, sort_order AS rang FROM tasks WHERE program_item_id = $1
+     ORDER BY sort_order NULLS LAST, id`,
+    [gruppenId]
+  );
+  // Ohne Nummer = ganz hinten, wie in der Anzeige (999999).
+  return r.rows.map((x: any) => ({ art: 'aufgabe' as const, id: x.id, rang: x.rang === null ? 999999 : Number(x.rang) }));
 };

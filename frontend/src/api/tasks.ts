@@ -254,6 +254,16 @@ export const tasksApi = {
     return response.data;
   },
 
+  // Kopien der Aufgaben am Ziel; Einteilungen nur auf Wunsch.
+  bulkCopy: async (
+    eventId: number,
+    taskIds: number[],
+    ziel: { day_number?: number; program_item_id?: number | null; mit_zuweisungen?: boolean }
+  ): Promise<{ kopiert: number; kopierteZuweisungen: number }> => {
+    const response = await client.post(`/tasks/event/${eventId}/bulk-copy`, { task_ids: taskIds, ...ziel });
+    return response.data;
+  },
+
   bulkDelete: async (eventId: number, taskIds: number[]) => {
     const response = await client.post(`/tasks/event/${eventId}/bulk-delete`, { task_ids: taskIds });
     return response.data;

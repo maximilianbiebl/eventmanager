@@ -648,7 +648,9 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
         } else {
           const sortOrderA = a.task.sort_order ?? 999999;
           const sortOrderB = b.task.sort_order ?? 999999;
-          compareResult = sortOrderA - sortOrderB;
+          // Bei gleicher Nummer nach Id - genau wie der Server, sonst zeigt
+          // die Liste einen anderen Nachbarn als den, mit dem er tauscht.
+          compareResult = sortOrderA - sortOrderB || a.task.id - b.task.id;
         }
         break;
       case 'day':
@@ -1257,7 +1259,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
           <span style={styles.bulkActionsText}>{selectedTaskIds.length} ausgewählt</span>
           {eventId && (
             <button onClick={() => setShowVerschieben(true)} style={styles.bulkMoveButton}>
-              Verschieben
+              Verschieben / Kopieren
             </button>
           )}
           <button onClick={handleBulkDelete} style={styles.bulkDeleteButton}>
@@ -1276,10 +1278,10 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
           eventDays={eventDays || 1}
           gruppen={gruppen}
           onClose={() => setShowVerschieben(false)}
-          onFertig={(anzahl) => {
+          onFertig={(anzahl, kopiert) => {
             setShowVerschieben(false);
             setSelectedTaskIds([]);
-            setSuccessMessage(`${anzahl === 1 ? '1 Aufgabe' : `${anzahl} Aufgaben`} verschoben`);
+            setSuccessMessage(`${anzahl === 1 ? '1 Aufgabe' : `${anzahl} Aufgaben`} ${kopiert ? 'kopiert' : 'verschoben'}`);
             setTimeout(() => setSuccessMessage(''), 3000);
             loadAssignments(false);
             onTasksChanged?.();

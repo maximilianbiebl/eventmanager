@@ -4,7 +4,7 @@ import { authMiddleware, teamleiterOrAdminMiddleware, AuthRequest } from '../mid
 import { CreateTaskRequest, AssignTaskRequest } from '../types';
 import { broadcastUpdate } from './sse';
 import { CSV_BOM, ohneBom, parseCsvLine, csvFeld } from '../utils/csv';
-import { verschiebeZeile, einsortierenNachZeit, einsortierenInGruppe, verschiebeLoseAufgaben, verschiebeInGruppe } from '../utils/reihenfolge';
+import { verschiebeZeile, einsortierenNachZeit, einsortierenInGruppe, verschiebeLoseAufgaben, verschiebeInGruppe, aufgabenDerGruppe } from '../utils/reihenfolge';
 import { farbeOderNull } from '../utils/gruppenFarben';
 import { AUFGABEN_DER_SERIE, syncSeriesAssignments } from '../utils/serien';
 import { ohneNotiz, ohneNotizen, notizOderNull } from '../utils/notizen';
@@ -224,14 +224,7 @@ const NOCH_AKTUELL = `(
  * Die Aufgaben einer Gruppe mit ihrem aktuellen Rang - fuer die Antwort
  * beim Verschieben, damit die Oberflaeche nichts nachholen muss.
  */
-const reihenfolgeDerGruppe = async (gruppenId: number) => {
-  const r = await query(
-    `SELECT id, COALESCE(sort_order, 0) AS rang FROM tasks
-     WHERE program_item_id = $1 ORDER BY sort_order, id`,
-    [gruppenId]
-  );
-  return r.rows.map((z: any) => ({ art: 'aufgabe' as const, id: z.id, rang: Number(z.rang) }));
-};
+const reihenfolgeDerGruppe = (gruppenId: number) => aufgabenDerGruppe(gruppenId);
 
 const erinnerungDerAufgabe = async (taskId: number | string): Promise<number> => {
   const r = await query('SELECT reminder_minutes FROM tasks WHERE id = $1', [taskId]);
@@ -1917,7 +1910,7 @@ router.put('/:id/move-up', authMiddleware, teamleiterOrAdminMiddleware, eventZug
     }
 
     const currentTask = taskResult.rows[0];
-    const { event_id, sort_order, day_number } = currentTask;
+    const { event_id, day_number } = currentTask;
 
     /*
      * Aufgabe IN einer Gruppe wird nur innerhalb ihrer Gruppe verschoben -
@@ -1944,14 +1937,13 @@ router.put('/:id/move-up', authMiddleware, teamleiterOrAdminMiddleware, eventZug
       return res.json({ message: ergebnis.meldung, bewegt: ergebnis.bewegt, reihenfolge: ergebnis.reihenfolge });
     }
 
-    const aboveResult = await query(
-      `SELECT * FROM tasks
-       WHERE event_id = $1 AND day_number = $2 AND sort_order < $3 AND program_item_id = $4
-       ORDER BY sort_order DESC LIMIT 1`,
-      [event_id, day_number, sort_order, program_item_id]
-    );
-
-    if (aboveResult.rows.length === 0) {
+    /*
+     * Getauscht wird mit dem Nachbarn in der Liste der Gruppe, danach wird
+     * die Gruppe neu durchnummeriert - siehe aufgabenDerGruppe. Ein Vergleich
+     * "sort_order < meine" uebersprang gleich nummerierte Nachbarn.
+     */
+    const bewegt = await verschiebeInGruppe(program_item_id, new Set([currentTask.id]), 'hoch');
+    if (!bewegt) {
       // Auch wenn sich nichts bewegt: die Reihenfolge mitgeben, damit die
       // Oberflaeche nicht sicherheitshalber alles neu laedt.
       return res.json({
@@ -1960,11 +1952,6 @@ router.put('/:id/move-up', authMiddleware, teamleiterOrAdminMiddleware, eventZug
         reihenfolge: await reihenfolgeDerGruppe(program_item_id),
       });
     }
-
-    const aboveTask = aboveResult.rows[0];
-
-    await query('UPDATE tasks SET sort_order = $1 WHERE id = $2', [aboveTask.sort_order, id]);
-    await query('UPDATE tasks SET sort_order = $1 WHERE id = $2', [sort_order, aboveTask.id]);
 
     broadcastUpdate('task', { action: 'move', taskId: parseInt(id), eventId: event_id });
 
@@ -1991,7 +1978,7 @@ router.put('/:id/move-down', authMiddleware, teamleiterOrAdminMiddleware, eventZ
     }
 
     const currentTask = taskResult.rows[0];
-    const { event_id, sort_order, day_number } = currentTask;
+    const { event_id, day_number } = currentTask;
 
     // Spiegelbild zu move-up.
     const { program_item_id } = currentTask;
@@ -2010,14 +1997,13 @@ router.put('/:id/move-down', authMiddleware, teamleiterOrAdminMiddleware, eventZ
       return res.json({ message: ergebnis.meldung, bewegt: ergebnis.bewegt, reihenfolge: ergebnis.reihenfolge });
     }
 
-    const belowResult = await query(
-      `SELECT * FROM tasks
-       WHERE event_id = $1 AND day_number = $2 AND sort_order > $3 AND program_item_id = $4
-       ORDER BY sort_order ASC LIMIT 1`,
-      [event_id, day_number, sort_order, program_item_id]
-    );
-
-    if (belowResult.rows.length === 0) {
+    /*
+     * Getauscht wird mit dem Nachbarn in der Liste der Gruppe, danach wird
+     * die Gruppe neu durchnummeriert - siehe aufgabenDerGruppe. Ein Vergleich
+     * "sort_order > meine" uebersprang gleich nummerierte Nachbarn.
+     */
+    const bewegt = await verschiebeInGruppe(program_item_id, new Set([currentTask.id]), 'runter');
+    if (!bewegt) {
       // Auch wenn sich nichts bewegt: die Reihenfolge mitgeben, damit die
       // Oberflaeche nicht sicherheitshalber alles neu laedt.
       return res.json({
@@ -2026,11 +2012,6 @@ router.put('/:id/move-down', authMiddleware, teamleiterOrAdminMiddleware, eventZ
         reihenfolge: await reihenfolgeDerGruppe(program_item_id),
       });
     }
-
-    const belowTask = belowResult.rows[0];
-
-    await query('UPDATE tasks SET sort_order = $1 WHERE id = $2', [belowTask.sort_order, id]);
-    await query('UPDATE tasks SET sort_order = $1 WHERE id = $2', [sort_order, belowTask.id]);
 
     broadcastUpdate('task', { action: 'move', taskId: parseInt(id), eventId: event_id });
 
@@ -2196,6 +2177,113 @@ router.post('/event/:eventId/bulk-move', authMiddleware, teamleiterOrAdminMiddle
     res.json({ message: `${n} ${n === 1 ? 'Aufgabe' : 'Aufgaben'} verschoben`, verschoben: n });
   } catch (error) {
     console.error('Bulk move tasks error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+/*
+ * Markierte Aufgaben kopieren - auf einen anderen Tag und/oder in eine
+ * andere Gruppe, gleiche Regeln wie beim Verschieben oben. Die Kopie
+ * beginnt frisch ("nicht begonnen"); die interne Notiz bleibt beim
+ * Original, sie gilt fast immer nur dort. Zuweisungen werden auf Wunsch
+ * mitgenommen (mit_zuweisungen), wie beim Kopieren einer ganzen Gruppe.
+ */
+router.post('/event/:eventId/bulk-copy', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req => req.params.eventId), async (req: AuthRequest, res) => {
+  try {
+    const eventId = Number(req.params.eventId);
+    const { task_ids, day_number, mit_zuweisungen = false } = req.body;
+    const gruppeAngegeben = Object.prototype.hasOwnProperty.call(req.body, 'program_item_id');
+    const zielGruppe = gruppeAngegeben && req.body.program_item_id !== null
+      ? Number(req.body.program_item_id) : null;
+
+    const ids: number[] = Array.isArray(task_ids)
+      ? task_ids.map((n: unknown) => Number(n)).filter((n: number) => Number.isInteger(n))
+      : [];
+    if (ids.length === 0) return res.status(400).json({ error: 'Keine Aufgaben ausgewählt' });
+
+    const ev = await query('SELECT days FROM events WHERE id = $1', [eventId]);
+    if (ev.rows.length === 0) return res.status(404).json({ error: 'Veranstaltung nicht gefunden' });
+
+    let zielTag: number | null = null;
+    if (day_number !== undefined && day_number !== null) {
+      zielTag = Number(day_number);
+      if (!Number.isInteger(zielTag) || zielTag < 1 || zielTag > Number(ev.rows[0].days)) {
+        return res.status(400).json({ error: `Tag ${day_number} gibt es in dieser Veranstaltung nicht` });
+      }
+    }
+
+    let gruppe: any = null;
+    if (zielGruppe !== null) {
+      const g = await query('SELECT * FROM program_items WHERE id = $1 AND event_id = $2', [zielGruppe, eventId]);
+      if (g.rows.length === 0) return res.status(400).json({ error: 'Aufgabengruppe nicht gefunden' });
+      gruppe = g.rows[0];
+      if (zielTag === null) zielTag = gruppe.day_number;
+      if (gruppe.day_number !== zielTag) {
+        return res.status(400).json({ error: 'Die Aufgabengruppe gehört zu einem anderen Tag' });
+      }
+    }
+
+    const quellen = await query(
+      'SELECT * FROM tasks WHERE id = ANY($1::int[]) AND event_id = $2 ORDER BY day_number, sort_order, id',
+      [ids, eventId]
+    );
+
+    let kopierteZuweisungen = 0;
+    const serien = new Set<number>();
+    const neueIds: number[] = [];
+
+    for (const a of quellen.rows) {
+      const tag = zielTag ?? a.day_number;
+      const neueGruppe = gruppeAngegeben
+        ? zielGruppe
+        : (tag !== a.day_number ? null : a.program_item_id);
+
+      const kopie = await query(
+        `INSERT INTO tasks
+           (event_id, program_item_id, day_number, title, description, scheduled_time,
+            reminder_minutes, start_time, end_time, is_public, status, is_active,
+            sort_order, series_id, needed_staff, needed_female, needed_male, auto_complete)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'not_started', $11, $12, $13, $14, $15, $16, $17)
+         RETURNING id`,
+        [eventId, neueGruppe, tag, a.title, a.description, a.scheduled_time,
+         a.reminder_minutes, a.start_time, a.end_time, a.is_public, a.is_active,
+         a.sort_order, a.series_id, a.needed_staff, a.needed_female, a.needed_male, a.auto_complete]
+      );
+      const neueId = kopie.rows[0].id;
+      neueIds.push(neueId);
+
+      if (neueGruppe) await einsortierenInGruppe(neueGruppe, neueId);
+      else await einsortierenNachZeit(eventId, tag, 'aufgabe', neueId);
+
+      if (mit_zuweisungen) {
+        const zuw = await query(
+          'SELECT DISTINCT user_id, event_instance_id, reminder_minutes FROM task_assignments WHERE task_id = $1',
+          [a.id]
+        );
+        for (const z of zuw.rows) {
+          await query(
+            `INSERT INTO task_assignments (task_id, event_instance_id, user_id, reminder_minutes)
+             VALUES ($1, $2, $3, $4)`,
+            [neueId, z.event_instance_id, z.user_id, z.reminder_minutes]
+          );
+          kopierteZuweisungen++;
+        }
+      }
+      if (a.series_id) serien.add(a.series_id);
+    }
+
+    if (gruppe?.series_id) serien.add(gruppe.series_id);
+    for (const s of serien) await syncSeriesAssignments(s);
+
+    broadcastUpdate('task', { action: 'bulk_copy', taskIds: neueIds, eventId });
+    const n = neueIds.length;
+    res.status(201).json({
+      message: `${n} ${n === 1 ? 'Aufgabe' : 'Aufgaben'} kopiert`,
+      kopiert: n,
+      kopierteZuweisungen,
+    });
+  } catch (error) {
+    console.error('Bulk copy tasks error:', error);
     res.status(500).json({ error: 'Server Fehler' });
   }
 });

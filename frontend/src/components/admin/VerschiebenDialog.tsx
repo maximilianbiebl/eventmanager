@@ -3,8 +3,13 @@ import { TaskGroup } from '../../api/program';
 import { tasksApi } from '../../api/tasks';
 
 /*
- * Mehrere Aufgaben auf einmal verschieben: auf einen anderen Tag und/oder in
- * eine andere Aufgabengruppe. Geoeffnet aus der Auswahlleiste der Tabelle.
+ * Mehrere Aufgaben auf einmal verschieben oder kopieren: auf einen anderen
+ * Tag und/oder in eine andere Aufgabengruppe. Geoeffnet aus der
+ * Auswahlleiste der Tabelle. (Die Reihenfolge aendern die Pfeile - sie
+ * nehmen alle markierten mit.)
+ *
+ * Eine Kopie beginnt als "nicht begonnen", ohne Notiz; die Einteilungen
+ * kommen nur mit, wenn das Haekchen gesetzt ist.
  *
  * Eine Gruppe gehoert zu genau einem Tag. Deshalb bietet die Gruppenliste
  * nur die Gruppen des gewaehlten Tages an, und "Gruppe behalten" gibt es nur,
@@ -19,13 +24,15 @@ interface Props {
   eventDays: number;
   gruppen: TaskGroup[];
   onClose: () => void;
-  onFertig: (anzahl: number) => void;
+  onFertig: (anzahl: number, kopiert: boolean) => void;
 }
 
 const BEHALTEN = 'behalten';
 const KEINE = 'keine';
 
 export const VerschiebenDialog: React.FC<Props> = ({ eventId, taskIds, eventDays, gruppen, onClose, onFertig }) => {
+  const [art, setArt] = useState<'verschieben' | 'kopieren'>('verschieben');
+  const [mitEinteilung, setMitEinteilung] = useState(false);
   const [tag, setTag] = useState<string>(BEHALTEN);
   const [gruppe, setGruppe] = useState<string>(BEHALTEN);
   const [laeuft, setLaeuft] = useState(false);
@@ -46,10 +53,20 @@ export const VerschiebenDialog: React.FC<Props> = ({ eventId, taskIds, eventDays
   const anzahl = taskIds.length;
   const aufgaben = anzahl === 1 ? '1 Aufgabe' : `${anzahl} Aufgaben`;
   const gruppenName = gruppenDesTages.find((g) => String(g.id) === gruppe)?.title;
-  const satz = tagZahl === null
-    ? (gruppe === BEHALTEN ? 'Es ändert sich nichts.' : `${aufgaben} bleiben an ihrem Tag und kommen ${gruppe === KEINE ? 'aus ihrer Gruppe heraus' : `in „${gruppenName}“`}.`)
-    : `${aufgaben} kommen auf Tag ${tagZahl}${gruppe === KEINE ? ', ohne Gruppe' : gruppenName ? `, in „${gruppenName}“` : ''}.`;
-  const nichts = tagZahl === null && gruppe === BEHALTEN;
+  const kopieren = art === 'kopieren';
+  const zielText = gruppe === KEINE ? ', ohne Gruppe' : gruppenName ? `, in „${gruppenName}“` : '';
+  const satz = kopieren
+    ? (tagZahl === null
+        ? (gruppe === BEHALTEN
+            ? `Von ${anzahl === 1 ? 'der Aufgabe' : `jeder der ${anzahl} Aufgaben`} entsteht eine Kopie am selben Tag, in derselben Gruppe.`
+            : `Kopien entstehen am selben Tag${zielText}.`)
+        : `Kopien entstehen auf Tag ${tagZahl}${zielText}.`)
+      + ` ${anzahl === 1 ? 'Sie beginnt' : 'Sie beginnen'} als „nicht begonnen“${mitEinteilung ? ', mit denselben Leuten eingeteilt' : ', ohne Einteilung'}.`
+    : tagZahl === null
+      ? (gruppe === BEHALTEN ? 'Es ändert sich nichts.' : `${aufgaben} bleiben an ihrem Tag und kommen ${gruppe === KEINE ? 'aus ihrer Gruppe heraus' : `in „${gruppenName}“`}.`)
+      : `${aufgaben} kommen auf Tag ${tagZahl}${zielText}.`;
+  // Kopieren ohne Ziel ist erlaubt: dann entsteht die Kopie am selben Tag, in derselben Gruppe.
+  const nichts = !kopieren && tagZahl === null && gruppe === BEHALTEN;
 
   const los = async () => {
     setLaeuft(true);
@@ -59,10 +76,15 @@ export const VerschiebenDialog: React.FC<Props> = ({ eventId, taskIds, eventDays
       if (tagZahl !== null) daten.day_number = tagZahl;
       if (gruppe === KEINE) daten.program_item_id = null;
       else if (gruppe !== BEHALTEN) daten.program_item_id = Number(gruppe);
-      const antwort = await tasksApi.bulkMove(eventId, taskIds, daten);
-      onFertig(antwort.verschoben ?? anzahl);
+      if (kopieren) {
+        const antwort = await tasksApi.bulkCopy(eventId, taskIds, { ...daten, mit_zuweisungen: mitEinteilung });
+        onFertig(antwort.kopiert ?? anzahl, true);
+      } else {
+        const antwort = await tasksApi.bulkMove(eventId, taskIds, daten);
+        onFertig(antwort.verschoben ?? anzahl, false);
+      }
     } catch (e: any) {
-      setFehler(e.response?.data?.error || 'Verschieben fehlgeschlagen');
+      setFehler(e.response?.data?.error || (kopieren ? 'Kopieren fehlgeschlagen' : 'Verschieben fehlgeschlagen'));
       setLaeuft(false);
     }
   };
@@ -70,7 +92,19 @@ export const VerschiebenDialog: React.FC<Props> = ({ eventId, taskIds, eventDays
   return (
     <div className="app-modal-overlay" style={stil.hintergrund} onClick={onClose}>
       <div className="app-modal" style={stil.kasten} role="dialog" aria-labelledby="verschieben-titel" onClick={(e) => e.stopPropagation()}>
-        <h2 id="verschieben-titel" style={stil.titel}>{aufgaben} verschieben</h2>
+        <h2 id="verschieben-titel" style={stil.titel}>{aufgaben} {kopieren ? 'kopieren' : 'verschieben'}</h2>
+
+        <div role="radiogroup" aria-label="Was soll passieren?" style={stil.umschalter}>
+          {(['verschieben', 'kopieren'] as const).map((a) => (
+            <button
+              key={a} type="button" role="radio" aria-checked={art === a}
+              onClick={() => setArt(a)}
+              style={{ ...stil.umschaltKnopf, ...(art === a ? stil.umschaltAn : {}) }}
+            >
+              {a === 'verschieben' ? 'Verschieben' : 'Kopieren'}
+            </button>
+          ))}
+        </div>
 
         <label style={stil.label} htmlFor="verschieben-tag">Auf welchen Tag?</label>
         <select id="verschieben-tag" value={tag} onChange={(e) => waehleTag(e.target.value)} style={stil.feld}>
@@ -94,13 +128,20 @@ export const VerschiebenDialog: React.FC<Props> = ({ eventId, taskIds, eventDays
           <p style={stil.hinweis}>Gruppen lassen sich nach Tag auswählen – eine Gruppe gehört zu genau einem Tag.</p>
         )}
 
+        {kopieren && (
+          <label style={stil.haken}>
+            <input type="checkbox" checked={mitEinteilung} onChange={(e) => setMitEinteilung(e.target.checked)} />
+            Einteilungen mitkopieren
+          </label>
+        )}
+
         <p style={stil.satz}>{satz}</p>
         {fehler && <p style={stil.fehler}>{fehler}</p>}
 
         <div className="app-modal-actions" style={stil.knoepfe}>
           <button type="button" onClick={onClose} style={stil.abbrechen}>Abbrechen</button>
           <button type="button" onClick={los} disabled={laeuft || nichts} style={{ ...stil.los, ...(laeuft || nichts ? stil.aus : {}) }}>
-            {laeuft ? 'Verschiebe…' : 'Verschieben'}
+            {laeuft ? (kopieren ? 'Kopiere…' : 'Verschiebe…') : (kopieren ? 'Kopieren' : 'Verschieben')}
           </button>
         </div>
       </div>
@@ -120,6 +161,16 @@ const stil: { [k: string]: React.CSSProperties } = {
     backgroundColor: 'var(--c-surface)', boxShadow: 'var(--shadow-lg)',
   },
   titel: { margin: '0 0 1rem', fontSize: '1.25rem', color: 'var(--c-text)' },
+  umschalter: {
+    display: 'flex', padding: '3px', borderRadius: '6px', gap: '3px',
+    backgroundColor: 'var(--c-surface-muted)', border: '1px solid var(--c-border)',
+  },
+  umschaltKnopf: {
+    flex: 1, padding: '0.4rem 0.75rem', borderRadius: '4px', border: 'none', cursor: 'pointer',
+    backgroundColor: 'transparent', color: 'var(--c-text-muted)', fontWeight: 500, minHeight: 'auto',
+  },
+  umschaltAn: { backgroundColor: 'var(--c-surface)', color: 'var(--c-text)', boxShadow: 'var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.12))' },
+  haken: { display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.85rem', fontSize: '0.9375rem', color: 'var(--c-text)', cursor: 'pointer' },
   label: { display: 'block', margin: '0.75rem 0 0.25rem', fontSize: '0.875rem', fontWeight: 500, color: 'var(--c-text)' },
   feld: {
     width: '100%', padding: '0.5rem', borderRadius: '4px', fontSize: '1rem',
