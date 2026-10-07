@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import { query } from '../database/connection';
 import config from '../config';
 import { LoginRequest, LoginResponse } from '../types';
+import { normalisiereName } from '../utils/namen';
 import { authMiddleware, adminMiddleware, teamleiterOrAdminMiddleware, AuthRequest } from '../middleware/auth';
 
 const router = Router();
@@ -11,7 +12,9 @@ const router = Router();
 // Login
 router.post('/login', async (req, res) => {
   try {
-    const { name, password } = req.body as LoginRequest;
+    const { password } = req.body as LoginRequest;
+    // Gleich behandelt wie beim Speichern - siehe utils/namen.
+    const name = normalisiereName((req.body as LoginRequest).name);
     // "Eingeloggt bleiben": laengere Gueltigkeit. Ohne den Haken gilt die
     // Anmeldung nur kurz, damit ein geteiltes Geraet nicht tagelang offen
     // bleibt. Der Standard entspricht dem bisherigen Verhalten.
@@ -24,7 +27,16 @@ router.post('/login', async (req, res) => {
      * jeder gescheitert, der seinen Namen klein eingetragen hatte. Dass das
      * eindeutig bleibt, sichert der Index aus Migration 019.
      */
-    const result = await query('SELECT * FROM users WHERE LOWER(name) = LOWER($1)', [name]);
+    /*
+     * Auch die gespeicherte Seite vereinheitlicht verglichen - fuer Namen,
+     * die am Server vorbei in die Datenbank kamen (utils/namen).
+     */
+    const result = await query(
+      `SELECT * FROM users
+       WHERE LOWER(btrim(regexp_replace(normalize(name, NFC),
+               '[\\s\\u00A0\\u2007\\u202F\\u200B\\uFEFF]+', ' ', 'g'))) = LOWER($1)`,
+      [name]
+    );
 
     if (result.rows.length === 0) {
       return res.status(401).json({ error: 'Benutzername oder Passwort falsch' });
@@ -65,7 +77,9 @@ router.post('/login', async (req, res) => {
 // Benutzer registrieren (für Admin und Teamleiter)
 router.post('/register', authMiddleware, teamleiterOrAdminMiddleware, async (req: AuthRequest, res) => {
   try {
-    const { name, password, role = 'staff' } = req.body;
+    const { password, role = 'staff' } = req.body;
+    const name = normalisiereName(req.body.name);
+    if (!name) return res.status(400).json({ error: 'Name fehlt' });
 
     // Teamleiter duerfen nur Mitarbeiter anlegen. Vorher war nur "admin"
     // gesperrt - ein Teamleiter konnte sich also weitere Teamleiter-Konten

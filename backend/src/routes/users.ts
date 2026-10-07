@@ -3,6 +3,7 @@ import { query } from '../database/connection';
 import { CSV_BOM, csvTextAus, trennzeichenVon, parseCsvLine } from '../utils/csv';
 import { authMiddleware, adminMiddleware, teamleiterOrAdminMiddleware, AuthRequest } from '../middleware/auth';
 import { broadcastUpdate } from './sse';
+import { normalisiereName } from '../utils/namen';
 import bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 import multer from 'multer';
@@ -27,7 +28,8 @@ router.get('/', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) =>
 router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
-    const { name, password, role } = req.body;
+    const { password, role } = req.body;
+    const name = req.body.name === undefined ? undefined : normalisiereName(req.body.name);
 
     /*
      * Teamleiter duerfen nur Mitarbeiter verwalten - weder Admins noch andere
@@ -587,7 +589,7 @@ router.post('/import-csv', authMiddleware, teamleiterOrAdminMiddleware, upload.s
         user[header] = values[idx];
       });
 
-      const name = (user.name || '').trim();
+      const name = normalisiereName(user.name);
       if (!name) {
         rejected.push({ name: `Zeile ${i + 1}`, reason: 'Kein Name angegeben' });
         continue;
