@@ -12,10 +12,12 @@ interface Props {
   eventDays?: number;
   /** Wird gerufen, wenn sich an den Gruppen etwas geändert hat. */
   onGruppenGeaendert?: () => void;
+  /** Mit diesem Tag öffnet der Reiter "Aufgabengruppen" - der Tag der Ansicht. */
+  startTag?: number;
 }
 
 export const TaskSeriesModal: React.FC<Props> = ({
-  eventId, onClose, onSeriesCreated, eventDays = 1, onGruppenGeaendert,
+  eventId, onClose, onSeriesCreated, eventDays = 1, onGruppenGeaendert, startTag,
 }) => {
   /*
    * Zwei Reiter statt zweier Knöpfe in der Werkzeugleiste. Bewusst keine
@@ -93,7 +95,7 @@ export const TaskSeriesModal: React.FC<Props> = ({
         </div>
 
         {reiter === 'gruppen' ? (
-          <GruppenPanel eventId={eventId} eventDays={eventDays} onGeaendert={onGruppenGeaendert} />
+          <GruppenPanel eventId={eventId} eventDays={eventDays} startTag={startTag} onGeaendert={onGruppenGeaendert} />
         ) : (
           <SerienPanel
             eventId={eventId}

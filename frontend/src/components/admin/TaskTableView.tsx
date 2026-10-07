@@ -6,7 +6,7 @@ import { Leitung, eventBadgeColors, eventRolleVon, eventAssignmentTitle } from '
 import { BedarfBadge, hatBedarf, bedarfGesamt } from './BedarfBadge';
 import { NotizKnopf, NotizText } from './Notiz';
 import { TaskGroup } from '../../api/program';
-import { zeilenMitGruppen, zugeklappteGruppen, merkeZugeklappt, gruppenZeit, Sortierung } from '../../utils/taskGroups';
+import { zeilenMitGruppen, leereGruppen, zugeklappteGruppen, merkeZugeklappt, gruppenZeit, Sortierung } from '../../utils/taskGroups';
 import { programApi } from '../../api/program';
 import { useSSE } from '../../hooks/useSSE';
 import responsiveStyles from './TaskTableView.module.css';
@@ -1233,7 +1233,12 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
       sort_order: t.task.sort_order,
     })),
     gruppen,
-    gruppenSortierung
+    gruppenSortierung,
+    // Leere Gruppen als Zwischenueberschrift - nicht, solange ein Filter
+    // nur bestimmte Aufgaben zeigen soll (siehe utils/taskGroups).
+    statusFilter === 'all' && !nurNichtEingeteilt
+      ? leereGruppen(gruppen, alleAufgaben.map((t) => t.task), selectedDay)
+      : []
   );
 
   if (loading) {
@@ -1387,7 +1392,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
         )}
       </div>
 
-      {sortedTasks.length === 0 ? (
+      {zeilen.length === 0 ? (
         <div style={styles.noTasks}>
           {nurNichtEingeteilt
             ? 'Keine Aufgaben ohne Einteilung - es fehlt niemand'

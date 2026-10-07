@@ -177,17 +177,38 @@ export const einsortierenNachZeit = async (
   if (!neue) return;
 
   const andere = alle.filter(z => !(z.art === art && z.id === id));
-  const spaeter = (a: string | null | undefined, b: string | null | undefined) => {
-    if (!a) return false;          // ohne Zeit steht nichts "spaeter"
-    if (!b) return true;           // alles Zeitlose kommt danach
-    return String(b) > String(a);
-  };
-
-  let stelle = andere.findIndex(z => spaeter(neue.zeit, z.zeit));
-  if (stelle === -1) stelle = andere.length;
-
-  andere.splice(stelle, 0, neue);
+  andere.splice(stelleNachZeit(andere, neue.zeit), 0, neue);
   await nummerieren(andere);
+};
+
+/*
+ * Wohin eine Zeile mit dieser Uhrzeit gehoert - in einer Liste, deren
+ * Reihenfolge sonst bleibt, wie sie ist.
+ *
+ *   - Ohne Uhrzeit: ans Ende.
+ *   - Mit Uhrzeit: direkt hinter die letzte Zeile, deren Zeit nicht
+ *     spaeter ist. Gibt es keine solche, vor die erste Zeile mit Zeit.
+ *     Zeilen OHNE Zeit dazwischen bleiben, wo sie stehen - an ihnen wird
+ *     nicht gemessen.
+ *
+ * Vorher kam eine neue Zeile vor die erste, die spaeter ODER ohne Zeit
+ * war. Stand oben in einer Gruppe eine Aufgabe ohne Uhrzeit, landete jede
+ * neue Aufgabe mit Uhrzeit ganz oben - egal, was ihre Zeit war. Darum
+ * "nicht immer": nur in Gruppen, die so anfingen.
+ */
+export const stelleNachZeit = (zeilen: { zeit?: string | null }[], zeit: string | null | undefined): number => {
+  if (!zeit) return zeilen.length;
+  const t = String(zeit);
+  let letzteFruehere = -1;
+  let ersteMitZeit = -1;
+  zeilen.forEach((z, i) => {
+    if (!z.zeit) return;
+    if (ersteMitZeit === -1) ersteMitZeit = i;
+    if (String(z.zeit) <= t) letzteFruehere = i;
+  });
+  if (letzteFruehere !== -1) return letzteFruehere + 1;
+  if (ersteMitZeit !== -1) return ersteMitZeit;
+  return zeilen.length;
 };
 
 /**
@@ -208,10 +229,7 @@ export const einsortierenInGruppe = async (gruppenId: number, taskId: number): P
   if (!neue) return;
 
   const andere = alle.filter(z => z.id !== taskId).sort((a, b) => a.rang - b.rang || a.id - b.id);
-  let stelle = andere.findIndex(z => (neue.zeit ? (!z.zeit || String(z.zeit) > String(neue.zeit)) : false));
-  if (stelle === -1) stelle = andere.length;
-
-  andere.splice(stelle, 0, neue);
+  andere.splice(stelleNachZeit(andere, neue.zeit), 0, neue);
   await nummerieren(andere);
 };
 
@@ -289,4 +307,59 @@ export const aufgabenDerGruppe = async (gruppenId: number): Promise<Zeile[]> => 
   );
   // Ohne Nummer = ganz hinten, wie in der Anzeige (999999).
   return r.rows.map((x: any) => ({ art: 'aufgabe' as const, id: x.id, rang: x.rang === null ? 999999 : Number(x.rang) }));
+};
+
+/*
+ * Nach dem Bearbeiten neu einsortieren.
+ *
+ * Bisher bekam nur eine NEUE Aufgabe ihren Platz nach der Uhrzeit. Wer
+ * eine Aufgabe ohne Uhrzeit anlegte (sie kommt ans Ende) und die Zeit
+ * spaeter nachtrug, fand sie weiter ganz unten - auch wenn sie zeitlich
+ * ganz oben hingehoert. Ebenso nach einem Wechsel von Tag oder Gruppe im
+ * Bearbeiten-Dialog: die alte Nummer passte zum neuen Ort nicht.
+ *
+ * Neu einsortiert wird nur, wenn sich Tag, Gruppe oder Uhrzeit wirklich
+ * aendern - eine reine Titelaenderung laesst die Handreihenfolge in Ruhe.
+ * Wird die Uhrzeit nur geloescht, bleibt die Aufgabe, wo sie ist.
+ */
+const zeitVon = (t: any): string | null => {
+  const z = t?.scheduled_time || t?.start_time;
+  return z ? String(z).slice(0, 5) : null;
+};
+
+/** Zeit, nach der eine Gruppe einsortiert wird: eigene, sonst frueheste ihrer Aufgaben. */
+export const zeitDerGruppe = async (gruppenId: number): Promise<string | null> => {
+  const r = await query(
+    `SELECT COALESCE(pi.time, (
+       SELECT MIN(COALESCE(t.scheduled_time, t.start_time)) FROM tasks t WHERE t.program_item_id = pi.id
+     )) AS zeit FROM program_items pi WHERE pi.id = $1`,
+    [gruppenId]
+  );
+  const z = r.rows[0]?.zeit;
+  return z ? String(z).slice(0, 5) : null;
+};
+
+export const nachAenderungEinsortieren = async (
+  alt: any,
+  neu: any,
+  gruppenZeitVorher: string | null
+): Promise<void> => {
+  const tagGewechselt = Number(alt.day_number) !== Number(neu.day_number);
+  const gruppeGewechselt = (alt.program_item_id ?? null) !== (neu.program_item_id ?? null);
+  const zeitNeu = zeitVon(neu);
+  const zeitGeaendert = zeitVon(alt) !== zeitNeu;
+
+  if (tagGewechselt || gruppeGewechselt || (zeitGeaendert && zeitNeu)) {
+    if (neu.program_item_id) await einsortierenInGruppe(neu.program_item_id, neu.id);
+    else await einsortierenNachZeit(neu.event_id, neu.day_number, 'aufgabe', neu.id);
+  }
+
+  // Gruppe ohne eigene Uhrzeit: ihre Zeit kommt von den Aufgaben und kann
+  // sich gerade geaendert haben - dann gehoert die Gruppe an einen anderen Platz.
+  if (neu.program_item_id && !gruppeGewechselt && zeitGeaendert) {
+    const nachher = await zeitDerGruppe(neu.program_item_id);
+    if (nachher && nachher !== gruppenZeitVorher) {
+      await einsortierenNachZeit(neu.event_id, neu.day_number, 'gruppe', neu.program_item_id);
+    }
+  }
 };

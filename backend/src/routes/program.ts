@@ -167,6 +167,16 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware,
     }
 
     /*
+     * Tag oder Uhrzeit geaendert: an den Platz, den die Zeit vorgibt -
+     * wie beim Anlegen. Sonst blieb die Gruppe an ihrer alten Stelle stehen.
+     */
+    const zeitAlt = alt.time ? String(alt.time).slice(0, 5) : null;
+    const zeitNeu = result.rows[0].time ? String(result.rows[0].time).slice(0, 5) : null;
+    if (Number(day_number) !== Number(alt.day_number) || (zeitNeu && zeitNeu !== zeitAlt)) {
+      await einsortierenNachZeit(alt.event_id, Number(day_number), 'gruppe', Number(id));
+    }
+
+    /*
      * Gehoert die Gruppe zu einer Serie, bekommt deren Team die Aufgaben
      * der Gruppe zugewiesen - sonst waere die Zuordnung eine Angabe ohne
      * Wirkung, bis jemand zufaellig die Serie anfasst.

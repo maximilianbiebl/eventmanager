@@ -28,7 +28,7 @@ import { eventBadgeColors, eventRolleVon, eventAssignmentTitle } from '../../uti
 import { BedarfBadge, hatBedarf, bedarfGesamt } from './BedarfBadge';
 import { NotizKnopf, NotizText, NotizVorschau } from './Notiz';
 import { DaySelection, resolveInitialDayForEvent, storeDay } from '../../utils/dayPreference';
-import { zeilenMitGruppen, zugeklappteGruppen, merkeZugeklappt, gruppenZeit, Sortierung } from '../../utils/taskGroups';
+import { zeilenMitGruppen, leereGruppen, zugeklappteGruppen, merkeZugeklappt, gruppenZeit, Sortierung } from '../../utils/taskGroups';
 import styles from './EventDetail.module.css';
 
 const STATUS_LABELS: { [key: string]: string } = {
@@ -118,6 +118,21 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
     } catch (error) {
       console.error('Load default view error:', error);
     }
+  };
+
+  /*
+   * Der Tag, den die Ansicht gerade zeigt - fuer "Serien & Gruppen", damit
+   * dort gleich die Gruppen dieses Tages stehen. Bei "Alle": der laufende
+   * Tag der Veranstaltung, wenn sie gerade stattfindet, sonst Tag 1.
+   */
+  const tagDerAnsicht = (): number => {
+    if (typeof selectedDay === 'number') return selectedDay;
+    const start = (event as any)?.start_date;
+    if (!start || !event) return 1;
+    const beginn = new Date(String(start).slice(0, 10) + 'T00:00:00');
+    const heute = new Date(); heute.setHours(0, 0, 0, 0);
+    const tag = Math.round((heute.getTime() - beginn.getTime()) / 86400000) + 1;
+    return tag >= 1 && tag <= event.days ? tag : 1;
   };
 
   const handleDayChange = (day: DaySelection) => {
@@ -768,6 +783,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
         <TaskSeriesModal
           eventId={eventId}
           eventDays={event.days}
+          startTag={tagDerAnsicht()}
           onClose={() => setShowSeriesModal(false)}
           onSeriesCreated={() => {
             // Beide Ansichten neu laden, damit Serien-Zuweisungen sofort sichtbar sind
@@ -1276,7 +1292,14 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   // Werkzeugleiste, dadurch verschwand sie mitsamt Filter, sobald ein Filter
   // nichts traf - und man kam nicht mehr an ihn heran, um ihn zurückzusetzen.
   // Der Hinweis steht jetzt nur an der Stelle der Liste.
-  const leerHinweis = loading
+  // Leere Gruppen als Zwischenueberschrift - siehe utils/taskGroups.
+  const ohneAufgaben = statusFilter === 'all' && !nurNichtEingeteilt
+    ? leereGruppen(gruppen, alleAufgaben, selectedDay)
+    : [];
+
+  const leerHinweis = ohneAufgaben.length > 0
+    ? null
+    : loading
     ? 'Lade Zuweisungen...'
     : uniqueTasks.length === 0
       ? 'Keine Aufgaben vorhanden'
@@ -1415,7 +1438,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
   const gruppenSortierung: Sortierung =
     sortBy === 'manual' ? 'manuell' : sortBy === 'time' ? 'zeit' : 'sonst';
 
-  const zeilen = zeilenMitGruppen(sortedTasks as any[], gruppen, gruppenSortierung);
+  const zeilen = zeilenMitGruppen(sortedTasks as any[], gruppen, gruppenSortierung, ohneAufgaben);
 
   /*
    * Eine Aufgabenkarte. Als Funktion, weil sie einzeln und - eingerueckt -

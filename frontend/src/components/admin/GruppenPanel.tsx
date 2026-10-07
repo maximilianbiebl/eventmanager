@@ -18,13 +18,16 @@ import { GruppeBearbeitenModal } from './GruppeBearbeitenModal';
 interface Props {
   eventId: number;
   eventDays: number;
+  /** Tag, mit dem das Panel aufgeht - der, den die Ansicht gerade zeigt. */
+  startTag?: number;
   onGeaendert?: () => void;
 }
 
 const hhmm = (wert?: string | null) => (wert ? String(wert).slice(0, 5) : '');
 
-export const GruppenPanel: React.FC<Props> = ({ eventId, eventDays, onGeaendert }) => {
-  const [tag, setTag] = useState(1);
+export const GruppenPanel: React.FC<Props> = ({ eventId, eventDays, startTag, onGeaendert }) => {
+  const [tag, setTag] = useState(() =>
+    startTag && startTag >= 1 && startTag <= Math.max(1, eventDays) ? startTag : 1);
   const [gruppen, setGruppen] = useState<TaskGroup[]>([]);
   const [laedt, setLaedt] = useState(true);
   const [fehler, setFehler] = useState('');

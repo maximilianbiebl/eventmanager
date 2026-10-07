@@ -54,10 +54,29 @@ export const zeitVonGruppe = <T extends Gruppierbar>(gruppe: TaskGroup, aufgaben
   return zeiten.length > 0 ? zeiten.sort()[0] : null;
 };
 
+/*
+ * Gruppen ohne eine einzige Aufgabe - als reine Zwischenueberschrift.
+ *
+ * Die Liste baute Gruppen bisher nur aus ihren Aufgaben auf: eine frisch
+ * angelegte Gruppe oder eine, deren letzte Aufgabe geloescht wurde, kam
+ * gar nicht vor. Gezaehlt wird gegen ALLE Aufgaben (auch deaktivierte) -
+ * eine Gruppe, deren Aufgaben nur weggefiltert sind, ist nicht leer und
+ * bleibt beim Filtern ausgeblendet wie bisher.
+ */
+export const leereGruppen = (
+  gruppen: TaskGroup[],
+  alleAufgaben: { program_item_id?: number | null }[],
+  tag: number | 'all'
+): TaskGroup[] => {
+  const belegt = new Set(alleAufgaben.map((a) => a.program_item_id).filter(Boolean));
+  return gruppen.filter((g) => !belegt.has(g.id) && (tag === 'all' || g.day_number === tag));
+};
+
 export const zeilenMitGruppen = <T extends Gruppierbar>(
   aufgaben: T[],
   gruppen: TaskGroup[],
-  sortierung: Sortierung = 'sonst'
+  sortierung: Sortierung = 'sonst',
+  ohneAufgaben: TaskGroup[] = []
 ): Zeile<T>[] => {
   const nachId = new Map(gruppen.map(g => [g.id, g]));
   const zeilen: Zeile<T>[] = [];
@@ -83,6 +102,10 @@ export const zeilenMitGruppen = <T extends Gruppierbar>(
       schonGesetzt.set(gruppe.id, neu);
       zeilen.push(neu);
     }
+  }
+
+  for (const g of ohneAufgaben) {
+    if (!schonGesetzt.has(g.id)) zeilen.push({ typ: 'gruppe', gruppe: g, aufgaben: [] });
   }
 
   if (sortierung === 'sonst') return zeilen;

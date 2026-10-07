@@ -4,7 +4,7 @@ import { authMiddleware, teamleiterOrAdminMiddleware, AuthRequest } from '../mid
 import { CreateTaskRequest, AssignTaskRequest } from '../types';
 import { broadcastUpdate } from './sse';
 import { CSV_BOM, csvTextAus, trennzeichenVon, parseCsvLine, csvFeld } from '../utils/csv';
-import { verschiebeZeile, einsortierenNachZeit, einsortierenInGruppe, verschiebeLoseAufgaben, verschiebeInGruppe, aufgabenDerGruppe } from '../utils/reihenfolge';
+import { verschiebeZeile, einsortierenNachZeit, einsortierenInGruppe, verschiebeLoseAufgaben, verschiebeInGruppe, aufgabenDerGruppe, zeitDerGruppe, nachAenderungEinsortieren } from '../utils/reihenfolge';
 import { farbeOderNull } from '../utils/gruppenFarben';
 import { AUFGABEN_DER_SERIE, syncSeriesAssignments } from '../utils/serien';
 import { ohneNotiz, ohneNotizen, notizOderNull } from '../utils/notizen';
@@ -1511,6 +1511,9 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req
     }
 
     const currentTask = current.rows[0];
+    // Fuer nachAenderungEinsortieren: die Zeit der Gruppe VOR der Aenderung.
+    const gruppenZeitVorher = currentTask.program_item_id
+      ? await zeitDerGruppe(currentTask.program_item_id) : null;
 
     // Merge mit neuen Daten (nur vorhandene Felder überschreiben)
     const {
@@ -1572,6 +1575,10 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req
         program_item_id || null
       ]
     );
+
+    // An den Platz, den Uhrzeit, Tag und Gruppe jetzt vorgeben.
+    const nachher = await query('SELECT * FROM tasks WHERE id = $1', [id]);
+    await nachAenderungEinsortieren(currentTask, nachher.rows[0], gruppenZeitVorher);
 
     /*
      * Serie gewechselt: die Aufgabe ist jetzt Sache der neuen Serie. Deren

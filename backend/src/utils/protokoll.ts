@@ -28,6 +28,12 @@ interface Eintrag {
   art: string;
   text: string;
   taskId?: number | null;
+  /*
+   * Gleicher Eintrag derselben Person kurz zuvor: nur dessen Zeit
+   * auffrischen statt eine neue Zeile. Fuer die Pfeile - zehn Klicks, bis
+   * eine Aufgabe an ihrem Platz ist, sind EINE Aenderung.
+   */
+  zusammenfassen?: boolean;
 }
 
 interface Kontext {
@@ -107,9 +113,45 @@ const unterschiedeAufgabe = (a: any, b: any): string[] => {
   return d;
 };
 
+/** Wo eine Aufgabe steht - fuer die Saetze zur Reihenfolge. */
+const ortVon = (t: any) => (t.gruppe ? `in „${t.gruppe}“, Tag ${t.day_number}` : `Tag ${t.day_number}`);
+
 // ---- Regeln ---------------------------------------------------------------
 
 const REGELN: Regel[] = [
+  // Reihenfolge (Pfeile). Die Richtung steht bewusst nicht im Satz: hoch
+  // und runter im Wechsel werden zu einem Eintrag zusammengefasst.
+  {
+    methode: 'PUT', pfad: /^\/tasks\/(\d+)\/move-(up|down)$/,
+    nachher: async (k, _v, a) => {
+      if (a?.bewegt === false) return null;
+      const t = await aufgabe(zahl(k.treffer[1]));
+      return t ? {
+        eventId: t.event_id, art: 'reihenfolge', taskId: t.id, zusammenfassen: true,
+        text: `Reihenfolge geändert: „${t.title}“ (${ortVon(t)})`,
+      } : null;
+    },
+  },
+  {
+    methode: 'POST', pfad: /^\/tasks\/event\/(\d+)\/bulk-reorder$/,
+    vorher: (k) => titelVon(k.body.task_ids),
+    nachher: async (k, v, a) => (a?.bewegt && v?.titel.length) ? {
+      eventId: zahl(k.treffer[1]), art: 'reihenfolge', zusammenfassen: true,
+      text: `Reihenfolge geändert: ${aufgaben(v.titel.length)} gemeinsam verschoben – ${liste(v.titel)}`,
+    } : null,
+  },
+  {
+    methode: 'PUT', pfad: /^\/program\/(\d+)\/move-(up|down)$/,
+    nachher: async (k, _v, a) => {
+      if (a?.bewegt === false) return null;
+      const g = await gruppe(zahl(k.treffer[1]));
+      return g ? {
+        eventId: g.event_id, art: 'reihenfolge', zusammenfassen: true,
+        text: `Reihenfolge geändert: Gruppe „${g.title}“ (Tag ${g.day_number})`,
+      } : null;
+    },
+  },
+
   // Aufgaben
   {
     methode: 'POST', pfad: /^\/tasks$/,
@@ -423,6 +465,20 @@ const REGELN: Regel[] = [
 const schreibe = async (eintraege: Eintrag[], user: { id: number; name: string }) => {
   for (const e of eintraege) {
     if (!e || !Number.isInteger(e.eventId)) continue;
+    if (e.zusammenfassen) {
+      const r = await query(
+        `UPDATE aenderungen SET zeit = NOW()
+         WHERE id = (SELECT id FROM aenderungen
+                     WHERE event_id = $1 AND user_id = $2 AND art = $3 AND text = $4
+                       AND zeit > NOW() - INTERVAL '10 minutes'
+                       -- nur der juengste Eintrag der Veranstaltung: der
+                       -- Verlauf sortiert nach Nummer, ein aelterer stuende
+                       -- sonst mit neuer Uhrzeit zwischen spaeteren.
+                       AND id = (SELECT MAX(id) FROM aenderungen WHERE event_id = $1))`,
+        [e.eventId, user.id, e.art, e.text.slice(0, 2000)]
+      );
+      if ((r.rowCount ?? 0) > 0) continue;
+    }
     await query(
       `INSERT INTO aenderungen (event_id, user_id, user_name, art, text, task_id)
        SELECT $1, $2, $3, $4, $5, $6 WHERE EXISTS (SELECT 1 FROM events WHERE id = $1)`,
