@@ -18,6 +18,7 @@ import { CreateFromTemplateModal } from './CreateFromTemplateModal';
 import { EventEditModal } from './EventEditModal';
 import { EventStaffPool } from './EventStaffPool';
 import { StatusFilter } from './StatusFilter';
+import { VerlaufDialog } from './Verlauf';
 import { DeaktiviertFilter, DeaktiviertWahl } from './DeaktiviertFilter';
 import { StatusCell } from './StatusCell';
 import { Toast } from '../Toast';
@@ -68,6 +69,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
   // zugeordnet werden kann. Der Startwert wird in loadData überschrieben.
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [showVerlauf, setShowVerlauf] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [selectedDay, setSelectedDay] = useState<DaySelection>('all');
@@ -468,6 +470,16 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
                       Duplizieren
                     </button>
                   )}
+                  {/* Wer hat was geaendert - fuer alle, die die Veranstaltung leiten. */}
+                  {(isAdmin || (isTeamleiter && !event.is_template)) && (
+                    <button
+                      onClick={() => { setShowActions(false); setShowVerlauf(true); }}
+                      className={styles.actionMenuItem}
+                      role="menuitem"
+                    >
+                      Verlauf
+                    </button>
+                  )}
                 </div>
               </>
             )}
@@ -746,6 +758,10 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
             onBack(); // Zurück zur Event-Liste nach erfolgreichem Erstellen
           }}
         />
+      )}
+
+      {showVerlauf && (
+        <VerlaufDialog eventId={eventId} eventName={event.name} onClose={() => setShowVerlauf(false)} />
       )}
 
       {showSeriesModal && (

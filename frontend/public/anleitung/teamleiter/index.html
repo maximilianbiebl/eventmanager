@@ -486,7 +486,7 @@
     <li><strong>Zurück</strong> zur Übersicht.</li>
     <li><strong>Notiz zur Veranstaltung</strong> – der Anfang deiner Notiz; ein Klick zeigt sie ganz, dort kannst du sie bearbeiten. Ohne Notiz steht hier ein ✎. Mehr unter <a href="#notizen">Notizen der Leitung</a>.</li>
     <li><strong>i</strong> – Dauer, Zeitraum und Beschreibung aufklappen.</li>
-    <li><strong>Aktionen</strong> – Bearbeiten und Duplizieren (siehe Bild unten).</li>
+    <li><strong>Aktionen</strong> – Bearbeiten, Duplizieren und <strong>Verlauf</strong> (siehe Bild unten und <a href="#status">Status und Überblick</a>).</li>
     <li><strong>+ Hinzufügen</strong> – Leute in den Pool holen.</li>
     <li><strong>✕</strong> – jemanden aus dem Pool nehmen.</li>
     <li><strong>Aufgabenzahl</strong> – öffnet die Aufgaben dieser Person; <em>2 Serie</em> heißt: zwei davon kommen über eine Serie.</li>
@@ -597,10 +597,11 @@
   <figure><a href="bilder/tabelle.webp"><img src="bilder/tabelle.webp" width="1600" height="873" loading="lazy" alt="Tabellenansicht mit Gruppen"></a></figure>
   <ol class="marken">
     <li><strong>Spaltenüberschriften</strong> – ein Klick sortiert nach dieser Spalte.</li>
-    <li><strong>Häkchen</strong> – Aufgaben auswählen, um sie gemeinsam zu löschen oder zu exportieren.</li>
+    <li><strong>Häkchen</strong> – Aufgaben auswählen, um sie gemeinsam zu verschieben, zu löschen oder zu exportieren.</li>
     <li><strong>Gruppenzeile</strong> – wie in der Kartenansicht, zuklappbar.</li>
   </ol>
   <p>In der Tabelle hat jeder Name ein ✕ zum Austragen; lange Beschreibungen klappst du mit <em>mehr</em> auf.</p>
+  <p><strong>Verschieben</strong> in der Auswahlleiste bringt alle markierten Aufgaben auf einen anderen Tag und/oder in eine andere Aufgabengruppe. Wechseln sie den Tag, verlieren sie ihre alte Gruppe – eine Gruppe gehört zu genau einem Tag. Kommen sie in eine Gruppe mit Serie, bekommt deren Team sie automatisch; „Überfällig“ wird beim Tageswechsel wieder zu „Offen“.</p>
 </section>
 
 <section id="status">
@@ -620,6 +621,10 @@
   </div>
   <p><strong>Überfällig</strong> setzt die App von selbst, sobald die Endzeit verstrichen ist; die Eingeteilten bekommen dann eine Meldung. Das geht nur bei Aufgaben mit Endzeit. Aufgaben mit <em>Erledigt sich von selbst</em> werden stattdessen zu ihrer Zeit abgehakt und nie überfällig.</p>
   <p class="hinweis"><strong>Alles live:</strong> Was andere ändern – ein Mitarbeiter hakt ab, die Co-Leitung teilt jemanden ein –, erscheint ohne Neuladen. Ist die Verbindung weg, steht oben ein Hinweis <em>Offline</em> mit dem Stand der Daten. Wenn du willst, meldet die App dir Statusänderungen deiner Mitarbeiter auch als Benachrichtigung (siehe <a href="#einstellungen">Einstellungen</a>).</p>
+
+  <h3>Verlauf und „Während du weg warst“</h3>
+  <p>Unter <strong>Aktionen → Verlauf</strong> steht, wer aus der Leitung wann was geändert hat – etwa „„Ausflug zum Leuchtturm“: Startzeit 14:30 → 14:45“ oder „Pool: + Ben, Johanna“. Was Mitarbeiter abhaken, steht dort nicht. Den Verlauf sehen alle, die die Veranstaltung leiten, und Admins.</p>
+  <p>Öffnest du die App nach einer Pause, zeigt ein Fenster <strong>Während du weg warst</strong> die Änderungen der anderen Leitung an deinen Veranstaltungen seit deinem letzten Besuch. Eigene Änderungen erscheinen dort nicht.</p>
 </section>
 
 <section id="gruppen-serien">
@@ -755,6 +760,7 @@
     <li>Den angezeigten QR-Code scannen und mit einer Test-Nachricht prüfen.</li>
   </ol>
   <p>Ist bei einer Veranstaltung niemand aus der Leitung mit Signal verbunden, gehen dort keine Signal-Nachrichten raus – Push-Meldungen kommen trotzdem.</p>
+  <p>Die App prüft regelmäßig, ob die Kopplung noch besteht. Wurde „Event Manager“ in Signal unter „Verknüpfte Geräte“ entfernt, erscheint beim nächsten Anmelden ein Hinweis mit <strong>Jetzt neu koppeln</strong>.</p>
 </section>
 
 <section id="spickzettel">
@@ -778,6 +784,8 @@
         <tr><td>nur einen Tag sehen</td><td>Filter <strong>Tage</strong> → Zahl</td></tr>
         <tr><td>Aufgaben umsortieren</td><td>Sortieren <strong>Manuell</strong>, dann ▲ ▼ an der Aufgabe</td></tr>
         <tr><td>einen Status ändern</td><td>Klick auf die Statusplakette</td></tr>
+        <tr><td>mehrere Aufgaben auf einen anderen Tag bringen</td><td>Tabelle → Häkchen setzen → <strong>Verschieben</strong></td></tr>
+        <tr><td>sehen, was die Co-Leitung geändert hat</td><td>Veranstaltung → <strong>Aktionen</strong> → <strong>Verlauf</strong></td></tr>
         <tr><td>eine Aufgabe vorübergehend streichen</td><td><strong>Bearbeiten</strong> → Gefahrenbereich → <strong>Deaktivieren</strong></td></tr>
         <tr><td>deaktivierte Aufgaben wiederfinden</td><td>Filter <strong>Deaktivierte</strong> → <em>Nur deaktivierte</em></td></tr>
         <tr><td>mir etwas nur für die Leitung merken</td><td>✎ an Veranstaltung, Gruppe oder Aufgabe</td></tr>

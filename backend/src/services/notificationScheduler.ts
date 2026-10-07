@@ -41,6 +41,12 @@ export function startNotificationScheduler() {
     pruefeKopplungen().catch((e) => console.error('Signal-Pruefung:', e));
   });
   setTimeout(() => pruefeKopplungen().catch((e) => console.error('Signal-Pruefung:', e)), 30_000);
+
+  // Aenderungsprotokoll: nach einem Jahr wird es nicht mehr gebraucht.
+  cron.schedule('17 3 * * *', () => {
+    query(`DELETE FROM aenderungen WHERE zeit < NOW() - INTERVAL '365 days'`)
+      .catch((e) => console.error('Protokoll aufraeumen:', e));
+  });
 }
 
 /*

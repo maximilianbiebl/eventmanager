@@ -14,6 +14,8 @@ import usersRoutes from './routes/users';
 import notificationsRoutes from './routes/notifications';
 import sseRoutes from './routes/sse';
 import signalRoutes from './routes/signal';
+import aenderungenRoutes from './routes/aenderungen';
+import { protokollMiddleware } from './utils/protokoll';
 
 const app = express();
 const PORT = process.env.PORT || config.ports.backend;
@@ -32,6 +34,9 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Aenderungsprotokoll der Leitung - vor allen Routen, siehe utils/protokoll.
+app.use('/api', protokollMiddleware);
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/events', eventsRoutes);
@@ -41,6 +46,7 @@ app.use('/api/users', usersRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/sse', sseRoutes);
 app.use('/api/signal', signalRoutes);
+app.use('/api/aenderungen', aenderungenRoutes);
 
 // Error Handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

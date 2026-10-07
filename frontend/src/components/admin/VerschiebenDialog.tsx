@@ -114,6 +114,8 @@ const stil: { [k: string]: React.CSSProperties } = {
     justifyContent: 'center', backgroundColor: 'rgba(15, 23, 42, 0.5)', padding: '1rem',
   },
   kasten: {
+    // Fuer die Fussleiste aus styles/modal.css: sie rechnet mit diesem Abstand.
+    ['--modal-pad' as any]: '1.5rem',
     width: '100%', maxWidth: '26rem', padding: '1.5rem', borderRadius: '8px',
     backgroundColor: 'var(--c-surface)', boxShadow: 'var(--shadow-lg)',
   },

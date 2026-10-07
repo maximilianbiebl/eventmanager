@@ -9,6 +9,8 @@ import { tasksApi } from '../../api/tasks';
 import { ThemeSwitch } from '../ThemeSwitch';
 import { AnsichtRegler } from '../AnsichtRegler';
 import { signalApi } from '../../api/signal';
+import { aenderungenApi, NeueAenderungen } from '../../api/aenderungen';
+import { AbwesenheitsHinweis } from './Verlauf';
 import responsiveStyles from './AdminDashboard.module.css';
 
 type Tab = 'events' | 'users' | 'mytasks';
@@ -83,6 +85,34 @@ export const AdminDashboard: React.FC = () => {
       })
       .catch(() => undefined);
     return () => { abgebrochen = true; };
+  }, [user?.role]);
+
+  /*
+   * "Waehrend du weg warst": Aenderungen anderer an meinen Veranstaltungen
+   * seit meinem letzten Besuch. ERST abfragen, DANN "ich bin da" melden -
+   * sonst waere "seit dem letzten Besuch" schon jetzt.
+   *
+   * Solange die App offen und sichtbar ist, meldet sie sich alle 5 Minuten
+   * und beim Verlassen. So zaehlt als "weg" wirklich nur die Zeit, in der
+   * die App zu war.
+   */
+  const [abwesend, setAbwesend] = useState<NeueAenderungen | null>(null);
+  React.useEffect(() => {
+    if (user?.role !== 'teamleiter' && user?.role !== 'admin') return;
+    let abgebrochen = false;
+    const melde = () => { aenderungenApi.aktiv().catch(() => undefined); };
+    aenderungenApi.neu()
+      .then((d) => { if (!abgebrochen && d.gesamt > 0) setAbwesend(d); })
+      .catch(() => undefined)
+      .finally(melde);
+    const takt = window.setInterval(() => { if (document.visibilityState === 'visible') melde(); }, 5 * 60 * 1000);
+    const sichtbar = () => melde();
+    document.addEventListener('visibilitychange', sichtbar);
+    return () => {
+      abgebrochen = true;
+      window.clearInterval(takt);
+      document.removeEventListener('visibilitychange', sichtbar);
+    };
   }, [user?.role]);
 
   const signalHinweisWeg = () => {
@@ -273,6 +303,16 @@ export const AdminDashboard: React.FC = () => {
         />
       )}
 
+      {/* Erst der Signal-Hinweis, danach dieser - nie zwei Fenster uebereinander. */}
+      {abwesend && !signalGetrennt && (
+        <AbwesenheitsHinweis
+          veranstaltungen={abwesend.veranstaltungen}
+          gesamt={abwesend.gesamt}
+          mehr={abwesend.mehr}
+          onClose={() => setAbwesend(null)}
+        />
+      )}
+
       {signalGetrennt && (
         <div className="app-modal-overlay" style={styles.hinweisHintergrund} onClick={signalHinweisWeg}>
           <div className="app-modal" style={styles.hinweis} role="alertdialog" aria-labelledby="signal-hinweis-titel" onClick={(e) => e.stopPropagation()}>
@@ -399,6 +439,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     backgroundColor: 'rgba(15, 23, 42, 0.5)', padding: '1rem',
   },
   hinweis: {
+    // Fuer die Fussleiste aus styles/modal.css: sie rechnet mit diesem Abstand.
+    ['--modal-pad' as any]: '1.5rem',
     maxWidth: '28rem', width: '100%', padding: '1.5rem',
     backgroundColor: 'var(--c-surface)', borderRadius: '8px', boxShadow: 'var(--shadow-lg)',
   },

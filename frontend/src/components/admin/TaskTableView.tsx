@@ -1552,7 +1552,9 @@ const styles: { [key: string]: React.CSSProperties } = {
   bulkActions: {
     display: 'flex',
     alignItems: 'center',
-    gap: '1rem',
+    // Vier Bedienelemente - am Handy passen sie nicht in eine Zeile.
+    flexWrap: 'wrap',
+    gap: '0.5rem 1rem',
     padding: '0.75rem 1rem',
     backgroundColor: 'var(--c-surface-muted)',
     borderRadius: '4px',
