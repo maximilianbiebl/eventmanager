@@ -28,7 +28,20 @@ const oeffne = (el: HTMLInputElement | null) => {
  * `<input type="time" {...zeitFeldProps} ... />`
  */
 export const zeitFeldProps = {
-  onClick: (e: React.MouseEvent<HTMLInputElement>) => oeffne(e.currentTarget),
+  /*
+   * Nur beim Antippen mit dem Finger, nicht beim Mausklick.
+   *
+   * Am PC klickt man ins Feld, um die Uhrzeit zu tippen. Ging dabei die
+   * Auswahl auf, landeten die Tasten dort statt im Feld - die Uhrzeit liess
+   * sich per Tastatur nicht mehr eingeben (gemeldet bei den Aufgaben-
+   * gruppen, betraf aber jedes Feld mit dieser Hilfe). Mit der Maus gibt es
+   * ja das Uhrsymbol, und am Handy fehlt die Tastatur ohnehin.
+   */
+  onClick: (e: React.MouseEvent<HTMLInputElement>) => {
+    const art = (e.nativeEvent as PointerEvent).pointerType;
+    if (art === 'mouse' || art === 'pen') return;
+    oeffne(e.currentTarget);
+  },
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' || e.key === ' ') oeffne(e.currentTarget);
   },
