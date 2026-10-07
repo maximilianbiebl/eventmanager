@@ -266,21 +266,45 @@ docker-compose build
 docker-compose up -d
 ```
 
-**Signal-Dienst aktuell halten.** `signal-cli` ist ein fertiges Abbild von
+### Signal-Dienst aktuell halten
+
+`signal-cli` ist ein fertiges Abbild von
 [bbernhard/signal-cli-rest-api](https://github.com/bbernhard/signal-cli-rest-api)
-und wird von `docker-compose build` **nicht** erneuert – nur `docker-compose
-pull` holt eine neue Fassung. Signal lässt veraltete Clients nach einigen
-Monaten nicht mehr zu; dann klappt das Koppeln nicht mehr (QR-Code wird
-angezeigt, bleibt aber bei „Warte auf Verbindung“) und Nachrichten gehen
-nicht mehr raus. Deshalb bei jedem Update mitziehen, oder einzeln:
+auf Docker Hub – in `docker-compose.yml` steht dafür
+`image: bbernhard/signal-cli-rest-api:latest`. `docker-compose build`
+erneuert es **nicht**, nur `docker-compose pull` holt eine neue Fassung.
+Signal lässt veraltete Programme nach einigen Monaten nicht mehr zu; dann
+klappen Koppeln (QR-Code bleibt bei „Warte auf Verbindung“) und Versand
+nicht mehr.
 
-```bash
-docker-compose pull signal-cli
-docker-compose up -d signal-cli
-```
+Dafür gibt es `signal-update.sh`. Es
 
-Bestehende Kopplungen bleiben dabei erhalten (sie liegen im Volume
-`signal_data`).
+1. tut nichts, solange eine Veranstaltung läuft,
+2. holt die neue Fassung (Docker prüft dabei die Prüfsummen jeder Datei),
+3. hebt die bisherige als Sicherung auf und startet neu,
+4. prüft, ob der Dienst antwortet und alle gekoppelten Konten noch da sind,
+5. und kehrt sonst automatisch zur bisherigen Fassung zurück.
+
+Alles steht in `signal-update.log`. Von Hand: `./signal-update.sh`
+(während einer Veranstaltung: `./signal-update.sh --jetzt`).
+
+**Automatisch, einmal pro Woche** – auf der Synology unter
+*Systemsteuerung → Aufgabenplanung → Erstellen → Geplante Aufgabe →
+Benutzerdefiniertes Skript*:
+
+- Benutzer: `root`
+- Zeitplan: wöchentlich, z. B. montags 04:30
+- Befehl: `/volume1/docker/eventmanager/signal-update.sh`
+- *Ausführungsdetails per E-Mail senden* → *nur bei abnormalem Ende*: dann
+  meldet sich die NAS nur, wenn ein Update nicht geklappt hat.
+
+Wöchentlich reicht: signal-cli erscheint etwa monatlich neu, und Signal
+sperrt alte Fassungen erst nach Monaten. Täglich brächte nichts, kostet
+aber jedes Mal einen Neustart des Dienstes.
+
+Bestehende Kopplungen bleiben bei Updates erhalten (Volume `signal_data`).
+Damit Signal die Kopplung nicht wegen Inaktivität löst, meldet sich der
+Server außerdem alle 12 Stunden bei Signal.
 
 ## Backup
 

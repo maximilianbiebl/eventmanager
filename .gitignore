@@ -14,3 +14,4 @@ data/
 
 # Production config
 config.production.json
+signal-update.log
