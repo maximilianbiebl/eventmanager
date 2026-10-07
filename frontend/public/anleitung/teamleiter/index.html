@@ -588,7 +588,7 @@
     <li><strong>Notiz</strong> – ✎ öffnet die Notiz; gelb, wenn es eine gibt.</li>
     <li><strong>Zuweisen</strong>.</li>
     <li><strong>Bearbeiten</strong>.</li>
-    <li><strong>▲ ▼</strong> – die Aufgabe in deiner manuellen Reihenfolge nach oben oder unten schieben.</li>
+    <li><strong>▲ ▼</strong> – die Aufgabe in deiner manuellen Reihenfolge eine Zeile nach oben oder unten schieben. Ist sie angehakt (zusammen mit weiteren), gehen alle angehakten mit – nebeneinander stehende als Block.</li>
     <li><strong>Notiztext</strong> – erste Zeile der Notiz; ein Klick zeigt sie ganz.</li>
   </ol>
   <p>Der farbige Rand links verrät den Stand: grün = erledigt, rot = überfällig.</p>
@@ -597,11 +597,16 @@
   <figure><a href="bilder/tabelle.webp"><img src="bilder/tabelle.webp" width="1600" height="873" loading="lazy" alt="Tabellenansicht mit Gruppen"></a></figure>
   <ol class="marken">
     <li><strong>Spaltenüberschriften</strong> – ein Klick sortiert nach dieser Spalte.</li>
-    <li><strong>Häkchen</strong> – Aufgaben auswählen, um sie gemeinsam zu verschieben, zu löschen oder zu exportieren.</li>
+    <li><strong>Häkchen</strong> – Aufgaben auswählen, um sie gemeinsam umzusortieren, auf einen anderen Tag zu bringen, zu kopieren oder zu löschen.</li>
     <li><strong>Gruppenzeile</strong> – wie in der Kartenansicht, zuklappbar.</li>
   </ol>
   <p>In der Tabelle hat jeder Name ein ✕ zum Austragen; lange Beschreibungen klappst du mit <em>mehr</em> auf.</p>
-  <p><strong>Verschieben</strong> in der Auswahlleiste bringt alle markierten Aufgaben auf einen anderen Tag und/oder in eine andere Aufgabengruppe. Wechseln sie den Tag, verlieren sie ihre alte Gruppe – eine Gruppe gehört zu genau einem Tag. Kommen sie in eine Gruppe mit Serie, bekommt deren Team sie automatisch; „Überfällig“ wird beim Tageswechsel wieder zu „Offen“.</p>
+  <p><strong>Verschieben / Kopieren</strong> in der Auswahlleiste bringt alle markierten Aufgaben auf einen anderen Tag und/oder in eine andere Aufgabengruppe. Oben im Fenster wählst du, ob sie <em>verschoben</em> oder <em>kopiert</em> werden.</p>
+  <ul>
+    <li><strong>Verschieben</strong>: Wechseln die Aufgaben den Tag, verlieren sie ihre alte Gruppe – eine Gruppe gehört zu genau einem Tag. Kommen sie in eine Gruppe mit Serie, bekommt deren Team sie automatisch; „Überfällig“ wird beim Tageswechsel wieder zu „Offen“.</li>
+    <li><strong>Kopieren</strong>: Die Originale bleiben, wo sie sind. Die Kopien beginnen als „Offen“ und ohne Notiz; mit <em>Einteilungen mitkopieren</em> sind dieselben Leute eingeteilt. Ohne anderen Tag entsteht die Kopie am selben Tag in derselben Gruppe.</li>
+  </ul>
+  <p>Die <em>Reihenfolge</em> änderst du dagegen mit ▲ ▼ – bei angehakten Aufgaben für alle auf einmal.</p>
 </section>
 
 <section id="status">
@@ -784,7 +789,8 @@
         <tr><td>nur einen Tag sehen</td><td>Filter <strong>Tage</strong> → Zahl</td></tr>
         <tr><td>Aufgaben umsortieren</td><td>Sortieren <strong>Manuell</strong>, dann ▲ ▼ an der Aufgabe</td></tr>
         <tr><td>einen Status ändern</td><td>Klick auf die Statusplakette</td></tr>
-        <tr><td>mehrere Aufgaben auf einen anderen Tag bringen</td><td>Tabelle → Häkchen setzen → <strong>Verschieben</strong></td></tr>
+        <tr><td>mehrere Aufgaben umsortieren</td><td>Häkchen setzen → ▲ ▼ an einer angehakten Aufgabe</td></tr>
+        <tr><td>mehrere Aufgaben auf einen anderen Tag bringen oder kopieren</td><td>Tabelle → Häkchen setzen → <strong>Verschieben / Kopieren</strong></td></tr>
         <tr><td>sehen, was die Co-Leitung geändert hat</td><td>Veranstaltung → <strong>Aktionen</strong> → <strong>Verlauf</strong></td></tr>
         <tr><td>eine Aufgabe vorübergehend streichen</td><td><strong>Bearbeiten</strong> → Gefahrenbereich → <strong>Deaktivieren</strong></td></tr>
         <tr><td>deaktivierte Aufgaben wiederfinden</td><td>Filter <strong>Deaktivierte</strong> → <em>Nur deaktivierte</em></td></tr>
