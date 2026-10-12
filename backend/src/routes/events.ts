@@ -252,9 +252,21 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req: Auth
     // Nur Admin kann Template-Status ändern
     const templateValue = req.user!.role === 'admin' && is_template !== undefined ? is_template : event.is_template;
 
+    /*
+     * Startdatum: Vorlagen haben keins. Das Bearbeiten-Fenster schickte fuer
+     * sie ein leeres Feld ("") - daran scheiterte die Datenbank, und eine
+     * Vorlage liess sich weder umbenennen noch sonst aendern. Leer heisst
+     * jetzt "kein Datum"; fehlt die Angabe ganz, bleibt das bisherige.
+     * Ebenso bleiben fehlende Felder, statt geleert zu werden.
+     */
+    const startDatum = templateValue
+      ? null
+      : start_date === undefined ? event.start_date : (start_date || null);
+
     const result = await query(
       'UPDATE events SET name = $1, description = $2, start_date = $3, days = $4, is_template = $5 WHERE id = $6 RETURNING *',
-      [name, description, start_date, days, templateValue, id]
+      [name ?? event.name, description === undefined ? event.description : description,
+       startDatum, days ?? event.days, templateValue, id]
     );
 
     // Die Termine der Aufgaben leiten sich NICHT vom Event ab, sondern von
@@ -271,7 +283,7 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware, async (req: Auth
 
       for (const inst of instances.rows) {
         const d = new Date(start_date);
-        d.setDate(d.getDate() + (inst.instance_number - 1) * Number(days));
+        d.setDate(d.getDate() + (inst.instance_number - 1) * Number(days ?? event.days));
         await query('UPDATE event_instances SET start_date = $1 WHERE id = $2', [
           d.toISOString().split('T')[0],
           inst.id,

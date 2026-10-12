@@ -535,7 +535,10 @@ export const EventsList: React.FC = () => {
           <button onClick={handleBulkDelete} style={styles.bulkDeleteButton}>
             Ausgewählte löschen
           </button>
-          {activeTab === 'templates' && isAdmin && (
+          {/* Nur, wenn ausschliesslich Vorschlaege markiert sind - eine fertige
+              Vorlage laesst sich nicht noch einmal "annehmen". */}
+          {activeTab === 'templates' && isAdmin && events.some((e) => selectedIds.includes(e.id))
+            && events.filter((e) => selectedIds.includes(e.id)).every((e) => e.is_template_suggestion && !e.is_template) && (
             <button onClick={handleBulkApproveSuggestions} style={styles.bulkApproveButton}>
               Vorschläge annehmen
             </button>
