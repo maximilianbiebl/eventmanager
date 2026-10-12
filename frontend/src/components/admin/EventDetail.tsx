@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { vorschau, istLang, MIT_UMBRUECHEN } from '../../utils/beschreibung';
 import { eventsApi } from '../../api/events';
 import { tasksApi, Task } from '../../api/tasks';
 import { usersApi, User } from '../../api/users';
@@ -574,7 +575,7 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
       {/* Teamleiter sehen Mitarbeiterpool bei Vorlagen nicht */}
       {(isAdmin || !event.is_template) && (
         <div className={styles.section}>
-          <EventStaffPool eventId={eventId} leitung={event?.teamleiter} />
+          <EventStaffPool eventId={eventId} leitung={event?.teamleiter} tag={selectedDay} />
         </div>
       )}
 
@@ -1363,6 +1364,14 @@ const TaskListView: React.FC<TaskListViewProps> = ({
           <span className={styles.gruppenPfeil} style={{ transform: zu ? 'none' : 'rotate(90deg)' }} aria-hidden="true">›</span>
           <span className={styles.gruppenTitel}>{gruppe.title}</span>
           {zeit && <span className={styles.gruppenZeit}>{zeit} Uhr</span>}
+          {/* Deaktiviert ist eine Gruppe, wenn alle ihre Aufgaben es sind. */}
+          {eintraege.length > 0 && eintraege.every((t: any) => t.is_active === false) && (
+            <span style={{
+              fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em',
+              padding: '0.1rem 0.45rem', borderRadius: '9999px', flexShrink: 0,
+              backgroundColor: 'var(--c-surface-muted)', color: 'var(--c-text-muted)', border: '1px solid var(--c-border)',
+            }}>deaktiviert</span>
+          )}
           {/*
             Am Handy bleibt von "2 Aufgaben · 1 eingeteilt" nur "2 · 1" -
             sonst frisst die Zeile den Platz, den der Gruppenname braucht.
@@ -1448,9 +1457,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
         const taskAssignments = getAssignmentsForTask(task.id);
         const maxLength = 100;
         const isExpanded = expandedDescriptions.has(task.id);
-        const truncatedDesc = task.description && task.description.length > maxLength
-          ? task.description.substring(0, maxLength) + '...'
-          : task.description;
+        const truncatedDesc = task.description ? vorschau(task.description, maxLength) : task.description;
 
         const toggleDescription = () => {
           const newExpanded = new Set(expandedDescriptions);
@@ -1558,8 +1565,10 @@ const TaskListView: React.FC<TaskListViewProps> = ({
 
               {task.description && (
                 <div className={styles.taskDescription}>
-                  <span>{isExpanded ? task.description : truncatedDesc}</span>
-                  {task.description.length > maxLength && (
+                  <span style={isExpanded || !istLang(task.description, maxLength) ? MIT_UMBRUECHEN : undefined}>
+                    {isExpanded || !istLang(task.description, maxLength) ? task.description : truncatedDesc}
+                  </span>
+                  {istLang(task.description, maxLength) && (
                     <button
                       onClick={toggleDescription}
                       style={{

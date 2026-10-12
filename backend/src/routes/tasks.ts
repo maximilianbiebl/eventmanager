@@ -96,9 +96,12 @@ router.get('/event/:eventId/all-assignments', authMiddleware, teamleiterOrAdminM
     const { eventId } = req.params;
 
     const result = await query(
-      `SELECT ta.user_id, ta.task_id, t.title as task_title
+      `SELECT ta.user_id, ta.task_id, t.title as task_title, t.day_number,
+              -- ueber eine Serie gekommen (an der Aufgabe oder ihrer Gruppe)
+              (t.series_id IS NOT NULL OR pi.series_id IS NOT NULL) AS aus_serie
        FROM task_assignments ta
        JOIN tasks t ON ta.task_id = t.id
+       LEFT JOIN program_items pi ON pi.id = t.program_item_id
        WHERE t.event_id = $1`,
       [eventId]
     );
@@ -1278,6 +1281,34 @@ router.put('/:id/activate', authMiddleware, teamleiterOrAdminMiddleware, eventZu
     res.json({ message: 'Aufgabe wurde aktiviert', task: result.rows[0] });
   } catch (error) {
     console.error('Activate task error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+/*
+ * Mehrere Aufgaben auf einmal deaktivieren oder wieder aktivieren - aus der
+ * Auswahlleiste. Eine Gruppe gilt als deaktiviert, wenn alle ihre Aufgaben
+ * es sind; deshalb genuegt dieser eine Weg auch fuer ganze Gruppen.
+ */
+router.post('/event/:eventId/bulk-active', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req => req.params.eventId), async (req, res) => {
+  try {
+    const eventId = Number(req.params.eventId);
+    const aktiv = req.body.aktiv === true;
+    const ids: number[] = Array.isArray(req.body.task_ids)
+      ? req.body.task_ids.map((n: unknown) => Number(n)).filter((n: number) => Number.isInteger(n))
+      : [];
+    if (ids.length === 0) return res.status(400).json({ error: 'Keine Aufgaben ausgewählt' });
+
+    const r = await query(
+      `UPDATE tasks SET is_active = $1
+       WHERE id = ANY($2::int[]) AND event_id = $3 AND is_active IS DISTINCT FROM $1 RETURNING id`,
+      [aktiv, ids, eventId]
+    );
+    broadcastUpdate('task', { action: aktiv ? 'activate' : 'deactivate', taskIds: r.rows.map((x: any) => x.id), eventId });
+    const n = r.rows.length;
+    res.json({ geaendert: n, message: `${n} ${n === 1 ? 'Aufgabe' : 'Aufgaben'} ${aktiv ? 'aktiviert' : 'deaktiviert'}` });
+  } catch (error) {
+    console.error('Bulk active error:', error);
     res.status(500).json({ error: 'Server Fehler' });
   }
 });

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { vorschau, hatMehr } from '../../utils/beschreibung';
 import client from '../../api/client';
 import { tasksApi } from '../../api/tasks';
 import { taskSeriesApi, TaskSeries } from '../../api/taskSeries';
@@ -779,6 +780,28 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
     }
   };
 
+  /*
+   * Deaktivieren oder - wenn nur deaktivierte markiert sind - wieder
+   * aktivieren. Deaktivierte sehen Mitarbeitende nicht, und es gibt keine
+   * Erinnerung mehr dazu.
+   */
+  const markierteHabenAktive = alleAufgaben.some(
+    (t) => selectedTaskIds.includes(t.task.id) && t.task.is_active !== false);
+  const markierteAktivSchalten = async () => {
+    if (!eventId || selectedTaskIds.length === 0) return;
+    const aktiv = !markierteHabenAktive;
+    try {
+      const r = await tasksApi.bulkActive(eventId, selectedTaskIds, aktiv);
+      setSelectedTaskIds([]);
+      setSuccessMessage(`${r.geaendert === 1 ? '1 Aufgabe' : `${r.geaendert} Aufgaben`} ${aktiv ? 'aktiviert' : 'deaktiviert'}`);
+      setTimeout(() => setSuccessMessage(''), 3000);
+      loadAssignments(false);
+      onTasksChanged?.();
+    } catch (e: any) {
+      alert(e.response?.data?.error || 'Ändern fehlgeschlagen');
+    }
+  };
+
   const handleBulkDelete = async () => {
     if (selectedTaskIds.length === 0 || !eventId) {
       alert('Bitte mindestens eine Aufgabe auswählen');
@@ -923,9 +946,9 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
                     </div>
                     {task.description && (
                       <div style={styles.taskDescription} className={responsiveStyles.taskDescription}>
-                        {task.description.length > 30 ? (
+                        {hatMehr(task.description, 30) ? (
                           <>
-                            {task.description.substring(0, 30)}...
+                            {vorschau(task.description, 30)}
                             <button
                               onClick={() => setDescriptionModal({ title: task.title, description: task.description! })}
                               style={{
@@ -1138,6 +1161,11 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
     const eingeteilt = eintraege.reduce((n, e) => n + (e.assignedUsers?.length || 0), 0);
     const zeit = gruppenZeit(gruppe);
     const farbe = farbeVon(gruppe.color);
+    const ids: number[] = eintraege.map((e) => e.task?.id ?? e.id);
+    const alleMarkiert = ids.length > 0 && ids.every((id) => selectedTaskIds.includes(id));
+    const teilsMarkiert = !alleMarkiert && ids.some((id) => selectedTaskIds.includes(id));
+    // Eine Gruppe gilt als deaktiviert, wenn alle ihre Aufgaben es sind.
+    const deaktiviert = eintraege.length > 0 && eintraege.every((e) => e.task?.is_active === false);
 
     return (
       /*
@@ -1156,6 +1184,20 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
           }}
           colSpan={schmal ? GRUPPEN_SPALTEN_SCHMAL : GRUPPEN_SPALTEN}
         >
+          {/* Haekchen fuer die ganze Gruppe: markiert alle ihre Aufgaben -
+              zum gemeinsamen Deaktivieren, Kopieren, Verschieben, Loeschen. */}
+          {!readOnly && ids.length > 0 && (
+            <input
+              type="checkbox"
+              style={{ ...styles.checkbox, marginRight: '0.6rem', verticalAlign: 'middle' }}
+              checked={alleMarkiert}
+              ref={(el) => { if (el) el.indeterminate = teilsMarkiert; }}
+              onChange={() => setSelectedTaskIds((alt) => alleMarkiert
+                ? alt.filter((id) => !ids.includes(id))
+                : [...alt, ...ids.filter((id) => !alt.includes(id))])}
+              aria-label={`Alle Aufgaben der Gruppe „${gruppe.title}“ auswählen`}
+            />
+          )}
           <button
             type="button"
             onClick={() => klappe(gruppe.id)}
@@ -1165,6 +1207,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
             <span style={{ ...styles.gruppenPfeil, transform: zu ? 'none' : 'rotate(90deg)' }} aria-hidden="true">›</span>
             <span style={styles.gruppenTitel}>{gruppe.title}</span>
             {zeit && <span style={styles.gruppenZeit}>{zeit} Uhr</span>}
+            {deaktiviert && <span style={styles.gruppeDeaktiviert}>deaktiviert</span>}
             <span style={styles.gruppenZahl}>
               {eintraege.length} {eintraege.length === 1 ? 'Aufgabe' : 'Aufgaben'}
               {eingeteilt > 0 && ` · ${eingeteilt} eingeteilt`}
@@ -1274,6 +1317,11 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
                   Kopieren
                 </button>
               </>
+            )}
+            {eventId && (
+              <button onClick={markierteAktivSchalten} style={styles.bulkMoveButton}>
+                {markierteHabenAktive ? 'Deaktivieren' : 'Aktivieren'}
+              </button>
             )}
             <button onClick={handleBulkDelete} style={styles.bulkDeleteButton}>
               Löschen
@@ -1644,6 +1692,11 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: '4px',
     cursor: 'pointer',
     fontSize: '0.875rem',
+  },
+  gruppeDeaktiviert: {
+    fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em',
+    padding: '0.1rem 0.45rem', borderRadius: '9999px',
+    backgroundColor: 'var(--c-surface-muted)', color: 'var(--c-text-muted)', border: '1px solid var(--c-border)',
   },
   checkbox: {
     width: '18px',

@@ -222,7 +222,10 @@ export async function sendTaskReminders() {
        WHERE ta.event_instance_id = $1
          AND t.day_number = $2
          AND (t.scheduled_time IS NOT NULL OR t.start_time IS NOT NULL)
-         AND ta.completed = false`,
+         AND ta.completed = false
+         -- Deaktivierte Aufgaben sind fuer niemanden sichtbar - also auch
+         -- keine Erinnerung. Vorher kam sie trotzdem.
+         AND t.is_active IS DISTINCT FROM false`,
       /*
        * Selbstabhakende Aufgaben erinnern GENAUSO wie alle anderen.
        *
@@ -399,6 +402,7 @@ export async function sendeEigeneErinnerungen() {
      JOIN events e ON e.id = t.event_id
      WHERE ta.reminder_at IS NOT NULL
        AND ta.completed = false
+       AND t.is_active IS DISTINCT FROM false
        AND ta.reminder_at <= $1
        AND ta.reminder_at > $2`,
     [bis, ab]
@@ -757,6 +761,8 @@ export async function updateOverdueTasks() {
          AND t.status NOT IN ('completed', 'overdue')
          -- Was sich selbst abhakt, wird nie ueberfaellig.
          AND t.auto_complete = false
+         -- Deaktivierte auch nicht.
+         AND t.is_active IS DISTINCT FROM false
          AND t.end_time IS NOT NULL
          AND (
            t.day_number < $3

@@ -63,6 +63,12 @@ export const programApi = {
     return response.data;
   },
 
+  /** Alle Aufgaben der Gruppe deaktivieren oder wieder aktivieren. */
+  setAktiv: async (id: number, aktiv: boolean): Promise<{ geaendert: number }> => {
+    const response = await client.put(`/program/${id}/aktiv`, { aktiv });
+    return response.data;
+  },
+
   update: async (id: number, data: Partial<TaskGroup>): Promise<TaskGroup> => {
     const response = await client.put(`/program/${id}`, data);
     return response.data;

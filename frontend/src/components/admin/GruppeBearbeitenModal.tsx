@@ -25,6 +25,7 @@ interface Aufgabe {
   scheduled_time?: string | null;
   end_time?: string | null;
   program_item_id?: number | null;
+  is_active?: boolean | null;
 }
 
 interface Props {
@@ -63,7 +64,12 @@ export const GruppeBearbeitenModal: React.FC<Props> = ({
     (async () => {
       try {
         const [alle, s] = await Promise.all([
-          client.get(`/tasks/event/${eventId}`),
+          /*
+           * MIT den deaktivierten: sonst fehlten sie in der Liste, und beim
+           * Speichern flogen sie aus der Gruppe - schon bei einer reinen
+           * Umbenennung.
+           */
+          client.get(`/tasks/event/${eventId}`, { params: { includeInactive: 'true' } }),
           taskSeriesApi.getByEvent(eventId).catch(() => [] as TaskSeries[]),
         ]);
         if (abgebrochen) return;
@@ -125,6 +131,24 @@ export const GruppeBearbeitenModal: React.FC<Props> = ({
       onClose();
     } catch (e: any) {
       setFehler(e.response?.data?.error || 'Entfernen fehlgeschlagen');
+    }
+  };
+
+  /*
+   * Ganze Gruppe deaktivieren / wieder aktivieren: alle ihre Aufgaben.
+   * Deaktiviert ist die Gruppe, wenn alle ihre Aufgaben es sind.
+   */
+  const eigene = aufgaben.filter((a) => a.program_item_id === gruppe.id);
+  const gruppeDeaktiviert = eigene.length > 0 && eigene.every((a) => a.is_active === false);
+  const aktivSchalten = async () => {
+    setSpeichert(true);
+    try {
+      await programApi.setAktiv(gruppe.id, gruppeDeaktiviert);
+      onGespeichert();
+      onClose();
+    } catch (e: any) {
+      setFehler(e.response?.data?.error || 'Ändern fehlgeschlagen');
+      setSpeichert(false);
     }
   };
 
@@ -253,7 +277,8 @@ export const GruppeBearbeitenModal: React.FC<Props> = ({
                   <label key={a.id} style={stil.listeZeile}>
                     <input type="checkbox" checked={gewaehlt.includes(a.id)}
                       onChange={() => umschalten(a.id)} style={stil.haken} />
-                    <span>{a.title}</span>
+                    <span style={a.is_active === false ? { color: 'var(--c-text-muted)' } : undefined}>{a.title}</span>
+                    {a.is_active === false && <span style={stil.fremd}>deaktiviert</span>}
                     {fremd && <span style={stil.fremd}>andere Gruppe</span>}
                     <span style={stil.zeit}>
                       {hhmm(a.start_time || a.scheduled_time || a.end_time)}
@@ -269,6 +294,14 @@ export const GruppeBearbeitenModal: React.FC<Props> = ({
             <div style={stil.fuss}>
               <button type="button" onClick={entfernen} style={stil.entfernen}>Entfernen</button>
               <button type="button" onClick={() => setDupOffen(true)} style={stil.zurueck}>Duplizieren</button>
+              {eigene.length > 0 && (
+                <button type="button" onClick={aktivSchalten} disabled={speichert} style={stil.zurueck}
+                  title={gruppeDeaktiviert
+                    ? 'Alle Aufgaben der Gruppe wieder aktivieren'
+                    : 'Alle Aufgaben der Gruppe deaktivieren - Mitarbeitende sehen sie nicht mehr, Erinnerungen entfallen'}>
+                  {gruppeDeaktiviert ? 'Aktivieren' : 'Deaktivieren'}
+                </button>
+              )}
               <div style={{ flex: 1 }} />
               <button type="button" onClick={onClose} style={stil.zurueck}>Abbrechen</button>
               <button type="button" onClick={speichern} disabled={speichert} style={stil.speichern}>

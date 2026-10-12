@@ -235,6 +235,22 @@ const REGELN: Regel[] = [
     },
   },
   {
+    methode: 'POST', pfad: /^\/tasks\/event\/(\d+)\/bulk-active$/,
+    vorher: (k) => titelVon(k.body.task_ids),
+    nachher: async (k, v, a) => (a?.geaendert && v?.titel.length) ? {
+      eventId: zahl(k.treffer[1]), art: 'aufgabe_geaendert',
+      text: `${aufgaben(v.titel.length)} ${k.body.aktiv === true ? 'wieder aktiviert' : 'deaktiviert'}: ${liste(v.titel)}`,
+    } : null,
+  },
+  {
+    methode: 'PUT', pfad: /^\/program\/(\d+)\/aktiv$/,
+    nachher: async (k, _v, a) => {
+      if (!a?.geaendert) return null;
+      const g = await gruppe(zahl(k.treffer[1]));
+      return g ? { eventId: g.event_id, art: 'gruppe', text: `Gruppe „${g.title}“ ${k.body.aktiv === true ? 'wieder aktiviert' : 'deaktiviert'} (${aufgaben(a.geaendert)})` } : null;
+    },
+  },
+  {
     methode: 'POST', pfad: /^\/tasks\/event\/(\d+)\/bulk-delete$/,
     vorher: (k) => titelVon(k.body.task_ids),
     nachher: async (k, v) => v?.titel.length ? { eventId: zahl(k.treffer[1]), art: 'aufgabe_geloescht', text: `${aufgaben(v.titel.length)} gelöscht: ${liste(v.titel)}` } : null,

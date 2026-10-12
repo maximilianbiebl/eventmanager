@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { vorschau, hatMehr, istLang, MIT_UMBRUECHEN } from '../utils/beschreibung';
 import { createPortal } from 'react-dom';
 import { tasksApi, TaskAssignment } from '../api/tasks';
 import { useAuth } from '../context/AuthContext';
@@ -1300,14 +1301,14 @@ const TaskCard: React.FC<{
 
         {task.description && (
           <>
-            <div className={styles.taskDescription}>
-              {!showFullDescription && task.description.length > 150 ? (
-                <>{task.description.substring(0, 150)}...</>
+            <div className={styles.taskDescription} style={showFullDescription || !istLang(task.description, 150) ? MIT_UMBRUECHEN : undefined}>
+              {!showFullDescription && istLang(task.description, 150) ? (
+                <>{vorschau(task.description, 150)}</>
               ) : (
                 <>{task.description}</>
               )}
             </div>
-            {task.description.length > 150 && (
+            {istLang(task.description, 150) && (
               <button
                 onClick={() => setShowFullDescription(!showFullDescription)}
                 className={styles.moreButton}
@@ -1781,9 +1782,9 @@ const StaffTableView: React.FC<{
                   {task.description && (
                     <>
                       <div className={styles.taskDescCell}>
-                        {task.description.length > 25 ? `${task.description.substring(0, 25)}...` : task.description}
+                        {vorschau(task.description, 25)}
                       </div>
-                      {task.description.length > 25 && (
+                      {hatMehr(task.description, 25) && (
                         <button
                           onClick={() => setDescriptionModal({ title: task.title, description: task.description! })}
                           className={styles.moreButton}

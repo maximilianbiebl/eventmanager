@@ -17,12 +17,14 @@ interface Props {
    * Kommt aus GET /events/:id mit.
    */
   leitung?: Leitung[];
+  /** Gewaehlter Tag der Ansicht - die Aufgabenzahlen gelten fuer ihn ("all": alle Tage). */
+  tag?: number | 'all';
 }
+
+interface PoolZuweisung { user_id: number; task_id: number; day_number: number; aus_serie: boolean }
 
 interface EventStaff extends User {
   isInPool?: boolean;
-  taskCount?: number;
-  seriesTaskCount?: number;
 }
 
 interface StaffTask {
@@ -37,9 +39,10 @@ interface StaffTask {
   seriesName?: string;
 }
 
-export const EventStaffPool: React.FC<Props> = ({ eventId, leitung }) => {
+export const EventStaffPool: React.FC<Props> = ({ eventId, leitung, tag = 'all' }) => {
 
   const [allStaff, setAllStaff] = useState<EventStaff[]>([]);
+  const [zuweisungen, setZuweisungen] = useState<PoolZuweisung[]>([]);
   const [eventStaff, setEventStaff] = useState<EventStaff[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -65,6 +68,23 @@ export const EventStaffPool: React.FC<Props> = ({ eventId, leitung }) => {
   const [selectedStaffForTasks, setSelectedStaffForTasks] = useState<EventStaff | null>(null);
   const [staffTasks, setStaffTasks] = useState<StaffTask[]>([]);
   const [removeCandidate, setRemoveCandidate] = useState<{ staff: EventStaff; openTasks: StaffTask[] } | null>(null);
+
+  /*
+   * Aufgaben je Person - fuer den Tag, den die Ansicht zeigt. Bei "Alle"
+   * ueber alle Tage. Vorher stand hier immer die Gesamtzahl, auch wenn man
+   * gerade Tag 3 einteilte.
+   */
+  const zahlen = React.useMemo(() => {
+    const m = new Map<number, { gesamt: number; serie: number }>();
+    for (const z of zuweisungen) {
+      if (tag !== 'all' && Number(z.day_number) !== tag) continue;
+      const e = m.get(z.user_id) ?? { gesamt: 0, serie: 0 };
+      e.gesamt++;
+      if (z.aus_serie) e.serie++;
+      m.set(z.user_id, e);
+    }
+    return m;
+  }, [zuweisungen, tag]);
 
   // SSE for real-time updates
   useSSE({
@@ -97,34 +117,18 @@ export const EventStaffPool: React.FC<Props> = ({ eventId, leitung }) => {
       if (showLoading) {
         setLoading(true);
       }
-      const [allUsers, eventUsers, assignments, seriesData] = await Promise.all([
+      const [allUsers, eventUsers, assignments] = await Promise.all([
         usersApi.getAll(),
         client.get(`/users/event/${eventId}/staff`).then(res => res.data),
         client.get(`/tasks/event/${eventId}/all-assignments`).then(res => res.data).catch(() => []),
-        taskSeriesApi.getByEvent(eventId).catch(() => []),
       ]);
-
-      // Zähle Task-Zuweisungen pro User
-      const taskCounts: { [userId: number]: number } = {};
-      assignments.forEach((assignment: any) => {
-        if (assignment.user_id) {
-          taskCounts[assignment.user_id] = (taskCounts[assignment.user_id] || 0) + 1;
-        }
-      });
-
-      // Load series members and count series tasks per user
-      const seriesTaskCounts: { [userId: number]: number } = {};
-      for (const s of seriesData) {
-        try {
-          const details = await taskSeriesApi.getById(s.id);
-          const taskCount = details.tasks?.length || 0;
-          details.members?.forEach(member => {
-            seriesTaskCounts[member.id] = (seriesTaskCounts[member.id] || 0) + taskCount;
-          });
-        } catch (err) {
-          // ignore
-        }
-      }
+      /*
+       * Gezaehlt wird beim Anzeigen (zahlenFuer) - fuer den Tag, den die
+       * Ansicht gerade zeigt. Serien-Aufgaben sind echte Zuweisungen; woher
+       * eine kommt, sagt aus_serie. Vorher lud der Pool dafuer jede Serie
+       * einzeln nach und zaehlte immer ueber alle Tage.
+       */
+      setZuweisungen(assignments);
 
       /*
        * Alle Rollen zur Auswahl, nicht nur "staff".
@@ -141,16 +145,9 @@ export const EventStaffPool: React.FC<Props> = ({ eventId, leitung }) => {
       const staffWithPoolStatus = staffOnly.map(staff => ({
         ...staff,
         isInPool: eventStaffIds.has(staff.id),
-        taskCount: taskCounts[staff.id] || 0,
-        seriesTaskCount: seriesTaskCounts[staff.id] || 0,
       }));
 
-      // Event-Staff mit Task-Counts
-      const eventStaffWithCounts = eventUsers.map((staff: User) => ({
-        ...staff,
-        taskCount: taskCounts[staff.id] || 0,
-        seriesTaskCount: seriesTaskCounts[staff.id] || 0,
-      }));
+      const eventStaffWithCounts = eventUsers;
 
       setAllStaff(staffWithPoolStatus);
       setEventStaff(eventStaffWithCounts);
@@ -380,7 +377,7 @@ export const EventStaffPool: React.FC<Props> = ({ eventId, leitung }) => {
                   cursor: 'pointer',
                   textDecoration: 'underline',
                 }}
-                title="Aufgaben anzeigen"
+                title={tag === 'all' ? 'Aufgaben anzeigen (alle Tage)' : `Aufgaben an Tag ${tag} – Klick zeigt alle`}
               >
                 {/* Serien-Aufgaben sind jetzt echte Zuweisungen und damit in
                     taskCount enthalten - vorher wurden sie hier addiert, das
@@ -388,13 +385,20 @@ export const EventStaffPool: React.FC<Props> = ({ eventId, leitung }) => {
                 {/* Kurz halten - die Karten stehen nebeneinander und wurden
                     durch "(davon x aus Serie)" sehr breit. Der ganze Satz
                     steht im Tooltip. */}
-                {staff.taskCount || 0} Aufgabe{(staff.taskCount || 0) !== 1 ? 'n' : ''}
-                {(staff.seriesTaskCount || 0) > 0 && (
-                  <span
-                    style={{ fontSize: '0.7rem', color: 'var(--c-text-muted)' }}
-                    title={`davon ${staff.seriesTaskCount} über eine Serie`}
-                  > · {staff.seriesTaskCount} Serie</span>
-                )}
+                {(() => {
+                  const z = zahlen.get(staff.id) ?? { gesamt: 0, serie: 0 };
+                  return (
+                    <>
+                      {z.gesamt} Aufgabe{z.gesamt !== 1 ? 'n' : ''}
+                      {z.serie > 0 && (
+                        <span
+                          style={{ fontSize: '0.7rem', color: 'var(--c-text-muted)' }}
+                          title={`davon ${z.serie} über eine Serie`}
+                        > · {z.serie} Serie</span>
+                      )}
+                    </>
+                  );
+                })()}
               </button>
             </div>
             );

@@ -254,6 +254,12 @@ export const tasksApi = {
     return response.data;
   },
 
+  // Markierte deaktivieren (aktiv=false) oder wieder aktivieren.
+  bulkActive: async (eventId: number, taskIds: number[], aktiv: boolean): Promise<{ geaendert: number }> => {
+    const response = await client.post(`/tasks/event/${eventId}/bulk-active`, { task_ids: taskIds, aktiv });
+    return response.data;
+  },
+
   // Kopien der Aufgaben am Ziel; Einteilungen und Notizen nur auf Wunsch.
   bulkCopy: async (
     eventId: number,

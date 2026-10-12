@@ -193,6 +193,30 @@ router.put('/:id', authMiddleware, teamleiterOrAdminMiddleware,
 });
 
 /*
+ * Ganze Gruppe deaktivieren oder wieder aktivieren: alle ihre Aufgaben.
+ * Eine Gruppe gilt als deaktiviert, wenn alle ihre Aufgaben es sind - ein
+ * eigener Schalter an der Gruppe waere ein zweiter Zustand, der mit dem der
+ * Aufgaben auseinanderlaufen koennte.
+ */
+router.put('/:id/aktiv', authMiddleware, teamleiterOrAdminMiddleware,
+  eventZugriff(req => eventIdVonGruppe(req.params.id)), async (req: AuthRequest, res: Response) => {
+  try {
+    const aktiv = req.body.aktiv === true;
+    const g = await query('SELECT * FROM program_items WHERE id = $1', [req.params.id]);
+    if (g.rows.length === 0) return res.status(404).json({ error: 'Aufgabengruppe nicht gefunden' });
+    const r = await query(
+      'UPDATE tasks SET is_active = $1 WHERE program_item_id = $2 AND is_active IS DISTINCT FROM $1 RETURNING id',
+      [aktiv, req.params.id]
+    );
+    broadcastUpdate('task', { action: aktiv ? 'activate' : 'deactivate', eventId: g.rows[0].event_id });
+    res.json({ geaendert: r.rows.length });
+  } catch (error) {
+    console.error('Group active error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+/*
  * Gruppen von Hand sortieren - innerhalb ihres Tages.
  *
  * Gruppen und gruppenlose Aufgaben teilen sich eine Zaehlung, eine Gruppe
