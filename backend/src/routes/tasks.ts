@@ -27,6 +27,25 @@ function formatTime(time: string | null): string {
   return time.substring(0, 5);
 }
 
+/*
+ * Status setzen und den Stand DAVOR zurueckgeben - in einem Schritt.
+ *
+ * Die Zeile wird dabei gesperrt: haken zwei Eingeteilte in derselben
+ * Sekunde ab, wartet die zweite Anfrage auf die erste und sieht danach
+ * schon "erledigt". So meldet nur der echte Wechsel - vorher lasen beide
+ * den alten Stand und die Leitung bekam zwei Meldungen.
+ */
+const setzeStatus = async (taskId: number, status: string, zeit: Date | null = null) => {
+  const r = await query(
+    `UPDATE tasks t SET status = $2::varchar, status_changed_at = COALESCE($3::timestamptz, NOW())
+     FROM (SELECT id, status AS alt FROM tasks WHERE id = $1 FOR UPDATE) v
+     WHERE t.id = v.id
+     RETURNING t.*, v.alt`,
+    [taskId, status, zeit]
+  );
+  return r.rows[0] as any;
+};
+
 // Alle Aufgaben für ein Event abrufen
 router.get('/event/:eventId', authMiddleware, teamleiterOrAdminMiddleware, eventZugriff(req => req.params.eventId), async (req, res) => {
   try {
@@ -554,14 +573,7 @@ router.put('/complete/:assignmentId', authMiddleware, async (req: AuthRequest, r
     );
 
     // Task selbst als "completed" markieren (global für alle Mitarbeiter)
-    const vorher = await query(
-      'SELECT t.*, e.name AS event_name FROM tasks t JOIN events e ON e.id = t.event_id WHERE t.id = $1',
-      [assignment.rows[0].task_id]
-    );
-    await query(
-      'UPDATE tasks SET status = $1, status_changed_at = NOW() WHERE id = $2',
-      ['completed', assignment.rows[0].task_id]
-    );
+    const gesetzt = await setzeStatus(assignment.rows[0].task_id, 'completed');
 
     /*
      * Die Leitung erfaehrt es - aber nur beim ECHTEN Wechsel auf erledigt.
@@ -569,8 +581,8 @@ router.put('/complete/:assignmentId', authMiddleware, async (req: AuthRequest, r
      * dafuer dreimal "Erledigt". Ebenso, wenn das Handy die Aenderung nach
      * einem Funkloch noch einmal schickt. Siehe services/meldungen.
      */
-    if (req.user!.role === 'staff' && vorher.rows[0]) {
-      meldeLeitung(vorher.rows[0], 'completed', vorher.rows[0].status, { id: req.user!.id, name: req.user!.name });
+    if (req.user!.role === 'staff' && gesetzt) {
+      meldeLeitung(gesetzt, 'completed', gesetzt.alt, { id: req.user!.id, name: req.user!.name });
     }
 
     // Broadcast update to all connected clients
@@ -613,11 +625,11 @@ router.put('/:taskId/complete-public', authMiddleware, async (req: AuthRequest, 
     }
 
     // Task als completed markieren
-    await query('UPDATE tasks SET status = $1, status_changed_at = NOW() WHERE id = $2', ['completed', taskId]);
+    const gesetzt = await setzeStatus(Number(taskId), 'completed');
 
     // Nur beim echten Wechsel - siehe oben bei /complete.
-    if (req.user!.role === 'staff') {
-      meldeLeitung(task, 'completed', task.status, { id: req.user!.id, name: req.user!.name });
+    if (req.user!.role === 'staff' && gesetzt) {
+      meldeLeitung({ ...gesetzt, event_name: task.event_name }, 'completed', gesetzt.alt, { id: req.user!.id, name: req.user!.name });
     }
 
     // Broadcast update to all connected clients
@@ -980,10 +992,8 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
     }
 
     // Status aktualisieren
-    const result = await query(
-      'UPDATE tasks SET status = $1, status_changed_at = $2 WHERE id = $3 RETURNING *',
-      [status, gewaehltAm, id]
-    );
+    const gesetzt = await setzeStatus(Number(id), status, gewaehltAm);
+    const result = { rows: [gesetzt] };
 
     // Wenn Status von completed weg geändert wird, alle Assignments zurücksetzen
     if (currentTask.status === 'completed' && status !== 'completed') {
@@ -1004,9 +1014,10 @@ router.put('/:id/status', authMiddleware, async (req: AuthRequest, res) => {
       meldeMitarbeitenden(currentTask, status, { id: req.user!.id, name: req.user!.name });
     }
 
-    // Ein MITARBEITER hat den Status geaendert: die Leitung erfaehrt es.
-    if (req.user!.role === 'staff') {
-      meldeLeitung(currentTask, status, currentTask.status, { id: req.user!.id, name: req.user!.name });
+    // Ein MITARBEITER hat den Status geaendert: die Leitung erfaehrt es -
+    // gemessen am Stand direkt vor DIESER Aenderung (siehe setzeStatus).
+    if (req.user!.role === 'staff' && gesetzt) {
+      meldeLeitung({ ...gesetzt, event_name: currentTask.event_name }, status, gesetzt.alt, { id: req.user!.id, name: req.user!.name });
     }
 
     // Broadcast update to all connected clients
