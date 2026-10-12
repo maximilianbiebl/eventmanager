@@ -200,7 +200,10 @@ class SignalService {
           message: message,
           number: fromNumber,
           recipients: [toNumber]
-        }
+        },
+        // Ohne Grenze haette ein haengender signal-cli die ganze
+        // Warteschlange angehalten (services/meldungen).
+        { timeout: 90_000 }
       );
 
       console.log(`Signal message sent from ${fromNumber} to ${toNumber}`);

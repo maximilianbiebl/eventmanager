@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { LEITUNG_STANDARD } from '../services/meldungen';
 import { query } from '../database/connection';
 import { authMiddleware, teamleiterOrAdminMiddleware, AuthRequest } from '../middleware/auth';
 import { signalService } from '../services/signal';
@@ -196,6 +197,16 @@ router.put('/settings', authMiddleware, async (req: AuthRequest, res) => {
     const userId = req.user!.id;
     const { signal_enabled, signal_phone_number, web_push_enabled, teamleiter_status_notifications } = req.body;
 
+    /*
+     * Leitung: welche Status gemeldet werden und ob auch bei oeffentlichen
+     * Aufgaben (services/meldungen). Fehlt die Angabe, bleibt sie, wie sie ist.
+     */
+    const ERLAUBT = ['not_started', 'in_progress', 'completed', 'overdue'];
+    const meldungen = Array.isArray(req.body.leitung_meldungen)
+      ? req.body.leitung_meldungen.filter((x: unknown) => ERLAUBT.includes(String(x))).map(String)
+      : null;
+    const oeffentliche = typeof req.body.leitung_oeffentliche === 'boolean' ? req.body.leitung_oeffentliche : null;
+
     // Validiere Telefonnummer wenn Signal aktiviert
     if (signal_enabled && !signal_phone_number) {
       return res.status(400).json({ error: 'Telefonnummer ist erforderlich für Signal-Benachrichtigungen' });
@@ -206,9 +217,12 @@ router.put('/settings', authMiddleware, async (req: AuthRequest, res) => {
        SET signal_enabled = $1,
            signal_phone_number = $2,
            web_push_enabled = $3,
-           teamleiter_status_notifications = $4
+           teamleiter_status_notifications = $4,
+           leitung_meldungen = CASE WHEN $6::boolean THEN $7::text[] ELSE leitung_meldungen END,
+           leitung_oeffentliche = COALESCE($8, leitung_oeffentliche)
        WHERE id = $5`,
-      [signal_enabled || false, signal_phone_number || null, web_push_enabled !== false, teamleiter_status_notifications !== false, userId]
+      [signal_enabled || false, signal_phone_number || null, web_push_enabled !== false, teamleiter_status_notifications !== false, userId,
+       meldungen !== null, meldungen ?? [], oeffentliche]
     );
 
     res.json({ message: 'Benachrichtigungs-Einstellungen aktualisiert' });
@@ -226,7 +240,8 @@ router.get('/settings', authMiddleware, async (req: AuthRequest, res) => {
     const userId = req.user!.id;
 
     const userResult = await query(
-      'SELECT signal_enabled, signal_phone_number, web_push_enabled, teamleiter_status_notifications FROM users WHERE id = $1',
+      `SELECT signal_enabled, signal_phone_number, web_push_enabled, teamleiter_status_notifications,
+              leitung_meldungen, leitung_oeffentliche FROM users WHERE id = $1`,
       [userId]
     );
 
@@ -238,7 +253,9 @@ router.get('/settings', authMiddleware, async (req: AuthRequest, res) => {
       signal_enabled: userResult.rows[0].signal_enabled || false,
       signal_phone_number: userResult.rows[0].signal_phone_number || '',
       web_push_enabled: userResult.rows[0].web_push_enabled !== false,
-      teamleiter_status_notifications: userResult.rows[0].teamleiter_status_notifications !== false
+      teamleiter_status_notifications: userResult.rows[0].teamleiter_status_notifications !== false,
+      leitung_meldungen: userResult.rows[0].leitung_meldungen ?? LEITUNG_STANDARD,
+      leitung_oeffentliche: userResult.rows[0].leitung_oeffentliche !== false,
     });
   } catch (error: any) {
     console.error('Signal settings get error:', error);

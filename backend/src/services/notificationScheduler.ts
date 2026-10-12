@@ -7,6 +7,7 @@ import { signalService } from './signal';
 import { pruefeKopplungen, halteKopplungenWach } from './signalKopplung';
 import { broadcastUpdate } from '../routes/sse';
 import { pushZustellung, Meldungsart } from '../utils/pushZustellung';
+import { signalSenden, beschreibungZeilen, meldeLeitung } from './meldungen';
 
 // Helper function to format time without seconds (hh:mm)
 function formatTime(time: string | null): string {
@@ -19,7 +20,21 @@ function formatTime(time: string | null): string {
 export function startNotificationScheduler() {
   console.log('Starting notification scheduler...');
 
+  /*
+   * Hoechstens EIN Durchlauf zur Zeit. Frueher startete jede Minute ein
+   * neuer, auch wenn der vorige noch Nachrichten verschickte - die
+   * Durchlaeufe liefen uebereinander, schickten dieselbe Erinnerung
+   * mehrfach und stauten sich bis zu einer Stunde. Verpasst wird dabei
+   * nichts: der naechste Durchlauf holt Faelliges der letzten zehn
+   * Minuten nach (NACHHOLFENSTER_MS).
+   */
+  let laeuft = false;
   cron.schedule('* * * * *', async () => {
+    if (laeuft) {
+      console.warn('[Notification Scheduler] Voriger Durchlauf laeuft noch - diese Minute uebersprungen');
+      return;
+    }
+    laeuft = true;
     try {
       // Zuerst abhaken, dann erst ueberfaellig setzen - sonst waere eine
       // selbstabhakende Aufgabe fuer einen Moment "ueberfaellig".
@@ -30,6 +45,8 @@ export function startNotificationScheduler() {
       await updateOverdueTasks();
     } catch (error) {
       console.error('Notification scheduler error:', error);
+    } finally {
+      laeuft = false;
     }
   });
 
@@ -253,13 +270,13 @@ export async function sendTaskReminders() {
           );
 
           if (alreadySent.rows.length === 0) {
-            await sendTaskNotification(task.user_id, task, instance, reminderMinutes, 'scheduled_time');
-
+            // Erst vormerken, dann senden - so kann sie nie zweimal rausgehen.
             await query(
               `INSERT INTO notifications_log (user_id, task_id, event_instance_id, notification_type)
                VALUES ($1, $2, $3, 'scheduled')`,
               [task.user_id, task.id, instance.id]
             );
+            await sendTaskNotification(task.user_id, task, instance, reminderMinutes, 'scheduled_time');
           }
         }
       }
@@ -285,13 +302,13 @@ export async function sendTaskReminders() {
           );
 
           if (alreadySent.rows.length === 0) {
-            await sendTaskNotification(task.user_id, task, instance, reminderMinutes, 'start_time');
-
+            // Erst vormerken, dann senden - so kann sie nie zweimal rausgehen.
             await query(
               `INSERT INTO notifications_log (user_id, task_id, event_instance_id, notification_type)
                VALUES ($1, $2, $3, 'start_reminder')`,
               [task.user_id, task.id, instance.id]
             );
+            await sendTaskNotification(task.user_id, task, instance, reminderMinutes, 'start_time');
           } else {
             console.log(`[Notification Scheduler] Already sent start_time reminder for task ${task.id}`);
           }
@@ -331,14 +348,13 @@ export async function sendTaskReminders() {
             );
 
             if (alreadySent.rows.length === 0) {
-              await sendStartTimeNotification(task.user_id, task, instance);
-
-              // Log erstellen mit speziellem Type
+              // Erst vormerken, dann senden - so kann sie nie zweimal rausgehen.
               await query(
                 `INSERT INTO notifications_log (user_id, task_id, event_instance_id, notification_type)
                  VALUES ($1, $2, $3, 'start_time')`,
                 [task.user_id, task.id, instance.id]
               );
+              await sendStartTimeNotification(task.user_id, task, instance);
             }
           }
         }
@@ -549,10 +565,7 @@ async function sendTaskNotification(userId: number, task: any, instance: any, re
             const toNumber = user.signal_phone_number;
 
             // Beschreibung hinzufügen
-            let description = '';
-            if (task.description) {
-              description = `\n📋 ${task.description}`;
-            }
+            const description = beschreibungZeilen(task);
 
             // Zeit-Informationen formatieren (ohne Sekunden und Icons)
             let timeInfo = '';
@@ -567,11 +580,8 @@ async function sendTaskNotification(userId: number, task: any, instance: any, re
 
             const signalMessage = `${title}\n\n${task.title}${description}${timeInfo}\n\n🎪 ${instance.event_name}`;
 
-            const signalSent = await signalService.sendMessage(fromNumber, toNumber, signalMessage);
-
-            if (signalSent) {
-              console.log(`[sendTaskNotification] ✓ Signal message sent to ${toNumber} from teamleiter ${linkedTeamleiter.id}`);
-            }
+            // Ueber die Warteschlange - der Zeitplaner wartet nicht darauf.
+            signalSenden(fromNumber, toNumber, signalMessage, timeType === 'eigene' ? 'eigene' : 'erinnerung');
           } else {
             console.log(`[sendTaskNotification] No linked Signal account found for event ${task.event_id} teamleiter`);
           }
@@ -689,10 +699,7 @@ async function sendStartTimeNotification(userId: number, task: any, instance: an
             const toNumber = user.signal_phone_number;
 
             // Beschreibung hinzufügen
-            let description = '';
-            if (task.description) {
-              description = `\n📋 ${task.description}`;
-            }
+            const description = beschreibungZeilen(task);
 
             // Zeit-Informationen formatieren (ohne Sekunden und Icons)
             let timeInfo = '';
@@ -707,11 +714,7 @@ async function sendStartTimeNotification(userId: number, task: any, instance: an
 
             const signalMessage = `${title}\n\n${task.title}${description}${timeInfo}\n\n🎪 ${instance.event_name}`;
 
-            const signalSent = await signalService.sendMessage(fromNumber, toNumber, signalMessage);
-
-            if (signalSent) {
-              console.log(`[sendStartTimeNotification] ✓ Signal message sent to ${toNumber} from teamleiter ${linkedTeamleiter.id}`);
-            }
+            signalSenden(fromNumber, toNumber, signalMessage, 'start');
           } else {
             console.log(`[sendStartTimeNotification] No linked Signal account found for event ${task.event_id} teamleiter`);
           }
@@ -765,10 +768,17 @@ export async function updateOverdueTasks() {
     for (const task of tasksResult.rows) {
       try {
         // Update Task Status zu overdue
-        await query(
-          'UPDATE tasks SET status = $1 WHERE id = $2',
-          ['overdue', task.id]
+        const gesetzt = await query(
+          `UPDATE tasks SET status = 'overdue', status_changed_at = NOW()
+           WHERE id = $1 AND status NOT IN ('completed', 'overdue') RETURNING id`,
+          [task.id]
         );
+        // Die Abfrage liefert je eingeteilter Person eine Zeile - die Leitung
+        // bekommt die Meldung nur beim ersten Mal, nur wenn sie "Ueberfaellig"
+        // in ihren Einstellungen gewaehlt hat.
+        if (gesetzt.rows.length > 0) {
+          meldeLeitung({ ...task, event_name: instance.event_name }, 'overdue', task.status, { id: null, name: 'Automatisch (Endzeit vorbei)' });
+        }
 
         console.log(`Task ${task.id} marked as overdue`);
 
@@ -870,15 +880,7 @@ export async function updateOverdueTasks() {
                     }
 
                     const signalMessage = `${title}\n\n${task.title}${timeInfo}\n\n🎪 ${instance.event_name}`;
-                    const signalSent = await signalService.sendMessage(
-                      linkedTeamleiter.signal_account_number,
-                      user.signal_phone_number,
-                      signalMessage
-                    );
-
-                    if (signalSent) {
-                      console.log(`[updateOverdueTasks] ✓ Signal sent to ${user.signal_phone_number}`);
-                    }
+                    signalSenden(linkedTeamleiter.signal_account_number, user.signal_phone_number, signalMessage, 'ueberfaellig');
                   }
                 }
               } catch (error) {

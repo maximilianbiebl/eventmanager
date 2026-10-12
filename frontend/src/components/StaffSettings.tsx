@@ -16,7 +16,19 @@ interface Settings {
   signal_phone_number?: string;
   web_push_enabled?: boolean;
   teamleiter_status_notifications?: boolean;
+  /** Leitung: bei welchen Status sie Bescheid bekommt. */
+  leitung_meldungen?: string[];
+  /** Leitung: auch bei oeffentlichen Aufgaben. */
+  leitung_oeffentliche?: boolean;
 }
+
+/* Die Status, die sich die Leitung melden lassen kann - in dieser Reihenfolge. */
+const LEITUNG_STATUS: { wert: string; text: string; hinweis?: string }[] = [
+  { wert: 'in_progress', text: 'In Arbeit' },
+  { wert: 'completed', text: 'Erledigt' },
+  { wert: 'not_started', text: 'Wieder offen', hinweis: 'zurückgesetzt' },
+  { wert: 'overdue', text: 'Überfällig', hinweis: 'Endzeit vorbei, nicht erledigt' },
+];
 
 interface Props {
   onClose: () => void;
@@ -58,6 +70,8 @@ export const StaffSettings: React.FC<Props> = ({ onClose, startReiter = 'general
         signal_phone_number: signalSettings.signal_phone_number,
         web_push_enabled: signalSettings.web_push_enabled,
         teamleiter_status_notifications: signalSettings.teamleiter_status_notifications !== false,
+        leitung_meldungen: signalSettings.leitung_meldungen,
+        leitung_oeffentliche: signalSettings.leitung_oeffentliche !== false,
       });
     } catch (error) {
       console.error('Load settings error:', error);
@@ -92,6 +106,10 @@ export const StaffSettings: React.FC<Props> = ({ onClose, startReiter = 'general
           signal_phone_number: settings.signal_phone_number || '',
           web_push_enabled: settings.web_push_enabled !== false,
           teamleiter_status_notifications: settings.teamleiter_status_notifications !== false,
+          ...(isTeamleiterOrAdmin ? {
+            leitung_meldungen: settings.leitung_meldungen,
+            leitung_oeffentliche: settings.leitung_oeffentliche !== false,
+          } : {}),
         }),
       ]);
       setSuccess(true);
@@ -273,12 +291,45 @@ export const StaffSettings: React.FC<Props> = ({ onClose, startReiter = 'general
                     onChange={(e) => setSettings({ ...settings, teamleiter_status_notifications: e.target.checked })}
                     style={styles.checkbox}
                   />
-                  <span>Status-Änderungen von Mitarbeitern</span>
+                  <span>Status-Änderungen in deinen Veranstaltungen</span>
                 </label>
                 <p style={styles.hint}>
-                  Du erhältst Benachrichtigungen wenn Mitarbeiter Aufgaben-Status ändern (In Arbeit, Erledigt, Überfällig)
-                  (Browser und Signal)
+                  Gilt für Veranstaltungen, die du leitest (Browser und Signal). Was du selbst änderst, wird dir nicht gemeldet.
                 </p>
+                {settings.teamleiter_status_notifications !== false && (
+                  <div style={styles.unterOptionen}>
+                    <span style={styles.unterTitel}>Melden bei:</span>
+                    {LEITUNG_STATUS.map((st) => {
+                      const an = (settings.leitung_meldungen ?? []).includes(st.wert);
+                      return (
+                        <label key={st.wert} style={styles.checkboxLabel}>
+                          <input
+                            type="checkbox"
+                            checked={an}
+                            onChange={(e) => {
+                              const alt = settings.leitung_meldungen ?? [];
+                              setSettings({
+                                ...settings,
+                                leitung_meldungen: e.target.checked ? [...alt, st.wert] : alt.filter((w) => w !== st.wert),
+                              });
+                            }}
+                            style={styles.checkbox}
+                          />
+                          <span>{st.text}{st.hinweis && <span style={styles.leise}> – {st.hinweis}</span>}</span>
+                        </label>
+                      );
+                    })}
+                    <label style={{ ...styles.checkboxLabel, marginTop: '0.35rem' }}>
+                      <input
+                        type="checkbox"
+                        checked={settings.leitung_oeffentliche !== false}
+                        onChange={(e) => setSettings({ ...settings, leitung_oeffentliche: e.target.checked })}
+                        style={styles.checkbox}
+                      />
+                      <span>Auch bei öffentlichen Aufgaben</span>
+                    </label>
+                  </div>
+                )}
               </div>
             )}
 
@@ -439,6 +490,12 @@ const styles: { [key: string]: React.CSSProperties } = {
     marginBottom: '0.5rem',
     color: 'var(--c-text)',
   },
+  unterOptionen: {
+    display: 'flex', flexDirection: 'column', gap: '0.45rem',
+    margin: '0.6rem 0 0 1.75rem', paddingLeft: '0.75rem', borderLeft: '2px solid var(--c-border)',
+  },
+  unterTitel: { fontSize: '0.8125rem', color: 'var(--c-text-muted)' },
+  leise: { color: 'var(--c-text-muted)', fontSize: '0.875em' },
   checkboxLabel: {
     display: 'flex',
     alignItems: 'center',

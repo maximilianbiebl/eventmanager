@@ -5,6 +5,8 @@ export interface SignalSettings {
   signal_phone_number: string;
   web_push_enabled: boolean;
   teamleiter_status_notifications?: boolean;
+  leitung_meldungen?: string[];
+  leitung_oeffentliche?: boolean;
 }
 
 export interface SignalStatus {
