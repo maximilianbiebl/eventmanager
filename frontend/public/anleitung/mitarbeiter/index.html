@@ -1,0 +1,719 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Anleitung für Mitarbeiter</title>
+<meta name="description" content="Wie Mitarbeiter im Event Manager ihre Aufgaben finden, abhaken und sich erinnern lassen – mit Bildern und Spickzettel.">
+<link rel="icon" href="/icon.svg">
+<!--
+  Anleitung fuer Mitarbeiter - eigenstaendige Seite, unabhaengig von der App,
+  im selben Aufbau wie /anleitung/teamleiter/ (Stil und Skripte von dort).
+
+  Liegt unter public/, Vite kopiert sie unveraendert nach dist/; nginx
+  liefert sie unter /anleitung/mitarbeiter/ aus. Kein Menueeintrag, und der
+  Service Worker laesst /anleitung/ aus - nur ueber den Link erreichbar. Farben und Schrift sind die
+  der App (src/index.css), damit sie sich wie ein Teil davon anfuehlt.
+
+  Die Bilder sind echte Bildschirmfotos mit erfundenen Beispieldaten. Die
+  orangen Nummern im Text gehoeren zu den orangen Markierungen im Bild
+  darueber.
+-->
+<style>
+  :root {
+    --bg: #F8FAFC;
+    --surface: #FFFFFF;
+    --border: #E2E8F0;
+    --border-strong: #CBD5E1;
+    --text: #1E293B;
+    --muted: #64748B;
+    --accent: #1E40AF;
+    --accent-soft: #EFF6FF;
+    --marke: #E8590C;
+    --marke-text: #FFFFFF;
+    --gelb: #FEF3C7;
+    --gelb-text: #92400E;
+    --code: #F1F5F9;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0E1525;
+      --surface: #141D2E;
+      --border: #27334A;
+      --border-strong: #34425C;
+      --text: #E7EDF7;
+      --muted: #9CABC2;
+      --accent: #7AA2F7;
+      --accent-soft: #1A2742;
+      --marke: #F76707;
+      --marke-text: #FFFFFF;
+      --gelb: #3A2E12;
+      --gelb-text: #F7D58A;
+      --code: #1C2739;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0E1525;
+    --surface: #141D2E;
+    --border: #27334A;
+    --border-strong: #34425C;
+    --text: #E7EDF7;
+    --muted: #9CABC2;
+    --accent: #7AA2F7;
+    --accent-soft: #1A2742;
+    --marke: #F76707;
+    --marke-text: #FFFFFF;
+    --gelb: #3A2E12;
+    --gelb-text: #F7D58A;
+    --code: #1C2739;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 1rem; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+    font-size: 1rem;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); }
+  a:focus-visible, button:focus-visible { outline: 3px solid var(--marke); outline-offset: 2px; border-radius: 4px; }
+
+  .rahmen {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2rem;
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 4rem;
+  }
+  @media (min-width: 1000px) {
+    .rahmen { grid-template-columns: 15rem minmax(0, 46rem); padding-top: 2.5rem; justify-content: center; }
+  }
+
+  /* ---- Kopf ---- */
+  .kopf { grid-column: 1 / -1; }
+  @media (min-width: 1000px) { .kopf { grid-column: 2; } }
+  .eyebrow {
+    margin: 0 0 .5rem;
+    font-size: .75rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .eyebrow a { color: inherit; text-decoration: none; }
+  .eyebrow a:hover { color: var(--accent); }
+  h1 { margin: 0 0 .75rem; font-size: clamp(1.75rem, 4vw, 2.375rem); line-height: 1.15; letter-spacing: -.01em; text-wrap: balance; }
+  .lead { margin: 0; font-size: 1.125rem; color: var(--muted); max-width: 40rem; }
+  .stand { margin: .75rem 0 0; font-size: .8125rem; color: var(--muted); }
+
+  /* ---- Inhaltsverzeichnis ---- */
+  .inhalt { align-self: start; }
+  @media (min-width: 1000px) { .inhalt { position: sticky; top: 1.5rem; grid-row: 2; } }
+  .inhalt details { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+  .inhalt summary {
+    padding: .75rem 1rem; cursor: pointer; font-weight: 600; font-size: .875rem;
+    list-style: none;
+  }
+  .inhalt summary::-webkit-details-marker { display: none; }
+  .inhalt summary::after { content: '▾'; float: right; color: var(--muted); }
+  .inhalt details[open] summary::after { content: '▴'; }
+  .inhalt ol { margin: 0; padding: 0 .5rem .75rem; list-style: none; counter-reset: k; }
+  .inhalt li a {
+    display: block; padding: .3rem .5rem; border-radius: 6px;
+    color: var(--text); text-decoration: none; font-size: .875rem; line-height: 1.35;
+  }
+  .inhalt li a:hover { background: var(--accent-soft); color: var(--accent); }
+  @media (min-width: 1000px) {
+    .inhalt details { background: transparent; border: 0; }
+    .inhalt summary { padding: 0 .5rem .5rem; pointer-events: none; color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; }
+    .inhalt summary::after,
+    .inhalt details[open] summary::after { content: none; }
+    .inhalt ol { padding: 0; }
+  }
+
+  /* ---- Text ---- */
+  main { min-width: 0; }
+  section { padding-top: 1rem; margin-top: 2.5rem; border-top: 1px solid var(--border); }
+  section:first-child { margin-top: 0; border-top: 0; padding-top: 0; }
+  h2 { margin: 0 0 .75rem; font-size: 1.5rem; line-height: 1.25; text-wrap: balance; }
+  h3 { margin: 2rem 0 .5rem; font-size: 1.125rem; line-height: 1.3; }
+  p { margin: 0 0 1rem; }
+  ul, ol { margin: 0 0 1rem; padding-left: 1.25rem; }
+  li { margin: .25rem 0; }
+  strong { font-weight: 650; }
+  .hinweis {
+    margin: 1rem 0; padding: .75rem 1rem;
+    background: var(--accent-soft); border-radius: 8px;
+    font-size: .9375rem;
+  }
+
+  /* Nummern im Text = die orangen Markierungen im Bild */
+  ol.marken { list-style: none; padding-left: 0; counter-reset: m; }
+  ol.marken > li { counter-increment: m; position: relative; padding-left: 2.25rem; margin: .5rem 0; }
+  ol.marken > li::before {
+    content: counter(m);
+    position: absolute; left: 0; top: .1rem;
+    width: 1.5rem; height: 1.5rem; border-radius: 50%;
+    background: var(--marke); color: var(--marke-text);
+    font-size: .8125rem; font-weight: 700; line-height: 1.5rem; text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+  /* Echte Reihenfolgen (Schritte) - schlichte Zahlen, keine Markierungen */
+  ol.schritte { padding-left: 1.5rem; }
+
+  /* ---- Bilder ---- */
+  figure { margin: 1.25rem 0 1.25rem; }
+  figure a { display: block; }
+  figure img {
+    display: block; width: 100%; height: auto;
+    border: 1px solid var(--border-strong); border-radius: 8px;
+    background: #fff;
+  }
+  figure.mitte img { margin: 0 auto; }
+  figcaption { margin-top: .5rem; font-size: .8125rem; color: var(--muted); text-align: center; }
+
+  /* ---- Tabellen ---- */
+  .tabelle { overflow-x: auto; margin: 1rem 0 1.25rem; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+  table { width: 100%; border-collapse: collapse; font-size: .9375rem; line-height: 1.45; }
+  th, td { padding: .6rem .8rem; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: 0; }
+  th { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 700; background: var(--bg); }
+  td:first-child { font-weight: 600; }
+  .tabelle.zahlen td:not(:first-child) { white-space: nowrap; }
+
+  /* ---- Zeichnung ---- */
+  .zeichnung { margin: 1.25rem 0; padding: 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+  .zeichnung svg { display: block; width: 100%; height: auto; }
+  .zeichnung .hoch { display: none; max-width: 360px; margin: 0 auto; }
+  @media (max-width: 599px) {
+    .zeichnung .quer { display: none; }
+    .zeichnung .hoch { display: block; }
+  }
+  @media print {
+    .zeichnung .quer { display: block; }
+    .zeichnung .hoch { display: none; }
+  }
+
+  /* ---- Spickzettel ---- */
+  .farben { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1rem 0; padding: 0; list-style: none; }
+  .farben li {
+    display: inline-flex; align-items: center; gap: .4rem; margin: 0;
+    padding: .25rem .6rem; border: 1px solid var(--border); border-radius: 999px;
+    background: var(--surface); font-size: .8125rem;
+  }
+  .farbe { width: .75rem; height: .75rem; border-radius: 3px; flex: none; }
+
+  .fuss { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); font-size: .8125rem; color: var(--muted); }
+  .druck { font: inherit; font-size: .875rem; padding: .4rem .9rem; border-radius: 6px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); cursor: pointer; }
+  .druck:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ---- Bild gross (Tippen auf ein Bild) ---- */
+  figure img { cursor: zoom-in; }
+  .lupe {
+    position: fixed; inset: 0; z-index: 100;
+    background: #0F172A;
+    overflow: auto; overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  .lupe[hidden] { display: none; }
+  .lupe-buehne {
+    min-width: 100%; min-height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    padding: 3.5rem .75rem 3rem;
+    box-sizing: border-box;
+  }
+  .lupe img {
+    display: block; border-radius: 6px; background: #fff;
+    max-width: 100%; max-height: calc(100dvh - 6.5rem);
+    width: auto; height: auto;
+    cursor: zoom-in;
+    box-shadow: 0 8px 32px rgba(0,0,0,.45);
+  }
+  /* Originalgroesse: breiter als der Bildschirm, zum Herumschieben */
+  .lupe.gross .lupe-buehne { justify-content: flex-start; align-items: flex-start; width: max-content; }
+  /* margin auto statt align-items: center - so steht das Bild mittig,
+     solange es passt, und wird bei sehr hohen Bildern oben nicht
+     abgeschnitten. */
+  .lupe.gross img { max-width: none; max-height: none; cursor: zoom-out; margin: auto 0; }
+  .lupe-zu {
+    position: fixed; top: .75rem; right: .75rem; z-index: 101;
+    width: 2.75rem; height: 2.75rem; border-radius: 50%;
+    border: 0; background: rgba(255,255,255,.95); color: #1E293B;
+    font-size: 1.375rem; line-height: 1; cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,.35);
+  }
+  .lupe-tipp {
+    position: fixed; left: 50%; bottom: .75rem; transform: translateX(-50%); z-index: 101;
+    margin: 0; padding: .35rem .8rem; border-radius: 999px;
+    background: rgba(255,255,255,.14); color: #E7EDF7;
+    font-size: .8125rem; white-space: nowrap; pointer-events: none;
+  }
+  body.lupe-offen { overflow: hidden; }
+  @media print { .lupe { display: none !important; } }
+
+  @media print {
+    :root { --bg: #fff; --surface: #fff; --text: #000; --muted: #444; --border: #bbb; --border-strong: #999; }
+    body { font-size: 10.5pt; }
+    .inhalt, .druck, .eyebrow a { display: none; }
+    .rahmen { display: block; max-width: none; padding: 0; }
+    section { break-inside: auto; }
+    h2, h3 { break-after: avoid; }
+    figure, .tabelle, .zeichnung { break-inside: avoid; }
+    figure img { max-height: 11cm; width: auto; max-width: 100%; }
+    #spickzettel { break-before: page; }
+    a { color: inherit; text-decoration: none; }
+  }
+</style>
+</head>
+<body>
+<div class="rahmen">
+
+<header class="kopf">
+  <p class="eyebrow"><a href="/">Event Manager</a> · Anleitung</p>
+  <h1>Anleitung für Mitarbeiter</h1>
+  <p class="lead">Im Event Manager siehst du, welche Aufgaben du auf einer Freizeit hast, wann sie dran sind und mit wem du sie machst. Du hakst ab, was erledigt ist, und wirst rechtzeitig erinnert. Diese Anleitung zeigt jede Funktion dort, wo du sie auf dem Bildschirm findest; am Ende steht ein Spickzettel.</p>
+  <p class="stand">Stand: Oktober 2026 · Die Bilder zeigen eine Beispiel-Freizeit mit erfundenen Namen.</p>
+</header>
+
+<nav class="inhalt" aria-label="Inhalt">
+  <details open>
+    <summary>Inhalt</summary>
+    <ol>
+      <li><a href="#auf-einen-blick">Auf einen Blick</a></li>
+      <li><a href="#erste-schritte">Erste Schritte</a></li>
+      <li><a href="#meine-aufgaben">Meine Aufgaben</a></li>
+      <li><a href="#aufgabe">Eine Aufgabe im Detail</a></li>
+      <li><a href="#status">In Arbeit und Erledigt</a></li>
+      <li><a href="#erinnerungen">Erinnerungen</a></li>
+      <li><a href="#tabelle">Tabelle</a></li>
+      <li><a href="#ohne-netz">Ohne Netz</a></li>
+      <li><a href="#einstellungen">Einstellungen</a></li>
+      <li><a href="#fragen">Wenn etwas nicht klappt</a></li>
+      <li><a href="#spickzettel">Spickzettel</a></li>
+    </ol>
+  </details>
+</nav>
+
+<main>
+
+<section id="auf-einen-blick">
+  <h2>Auf einen Blick</h2>
+  <div class="zeichnung">
+    <svg class="quer" viewBox="0 0 760 190" role="img" aria-label="So läuft eine Aufgabe: eingeteilt, erinnert, in Arbeit, erledigt" font-family="inherit" font-size="13">
+      <defs>
+        <marker id="pfeil" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0L10 5L0 10z" style="fill: var(--muted)"/>
+        </marker>
+      </defs>
+      <text x="24" y="34" font-size="15" font-weight="600" style="fill: var(--text)">So läuft eine Aufgabe</text>
+      <g fill="none" stroke-width="1.25" style="stroke: var(--muted)">
+        <path d="M192 112H210" marker-end="url(#pfeil)"/>
+        <path d="M378 112H396" marker-end="url(#pfeil)"/>
+        <path d="M564 112H582" marker-end="url(#pfeil)"/>
+      </g>
+      <g>
+        <rect x="24" y="64" width="168" height="96" rx="8" fill="none" stroke-width="1.25" style="stroke: var(--border-strong)"/>
+        <text x="40" y="88" font-weight="600" style="fill: var(--text)">1 Eingeteilt</text>
+        <text x="40" y="108" font-size="12" style="fill: var(--muted)">Die Leitung gibt dir</text>
+        <text x="40" y="124" font-size="12" style="fill: var(--muted)">eine Aufgabe – sie steht</text>
+        <text x="40" y="140" font-size="12" style="fill: var(--muted)">in „Meine Aufgaben“.</text>
+        <rect x="210" y="64" width="168" height="96" rx="8" fill="none" stroke-width="1.25" style="stroke: var(--border-strong)"/>
+        <text x="226" y="88" font-weight="600" style="fill: var(--text)">2 Erinnert</text>
+        <text x="226" y="108" font-size="12" style="fill: var(--muted)">Kurz vorher kommt eine</text>
+        <text x="226" y="124" font-size="12" style="fill: var(--muted)">Benachrichtigung aufs</text>
+        <text x="226" y="140" font-size="12" style="fill: var(--muted)">Handy (oder per Signal).</text>
+        <rect x="396" y="64" width="168" height="96" rx="8" fill="none" stroke-width="1.25" style="stroke: var(--border-strong)"/>
+        <text x="412" y="88" font-weight="600" style="fill: var(--text)">3 In Arbeit</text>
+        <text x="412" y="108" font-size="12" style="fill: var(--muted)">Du fängst an und</text>
+        <text x="412" y="124" font-size="12" style="fill: var(--muted)">tippst „In Arbeit“ –</text>
+        <text x="412" y="140" font-size="12" style="fill: var(--muted)">die Leitung sieht es.</text>
+        <rect x="582" y="64" width="154" height="96" rx="8" fill="none" stroke-width="1.25" style="stroke: var(--accent)"/>
+        <text x="598" y="88" font-weight="600" style="fill: var(--text)">4 Erledigt</text>
+        <text x="598" y="108" font-size="12" style="fill: var(--muted)">Ein Tipp auf</text>
+        <text x="598" y="124" font-size="12" style="fill: var(--muted)">„Erledigt“ – fertig,</text>
+        <text x="598" y="140" font-size="12" style="fill: var(--muted)">für alle Eingeteilten.</text>
+      </g>
+    </svg>
+    <svg class="hoch" viewBox="0 0 320 470" role="img" aria-label="So läuft eine Aufgabe: eingeteilt, erinnert, in Arbeit, erledigt" font-family="inherit" font-size="13">
+      <defs>
+        <marker id="pfeil-h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0L10 5L0 10z" style="fill: var(--muted)"/>
+        </marker>
+      </defs>
+      <text x="16" y="24" font-size="15" font-weight="600" style="fill: var(--text)">So läuft eine Aufgabe</text>
+      <g fill="none" stroke-width="1.25" style="stroke: var(--muted)">
+        <path d="M160 126V142" marker-end="url(#pfeil-h)"/>
+        <path d="M160 230V246" marker-end="url(#pfeil-h)"/>
+        <path d="M160 334V350" marker-end="url(#pfeil-h)"/>
+      </g>
+      <g>
+        <rect x="16" y="42" width="288" height="84" rx="8" fill="none" stroke-width="1.25" style="stroke: var(--border-strong)"/>
+        <text x="32" y="66" font-weight="600" style="fill: var(--text)">1 Eingeteilt</text>
+        <text x="32" y="86" font-size="12" style="fill: var(--muted)">Die Leitung gibt dir eine Aufgabe –</text>
+        <text x="32" y="102" font-size="12" style="fill: var(--muted)">sie steht in „Meine Aufgaben“.</text>
+        <rect x="16" y="146" width="288" height="84" rx="8" fill="none" stroke-width="1.25" style="stroke: var(--border-strong)"/>
+        <text x="32" y="170" font-weight="600" style="fill: var(--text)">2 Erinnert</text>
+        <text x="32" y="190" font-size="12" style="fill: var(--muted)">Kurz vorher kommt eine Benachrichtigung</text>
+        <text x="32" y="206" font-size="12" style="fill: var(--muted)">aufs Handy (oder per Signal).</text>
+        <rect x="16" y="250" width="288" height="84" rx="8" fill="none" stroke-width="1.25" style="stroke: var(--border-strong)"/>
+        <text x="32" y="274" font-weight="600" style="fill: var(--text)">3 In Arbeit</text>
+        <text x="32" y="294" font-size="12" style="fill: var(--muted)">Du fängst an und tippst „In Arbeit“ –</text>
+        <text x="32" y="310" font-size="12" style="fill: var(--muted)">die Leitung sieht es.</text>
+        <rect x="16" y="354" width="288" height="84" rx="8" fill="none" stroke-width="1.25" style="stroke: var(--accent)"/>
+        <text x="32" y="378" font-weight="600" style="fill: var(--text)">4 Erledigt</text>
+        <text x="32" y="398" font-size="12" style="fill: var(--muted)">Ein Tipp auf „Erledigt“ – fertig,</text>
+        <text x="32" y="414" font-size="12" style="fill: var(--muted)">für alle, die eingeteilt sind.</text>
+      </g>
+    </svg>
+  </div>
+  <p>Du brauchst nichts anzulegen und nichts zu planen – das macht die Leitung. Deine Aufgabe ist es, deine Aufgaben im Blick zu behalten und Bescheid zu geben, wenn du anfängst und wenn du fertig bist. Alles, was du antippst, sieht die Leitung sofort.</p>
+</section>
+
+<section id="erste-schritte">
+  <h2>Erste Schritte</h2>
+  <h3>Anmelden</h3>
+  <p>Deinen Namen und dein Passwort bekommst du von der Leitung.</p>
+  <figure class="mitte"><a href="bilder/anmelden.webp"><img src="bilder/anmelden.webp" width="896" height="1096" loading="lazy" alt="Die Anmeldeseite" style="max-width: 448px"></a></figure>
+  <ol class="marken">
+    <li><strong>Name</strong> – so, wie die Leitung ihn angelegt hat, meist Vor- und Nachname. Groß- und Kleinschreibung spielt keine Rolle.</li>
+    <li><strong>Passwort</strong> – hier kommt es auf jeden Buchstaben an. Ändern kannst du es nach dem Anmelden über <em>Passwort ändern</em>.</li>
+    <li><strong>Eingeloggt bleiben</strong> – auf deinem eigenen Handy angehakt lassen, dann musst du dich nicht jedes Mal neu anmelden. Auf einem fremden oder gemeinsam genutzten Gerät abhaken: dann gilt die Anmeldung nur, solange die App offen ist.</li>
+    <li><strong>Anmelden</strong>.</li>
+  </ol>
+
+  <h3>Die App aufs Handy holen</h3>
+  <p>Der Event Manager läuft im Browser. Leg ihn dir als App auf den Startbildschirm – dann öffnet er sich mit einem Tipp, und auf dem iPhone funktionieren nur so die Benachrichtigungen.</p>
+  <div class="tabelle">
+    <table>
+      <thead><tr><th>Handy</th><th>So geht's</th></tr></thead>
+      <tbody>
+        <tr><td>Android (Chrome)</td><td>Seite öffnen → Menü <strong>⋮</strong> → <strong>App installieren</strong> bzw. <strong>Zum Startbildschirm hinzufügen</strong></td></tr>
+        <tr><td>iPhone (Safari)</td><td>Seite öffnen → <strong>Teilen</strong> (Quadrat mit Pfeil) → <strong>Zum Home-Bildschirm</strong>. Danach die App immer über das neue Symbol öffnen, nicht über Safari.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Benachrichtigungen einschalten</h3>
+  <p>Damit du erinnert wirst, musst du auf jedem Gerät einmal erlauben, dass die App dir Benachrichtigungen schickt. Solange das fehlt, steht oben ein blauer Hinweis mit <strong>Benachrichtigungen aktivieren</strong>. Tippe darauf und bestätige die Frage des Browsers mit <strong>Zulassen</strong>.</p>
+  <p class="hinweis">Prüfen kannst du es unter <strong>Einstellungen → Test-Nachricht senden</strong>. Kommt die Nachricht an, ist alles richtig eingerichtet. Wie du Benachrichtigungen zusätzlich per Signal bekommst, steht unter <a href="#einstellungen">Einstellungen</a>.</p>
+</section>
+
+<section id="meine-aufgaben">
+  <h2>Meine Aufgaben</h2>
+  <p>Nach dem Anmelden siehst du alle deine Aufgaben – aus laufenden und kommenden Freizeiten und noch einen Monat nach deren Ende. Dazu kommen die öffentlichen Aufgaben der Freizeiten, für die du eingeplant bist.</p>
+  <figure><a href="bilder/uebersicht.webp"><img src="bilder/uebersicht.webp" width="1600" height="923" loading="lazy" alt="Meine Aufgaben am Computer"></a></figure>
+  <ol class="marken">
+    <li><strong>Einstellungen</strong>, <strong>Passwort ändern</strong>, <strong>Abmelden</strong> – am Handy hinter ☰ oben rechts.</li>
+    <li><strong>Benachrichtigungen aktivieren</strong> – erscheint, solange auf diesem Gerät noch keine Erlaubnis erteilt ist.</li>
+    <li><strong>Karten</strong> oder <strong>Tabelle</strong> als Ansicht; <strong>Aktualisieren</strong> holt den neuesten Stand. Meist ist das nicht nötig – Änderungen der Leitung erscheinen von selbst.</li>
+    <li><strong>Sortieren</strong> – <em>Standard</em> (nach Uhrzeit), nach <em>Event-Tag</em>, <em>Veranstaltung</em> oder <em>Datum</em>.</li>
+    <li><strong>Tage</strong> – nur die Aufgaben eines Tages der Freizeit, oder <em>Alle</em>. Läuft gerade eine Freizeit, ist der heutige Tag schon ausgewählt.</li>
+    <li><strong>Erledigte ausblenden</strong> – räumt die Liste auf, damit nur übrig bleibt, was noch zu tun ist.</li>
+    <li><strong>Veranstaltungen</strong> – bist du auf mehreren Freizeiten eingeteilt, blendest du hier einzelne aus. Die Zahl zeigt, wie viele gerade sichtbar sind.</li>
+    <li><strong>Aufgabengruppe</strong> – eine Überschrift über zusammengehörenden Aufgaben, etwa „Frühstück“. Ein Tipp darauf klappt die Gruppe zu oder auf.</li>
+  </ol>
+  <p>Am Handy sieht dieselbe Seite so aus:</p>
+  <figure class="mitte"><a href="bilder/handy.webp"><img src="bilder/handy.webp" data-dichte="3" width="1170" height="2532" loading="lazy" alt="Meine Aufgaben am Handy" style="max-width: 300px"></a></figure>
+</section>
+
+<section id="aufgabe">
+  <h2>Eine Aufgabe im Detail</h2>
+  <p>Jede Aufgabe steht auf einer eigenen Karte. Das ist alles, was du über sie wissen musst:</p>
+  <figure><a href="bilder/karte.webp"><img src="bilder/karte.webp" width="1600" height="576" loading="lazy" alt="Eine Aufgabenkarte mit allen Angaben"></a></figure>
+  <ol class="marken">
+    <li><strong>Zeiten</strong> – <em>Startzeit</em> und <em>Endzeit</em>; manche Aufgaben haben stattdessen eine <em>geplante Zeit</em>, manche gar keine.</li>
+    <li><strong>Beschreibung</strong> – was genau zu tun ist. Lange Beschreibungen klappst du mit <em>mehr</em> auf.</li>
+    <li><strong>Veranstaltung</strong>, dahinter der Tag der Freizeit und das Datum.</li>
+    <li><strong>Status</strong> – <em>Offen</em>, <em>In Arbeit</em>, <em>Erledigt</em> oder <em>Überfällig</em>. Ein Tipp darauf öffnet ein kleines Menü (siehe <a href="#status">unten</a>).</li>
+    <li><strong>Erinnerung</strong> – wann du erinnert wirst.</li>
+    <li><strong>Mit</strong> – wer diese Aufgabe noch hat. Fehlt die Zeile, machst du sie allein.</li>
+    <li><strong>Erinnerung</strong> – deine Erinnerung für diese Aufgabe einstellen (siehe <a href="#erinnerungen">Erinnerungen</a>).</li>
+    <li><strong>In Arbeit</strong> – du fängst gerade an.</li>
+    <li><strong>Erledigt</strong> – fertig.</li>
+  </ol>
+
+  <h3>Farben und öffentliche Aufgaben</h3>
+  <p>Der farbige Streifen links zeigt auf einen Blick, wie es um eine Aufgabe steht:</p>
+  <figure class="mitte"><a href="bilder/farben.webp"><img src="bilder/farben.webp" data-dichte="3" width="1146" height="3573" loading="lazy" alt="Karten in Grün, Rot und Blau, dazu eine öffentliche Aufgabe" style="max-width: 300px"></a></figure>
+  <ul class="farben">
+    <li><span class="farbe" style="background:#059669"></span>grün: erledigt</li>
+    <li><span class="farbe" style="background:#DC2626"></span>rot: überfällig – die Endzeit ist vorbei</li>
+    <li><span class="farbe" style="background:#1E40AF"></span>blau: offen oder in Arbeit</li>
+  </ul>
+  <p><strong>Öffentlich</strong> heißt: Die Aufgabe ist niemandem fest zugeteilt, sondern jede und jeder aus dem Team darf sie übernehmen – etwa „Lagerfeuer aufbauen“. Wer sie erledigt, hakt sie für alle ab. Weil du nicht fest eingeteilt bist, gibt es an öffentlichen Aufgaben keine eigene Erinnerung.</p>
+</section>
+
+<section id="status">
+  <h2>In Arbeit und Erledigt</h2>
+  <ul>
+    <li><strong>In Arbeit</strong> tippst du, wenn du anfängst. Die Leitung sieht dann, dass sich jemand kümmert.</li>
+    <li><strong>Erledigt</strong> tippst du, wenn du fertig bist. Die Karte wird grün, und die Aufgabe ist für alle erledigt, die sie haben – deine Mitstreiter müssen nicht noch einmal abhaken.</li>
+    <li><strong>Überfällig</strong> setzt die App von selbst, wenn die Endzeit vorbei ist und die Aufgabe noch nicht erledigt ist. Du kannst sie trotzdem noch abhaken.</li>
+  </ul>
+  <p>Aus Versehen auf <em>In Arbeit</em> getippt? Ein Tipp auf den Status öffnet ein kleines Menü, mit dem du zwischen <em>Offen</em> und <em>In Arbeit</em> wechselst:</p>
+  <figure><a href="bilder/statusmenue.webp"><img src="bilder/statusmenue.webp" width="1600" height="424" loading="lazy" alt="Das Statusmenü an einer Aufgabe"></a></figure>
+  <p class="hinweis"><strong>Erledigt</strong> kannst du nicht selbst zurücknehmen. Hast du aus Versehen abgehakt, sag der Leitung Bescheid – sie setzt die Aufgabe zurück.</p>
+  <p>Manche Aufgaben erledigen sich von selbst zu ihrer Zeit, etwa „Nachtruhe“. Dort musst du nichts antippen.</p>
+</section>
+
+<section id="erinnerungen">
+  <h2>Erinnerungen</h2>
+  <p>Hat eine Aufgabe eine Uhrzeit, wirst du kurz vorher erinnert – so viele Minuten, wie in deinen <a href="#einstellungen">Einstellungen</a> steht (anfangs 15). Hat die Leitung an einer Aufgabe eine eigene Zeit festgelegt, etwa 30 Minuten fürs Einkaufen oder gar keine Erinnerung für die Nachtruhe, gilt ihre. Was gerade gilt, steht auf der Karte (<em>Erinnerung 15 Min vorher</em>).</p>
+
+  <h3>Eigene Erinnerung stellen</h3>
+  <p>Mit <strong>Erinnerung</strong> an der Karte stellst du für dich persönlich ein, wann du erinnert wirst. Die Leitung sieht das nicht, und es gilt nur für dich.</p>
+  <figure><a href="bilder/erinnerung.webp"><img src="bilder/erinnerung.webp" width="1600" height="661" loading="lazy" alt="Eigene Erinnerung an einer Aufgabe stellen"></a></figure>
+  <div class="tabelle">
+    <table>
+      <thead><tr><th>Art</th><th>Beispiel</th><th>Gut zu wissen</th></tr></thead>
+      <tbody>
+        <tr><td>In … Min</td><td>in 20 Minuten</td><td>einmalig, ab jetzt gerechnet – geht auch bei Aufgaben ohne Uhrzeit</td></tr>
+        <tr><td>… Min vorher</td><td>20 Minuten vor 12:15</td><td>nur bei Aufgaben mit Uhrzeit</td></tr>
+        <tr><td>Um … Uhr</td><td>morgen um 07:45</td><td>einmalig, Tag und Uhrzeit frei wählbar</td></tr>
+        <tr><td>Keine</td><td>–</td><td>für diese Aufgabe gar keine Erinnerung</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Unter dem Feld steht, was herauskommt (<em>Ergibt: heute 11:55 Uhr</em>). Mit <strong>Speichern</strong> übernehmen. Während eine Aufgabe <em>In Arbeit</em> ist, verschwindet der Knopf – du bist ja schon dabei.</p>
+
+  <h3>In der Benachrichtigung</h3>
+  <ul>
+    <li>Ein Tipp auf die Benachrichtigung öffnet die App.</li>
+    <li><strong>In 30 Min</strong> / <strong>In 60 Min</strong> erinnern dich später noch einmal, ohne dass du die App öffnen musst. Auf dem iPhone fehlen diese Knöpfe – dort stellst du eine neue Erinnerung in der App.</li>
+    <li>Warst du länger ohne Netz, kommen alte Erinnerungen nicht gesammelt nach – eine Erinnerung an etwas längst Vergangenes hilft niemandem.</li>
+  </ul>
+  <p>Außerdem kann die App dir Bescheid geben, wenn die Leitung den Status einer deiner Aufgaben ändert.</p>
+</section>
+
+<section id="tabelle">
+  <h2>Tabelle</h2>
+  <p>Mit <strong>Tabelle</strong> siehst du alle Aufgaben kompakt untereinander – praktisch am Computer oder wenn du viele Aufgaben hast.</p>
+  <figure><a href="bilder/tabelle.webp"><img src="bilder/tabelle.webp" width="1600" height="1080" loading="lazy" alt="Meine Aufgaben als Tabelle"></a></figure>
+  <ul>
+    <li>Ein Klick auf eine Spaltenüberschrift sortiert danach, ein zweiter dreht die Reihenfolge um.</li>
+    <li><em>mehr</em> zeigt die ganze Beschreibung.</li>
+    <li>Status und <strong>Erledigt</strong> funktionieren wie auf den Karten. Eine eigene Erinnerung stellst du in der Kartenansicht.</li>
+  </ul>
+  <p>Welche Ansicht beim Öffnen kommt, legst du in den <a href="#einstellungen">Einstellungen</a> fest.</p>
+</section>
+
+<section id="ohne-netz">
+  <h2>Ohne Netz</h2>
+  <p>Auf Freizeiten ist der Empfang oft schlecht. Die App kommt damit zurecht: Du siehst deine Aufgaben weiter, und was du antippst, wird nachgeschickt, sobald wieder Netz da ist.</p>
+  <figure class="mitte"><a href="bilder/offline.webp"><img src="bilder/offline.webp" data-dichte="3" width="1170" height="2055" loading="lazy" alt="Die App ohne Netz mit einer wartenden Änderung" style="max-width: 300px"></a></figure>
+  <ol class="marken">
+    <li><strong>Offline</strong> mit der Uhrzeit, von der die Daten stammen (am Computer: <em>Offline · Stand 10:28</em>). Die Zahl daneben sagt, wie viele Änderungen noch warten.</li>
+    <li><strong>wird gesendet</strong> – diese Änderung ist bei dir schon zu sehen, aber noch nicht bei der Leitung. Du musst nichts tun; sie geht von selbst raus.</li>
+  </ol>
+  <p>Hat in der Zwischenzeit jemand anderes dieselbe Aufgabe geändert, gilt die jüngere Änderung. Wurde die Aufgabe inzwischen gelöscht oder dir abgenommen, verfällt deine Änderung still.</p>
+</section>
+
+<section id="einstellungen">
+  <h2>Einstellungen</h2>
+  <p>Am Handy erreichst du alles Persönliche über <strong>☰</strong> oben rechts, am Computer über die Knöpfe oben rechts.</p>
+  <figure class="mitte"><a href="bilder/menue.webp"><img src="bilder/menue.webp" data-dichte="3" width="660" height="1239" loading="lazy" alt="Das Menü am Handy" style="max-width: 220px"></a></figure>
+  <ul>
+    <li><strong>Darstellung</strong> – <em>System</em> folgt dem Handy, <em>Hell</em> und <em>Dunkel</em> legen es fest.</li>
+    <li><strong>Größe &amp; Abstand</strong> – Schrift und Abstände größer oder kleiner. Gilt nur für dieses Gerät.</li>
+    <li><strong>Einstellungen</strong>, <strong>Passwort ändern</strong>, <strong>Abmelden</strong>.</li>
+  </ul>
+  <figure class="mitte"><a href="bilder/einstellungen.webp"><img src="bilder/einstellungen.webp" width="1008" height="2736" loading="lazy" alt="Die Einstellungen" style="max-width: 400px"></a></figure>
+  <div class="tabelle">
+    <table>
+      <thead><tr><th>Einstellung</th><th>Was sie bewirkt</th></tr></thead>
+      <tbody>
+        <tr><td>Browser-Benachrichtigungen</td><td>Erinnerungen als Benachrichtigung aufs Gerät. Fehlt die Erlaubnis, erscheint <strong>Browser-Berechtigung erteilen</strong>; ist sie da, prüft <strong>Test-Nachricht senden</strong>, ob alles ankommt.</td></tr>
+        <tr><td>Standard-Erinnerungszeit</td><td>wie viele Minuten vorher du erinnert wirst, wenn die Leitung an der Aufgabe keine eigene Zeit festgelegt hat. 0 = keine Erinnerung. Gilt für Aufgaben, die du ab jetzt bekommst; bei schon eingeteilten stellst du sie über <strong>Erinnerung</strong> an der Aufgabe um.</td></tr>
+        <tr><td>„Aufgabe startet jetzt“</td><td>eine zweite Benachrichtigung genau zur Startzeit, falls du noch nicht auf <em>In Arbeit</em> getippt hast</td></tr>
+        <tr><td>Signal Benachrichtigungen</td><td>dieselben Benachrichtigungen zusätzlich per Signal. Trag deine Handynummer mit Ländervorwahl ein (+49 …). Die Nachrichten kommen von der Signal-Nummer der Leitung.</td></tr>
+        <tr><td>Ansicht</td><td>Darstellung und Größe wie im Menü</td></tr>
+        <tr><td>Standard-Ansicht</td><td>ob deine Aufgaben als Karten oder als Tabelle aufgehen</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Mit <strong>Speichern</strong> übernehmen. Auf einem fremden oder geliehenen Handy meldest du dich nach Gebrauch über <strong>Abmelden</strong> ab – dann bekommt das Gerät auch keine Benachrichtigungen mehr für dich.</p>
+</section>
+
+<section id="fragen">
+  <h2>Wenn etwas nicht klappt</h2>
+  <h3>Ich bekomme keine Erinnerungen</h3>
+  <ol class="schritte">
+    <li><strong>Einstellungen → Test-Nachricht senden</strong>. Kommt sie nicht an, fehlt die Erlaubnis: <strong>Browser-Berechtigung erteilen</strong> tippen.</li>
+    <li>Hast du früher einmal <em>Blockieren</em> gewählt, kann die App nicht mehr fragen. Dann im Browser die Einstellungen der Seite öffnen (Schloss neben der Adresse) → <em>Benachrichtigungen</em> → <em>Zulassen</em>.</li>
+    <li><strong>iPhone:</strong> Benachrichtigungen gibt es nur, wenn die App über <em>Zum Home-Bildschirm</em> installiert ist und von dort geöffnet wird (ab iOS 16.4).</li>
+    <li><strong>Android:</strong> Bei manchen Herstellern (Samsung, Xiaomi, Huawei) den Browser vom Energiesparen ausnehmen, sonst kommen Benachrichtigungen verspätet.</li>
+    <li>Steht an der Aufgabe <em>Erinnerung</em> gar nicht oder „keine“, hat sie keine Uhrzeit oder die Erinnerung ist aus – stell dir eine eigene.</li>
+  </ol>
+
+  <h3>Eine Aufgabe fehlt</h3>
+  <ul>
+    <li>Ist ein einzelner Tag ausgewählt? Tippe bei <strong>Tage</strong> auf <em>Alle</em>.</li>
+    <li>Ist <strong>Erledigte ausblenden</strong> an, oder sind bei <strong>Veranstaltungen</strong> welche ausgeblendet?</li>
+    <li>Ist die Gruppe zugeklappt? Ein Tipp auf die Gruppenüberschrift klappt sie auf.</li>
+    <li>Hilft nichts, tippe <strong>Aktualisieren</strong>. Fehlt sie dann noch, hat die Leitung dich (noch) nicht eingeteilt.</li>
+  </ul>
+
+  <h3>Anmelden klappt nicht</h3>
+  <p>Prüfe den Namen – genau so, wie die Leitung ihn angelegt hat, meist mit Nachnamen. Passwort vergessen? Die Leitung kann es dir neu setzen.</p>
+
+  <h3>Aus Versehen „Erledigt“ getippt</h3>
+  <p>Sag der Leitung Bescheid; sie setzt die Aufgabe zurück.</p>
+</section>
+
+<section id="spickzettel">
+  <h2>Spickzettel</h2>
+  <p>Die häufigsten Handgriffe auf einen Blick. <button class="druck" type="button" onclick="window.print()">Drucken</button></p>
+  <div class="tabelle">
+    <table>
+      <thead><tr><th>Ich will …</th><th>So geht's</th></tr></thead>
+      <tbody>
+        <tr><td>sehen, was ich heute machen muss</td><td><strong>Meine Aufgaben</strong> – der heutige Tag ist vorausgewählt</td></tr>
+        <tr><td>nur noch Offenes sehen</td><td><strong>Erledigte ausblenden</strong></td></tr>
+        <tr><td>alle Tage sehen</td><td><strong>Tage</strong> → <em>Alle</em></td></tr>
+        <tr><td>sagen, dass ich anfange</td><td><strong>In Arbeit</strong> an der Aufgabe</td></tr>
+        <tr><td>eine Aufgabe abhaken</td><td><strong>Erledigt</strong> an der Aufgabe</td></tr>
+        <tr><td>„In Arbeit“ zurücknehmen</td><td>Tipp auf den Status → <em>Offen</em></td></tr>
+        <tr><td>„Erledigt“ zurücknehmen</td><td>der Leitung Bescheid sagen</td></tr>
+        <tr><td>wissen, mit wem ich die Aufgabe mache</td><td>Zeile <strong>Mit</strong> auf der Karte</td></tr>
+        <tr><td>später erinnert werden</td><td><strong>Erinnerung</strong> an der Aufgabe → <em>In … Min</em></td></tr>
+        <tr><td>früher erinnert werden</td><td><strong>Erinnerung</strong> → <em>… Min vorher</em></td></tr>
+        <tr><td>generell früher erinnert werden</td><td><strong>Einstellungen</strong> → Standard-Erinnerungszeit</td></tr>
+        <tr><td>Benachrichtigungen auf diesem Gerät</td><td>Hinweis oben → <strong>Benachrichtigungen aktivieren</strong></td></tr>
+        <tr><td>prüfen, ob Benachrichtigungen ankommen</td><td><strong>Einstellungen</strong> → Test-Nachricht senden</td></tr>
+        <tr><td>Benachrichtigungen per Signal</td><td><strong>Einstellungen</strong> → Signal → Handynummer (+49 …)</td></tr>
+        <tr><td>alles kompakt sehen</td><td><strong>Tabelle</strong></td></tr>
+        <tr><td>größere Schrift</td><td>☰ → Größe &amp; Abstand (am Computer: Einstellungen → Ansicht)</td></tr>
+        <tr><td>dunkle Darstellung</td><td>☰ → Darstellung → <em>Dunkel</em></td></tr>
+        <tr><td>mein Passwort ändern</td><td><strong>Passwort ändern</strong> (am Handy unter ☰)</td></tr>
+        <tr><td>mich auf einem fremden Handy abmelden</td><td><strong>Abmelden</strong> (am Handy unter ☰)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Farben</h3>
+  <ul class="farben">
+    <li><span class="farbe" style="background:#1E40AF"></span>blauer Rand: offen oder in Arbeit</li>
+    <li><span class="farbe" style="background:#DC2626"></span>roter Rand: überfällig</li>
+    <li><span class="farbe" style="background:#059669"></span>grüner Rand: erledigt</li>
+    <li><span class="farbe" style="background:#FEF3C7;border:1px solid #F59E0B"></span>„wird gesendet“: wartet auf Netz</li>
+  </ul>
+</section>
+
+<p class="fuss">Event Manager · Anleitung für Mitarbeiter · <a href="/">Zur App</a></p>
+
+</main>
+
+</div>
+<div class="lupe" id="lupe" hidden role="dialog" aria-modal="true" aria-label="Bild vergrößert">
+  <button class="lupe-zu" type="button" aria-label="Schließen">✕</button>
+  <div class="lupe-buehne"><img alt=""></div>
+  <p class="lupe-tipp">Bild antippen: Originalgröße · daneben tippen: schließen</p>
+</div>
+<script>
+  /*
+   * Bild gross: ein Tipp auf ein Bild oeffnet es ueber der Seite.
+   * Nochmal tippen schaltet zwischen "ganz sichtbar" und Originalgroesse um
+   * - breite Bildschirmfotos sind am Handy auch formatfuellend noch klein,
+   * in Originalgroesse laesst man sie mit dem Finger verschieben.
+   * Schliessen: X, Tippen neben das Bild, Zurueck des Handys, Esc.
+   * Ohne Skript oeffnet der Link um das Bild die Bilddatei selbst.
+   */
+  (function () {
+    var lupe = document.getElementById('lupe');
+    var bild = lupe.querySelector('img');
+    var zu = lupe.querySelector('.lupe-zu');
+    var tipp = lupe.querySelector('.lupe-tipp');
+    var vorher = null;
+
+    function oeffnen(img) {
+      vorher = document.activeElement;
+      bild.src = img.currentSrc || img.src;
+      bild.alt = img.alt;
+      /* Die Fotos sind mit doppelter (Handy: dreifacher) Pixeldichte
+         aufgenommen - Originalgroesse heisst so gross wie in der App. */
+      var dichte = Number(img.getAttribute('data-dichte')) || 2;
+      bild.style.width = '';
+      bild.dataset.breite = Math.round(img.naturalWidth / dichte);
+      lupe.classList.remove('gross');
+      lupe.hidden = false;
+      document.body.classList.add('lupe-offen');
+      bild.dataset.lohnt = '';
+      bild.style.cursor = 'default';
+      tipp.textContent = 'Daneben tippen oder ✕: schließen';
+      /*
+       * Umschalten nur, wenn die Originalgroesse spuerbar groesser ist als
+       * die Vollbildansicht. Beim hohen Handy-Foto waren es nur ein paar
+       * Pixel - dann waere ein Tipp knapp neben das Bild als "groesser"
+       * gelandet statt als "schliessen".
+       */
+      (bild.decode ? bild.decode() : Promise.resolve()).catch(function () {}).then(function () {
+        var gezeigt = bild.getBoundingClientRect().width;
+        var lohnt = gezeigt > 0 && Number(bild.dataset.breite) > gezeigt * 1.2;
+        bild.dataset.lohnt = lohnt ? '1' : '';
+        bild.style.cursor = lohnt ? '' : 'default';
+        if (lohnt) tipp.textContent = 'Bild antippen: Originalgröße · daneben tippen: schließen';
+      });
+      history.pushState({ lupe: true }, '');
+      zu.focus();
+    }
+
+    function schliessen(ausVerlauf) {
+      if (lupe.hidden) return;
+      lupe.hidden = true;
+      document.body.classList.remove('lupe-offen');
+      bild.removeAttribute('src');
+      if (!ausVerlauf && history.state && history.state.lupe) history.back();
+      if (vorher && vorher.focus) vorher.focus();
+    }
+
+    document.querySelectorAll('figure img').forEach(function (img) {
+      var link = img.closest('a');
+      (link || img).addEventListener('click', function (e) {
+        e.preventDefault();
+        oeffnen(img);
+      });
+    });
+
+    bild.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (!bild.dataset.lohnt) return;
+      var gross = lupe.classList.toggle('gross');
+      bild.style.width = gross ? bild.dataset.breite + 'px' : '';
+      tipp.textContent = gross
+        ? 'Mit dem Finger verschieben · Bild antippen: ganz zeigen'
+        : 'Bild antippen: Originalgröße · daneben tippen: schließen';
+      if (gross) lupe.scrollTo(0, 0);
+    });
+    lupe.addEventListener('click', function () { schliessen(false); });
+    zu.addEventListener('click', function (e) { e.stopPropagation(); schliessen(false); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') schliessen(false); });
+    window.addEventListener('popstate', function () { schliessen(true); });
+  })();
+</script>
+<script>
+  /* Am Handy startet das Inhaltsverzeichnis zugeklappt - aufgeklappt stuende
+     erst eine lange Liste vor dem eigentlichen Text. Ohne Skript bleibt es
+     offen, dann fehlt nichts. */
+  if (window.matchMedia('(max-width: 999px)').matches) {
+    document.querySelector('.inhalt details').removeAttribute('open');
+  }
+  /* Ein Klick auf einen Eintrag klappt es am Handy wieder zu. */
+  document.querySelectorAll('.inhalt a').forEach(function (a) {
+    a.addEventListener('click', function () {
+      if (window.matchMedia('(max-width: 999px)').matches) {
+        document.querySelector('.inhalt details').removeAttribute('open');
+      }
+    });
+  });
+</script>
+</body>
+</html>

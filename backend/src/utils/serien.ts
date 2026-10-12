@@ -1,4 +1,5 @@
 import { query } from '../database/connection';
+import { erinnerungFuer } from './erinnerung';
 
 /*
  * Aufgaben einer Serie.
@@ -47,7 +48,7 @@ export const syncSeriesAssignments = async (seriesId: number | string): Promise<
         if (existing.rows.length === 0) {
           await query(
             'INSERT INTO task_assignments (task_id, event_instance_id, user_id, reminder_minutes) VALUES ($1, $2, $3, $4)',
-            [task.id, instance.id, user_id, task.reminder_minutes ?? 15]
+            [task.id, instance.id, user_id, await erinnerungFuer(task.id, user_id)]
           );
           created++;
         }

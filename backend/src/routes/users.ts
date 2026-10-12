@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { erinnerungFuer } from '../utils/erinnerung';
 import { query } from '../database/connection';
 import { CSV_BOM, csvTextAus, trennzeichenVon, parseCsvLine } from '../utils/csv';
 import { authMiddleware, adminMiddleware, teamleiterOrAdminMiddleware, AuthRequest } from '../middleware/auth';
@@ -284,7 +285,7 @@ router.delete('/event/:eventId/staff/:userId', authMiddleware, teamleiterOrAdmin
         if (existing.rows.length === 0) {
           await query(
             'INSERT INTO task_assignments (task_id, event_instance_id, user_id, reminder_minutes) VALUES ($1, $2, $3, $4)',
-            [a.task_id, a.event_instance_id, reassignTo, a.reminder_minutes]
+            [a.task_id, a.event_instance_id, reassignTo, await erinnerungFuer(a.task_id, reassignTo)]
           );
           moved++;
         }
