@@ -159,7 +159,7 @@ router.post('/test', authMiddleware, async (req: AuthRequest, res) => {
            * ausloest, schaut jetzt aufs Geraet. Und sie ersetzt eine
            * aeltere Testnachricht, die noch wartet.
            */
-          { TTL: 300, topic: 'test' }
+          { TTL: 300, topic: 'test', urgency: 'high' }
         );
         results.push({ success: true, endpoint: sub.endpoint });
       } catch (error: any) {

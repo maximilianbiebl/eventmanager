@@ -128,7 +128,7 @@ self.addEventListener('push', (event) => {
 
   let data = {
     title: 'Benachrichtigung',
-    body: 'Sie haben eine neue Benachrichtigung',
+    body: 'Du hast eine neue Benachrichtigung',
     icon: '/icon-192.png',
     tag: 'default',
   };
