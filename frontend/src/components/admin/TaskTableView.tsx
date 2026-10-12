@@ -109,6 +109,15 @@ interface Props {
  */
 const GRUPPEN_SPALTEN = 9;
 
+/** "2 Gruppen und 5 Aufgaben" - fuer Auswahlleiste und Rueckfragen. */
+const auswahlText = (gruppen: number, aufgaben: number): string => {
+  const g = gruppen === 1 ? '1 Gruppe' : `${gruppen} Gruppen`;
+  const a = aufgaben === 1 ? '1 Aufgabe' : `${aufgaben} Aufgaben`;
+  if (gruppen === 0) return a;
+  if (aufgaben === 0) return g;
+  return `${g} und ${a}`;
+};
+
 /*
  * Unter 640px blendet das Stylesheet "Tag" und "Datum" aus (.hideOnMobile).
  * Die Gruppenzeile muss dann ueber entsprechend weniger Spalten spannen -
@@ -215,6 +224,12 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
   const [descriptionModal, setDescriptionModal] = useState<{ title: string; description: string } | null>(null);
   const pendingActionsRef = React.useRef<number>(0);
   const [selectedTaskIds, setSelectedTaskIds] = useState<number[]>([]);
+  /*
+   * Gewaehlte Gruppen - auch leere. Das Haekchen im Gruppenkopf waehlt die
+   * Gruppe selbst und alle ihre Aufgaben; die Auswahlleiste kann Gruppen
+   * dann loeschen, auf einen anderen Tag verschieben oder kopieren.
+   */
+  const [selectedGruppenIds, setSelectedGruppenIds] = useState<number[]>([]);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showVerschieben, setShowVerschieben] = useState<false | 'verschieben' | 'kopieren'>(false);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -767,14 +782,22 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
   };
 
   const handleToggleSelectTask = (taskId: number) => {
+    if (selectedTaskIds.includes(taskId)) {
+      // Nimmt man eine Aufgabe heraus, ist ihre Gruppe nicht mehr als
+      // Ganzes gewaehlt - sonst loeschte "Loeschen" die Gruppe trotzdem.
+      const gid = alleAufgaben.find((t) => t.task.id === taskId)?.task.program_item_id;
+      if (gid) setSelectedGruppenIds((alt) => alt.filter((g) => g !== gid));
+    }
     setSelectedTaskIds(prev =>
       prev.includes(taskId) ? prev.filter(id => id !== taskId) : [...prev, taskId]
     );
   };
 
+  const auswahlAufheben = () => { setSelectedTaskIds([]); setSelectedGruppenIds([]); };
+
   const handleSelectAllTasks = () => {
     if (selectedTaskIds.length === sortedTasks.length) {
-      setSelectedTaskIds([]);
+      auswahlAufheben();
     } else {
       setSelectedTaskIds(sortedTasks.map(t => t.task.id));
     }
@@ -803,18 +826,21 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
   };
 
   const handleBulkDelete = async () => {
-    if (selectedTaskIds.length === 0 || !eventId) {
+    if ((selectedTaskIds.length === 0 && selectedGruppenIds.length === 0) || !eventId) {
       alert('Bitte mindestens eine Aufgabe auswählen');
       return;
     }
 
-    if (!confirm(`${selectedTaskIds.length} Aufgaben wirklich löschen?`)) return;
+    const was = auswahlText(selectedGruppenIds.length, selectedTaskIds.length);
+    if (!confirm(`${was} wirklich löschen?`)) return;
 
     pendingActionsRef.current++;
     try {
-      await tasksApi.bulkDelete(eventId, selectedTaskIds);
-      setSelectedTaskIds([]);
-      setSuccessMessage(`${selectedTaskIds.length} Aufgaben gelöscht`);
+      if (selectedTaskIds.length > 0) await tasksApi.bulkDelete(eventId, selectedTaskIds);
+      for (const gid of selectedGruppenIds) await programApi.delete(gid);
+      auswahlAufheben();
+      setSuccessMessage(`${was} gelöscht`);
+      if (selectedGruppenIds.length > 0) onTasksChanged?.();
       setTimeout(() => setSuccessMessage(''), 3000);
       await loadAssignments(false);
     } catch (error) {
@@ -1162,8 +1188,14 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
     const zeit = gruppenZeit(gruppe);
     const farbe = farbeVon(gruppe.color);
     const ids: number[] = eintraege.map((e) => e.task?.id ?? e.id);
-    const alleMarkiert = ids.length > 0 && ids.every((id) => selectedTaskIds.includes(id));
-    const teilsMarkiert = !alleMarkiert && ids.some((id) => selectedTaskIds.includes(id));
+    const gruppeGewaehlt = selectedGruppenIds.includes(gruppe.id);
+    const teilsMarkiert = !gruppeGewaehlt && ids.some((id) => selectedTaskIds.includes(id));
+    const gruppeUmschalten = () => {
+      setSelectedGruppenIds((alt) => gruppeGewaehlt ? alt.filter((g) => g !== gruppe.id) : [...alt, gruppe.id]);
+      setSelectedTaskIds((alt) => gruppeGewaehlt
+        ? alt.filter((id) => !ids.includes(id))
+        : [...alt, ...ids.filter((id) => !alt.includes(id))]);
+    };
     // Eine Gruppe gilt als deaktiviert, wenn alle ihre Aufgaben es sind.
     const deaktiviert = eintraege.length > 0 && eintraege.every((e) => e.task?.is_active === false);
 
@@ -1175,29 +1207,35 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
        * Mitte enden lassen.
        */
       <tr key={`kopf-${gruppe.id}`} style={{ ...styles.gruppenZeile, ...(farbe ? { backgroundColor: farbe.weich } : {}) }}>
+        {/*
+          Eigene Zelle in der Haekchen-Spalte - genau ueber den Haekchen der
+          Aufgaben. Vorher stand das Haekchen in der breiten Titelzelle und
+          rutschte in eine eigene Zeile ueber den Gruppennamen.
+        */}
         <td
           style={{
             ...styles.gruppenZelle,
+            ...styles.gruppenHakenZelle,
             // Der Streifen sitzt an der ersten Zelle - er soll den ganzen
             // Block links markieren, nicht jede Zelle einzeln.
             ...(farbe ? { borderLeft: `3px solid ${farbe.kraeftig}` } : {}),
           }}
-          colSpan={schmal ? GRUPPEN_SPALTEN_SCHMAL : GRUPPEN_SPALTEN}
         >
-          {/* Haekchen fuer die ganze Gruppe: markiert alle ihre Aufgaben -
-              zum gemeinsamen Deaktivieren, Kopieren, Verschieben, Loeschen. */}
-          {!readOnly && ids.length > 0 && (
+          {!readOnly && (
             <input
               type="checkbox"
-              style={{ ...styles.checkbox, marginRight: '0.6rem', verticalAlign: 'middle' }}
-              checked={alleMarkiert}
+              style={styles.checkbox}
+              checked={gruppeGewaehlt}
               ref={(el) => { if (el) el.indeterminate = teilsMarkiert; }}
-              onChange={() => setSelectedTaskIds((alt) => alleMarkiert
-                ? alt.filter((id) => !ids.includes(id))
-                : [...alt, ...ids.filter((id) => !alt.includes(id))])}
-              aria-label={`Alle Aufgaben der Gruppe „${gruppe.title}“ auswählen`}
+              onChange={gruppeUmschalten}
+              aria-label={`Gruppe „${gruppe.title}“ auswählen`}
             />
           )}
+        </td>
+        <td
+          style={styles.gruppenZelle}
+          colSpan={(schmal ? GRUPPEN_SPALTEN_SCHMAL : GRUPPEN_SPALTEN) - 1}
+        >
           <button
             type="button"
             onClick={() => klappe(gruppe.id)}
@@ -1302,9 +1340,13 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
           rufen die Modals über die Ref auf - so bleibt die Auswahl beim
           Export erhalten. */}
 
-      {selectedTaskIds.length > 0 && !readOnly && (
+      {(selectedTaskIds.length > 0 || selectedGruppenIds.length > 0) && !readOnly && (
         <div style={styles.bulkActions} className={responsiveStyles.bulkLeiste}>
-          <span style={styles.bulkActionsText} className={responsiveStyles.bulkAnzahl}>{selectedTaskIds.length} ausgewählt</span>
+          <span style={styles.bulkActionsText} className={responsiveStyles.bulkAnzahl}>
+            {selectedGruppenIds.length > 0
+              ? `${auswahlText(selectedGruppenIds.length, selectedTaskIds.length)} ausgewählt`
+              : `${selectedTaskIds.length} ausgewählt`}
+          </span>
           {/* Kurze Namen, gleich breit - am Handy eine Reihe aus drei Knoepfen
               statt eines Flickenteppichs aus umbrochenen Zeilen. */}
           <div className={responsiveStyles.bulkKnoepfe}>
@@ -1318,7 +1360,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
                 </button>
               </>
             )}
-            {eventId && (
+            {eventId && selectedTaskIds.length > 0 && (
               <button onClick={markierteAktivSchalten} style={styles.bulkMoveButton}>
                 {markierteHabenAktive ? 'Deaktivieren' : 'Aktivieren'}
               </button>
@@ -1327,7 +1369,7 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
               Löschen
             </button>
           </div>
-          <button onClick={() => setSelectedTaskIds([])} style={styles.bulkCancelButton} className={responsiveStyles.bulkAufheben}>
+          <button onClick={auswahlAufheben} style={styles.bulkCancelButton} className={responsiveStyles.bulkAufheben}>
             Auswahl aufheben
           </button>
         </div>
@@ -1337,14 +1379,19 @@ export const TaskTableView = forwardRef<TaskTableViewHandle, Props>(({
         <VerschiebenDialog
           eventId={eventId}
           startArt={showVerschieben}
-          taskIds={selectedTaskIds}
+          // Aufgaben gewaehlter Gruppen gehen mit ihrer Gruppe - nicht einzeln.
+          taskIds={selectedTaskIds.filter((id) => {
+            const gid = alleAufgaben.find((t) => t.task.id === id)?.task.program_item_id;
+            return !gid || !selectedGruppenIds.includes(gid);
+          })}
+          gewaehlteGruppen={gruppen.filter((g) => selectedGruppenIds.includes(g.id))}
           eventDays={eventDays || 1}
           gruppen={gruppen}
           onClose={() => setShowVerschieben(false)}
-          onFertig={(anzahl, kopiert) => {
+          onFertig={(meldung) => {
             setShowVerschieben(false);
-            setSelectedTaskIds([]);
-            setSuccessMessage(`${anzahl === 1 ? '1 Aufgabe' : `${anzahl} Aufgaben`} ${kopiert ? 'kopiert' : 'verschoben'}`);
+            auswahlAufheben();
+            setSuccessMessage(meldung);
             setTimeout(() => setSuccessMessage(''), 3000);
             loadAssignments(false);
             onTasksChanged?.();
@@ -1853,6 +1900,12 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: 0,
     borderTop: '1px solid var(--c-border-strong)',
     borderBottom: '1px solid var(--c-border)',
+  },
+  // Wie die Haekchen-Zelle der Aufgaben (styles.td), damit beide fluchten.
+  gruppenHakenZelle: {
+    padding: '0.75rem',
+    verticalAlign: 'middle',
+    width: '1%',
   },
   gruppenKnopf: {
     display: 'flex',

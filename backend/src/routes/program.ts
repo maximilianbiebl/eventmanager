@@ -357,7 +357,10 @@ router.post('/:id/duplicate', authMiddleware, teamleiterOrAdminMiddleware,
   eventZugriff(req => eventIdVonGruppe(req.params.id)), async (req, res) => {
   try {
     const { id } = req.params;
-    const { day_number, mit_aufgaben = true, mit_zuweisungen = false } = req.body;
+    const { day_number, mit_aufgaben = true, mit_zuweisungen = false, mit_notiz = false } = req.body;
+    // Interne Notizen (Gruppe und Aufgaben) nur auf Wunsch - wie beim
+    // Kopieren einzelner Aufgaben (tasks bulk-copy).
+    const notiz = (n: any) => (mit_notiz === true && n && String(n).trim() !== '' ? n : null);
 
     const g = await query('SELECT * FROM program_items WHERE id = $1', [id]);
     if (g.rows.length === 0) {
@@ -383,10 +386,10 @@ router.post('/:id/duplicate', authMiddleware, teamleiterOrAdminMiddleware,
     );
 
     const neu = await query(
-      `INSERT INTO program_items (event_id, day_number, time, title, description, sort_order, color, series_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      `INSERT INTO program_items (event_id, day_number, time, title, description, sort_order, color, series_id, note)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
       [alt.event_id, zielTag, alt.time, alt.title, alt.description,
-       max.rows[0].m + 10, alt.color, alt.series_id]
+       max.rows[0].m + 10, alt.color, alt.series_id, notiz(alt.note)]
     );
     const neueGruppe = neu.rows[0];
 
@@ -403,12 +406,13 @@ router.post('/:id/duplicate', authMiddleware, teamleiterOrAdminMiddleware,
           `INSERT INTO tasks
              (event_id, program_item_id, day_number, title, description, scheduled_time,
               reminder_minutes, start_time, end_time, is_public, status, is_active,
-              sort_order, series_id, needed_staff, needed_female, needed_male, auto_complete)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'not_started', $11, $12, $13, $14, $15, $16, $17)
+              sort_order, series_id, needed_staff, needed_female, needed_male, auto_complete, note)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'not_started', $11, $12, $13, $14, $15, $16, $17, $18)
            RETURNING id`,
           [alt.event_id, neueGruppe.id, zielTag, a.title, a.description, a.scheduled_time,
            a.reminder_minutes, a.start_time, a.end_time, a.is_public, a.is_active,
-           a.sort_order, a.series_id, a.needed_staff, a.needed_female, a.needed_male, a.auto_complete]
+           a.sort_order, a.series_id, a.needed_staff, a.needed_female, a.needed_male, a.auto_complete,
+           notiz(a.note)]
         );
         kopierteAufgaben++;
 

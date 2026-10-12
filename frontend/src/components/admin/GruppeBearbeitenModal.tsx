@@ -26,6 +26,7 @@ interface Aufgabe {
   end_time?: string | null;
   program_item_id?: number | null;
   is_active?: boolean | null;
+  note?: string | null;
 }
 
 interface Props {
@@ -58,6 +59,7 @@ export const GruppeBearbeitenModal: React.FC<Props> = ({
   const [dupTag, setDupTag] = useState(gruppe.day_number);
   const [dupAufgaben, setDupAufgaben] = useState(true);
   const [dupZuweisungen, setDupZuweisungen] = useState(false);
+  const [dupNotizen, setDupNotizen] = useState(false);
 
   useEffect(() => {
     let abgebrochen = false;
@@ -159,6 +161,7 @@ export const GruppeBearbeitenModal: React.FC<Props> = ({
         day_number: dupTag,
         mit_aufgaben: dupAufgaben,
         mit_zuweisungen: dupZuweisungen,
+        mit_notiz: dupNotizen,
       });
       onGespeichert();
       onClose();
@@ -199,6 +202,14 @@ export const GruppeBearbeitenModal: React.FC<Props> = ({
                 onChange={(e) => setDupZuweisungen(e.target.checked)} style={stil.haken} />
               <span>Zuweisungen mitkopieren</span>
             </label>
+            {/* Nur, wenn es Notizen gibt - an der Gruppe oder ihren Aufgaben. */}
+            {(gruppe.note || aufgaben.some((a) => a.program_item_id === gruppe.id && a.note)) && (
+              <label style={stil.hakenZeile}>
+                <input type="checkbox" checked={dupNotizen}
+                  onChange={(e) => setDupNotizen(e.target.checked)} style={stil.haken} />
+                <span>Notizen der Leitung mitkopieren</span>
+              </label>
+            )}
 
             <p style={stil.hinweis}>
               Die Kopie ist eigenständig: spätere Änderungen an der einen wirken sich nicht auf die

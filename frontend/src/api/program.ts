@@ -91,6 +91,8 @@ export const programApi = {
     day_number: number;
     mit_aufgaben?: boolean;
     mit_zuweisungen?: boolean;
+    /** Notizen der Leitung (Gruppe und Aufgaben) mitnehmen. */
+    mit_notiz?: boolean;
   }): Promise<{ gruppe: TaskGroup; kopierteAufgaben: number; kopierteZuweisungen: number; message: string }> => {
     const response = await client.post(`/program/${id}/duplicate`, daten);
     return response.data;

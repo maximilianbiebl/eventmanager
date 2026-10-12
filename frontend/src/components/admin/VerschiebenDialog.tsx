@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { TaskGroup } from '../../api/program';
 import { tasksApi } from '../../api/tasks';
+import { programApi } from '../../api/program';
 
 /*
  * Mehrere Aufgaben auf einmal verschieben oder kopieren: auf einen anderen
@@ -10,6 +11,11 @@ import { tasksApi } from '../../api/tasks';
  *
  * Eine Kopie beginnt als "nicht begonnen"; Einteilungen und Notizen
  * kommen nur mit, wenn das jeweilige Haekchen gesetzt ist.
+ *
+ * Gewaehlte GRUPPEN (Haekchen im Gruppenkopf, auch leere) gehen als Ganzes:
+ * Verschieben bringt sie samt Aufgaben auf den Zieltag, Kopieren legt eine
+ * Kopie samt Aufgaben an. In eine andere Gruppe kann eine Gruppe nicht -
+ * die Gruppenauswahl gilt nur fuer einzeln gewaehlte Aufgaben.
  *
  * Eine Gruppe gehoert zu genau einem Tag. Deshalb bietet die Gruppenliste
  * nur die Gruppen des gewaehlten Tages an, und "Gruppe behalten" gibt es nur,
@@ -22,17 +28,20 @@ interface Props {
   eventId: number;
   /** Womit das Fenster aufgeht - je nach Knopf in der Auswahlleiste. */
   startArt?: 'verschieben' | 'kopieren';
+  /** Einzeln gewaehlte Aufgaben - ohne die, die mit ihrer Gruppe gehen. */
   taskIds: number[];
+  /** Gewaehlte Gruppen - sie gehen samt ihren Aufgaben. */
+  gewaehlteGruppen?: TaskGroup[];
   eventDays: number;
   gruppen: TaskGroup[];
   onClose: () => void;
-  onFertig: (anzahl: number, kopiert: boolean) => void;
+  onFertig: (meldung: string) => void;
 }
 
 const BEHALTEN = 'behalten';
 const KEINE = 'keine';
 
-export const VerschiebenDialog: React.FC<Props> = ({ eventId, startArt = 'verschieben', taskIds, eventDays, gruppen, onClose, onFertig }) => {
+export const VerschiebenDialog: React.FC<Props> = ({ eventId, startArt = 'verschieben', taskIds, gewaehlteGruppen = [], eventDays, gruppen, onClose, onFertig }) => {
   const [art, setArt] = useState<'verschieben' | 'kopieren'>(startArt);
   const [mitNotiz, setMitNotiz] = useState(false);
   const [mitEinteilung, setMitEinteilung] = useState(false);
@@ -55,10 +64,18 @@ export const VerschiebenDialog: React.FC<Props> = ({ eventId, startArt = 'versch
 
   const anzahl = taskIds.length;
   const aufgaben = anzahl === 1 ? '1 Aufgabe' : `${anzahl} Aufgaben`;
+  const nG = gewaehlteGruppen.length;
+  const gruppenWort = nG === 1 ? `Gruppe „${gewaehlteGruppen[0]?.title}“` : `${nG} Gruppen`;
+  const titelWas = nG === 0 ? aufgaben : anzahl === 0 ? gruppenWort : `${gruppenWort} und ${aufgaben}`;
   const gruppenName = gruppenDesTages.find((g) => String(g.id) === gruppe)?.title;
   const kopieren = art === 'kopieren';
   const zielText = gruppe === KEINE ? ', ohne Gruppe' : gruppenName ? `, in „${gruppenName}“` : '';
-  const satz = kopieren
+  const gruppenSatz = nG === 0 ? '' : kopieren
+    ? `${gruppenWort} ${nG === 1 ? 'wird' : 'werden'} samt Aufgaben kopiert${tagZahl === null ? ' (am selben Tag)' : ` (auf Tag ${tagZahl})`}${mitNotiz ? ', mit Notizen' : ''}. `
+    : tagZahl === null
+      ? `${gruppenWort} ${nG === 1 ? 'bleibt' : 'bleiben'}, wo ${nG === 1 ? 'sie ist' : 'sie sind'}. `
+      : `${gruppenWort} ${nG === 1 ? 'kommt' : 'kommen'} samt Aufgaben auf Tag ${tagZahl}. `;
+  const aufgabenSatz = anzahl === 0 ? '' : kopieren
     ? (tagZahl === null
         ? (gruppe === BEHALTEN
             ? `Von ${anzahl === 1 ? 'der Aufgabe' : `jeder der ${anzahl} Aufgaben`} entsteht eine Kopie am selben Tag, in derselben Gruppe.`
@@ -68,8 +85,9 @@ export const VerschiebenDialog: React.FC<Props> = ({ eventId, startArt = 'versch
     : tagZahl === null
       ? (gruppe === BEHALTEN ? 'Es ändert sich nichts.' : `${aufgaben} bleiben an ihrem Tag und kommen ${gruppe === KEINE ? 'aus ihrer Gruppe heraus' : `in „${gruppenName}“`}.`)
       : `${aufgaben} kommen auf Tag ${tagZahl}${zielText}.`;
+  const satz = (gruppenSatz + aufgabenSatz).trim();
   // Kopieren ohne Ziel ist erlaubt: dann entsteht die Kopie am selben Tag, in derselben Gruppe.
-  const nichts = !kopieren && tagZahl === null && gruppe === BEHALTEN;
+  const nichts = !kopieren && tagZahl === null && (anzahl === 0 || gruppe === BEHALTEN);
 
   const los = async () => {
     setLaeuft(true);
@@ -79,13 +97,22 @@ export const VerschiebenDialog: React.FC<Props> = ({ eventId, startArt = 'versch
       if (tagZahl !== null) daten.day_number = tagZahl;
       if (gruppe === KEINE) daten.program_item_id = null;
       else if (gruppe !== BEHALTEN) daten.program_item_id = Number(gruppe);
-      if (kopieren) {
-        const antwort = await tasksApi.bulkCopy(eventId, taskIds, { ...daten, mit_zuweisungen: mitEinteilung, mit_notiz: mitNotiz });
-        onFertig(antwort.kopiert ?? anzahl, true);
-      } else {
-        const antwort = await tasksApi.bulkMove(eventId, taskIds, daten);
-        onFertig(antwort.verschoben ?? anzahl, false);
+      // Erst die Gruppen (samt ihren Aufgaben), dann die einzelnen Aufgaben.
+      for (const g of gewaehlteGruppen) {
+        if (kopieren) {
+          await programApi.duplizieren(g.id, {
+            day_number: tagZahl ?? g.day_number, mit_aufgaben: true,
+            mit_zuweisungen: mitEinteilung, mit_notiz: mitNotiz,
+          });
+        } else if (tagZahl !== null && tagZahl !== g.day_number) {
+          await programApi.update(g.id, { day_number: tagZahl });
+        }
       }
+      if (anzahl > 0 && (kopieren || tagZahl !== null || gruppe !== BEHALTEN)) {
+        if (kopieren) await tasksApi.bulkCopy(eventId, taskIds, { ...daten, mit_zuweisungen: mitEinteilung, mit_notiz: mitNotiz });
+        else await tasksApi.bulkMove(eventId, taskIds, daten);
+      }
+      onFertig(`${titelWas} ${kopieren ? 'kopiert' : 'verschoben'}`);
     } catch (e: any) {
       setFehler(e.response?.data?.error || (kopieren ? 'Kopieren fehlgeschlagen' : 'Verschieben fehlgeschlagen'));
       setLaeuft(false);
@@ -95,7 +122,7 @@ export const VerschiebenDialog: React.FC<Props> = ({ eventId, startArt = 'versch
   return (
     <div className="app-modal-overlay" style={stil.hintergrund} onClick={onClose}>
       <div className="app-modal" style={stil.kasten} role="dialog" aria-labelledby="verschieben-titel" onClick={(e) => e.stopPropagation()}>
-        <h2 id="verschieben-titel" style={stil.titel}>{aufgaben} {kopieren ? 'kopieren' : 'verschieben'}</h2>
+        <h2 id="verschieben-titel" style={stil.titel}>{titelWas} {kopieren ? 'kopieren' : 'verschieben'}</h2>
 
         <div role="radiogroup" aria-label="Was soll passieren?" style={stil.umschalter}>
           {(['verschieben', 'kopieren'] as const).map((a) => (
@@ -117,7 +144,10 @@ export const VerschiebenDialog: React.FC<Props> = ({ eventId, startArt = 'versch
           ))}
         </select>
 
-        <label style={stil.label} htmlFor="verschieben-gruppe">In welche Aufgabengruppe?</label>
+        {anzahl > 0 && (<>
+        <label style={stil.label} htmlFor="verschieben-gruppe">
+          {nG > 0 ? 'Die einzelnen Aufgaben in welche Gruppe?' : 'In welche Aufgabengruppe?'}
+        </label>
         <select id="verschieben-gruppe" value={gruppe} onChange={(e) => setGruppe(e.target.value)} style={stil.feld}>
           {tagZahl === null && <option value={BEHALTEN}>Gruppe beibehalten</option>}
           <option value={KEINE}>Keine Gruppe</option>
@@ -130,6 +160,7 @@ export const VerschiebenDialog: React.FC<Props> = ({ eventId, startArt = 'versch
         {tagZahl === null && (
           <p style={stil.hinweis}>Gruppen lassen sich nach Tag auswählen – eine Gruppe gehört zu genau einem Tag.</p>
         )}
+        </>)}
 
         {kopieren && (
           <label style={stil.haken}>
