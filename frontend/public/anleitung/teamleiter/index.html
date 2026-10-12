@@ -537,7 +537,7 @@
   <figure class="mitte"><a href="bilder/formular-2.webp"><img src="bilder/formular-2.webp" width="1208" height="1988" loading="lazy" alt="Formular, unterer Teil mit Gefahrenbereich" style="max-width: 440px"></a></figure>
   <p>Ganz unten liegt der <strong>Gefahrenbereich</strong>:</p>
   <ul>
-    <li><strong>Deaktivieren</strong> nimmt eine Aufgabe aus dem Betrieb, ohne sie zu löschen – etwa die Kanutour bei Sturm. Sie verschwindet aus den Listen und bei den Mitarbeitern; über den Filter <em>Deaktivierte</em> holst du sie zurück und aktivierst sie wieder.</li>
+    <li><strong>Deaktivieren</strong> nimmt eine Aufgabe aus dem Betrieb, ohne sie zu löschen – etwa die Kanutour bei Sturm. Sie verschwindet aus den Listen und bei den Mitarbeitern, und es gibt keine Erinnerung mehr dazu; über den Filter <em>Deaktivierte</em> holst du sie zurück und aktivierst sie wieder. Mehrere auf einmal: anhaken und in der Auswahlleiste <strong>Deaktivieren</strong>. Eine ganze Gruppe: <strong>Bearbeiten</strong> an der Gruppe → <strong>Deaktivieren</strong>, oder das Häkchen im Gruppenkopf der Tabelle. Sind alle Aufgaben einer Gruppe deaktiviert, steht „deaktiviert“ an der Gruppe.</li>
     <li><strong>Löschen</strong> entfernt die Aufgabe endgültig, samt Zuweisungen.</li>
   </ul>
   <p>In der Tabellenansicht kannst du mehrere Aufgaben ankreuzen und gemeinsam löschen. Dort gibt es auch <strong>Importieren</strong> und <strong>Exportieren</strong> von Aufgaben als CSV.</p>
@@ -597,7 +597,7 @@
   <figure><a href="bilder/tabelle.webp"><img src="bilder/tabelle.webp" width="1600" height="873" loading="lazy" alt="Tabellenansicht mit Gruppen"></a></figure>
   <ol class="marken">
     <li><strong>Spaltenüberschriften</strong> – ein Klick sortiert nach dieser Spalte.</li>
-    <li><strong>Häkchen</strong> – Aufgaben auswählen, um sie gemeinsam umzusortieren, auf einen anderen Tag zu bringen, zu kopieren oder zu löschen.</li>
+    <li><strong>Häkchen</strong> – Aufgaben auswählen, um sie gemeinsam umzusortieren, auf einen anderen Tag zu bringen, zu kopieren, zu deaktivieren oder zu löschen. Das Häkchen im Gruppenkopf wählt alle Aufgaben der Gruppe auf einmal.</li>
     <li><strong>Gruppenzeile</strong> – wie in der Kartenansicht, zuklappbar.</li>
   </ol>
   <p>In der Tabelle hat jeder Name ein ✕ zum Austragen; lange Beschreibungen klappst du mit <em>mehr</em> auf.</p>
@@ -676,7 +676,7 @@
     <li>In der Liste steht die erste Zeile; ein Klick darauf zeigt die ganze Notiz. Zeilenumbrüche bleiben erhalten.</li>
     <li>Ein gelbes ✎ heißt: hier gibt es eine Notiz.</li>
     <li>Sehen und schreiben dürfen alle, die die Veranstaltung leiten, und Admins.</li>
-    <li>Beim Duplizieren und bei Vorlagen werden Notizen nicht mitkopiert.</li>
+    <li>Beim Duplizieren und beim Kopieren in eine Vorlage fragt die App, ob die Notizen mitkommen sollen (Voreinstellung: nein). Beim Anlegen aus einer Vorlage werden deren Notizen übernommen, außer du nimmst das Häkchen heraus.</li>
   </ul>
 </section>
 
@@ -750,7 +750,7 @@
         <tr><td>Browser-Benachrichtigungen</td><td>Erinnerungen als Push-Meldung. Pro Gerät einmal <strong>Browser-Berechtigung erteilen</strong>; danach prüft <strong>Test-Nachricht senden</strong>, ob es ankommt.</td></tr>
         <tr><td>Standard-Erinnerungszeit</td><td>Wie viele Minuten vorher du erinnert wirst, wenn die Aufgabe nichts anderes sagt. 0 = keine.</td></tr>
         <tr><td>„Aufgabe startet jetzt“</td><td>zusätzliche Meldung zur Startzeit, wenn du noch nicht angefangen hast</td></tr>
-        <tr><td>Status-Änderungen von Mitarbeitern</td><td>Meldung, wenn jemand in deinen Veranstaltungen eine Aufgabe auf <em>In Arbeit</em>, <em>Erledigt</em> oder <em>Überfällig</em> setzt</td></tr>
+        <tr><td>Status-Änderungen in deinen Veranstaltungen</td><td>Meldung, wenn sich in Veranstaltungen, die du leitest, ein Status ändert. Darunter wählst du, bei welchen: <em>In Arbeit</em>, <em>Erledigt</em>, <em>Wieder offen</em>, <em>Überfällig</em> – und ob auch bei öffentlichen Aufgaben. Was du selbst änderst, wird dir nicht gemeldet; „Erledigt“ kommt einmal, auch wenn mehrere Eingeteilte abhaken.</td></tr>
         <tr><td>Signal Benachrichtigungen</td><td>dieselben Meldungen zusätzlich per Signal an deine Telefonnummer (+49 …)</td></tr>
         <tr><td>Standard-Ansicht</td><td>ob Aufgaben als Karten oder Tabelle aufgehen</td></tr>
       </tbody>
