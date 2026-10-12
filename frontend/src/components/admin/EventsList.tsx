@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { frageMitHaken } from '../FrageMitHaken';
+import { frageMitHaken, frageNachNotizen } from '../FrageMitHaken';
 import { eventsApi, Event } from '../../api/events';
 import { usersApi, User } from '../../api/users';
 import { CreateEventModal } from './CreateEventModal';
@@ -161,9 +161,9 @@ export const EventsList: React.FC = () => {
   };
 
   const handleCopyToTemplate = async (eventId: number) => {
-    const mitNotizen = await frageMitHaken({
+    const mitNotizen = await frageNachNotizen((await eventsApi.notizen(eventId)).anzahl, {
       titel: 'Als Vorlage kopieren?', text: 'Die Vorlage bekommt Gruppen, Serien und Aufgaben – ohne Einteilungen und Datum.',
-      haken: 'Notizen der Leitung mitnehmen', hakenHinweis: 'Interne Notizen an Gruppen und Aufgaben. Ohne Häkchen startet die Vorlage ohne Notizen.', knopf: 'Vorlage erstellen',
+      knopf: 'Vorlage erstellen',
     });
     if (mitNotizen === null) return;
 
@@ -178,10 +178,17 @@ export const EventsList: React.FC = () => {
   };
 
   const handleSuggestAsTemplate = async (eventId: number) => {
-    if (!confirm('Diese Veranstaltung als Vorlage vorschlagen?')) return;
+    const { anzahl } = await eventsApi.notizen(eventId);
+    const mitNotizen = await frageNachNotizen(anzahl, {
+      titel: 'Als Vorlage vorschlagen?',
+      text: 'Ein Admin entscheidet, ob daraus eine Vorlage wird.'
+        + (anzahl > 0 ? ' Deine Wahl zu den Notizen ist dabei voreingestellt und lässt sich noch ändern.' : ''),
+      knopf: 'Vorschlagen',
+    });
+    if (mitNotizen === null) return;
 
     try {
-      await eventsApi.suggestAsTemplate(eventId);
+      await eventsApi.suggestAsTemplate(eventId, mitNotizen);
       await loadData(false);
       alert('Vorschlag wurde an Admins gesendet');
     } catch (error) {
@@ -191,9 +198,14 @@ export const EventsList: React.FC = () => {
   };
 
   const handleApproveSuggestion = async (eventId: number) => {
-    const mitNotizen = await frageMitHaken({
-      titel: 'Vorschlag annehmen?', text: 'Eine neue Vorlage wird erstellt – ohne Einteilungen und Datum.',
-      haken: 'Notizen der Leitung mitnehmen', hakenHinweis: 'Interne Notizen an Gruppen und Aufgaben. Ohne Häkchen startet die Vorlage ohne Notizen.', knopf: 'Annehmen',
+    // Voreinstellung: was beim Vorschlagen gewaehlt wurde.
+    const info = await eventsApi.notizen(eventId);
+    const mitNotizen = await frageNachNotizen(info.anzahl, {
+      titel: 'Vorschlag annehmen?',
+      text: 'Eine neue Vorlage wird erstellt – ohne Einteilungen und Datum.'
+        + (info.anzahl > 0 ? ` Beim Vorschlagen gewählt: ${info.vorschlagMitNotizen ? 'mit' : 'ohne'} Notizen.` : ''),
+      vorgabe: info.vorschlagMitNotizen,
+      knopf: 'Annehmen',
     });
     if (mitNotizen === null) return;
 
@@ -249,7 +261,9 @@ export const EventsList: React.FC = () => {
 
     const mitNotizen = await frageMitHaken({
       titel: `${selectedIds.length} Vorschläge annehmen?`, text: 'Aus jedem wird eine neue Vorlage – ohne Einteilungen und Datum.',
-      haken: 'Notizen der Leitung mitnehmen', hakenHinweis: 'Interne Notizen an Gruppen und Aufgaben. Ohne Häkchen startet die Vorlage ohne Notizen.', knopf: 'Annehmen',
+      haken: 'Notizen übernehmen, wo es beim Vorschlagen gewählt wurde',
+      hakenHinweis: 'Ohne Häkchen kommen keine Notizen mit. Einzeln annehmen, um je Vorschlag zu entscheiden.',
+      vorgabe: true, knopf: 'Annehmen',
     });
     if (mitNotizen === null) return;
 

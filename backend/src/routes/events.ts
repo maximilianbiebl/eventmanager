@@ -540,9 +540,11 @@ router.put('/:id/suggest-as-template', authMiddleware, teamleiterOrAdminMiddlewa
       return res.status(403).json({ error: 'Keine Berechtigung für dieses Event' });
     }
 
+    // Die Wahl "Notizen mitnehmen" wird mit dem Vorschlag gemerkt - der
+    // Admin sieht sie beim Annehmen als Voreinstellung.
     const result = await query(
-      'UPDATE events SET is_template_suggestion = $1 WHERE id = $2 RETURNING *',
-      [true, id]
+      'UPDATE events SET is_template_suggestion = $1, vorschlag_mit_notizen = $3 WHERE id = $2 RETURNING *',
+      [true, id, req.body?.mit_notizen === true]
     );
 
     // SSE Broadcast für instant updates
@@ -551,6 +553,25 @@ router.put('/:id/suggest-as-template', authMiddleware, teamleiterOrAdminMiddlewa
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Suggest as template error:', error);
+    res.status(500).json({ error: 'Server Fehler' });
+  }
+});
+
+/*
+ * Wie viele interne Notizen hat die Veranstaltung? Damit die Rueckfrage
+ * "Notizen mitnehmen?" nur kommt, wenn es welche gibt.
+ */
+router.get('/:id/notizen', authMiddleware, teamleiterOrAdminMiddleware, async (req, res) => {
+  try {
+    const r = await query(
+      `SELECT (SELECT count(*) FROM tasks WHERE event_id = $1 AND note IS NOT NULL AND btrim(note) <> '')
+            + (SELECT count(*) FROM program_items WHERE event_id = $1 AND note IS NOT NULL AND btrim(note) <> '') AS anzahl,
+              (SELECT vorschlag_mit_notizen FROM events WHERE id = $1) AS vorgeschlagen`,
+      [req.params.id]
+    );
+    res.json({ anzahl: Number(r.rows[0].anzahl), vorschlagMitNotizen: r.rows[0].vorgeschlagen === true });
+  } catch (error) {
+    console.error('Notizen zaehlen:', error);
     res.status(500).json({ error: 'Server Fehler' });
   }
 });
@@ -594,7 +615,11 @@ router.post('/:id/approve-suggestion', authMiddleware, adminMiddleware, async (r
      * Neuerung kam dadurch an einer Stelle an und fehlte an den
      * anderen (zuletzt die Farbe der Gruppen).
      */
-    await kopiereInhalte(id, template.id, { mitNotizen: req.body?.mit_notizen === true });
+    // Ohne ausdrueckliche Wahl des Admins gilt, was beim Vorschlagen gewaehlt wurde.
+    const mitNotizen = typeof req.body?.mit_notizen === 'boolean'
+      ? req.body.mit_notizen
+      : originalEvent.rows[0].vorschlag_mit_notizen === true;
+    await kopiereInhalte(id, template.id, { mitNotizen });
 
     // Prüfe ob Daten tatsächlich kopiert wurden
     const verifyTasks = await query('SELECT * FROM tasks WHERE event_id = $1', [template.id]);
@@ -801,7 +826,10 @@ router.post('/bulk-approve-suggestions', authMiddleware, adminMiddleware, async 
        * fuer sechs Spalten - mit Aufgabengruppen brach das Annehmen mit
        * einem Datenbankfehler ab - und liess die Serien weg.
        */
-      await kopiereInhalte(id, template.id, { mitNotizen: req.body.mit_notizen === true });
+      // Haekchen an: je Vorschlag, was beim Vorschlagen gewaehlt wurde. Aus: ohne Notizen.
+      await kopiereInhalte(id, template.id, {
+        mitNotizen: req.body.mit_notizen !== false && original.vorschlag_mit_notizen === true,
+      });
 
       // Vorschlag-Flag beim Original entfernen
       await query('UPDATE events SET is_template_suggestion = false WHERE id = $1', [id]);

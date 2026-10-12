@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { frageMitHaken } from '../FrageMitHaken';
+import { frageNachNotizen } from '../FrageMitHaken';
 import { vorschau, istLang, MIT_UMBRUECHEN } from '../../utils/beschreibung';
 import { eventsApi } from '../../api/events';
 import { tasksApi, Task } from '../../api/tasks';
@@ -249,9 +249,9 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
   };
 
   const handleCopyToTemplate = async () => {
-    const mitNotizen = await frageMitHaken({
+    const mitNotizen = await frageNachNotizen((await eventsApi.notizen(eventId)).anzahl, {
       titel: 'Als Vorlage kopieren?', text: 'Die Vorlage bekommt Gruppen, Serien und Aufgaben – ohne Einteilungen und Datum.',
-      haken: 'Notizen der Leitung mitnehmen', hakenHinweis: 'Interne Notizen an Gruppen und Aufgaben. Ohne Häkchen startet die Vorlage ohne Notizen.', knopf: 'Vorlage erstellen',
+      knopf: 'Vorlage erstellen',
     });
     if (mitNotizen === null) return;
 
@@ -268,9 +268,14 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
   };
 
   const handleApproveSuggestion = async () => {
-    const mitNotizen = await frageMitHaken({
-      titel: 'Vorschlag annehmen?', text: 'Eine neue Vorlage wird erstellt – ohne Einteilungen und Datum.',
-      haken: 'Notizen der Leitung mitnehmen', hakenHinweis: 'Interne Notizen an Gruppen und Aufgaben. Ohne Häkchen startet die Vorlage ohne Notizen.', knopf: 'Annehmen',
+    // Voreinstellung: was beim Vorschlagen gewaehlt wurde.
+    const info = await eventsApi.notizen(eventId);
+    const mitNotizen = await frageNachNotizen(info.anzahl, {
+      titel: 'Vorschlag annehmen?',
+      text: 'Eine neue Vorlage wird erstellt – ohne Einteilungen und Datum.'
+        + (info.anzahl > 0 ? ` Beim Vorschlagen gewählt: ${info.vorschlagMitNotizen ? 'mit' : 'ohne'} Notizen.` : ''),
+      vorgabe: info.vorschlagMitNotizen,
+      knopf: 'Annehmen',
     });
     if (mitNotizen === null) return;
 

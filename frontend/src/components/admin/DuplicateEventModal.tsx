@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { eventsApi, Event } from '../../api/events';
 import { toDateInputValue } from '../../utils/date';
 import { zeitFeldProps } from '../../utils/zeitFeld';
@@ -16,6 +16,11 @@ export const DuplicateEventModal: React.FC<Props> = ({ event, onClose, onSuccess
   // Interne Notizen gelten oft nur fuer genau diese Durchfuehrung - deshalb
   // nur auf Wunsch.
   const [mitNotizen, setMitNotizen] = useState(false);
+  // Das Haekchen nur zeigen, wenn es ueberhaupt Notizen gibt.
+  const [notizAnzahl, setNotizAnzahl] = useState(0);
+  useEffect(() => {
+    eventsApi.notizen(event.id).then((r) => setNotizAnzahl(r.anzahl)).catch(() => setNotizAnzahl(0));
+  }, [event.id]);
   const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -86,15 +91,17 @@ export const DuplicateEventModal: React.FC<Props> = ({ event, onClose, onSuccess
             </div>
           </div>
 
+          {notizAnzahl > 0 && (
           <div style={styles.formGroup}>
             <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', cursor: 'pointer', fontSize: '0.9375rem' }}>
               <input type="checkbox" checked={mitNotizen} onChange={(e) => setMitNotizen(e.target.checked)} style={{ marginTop: '0.2rem' }} />
               <span>
-                Notizen der Leitung mitnehmen
+                Notizen der Leitung mitnehmen ({notizAnzahl} vorhanden)
                 <span style={{ ...styles.hint, display: 'block' }}>Interne Notizen an Gruppen und Aufgaben</span>
               </span>
             </label>
           </div>
+          )}
 
           <div style={styles.info}>
             <strong>Was wird kopiert:</strong>

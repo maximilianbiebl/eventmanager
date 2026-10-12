@@ -55,8 +55,13 @@ export const VERFALL_MS: Record<Meldungsart, number> = {
 
 /** Ab dieser Wartezeit steht ein Hinweis in der Nachricht. */
 const SPAET_AB_MS = 3 * 60 * 1000;
-/** Gleiche Nachricht an gleiche Nummer innerhalb dieser Zeit: nur einmal. */
-const DOPPELT_FENSTER_MS = 3 * 60 * 1000;
+/*
+ * Gleiche Nachricht an gleiche Nummer innerhalb dieser Zeit: nur einmal.
+ * Kurz gehalten: echte Doppelte (zwei Konten mit derselben Nummer, eine
+ * wiederholte Anfrage) kommen in derselben Sekunde. Wer eine Aufgabe
+ * zuruecksetzt und gleich wieder abhakt, soll die Meldung erneut bekommen.
+ */
+const DOPPELT_FENSTER_MS = 20 * 1000;
 
 const schlange: SignalAuftrag[] = [];
 const zuletztGesendet = new Map<string, number>();

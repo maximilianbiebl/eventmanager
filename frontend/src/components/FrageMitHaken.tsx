@@ -16,8 +16,8 @@ import { createRoot } from 'react-dom/client';
 interface Optionen {
   titel: string;
   text?: string;
-  /** Beschriftung des Haekchens. */
-  haken: string;
+  /** Beschriftung des Haekchens - ohne: einfache Rueckfrage. */
+  haken?: string;
   /** Erklaerung unter dem Haekchen. */
   hakenHinweis?: string;
   /** Voreinstellung des Haekchens. */
@@ -37,13 +37,15 @@ const Dialog: React.FC<Optionen & { fertig: (wert: boolean | null) => void }> = 
         onKeyDown={(e) => { if (e.key === 'Escape') fertig(null); }}>
         <h2 id="frage-titel" style={stil.titel}>{titel}</h2>
         {text && <p style={stil.text}>{text}</p>}
-        <label style={stil.haken}>
-          <input type="checkbox" checked={an} onChange={(e) => setAn(e.target.checked)} />
-          <span>
-            {haken}
-            {hakenHinweis && <span style={stil.hinweis}>{hakenHinweis}</span>}
-          </span>
-        </label>
+        {haken && (
+          <label style={stil.haken}>
+            <input type="checkbox" checked={an} onChange={(e) => setAn(e.target.checked)} />
+            <span>
+              {haken}
+              {hakenHinweis && <span style={stil.hinweis}>{hakenHinweis}</span>}
+            </span>
+          </label>
+        )}
         <div className="app-modal-actions" style={stil.knoepfe}>
           <button type="button" onClick={() => fertig(null)} style={stil.abbrechen}>Abbrechen</button>
           <button type="button" autoFocus onClick={() => fertig(an)} style={stil.los}>{knopf}</button>
@@ -66,6 +68,21 @@ export const frageMitHaken = (optionen: Optionen): Promise<boolean | null> =>
     };
     wurzel.render(<Dialog {...optionen} fertig={fertig} />);
   });
+
+/*
+ * Rueckfrage beim Kopieren einer Veranstaltung (Vorlage, Vorschlag,
+ * Annehmen): das Haekchen "Notizen mitnehmen" erscheint nur, wenn es dort
+ * ueberhaupt Notizen gibt - sonst ist es eine einfache Rueckfrage.
+ * Ergebnis wie frageMitHaken: mitnehmen ja/nein, null bei Abbruch.
+ */
+export const frageNachNotizen = async (
+  anzahl: number,
+  optionen: { titel: string; text?: string; knopf?: string; vorgabe?: boolean }
+): Promise<boolean | null> => frageMitHaken({
+  ...optionen,
+  haken: anzahl > 0 ? `Notizen der Leitung mitnehmen (${anzahl} vorhanden)` : undefined,
+  hakenHinweis: anzahl > 0 ? 'Interne Notizen an Gruppen und Aufgaben. Sie gelten oft nur für eine Durchführung.' : undefined,
+});
 
 const stil: { [k: string]: React.CSSProperties } = {
   hintergrund: {

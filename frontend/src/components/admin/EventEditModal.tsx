@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { frageMitHaken } from '../FrageMitHaken';
+import { frageNachNotizen } from '../FrageMitHaken';
 import { eventsApi, Event } from '../../api/events';
 import { usersApi, User } from '../../api/users';
 import { useAuth } from '../../context/AuthContext';
@@ -94,9 +94,9 @@ export const EventEditModal: React.FC<Props> = ({ event, onClose, onSuccess, onD
   };
 
   const handleCopyToTemplate = async () => {
-    const mitNotizen = await frageMitHaken({
+    const mitNotizen = await frageNachNotizen((await eventsApi.notizen(event.id)).anzahl, {
       titel: 'Als Vorlage kopieren?', text: 'Die Vorlage bekommt Gruppen, Serien und Aufgaben – ohne Einteilungen und Datum.',
-      haken: 'Notizen der Leitung mitnehmen', hakenHinweis: 'Interne Notizen an Gruppen und Aufgaben. Ohne Häkchen startet die Vorlage ohne Notizen.', knopf: 'Vorlage erstellen',
+      knopf: 'Vorlage erstellen',
     });
     if (mitNotizen === null) return;
 

@@ -82,12 +82,18 @@ export const eventsApi = {
     return response.data;
   },
 
-  suggestAsTemplate: async (id: number) => {
-    const response = await client.put(`/events/${id}/suggest-as-template`);
+  /** Wie viele interne Notizen - und was beim Vorschlagen dazu gewaehlt wurde. */
+  notizen: async (id: number): Promise<{ anzahl: number; vorschlagMitNotizen: boolean }> => {
+    const response = await client.get(`/events/${id}/notizen`);
     return response.data;
   },
 
-  approveSuggestion: async (id: number, mitNotizen = false) => {
+  suggestAsTemplate: async (id: number, mitNotizen = false) => {
+    const response = await client.put(`/events/${id}/suggest-as-template`, { mit_notizen: mitNotizen });
+    return response.data;
+  },
+
+  approveSuggestion: async (id: number, mitNotizen?: boolean) => {
     const response = await client.post(`/events/${id}/approve-suggestion`, { mit_notizen: mitNotizen });
     return response.data;
   },

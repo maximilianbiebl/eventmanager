@@ -26,6 +26,12 @@ export const CreateFromTemplateModal: React.FC<Props> = ({ templates, onClose, o
     co_teamleiter_ids: [] as number[],
   });
   const [loading, setLoading] = useState(false);
+  // Haekchen "Notizen uebernehmen" nur, wenn die Vorlage welche hat.
+  const [notizAnzahl, setNotizAnzahl] = useState(0);
+  useEffect(() => {
+    if (!selectedTemplateId) { setNotizAnzahl(0); return; }
+    eventsApi.notizen(selectedTemplateId).then((r) => setNotizAnzahl(r.anzahl)).catch(() => setNotizAnzahl(0));
+  }, [selectedTemplateId]);
   const [teamleiter, setTeamleiter] = useState<User[]>([]);
 
   useEffect(() => {
@@ -161,6 +167,7 @@ export const CreateFromTemplateModal: React.FC<Props> = ({ templates, onClose, o
           {/* "Anzahl Durchführungen" entfernt - Altlast. instance_count bleibt
               fest auf 1, damit der Backend-Vertrag unverändert bleibt. */}
 
+          {notizAnzahl > 0 && (
           <div style={styles.formGroup}>
             <label style={styles.checkboxLabel}>
               <input
@@ -169,9 +176,10 @@ export const CreateFromTemplateModal: React.FC<Props> = ({ templates, onClose, o
                 onChange={(e) => setFormData({ ...formData, mit_notizen: e.target.checked })}
                 style={styles.checkbox}
               />
-              <span>Notizen der Leitung aus der Vorlage übernehmen</span>
+              <span>Notizen der Leitung aus der Vorlage übernehmen ({notizAnzahl} vorhanden)</span>
             </label>
           </div>
+          )}
 
           {teamleiter.length > 0 && (
             <div style={styles.formGroup}>
