@@ -400,6 +400,7 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
                 ))}
                 <option value="neu">＋ Neue Gruppe anlegen…</option>
               </select>
+              <small style={styles.hint}>Zwischenüberschrift für zusammengehörende Aufgaben.</small>
             </div>
 
             <div style={styles.formGroup}>
@@ -443,10 +444,6 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
               </label>
             </div>
           )}
-
-          <p style={styles.bedarfHinweis}>
-            Zwischenüberschrift für zusammengehörende Aufgaben.
-          </p>
 
           <div style={styles.trenner} />
 
@@ -608,7 +605,7 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
             )}
 
             <div style={styles.formGroup}>
-              <label style={styles.label}>Erinnerung (Minuten vorher)</label>
+              <label style={styles.label}>Erinnerung</label>
               <input
                 type="number"
                 min="0"
@@ -616,7 +613,7 @@ export const TaskFormModal: React.FC<Props> = ({ eventId, onClose, onSuccess, ta
                 onChange={(e) => setFormData({ ...formData, reminder_minutes: parseInt(e.target.value) })}
                 style={styles.input}
               />
-              <small style={styles.hint}>0 = keine Erinnerung</small>
+              <small style={styles.hint}>Minuten vorher · 0 = keine</small>
             </div>
           </div>
 
@@ -737,11 +734,16 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: 'var(--c-text-muted)',
   },
   bedarfInput: {
+    // Gleiche Hoehe und Schrift wie alle anderen Felder (styles.input).
     width: '100%',
-    padding: '0.5rem',
+    height: '2.75rem',
+    minHeight: '2.75rem',
+    boxSizing: 'border-box',
+    padding: '0 0.625rem',
     border: '1px solid var(--c-border-strong)',
     borderRadius: '4px',
-    fontSize: '0.9375rem',
+    fontSize: '1rem',
+    lineHeight: 'normal',
     fontFamily: 'inherit',
   },
   bedarfHinweis: {
@@ -754,17 +756,31 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   label: {
     display: 'block',
+    // Einzeilig: bricht eine Beschriftung in einer Feld-Reihe um, rutscht
+    // ihr Feld tiefer als die Nachbarn ("Erinnerung (Minuten vorher)" am Handy).
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
     marginBottom: '0.5rem',
     fontWeight: '500',
     fontSize: '0.875rem',
     color: 'var(--c-text)',
   },
+  /*
+   * Feste Hoehe fuer ALLE einzeiligen Felder. Ohne sie zeichnet jeder
+   * Browser Uhrzeit-, Zahl- und Auswahlfelder anders hoch - besonders
+   * Android -, und Felder in einer Reihe standen versetzt.
+   */
   input: {
     width: '100%',
-    padding: '0.5rem',
+    height: '2.75rem',
+    minHeight: '2.75rem',
+    boxSizing: 'border-box',
+    padding: '0 0.625rem',
     border: '1px solid var(--c-border-strong)',
     borderRadius: '4px',
     fontSize: '1rem',
+    lineHeight: 'normal',
     color: 'var(--c-text)',
   },
   textarea: {
@@ -784,14 +800,20 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   checkboxLabel: {
     display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
+    alignItems: 'flex-start',
+    gap: '0.625rem',
     cursor: 'pointer',
     color: 'var(--c-text)',
+    // Wie die Feldbeschriftungen - vorher erbte der Text eine groessere Schrift.
+    fontSize: '0.9375rem',
+    lineHeight: 1.4,
   },
   checkbox: {
     width: '1.25rem',
     height: '1.25rem',
+    // Bricht der Text um, wurde das Kaestchen sonst gestaucht.
+    flexShrink: 0,
+    margin: '0.0625rem 0 0',
     cursor: 'pointer',
   },
   error: {
