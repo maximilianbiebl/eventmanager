@@ -20,6 +20,8 @@ export const CreateFromTemplateModal: React.FC<Props> = ({ templates, onClose, o
     name: templates.length === 1 ? templates[0].name : '',
     start_date: '',
     instance_count: 1,
+    // Notizen in einer Vorlage stehen dort mit Absicht - Voreinstellung an.
+    mit_notizen: true,
     days: templates.length === 1 ? templates[0].days : 4,
     co_teamleiter_ids: [] as number[],
   });
@@ -158,6 +160,18 @@ export const CreateFromTemplateModal: React.FC<Props> = ({ templates, onClose, o
 
           {/* "Anzahl Durchführungen" entfernt - Altlast. instance_count bleibt
               fest auf 1, damit der Backend-Vertrag unverändert bleibt. */}
+
+          <div style={styles.formGroup}>
+            <label style={styles.checkboxLabel}>
+              <input
+                type="checkbox"
+                checked={formData.mit_notizen}
+                onChange={(e) => setFormData({ ...formData, mit_notizen: e.target.checked })}
+                style={styles.checkbox}
+              />
+              <span>Notizen der Leitung aus der Vorlage übernehmen</span>
+            </label>
+          </div>
 
           {teamleiter.length > 0 && (
             <div style={styles.formGroup}>

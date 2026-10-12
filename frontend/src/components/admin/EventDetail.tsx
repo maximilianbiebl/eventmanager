@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { frageMitHaken } from '../FrageMitHaken';
 import { vorschau, istLang, MIT_UMBRUECHEN } from '../../utils/beschreibung';
 import { eventsApi } from '../../api/events';
 import { tasksApi, Task } from '../../api/tasks';
@@ -248,10 +249,14 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
   };
 
   const handleCopyToTemplate = async () => {
-    if (!confirm('Veranstaltung als Vorlage kopieren? (ohne Zuweisungen und Datum)')) return;
+    const mitNotizen = await frageMitHaken({
+      titel: 'Als Vorlage kopieren?', text: 'Die Vorlage bekommt Gruppen, Serien und Aufgaben – ohne Einteilungen und Datum.',
+      haken: 'Notizen der Leitung mitnehmen', hakenHinweis: 'Interne Notizen an Gruppen und Aufgaben. Ohne Häkchen startet die Vorlage ohne Notizen.', knopf: 'Vorlage erstellen',
+    });
+    if (mitNotizen === null) return;
 
     try {
-      await eventsApi.copyToTemplate(eventId);
+      await eventsApi.copyToTemplate(eventId, mitNotizen);
       alert('Vorlage erfolgreich erstellt');
       // Reload data to show the new template
       await loadData(false);
@@ -263,10 +268,14 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
   };
 
   const handleApproveSuggestion = async () => {
-    if (!confirm('Vorschlag als Vorlage annehmen? Eine neue Vorlage wird erstellt.')) return;
+    const mitNotizen = await frageMitHaken({
+      titel: 'Vorschlag annehmen?', text: 'Eine neue Vorlage wird erstellt – ohne Einteilungen und Datum.',
+      haken: 'Notizen der Leitung mitnehmen', hakenHinweis: 'Interne Notizen an Gruppen und Aufgaben. Ohne Häkchen startet die Vorlage ohne Notizen.', knopf: 'Annehmen',
+    });
+    if (mitNotizen === null) return;
 
     try {
-      const response = await eventsApi.approveSuggestion(eventId);
+      const response = await eventsApi.approveSuggestion(eventId, mitNotizen);
       const debugInfo = response.debug ? `\n\nKopiert: ${response.debug.copiedTasks} Aufgaben, ${response.debug.copiedProgram} Programmpunkte` : '';
       alert('Vorschlag wurde angenommen und als Vorlage erstellt' + debugInfo);
       // Reload data to update the suggestion flag

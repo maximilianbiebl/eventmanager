@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { frageMitHaken } from '../FrageMitHaken';
 import { eventsApi, Event } from '../../api/events';
 import { usersApi, User } from '../../api/users';
 import { useAuth } from '../../context/AuthContext';
@@ -93,11 +94,15 @@ export const EventEditModal: React.FC<Props> = ({ event, onClose, onSuccess, onD
   };
 
   const handleCopyToTemplate = async () => {
-    if (!confirm('Veranstaltung als Vorlage kopieren? (ohne Zuweisungen und Datum)')) return;
+    const mitNotizen = await frageMitHaken({
+      titel: 'Als Vorlage kopieren?', text: 'Die Vorlage bekommt Gruppen, Serien und Aufgaben – ohne Einteilungen und Datum.',
+      haken: 'Notizen der Leitung mitnehmen', hakenHinweis: 'Interne Notizen an Gruppen und Aufgaben. Ohne Häkchen startet die Vorlage ohne Notizen.', knopf: 'Vorlage erstellen',
+    });
+    if (mitNotizen === null) return;
 
     setLoading(true);
     try {
-      const response = await eventsApi.copyToTemplate(event.id);
+      const response = await eventsApi.copyToTemplate(event.id, mitNotizen);
       const debugInfo = response.debug ? `\n\nKopiert: ${response.debug.copiedTasks} Aufgaben, ${response.debug.copiedProgram} Programmpunkte` : '';
       alert('Vorlage erfolgreich erstellt' + debugInfo);
       onSuccess();

@@ -16,6 +16,9 @@ import { query } from '../database/connection';
  *   - Aufgaben mit allem, was an der Aufgabe haengt, und ihren Verweisen
  *     auf Gruppe und Serie
  *
+ * Interne Notizen der Leitung (an Gruppen und Aufgaben) nur auf Wunsch
+ * (mitNotizen): sie gelten oft nur fuer genau eine Durchfuehrung.
+ *
  * NICHT kopiert werden Menschen: weder die Mitglieder einer Serie noch
  * Zuweisungen. Wer mitarbeitet, entscheidet sich je Veranstaltung neu -
  * eine Vorlage ist ein Bauplan, keine Mannschaftsaufstellung.
@@ -31,8 +34,10 @@ export interface KopierErgebnis {
 
 export const kopiereInhalte = async (
   vonEventId: number | string,
-  nachEventId: number
+  nachEventId: number,
+  optionen: { mitNotizen?: boolean } = {}
 ): Promise<KopierErgebnis> => {
+  const notiz = (n: any) => (optionen.mitNotizen && n && String(n).trim() !== '' ? n : null);
   // --- Serien
   const serien = await query(
     'SELECT * FROM task_series WHERE event_id = $1 ORDER BY id', [vonEventId]
@@ -54,19 +59,20 @@ export const kopiereInhalte = async (
 
   if (gruppen.rows.length > 0) {
     const werte = gruppen.rows.map((_, i) =>
-      `($1, $${i * 7 + 2}, $${i * 7 + 3}, $${i * 7 + 4}, $${i * 7 + 5}, $${i * 7 + 6}, $${i * 7 + 7}, $${i * 7 + 8})`
+      `($1, $${i * 8 + 2}, $${i * 8 + 3}, $${i * 8 + 4}, $${i * 8 + 5}, $${i * 8 + 6}, $${i * 8 + 7}, $${i * 8 + 8}, $${i * 8 + 9})`
     ).join(', ');
     const werteListe: any[] = [nachEventId];
     for (const g of gruppen.rows) {
       werteListe.push(
         g.day_number, g.time, g.title, g.description, g.sort_order ?? 0,
         g.color ?? null,
-        g.series_id ? serienMap.get(g.series_id) ?? null : null
+        g.series_id ? serienMap.get(g.series_id) ?? null : null,
+        notiz(g.note)
       );
     }
     const neu = await query(
       `INSERT INTO program_items
-         (event_id, day_number, time, title, description, sort_order, color, series_id)
+         (event_id, day_number, time, title, description, sort_order, color, series_id, note)
        VALUES ${werte} RETURNING id`,
       werteListe
     );
@@ -77,7 +83,7 @@ export const kopiereInhalte = async (
   const aufgaben = await query('SELECT * FROM tasks WHERE event_id = $1 ORDER BY id', [vonEventId]);
 
   if (aufgaben.rows.length > 0) {
-    const SPALTEN = 17;
+    const SPALTEN = 18;
     const werte = aufgaben.rows.map((_, i) => {
       const b = i * SPALTEN + 2;
       return `($1, ${Array.from({ length: SPALTEN }, (_, k) => `$${b + k}`).join(', ')})`;
@@ -103,7 +109,8 @@ export const kopiereInhalte = async (
         t.needed_female ?? null,
         t.needed_male ?? null,
         t.auto_complete ?? false,
-        t.series_id ? serienMap.get(t.series_id) ?? null : null
+        t.series_id ? serienMap.get(t.series_id) ?? null : null,
+        notiz(t.note)
       );
     }
 
@@ -111,7 +118,7 @@ export const kopiereInhalte = async (
       `INSERT INTO tasks (
          event_id, program_item_id, day_number, title, description,
          scheduled_time, start_time, end_time, reminder_minutes, is_public, status, is_active,
-         sort_order, needed_staff, needed_female, needed_male, auto_complete, series_id
+         sort_order, needed_staff, needed_female, needed_male, auto_complete, series_id, note
        ) VALUES ${werte}`,
       werteListe
     );

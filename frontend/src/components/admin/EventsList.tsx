@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { frageMitHaken } from '../FrageMitHaken';
 import { eventsApi, Event } from '../../api/events';
 import { usersApi, User } from '../../api/users';
 import { CreateEventModal } from './CreateEventModal';
@@ -160,10 +161,14 @@ export const EventsList: React.FC = () => {
   };
 
   const handleCopyToTemplate = async (eventId: number) => {
-    if (!confirm('Veranstaltung als Vorlage kopieren? (ohne Zuweisungen und Datum)')) return;
+    const mitNotizen = await frageMitHaken({
+      titel: 'Als Vorlage kopieren?', text: 'Die Vorlage bekommt Gruppen, Serien und Aufgaben – ohne Einteilungen und Datum.',
+      haken: 'Notizen der Leitung mitnehmen', hakenHinweis: 'Interne Notizen an Gruppen und Aufgaben. Ohne Häkchen startet die Vorlage ohne Notizen.', knopf: 'Vorlage erstellen',
+    });
+    if (mitNotizen === null) return;
 
     try {
-      await eventsApi.copyToTemplate(eventId);
+      await eventsApi.copyToTemplate(eventId, mitNotizen);
       await loadData(false);
       alert('Vorlage erfolgreich erstellt');
     } catch (error) {
@@ -186,10 +191,14 @@ export const EventsList: React.FC = () => {
   };
 
   const handleApproveSuggestion = async (eventId: number) => {
-    if (!confirm('Vorschlag als Vorlage annehmen? (erstellt Kopie ohne Zuweisungen/Datum)')) return;
+    const mitNotizen = await frageMitHaken({
+      titel: 'Vorschlag annehmen?', text: 'Eine neue Vorlage wird erstellt – ohne Einteilungen und Datum.',
+      haken: 'Notizen der Leitung mitnehmen', hakenHinweis: 'Interne Notizen an Gruppen und Aufgaben. Ohne Häkchen startet die Vorlage ohne Notizen.', knopf: 'Annehmen',
+    });
+    if (mitNotizen === null) return;
 
     try {
-      await eventsApi.approveSuggestion(eventId);
+      await eventsApi.approveSuggestion(eventId, mitNotizen);
       await loadData(false);
       alert('Vorlage erfolgreich erstellt');
     } catch (error) {
@@ -238,10 +247,14 @@ export const EventsList: React.FC = () => {
       return;
     }
 
-    if (!confirm(`${selectedIds.length} Vorschläge als Vorlagen annehmen?`)) return;
+    const mitNotizen = await frageMitHaken({
+      titel: `${selectedIds.length} Vorschläge annehmen?`, text: 'Aus jedem wird eine neue Vorlage – ohne Einteilungen und Datum.',
+      haken: 'Notizen der Leitung mitnehmen', hakenHinweis: 'Interne Notizen an Gruppen und Aufgaben. Ohne Häkchen startet die Vorlage ohne Notizen.', knopf: 'Annehmen',
+    });
+    if (mitNotizen === null) return;
 
     try {
-      await eventsApi.bulkApproveSuggestions(selectedIds);
+      await eventsApi.bulkApproveSuggestions(selectedIds, mitNotizen);
       setSelectedIds([]);
       await loadData(false);
       alert('Vorlagen erfolgreich erstellt');

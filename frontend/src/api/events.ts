@@ -62,7 +62,7 @@ export const eventsApi = {
     return response.data;
   },
 
-  duplicate: async (id: number, data: { name?: string; start_date?: string; instance_count?: number }) => {
+  duplicate: async (id: number, data: { name?: string; start_date?: string; instance_count?: number; mit_notizen?: boolean }) => {
     const response = await client.post(`/events/${id}/duplicate`, data);
     return response.data;
   },
@@ -72,13 +72,13 @@ export const eventsApi = {
     return response.data;
   },
 
-  createFromTemplate: async (id: number, data: { name: string; start_date: string; instance_count: number }) => {
+  createFromTemplate: async (id: number, data: { name: string; start_date: string; instance_count: number; mit_notizen?: boolean }) => {
     const response = await client.post(`/events/${id}/create-from-template`, data);
     return response.data;
   },
 
-  copyToTemplate: async (id: number) => {
-    const response = await client.post(`/events/${id}/copy-to-template`);
+  copyToTemplate: async (id: number, mitNotizen = false) => {
+    const response = await client.post(`/events/${id}/copy-to-template`, { mit_notizen: mitNotizen });
     return response.data;
   },
 
@@ -87,8 +87,8 @@ export const eventsApi = {
     return response.data;
   },
 
-  approveSuggestion: async (id: number) => {
-    const response = await client.post(`/events/${id}/approve-suggestion`);
+  approveSuggestion: async (id: number, mitNotizen = false) => {
+    const response = await client.post(`/events/${id}/approve-suggestion`, { mit_notizen: mitNotizen });
     return response.data;
   },
 
@@ -97,8 +97,8 @@ export const eventsApi = {
     return response.data;
   },
 
-  bulkApproveSuggestions: async (ids: number[]) => {
-    const response = await client.post('/events/bulk-approve-suggestions', { ids });
+  bulkApproveSuggestions: async (ids: number[], mitNotizen = false) => {
+    const response = await client.post('/events/bulk-approve-suggestions', { ids, mit_notizen: mitNotizen });
     return response.data;
   },
 

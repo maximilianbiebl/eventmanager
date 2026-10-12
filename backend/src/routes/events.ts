@@ -441,7 +441,8 @@ router.post('/:id/create-from-template', authMiddleware, teamleiterOrAdminMiddle
      * Neuerung kam dadurch an einer Stelle an und fehlte an den
      * anderen (zuletzt die Farbe der Gruppen).
      */
-    await kopiereInhalte(id, newEvent.id);
+    // Aus einer Vorlage: Notizen, die dort stehen, sind gewollt - Voreinstellung an.
+    await kopiereInhalte(id, newEvent.id, { mitNotizen: req.body?.mit_notizen !== false });
 
     // SSE Broadcast für instant updates
     broadcastUpdate('event', { action: 'event_created', eventId: newEvent.id, fromTemplate: id });
@@ -496,7 +497,7 @@ router.post('/:id/copy-to-template', authMiddleware, adminMiddleware, async (req
      * Neuerung kam dadurch an einer Stelle an und fehlte an den
      * anderen (zuletzt die Farbe der Gruppen).
      */
-    await kopiereInhalte(id, template.id);
+    await kopiereInhalte(id, template.id, { mitNotizen: req.body?.mit_notizen === true });
 
     // Prüfe ob Daten tatsächlich kopiert wurden
     const verifyTasks = await query('SELECT * FROM tasks WHERE event_id = $1', [template.id]);
@@ -593,7 +594,7 @@ router.post('/:id/approve-suggestion', authMiddleware, adminMiddleware, async (r
      * Neuerung kam dadurch an einer Stelle an und fehlte an den
      * anderen (zuletzt die Farbe der Gruppen).
      */
-    await kopiereInhalte(id, template.id);
+    await kopiereInhalte(id, template.id, { mitNotizen: req.body?.mit_notizen === true });
 
     // Prüfe ob Daten tatsächlich kopiert wurden
     const verifyTasks = await query('SELECT * FROM tasks WHERE event_id = $1', [template.id]);
@@ -678,7 +679,7 @@ router.post('/:id/duplicate', authMiddleware, teamleiterOrAdminMiddleware, async
      * Neuerung kam dadurch an einer Stelle an und fehlte an den
      * anderen (zuletzt die Farbe der Gruppen).
      */
-    await kopiereInhalte(id, newEvent.id);
+    await kopiereInhalte(id, newEvent.id, { mitNotizen: req.body?.mit_notizen === true });
 
     res.status(201).json({
       ...newEvent,
@@ -794,74 +795,13 @@ router.post('/bulk-approve-suggestions', authMiddleware, adminMiddleware, async 
         [template.id, 1, null]
       );
 
-      // Programmpunkte kopieren
-      const originalProgram = await query('SELECT * FROM program_items WHERE event_id = $1 ORDER BY id', [id]);
-      const programItemIdMap = new Map<number, number>();
-
-      if (originalProgram.rows.length > 0) {
-        const programValues = originalProgram.rows.map((p, idx) =>
-          // Sechs Werte je Gruppe: Tag, Zeit, Titel, Beschreibung, Rang, Farbe.
-        `($1, $${idx * 6 + 2}, $${idx * 6 + 3}, $${idx * 6 + 4}, $${idx * 6 + 5}, $${idx * 6 + 6}, $${idx * 6 + 7})`
-        ).join(', ');
-        const programParams = [template.id];
-        originalProgram.rows.forEach(p => {
-          // sort_order mit: ohne Uhrzeit ist sie die einzige Reihenfolge.
-          programParams.push(p.day_number, p.time, p.title, p.description, p.sort_order ?? 0, p.color ?? null);
-        });
-
-        const newProgramItems = await query(
-          `INSERT INTO program_items (event_id, day_number, time, title, description, sort_order)
-           VALUES ${programValues} RETURNING id`,
-          programParams
-        );
-
-        originalProgram.rows.forEach((program, idx) => {
-          programItemIdMap.set(program.id, newProgramItems.rows[idx].id);
-        });
-      }
-
-      // Tasks kopieren
-      const originalTasks = await query('SELECT * FROM tasks WHERE event_id = $1', [id]);
-
-      if (originalTasks.rows.length > 0) {
-        const taskValues = originalTasks.rows.map((t, idx) => {
-          const baseIdx = idx * 16 + 2;
-          return `($1, $${baseIdx}, $${baseIdx+1}, $${baseIdx+2}, $${baseIdx+3}, $${baseIdx+4}, $${baseIdx+5}, $${baseIdx+6}, $${baseIdx+7}, $${baseIdx+8}, $${baseIdx+9}, $${baseIdx+10}, $${baseIdx+11}, $${baseIdx+12}, $${baseIdx+13}, $${baseIdx+14}, $${baseIdx+15})`;
-        }).join(', ');
-
-        const taskParams = [template.id];
-        originalTasks.rows.forEach(task => {
-          const newProgramItemId = task.program_item_id ? programItemIdMap.get(task.program_item_id) : null;
-          taskParams.push(
-            newProgramItemId || null,
-            task.day_number,
-            task.title,
-            task.description,
-            task.scheduled_time,
-            task.start_time,
-            task.end_time,
-            task.reminder_minutes,
-            task.is_public,
-            'not_started',
-            task.is_active !== undefined ? task.is_active : true,
-            task.sort_order || 0,
-            // Personalbedarf mitkopieren, siehe oben.
-            task.needed_staff ?? null,
-            task.needed_female ?? null,
-            task.needed_male ?? null,
-            task.auto_complete ?? false
-          );
-        });
-
-        await query(
-          `INSERT INTO tasks (
-            event_id, program_item_id, day_number, title, description,
-            scheduled_time, start_time, end_time, reminder_minutes, is_public, status, is_active, sort_order,
-            needed_staff, needed_female, needed_male, auto_complete
-          ) VALUES ${taskValues}`,
-          taskParams
-        );
-      }
+      /*
+       * Inhalte wie bei allen anderen Wegen (utils/eventKopie). Hier stand
+       * eine eigene, aeltere Fassung: sie uebergab je Gruppe sieben Werte
+       * fuer sechs Spalten - mit Aufgabengruppen brach das Annehmen mit
+       * einem Datenbankfehler ab - und liess die Serien weg.
+       */
+      await kopiereInhalte(id, template.id, { mitNotizen: req.body.mit_notizen === true });
 
       // Vorschlag-Flag beim Original entfernen
       await query('UPDATE events SET is_template_suggestion = false WHERE id = $1', [id]);

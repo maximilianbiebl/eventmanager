@@ -13,6 +13,9 @@ export const DuplicateEventModal: React.FC<Props> = ({ event, onClose, onSuccess
   const [name, setName] = useState(`${event.name} (Kopie)`);
   const [startDate, setStartDate] = useState(toDateInputValue(event.start_date));
   const [loading, setLoading] = useState(false);
+  // Interne Notizen gelten oft nur fuer genau diese Durchfuehrung - deshalb
+  // nur auf Wunsch.
+  const [mitNotizen, setMitNotizen] = useState(false);
   const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -28,7 +31,7 @@ export const DuplicateEventModal: React.FC<Props> = ({ event, onClose, onSuccess
     try {
       // instance_count fest auf 1: "Anzahl Durchführungen" war eine Altlast
       // und ist aus der Oberfläche entfernt. Der Backend-Vertrag bleibt gleich.
-      await eventsApi.duplicate(event.id, { name, start_date: startDate, instance_count: 1 });
+      await eventsApi.duplicate(event.id, { name, start_date: startDate, instance_count: 1, mit_notizen: mitNotizen });
       onSuccess();
     } catch (error: any) {
       console.error('Duplicate event error:', error);
@@ -81,6 +84,16 @@ export const DuplicateEventModal: React.FC<Props> = ({ event, onClose, onSuccess
             <div style={styles.hint}>
               Startdatum der Kopie
             </div>
+          </div>
+
+          <div style={styles.formGroup}>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', cursor: 'pointer', fontSize: '0.9375rem' }}>
+              <input type="checkbox" checked={mitNotizen} onChange={(e) => setMitNotizen(e.target.checked)} style={{ marginTop: '0.2rem' }} />
+              <span>
+                Notizen der Leitung mitnehmen
+                <span style={{ ...styles.hint, display: 'block' }}>Interne Notizen an Gruppen und Aufgaben</span>
+              </span>
+            </label>
           </div>
 
           <div style={styles.info}>
