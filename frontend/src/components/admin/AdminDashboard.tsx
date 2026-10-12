@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNotifications } from '../../hooks/useNotifications';
 import { useAuth } from '../../context/AuthContext';
 import { EventsList } from './EventsList';
 import { UsersList } from './UsersList';
@@ -72,6 +73,13 @@ export const AdminDashboard: React.FC = () => {
    * Sitzung; beim naechsten Anmelden kommt er wieder, bis neu gekoppelt ist.
    */
   const [signalGetrennt, setSignalGetrennt] = useState<string | null>(null);
+  const notifications = useNotifications();
+  // "Spaeter": eine Woche Ruhe, dann wieder fragen.
+  const [pushSpaeter, setPushSpaeter] = useState(() => {
+    try { return Date.now() - Number(localStorage.getItem('pushHinweisSpaeter') || 0) < 7 * 24 * 3600 * 1000; } catch { return false; }
+  });
+  const pushHinweis = notifications.isSupported && !notifications.isSubscribed && !pushSpaeter
+    && typeof Notification !== 'undefined' && Notification.permission !== 'denied';
   const [settingsReiter, setSettingsReiter] = useState<'general' | 'signal'>('general');
   React.useEffect(() => {
     if (user?.role !== 'teamleiter' && user?.role !== 'admin') return;
@@ -256,6 +264,27 @@ export const AdminDashboard: React.FC = () => {
         </div>
       </div>
 
+      {/*
+        Benachrichtigungen auf diesem Geraet aktivieren - bisher gab es den
+        Hinweis nur bei den Mitarbeitenden; die Leitung fand den Knopf nur
+        in den Einstellungen und bekam ohne ihn keine Push-Meldungen.
+      */}
+      {pushHinweis && (
+        <div style={styles.pushHinweis} role="status">
+          <span>Benachrichtigungen sind auf diesem Gerät nicht aktiv – ohne sie kommen hier keine Statusmeldungen und Erinnerungen an.</span>
+          <span style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+            <button type="button" style={styles.pushLater} onClick={() => {
+              try { localStorage.setItem('pushHinweisSpaeter', String(Date.now())); } catch { /* egal */ }
+              setPushSpaeter(true);
+            }}>Später</button>
+            <button type="button" style={styles.pushAn} onClick={async () => {
+              const ok = await notifications.subscribe();
+              if (!ok) alert('Benachrichtigungen konnten nicht aktiviert werden. Erlaube sie in den Einstellungen deines Browsers für diese Seite.');
+            }}>Aktivieren</button>
+          </span>
+        </div>
+      )}
+
       <div style={styles.tabs} className={responsiveStyles.tabs}>
         <button
           onClick={() => handleTabClick('events')}
@@ -341,6 +370,19 @@ export const AdminDashboard: React.FC = () => {
 };
 
 const styles: { [key: string]: React.CSSProperties } = {
+  pushHinweis: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap',
+    padding: '0.75rem 1rem', marginBottom: '1rem', borderRadius: '8px', fontSize: '0.9375rem',
+    backgroundColor: 'var(--c-accent-soft)', color: 'var(--c-text)',
+  },
+  pushAn: {
+    padding: '0.45rem 1rem', borderRadius: '4px', border: 'none', cursor: 'pointer', fontWeight: 500,
+    backgroundColor: 'var(--c-accent)', color: 'var(--c-text-inverse)',
+  },
+  pushLater: {
+    padding: '0.45rem 0.9rem', borderRadius: '4px', cursor: 'pointer', backgroundColor: 'transparent',
+    border: '1px solid var(--c-border-strong)', color: 'var(--c-text)',
+  },
   container: {
     minHeight: '100vh',
     backgroundColor: 'var(--c-surface-muted)',

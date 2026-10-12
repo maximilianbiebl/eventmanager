@@ -153,7 +153,17 @@ export const pushSenden = async (
     [userIds]
   );
   const zustellung = pushZustellung(new Date(), task, instanzId, art);
-  const text = JSON.stringify(payload);
+  /*
+   * Eigene Kennung je Meldung. Ohne sie bekam jede dieselbe ("default"),
+   * und eine neue ersetzte die vorige auf dem Handy still - von fuenf
+   * Statusmeldungen war nur die letzte zu sehen. renotify: auch eine
+   * ersetzte Meldung (gleiche Aufgabe) macht sich wieder bemerkbar.
+   */
+  const text = JSON.stringify({
+    tag: `${art}-${task?.id ?? 'x'}-${Date.now()}`,
+    renotify: true,
+    ...payload,
+  });
   await Promise.all(subs.rows.map(async (sub: any) => {
     try {
       await webpush.sendNotification(

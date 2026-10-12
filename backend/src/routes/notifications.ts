@@ -71,8 +71,20 @@ router.post('/subscribe', authMiddleware, async (req: AuthRequest, res) => {
     const { endpoint, keys } = req.body;
     const userId = req.user!.id;
 
-    // Prüfen ob bereits existiert
-    const existing = await query('SELECT * FROM push_subscriptions WHERE user_id = $1 AND endpoint = $2', [
+    if (!endpoint || !keys?.p256dh || !keys?.auth) {
+      return res.status(400).json({ error: 'Unvollständige Push-Anmeldung' });
+    }
+
+    /*
+     * Ein Geraet gehoert dem, der dort zuletzt angemeldet ist. Vorher blieb
+     * es fuer jedes Konto eingetragen, das sich je darauf angemeldet hatte -
+     * ein gemeinsam genutztes Handy bekam die Meldungen aller.
+     */
+    await query('DELETE FROM push_subscriptions WHERE endpoint = $1 AND user_id <> $2', [endpoint, userId]);
+
+    // Die App meldet sich bei jedem Start erneut (Abgleich) - Schluessel
+    // koennen sich geaendert haben.
+    const existing = await query('SELECT id FROM push_subscriptions WHERE user_id = $1 AND endpoint = $2', [
       userId,
       endpoint,
     ]);
@@ -81,6 +93,11 @@ router.post('/subscribe', authMiddleware, async (req: AuthRequest, res) => {
       await query(
         'INSERT INTO push_subscriptions (user_id, endpoint, keys_p256dh, keys_auth) VALUES ($1, $2, $3, $4)',
         [userId, endpoint, keys.p256dh, keys.auth]
+      );
+    } else {
+      await query(
+        'UPDATE push_subscriptions SET keys_p256dh = $1, keys_auth = $2 WHERE id = $3',
+        [keys.p256dh, keys.auth, existing.rows[0].id]
       );
     }
 

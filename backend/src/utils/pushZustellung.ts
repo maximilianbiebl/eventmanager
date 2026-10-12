@@ -30,6 +30,12 @@ export interface Zustellung {
   TTL: number;
   /** Ersetzt eine noch wartende Nachricht derselben Aufgabe. */
   topic?: string;
+  /*
+   * "high": sofort zustellen, auch im Stromsparmodus. Mit der Vorgabe
+   * "normal" buendelt Android die Nachrichten im Ruhezustand und stellt sie
+   * spaeter gesammelt zu - Erinnerungen kamen so verspaetet an.
+   */
+  urgency: 'high';
 }
 
 /**
@@ -79,6 +85,15 @@ const verfaelltUm = (jetzt: Date, aufgabe: Aufgabenzeiten, art: Meldungsart): Da
   if (art === 'ueberfaellig' || art === 'eigene') {
     return new Date(jetzt.getTime() + 30 * 60 * 1000);
   }
+  /*
+   * Statusmeldungen ("Erledigt", "In Arbeit") altern nicht mit der Aufgabe:
+   * abgehakt wird oft NACH deren Ende - dann blieben nur die 5 Minuten
+   * Mindestfrist, und ein Handy im Funkloch oder Ruhemodus bekam die
+   * Meldung nie. Eine Stunde.
+   */
+  if (art === 'aenderung') {
+    return new Date(jetzt.getTime() + TTL_HOECHSTENS * 1000);
+  }
   const zeit = aufgabe.end_time || aufgabe.start_time || aufgabe.scheduled_time;
   if (!zeit) return new Date(jetzt.getTime() + 30 * 60 * 1000);
   return new Date(heuteUm(jetzt, zeit).getTime() + GNADENFRIST_MS);
@@ -101,5 +116,6 @@ export const pushZustellung = (
     // Je Aufgabe und Durchfuehrung - nicht je Art: die neuere Meldung zu
     // derselben Aufgabe soll die aeltere ersetzen.
     topic: instanzId ? `t${aufgabe.id}-i${instanzId}` : `t${aufgabe.id}`,
+    urgency: 'high',
   };
 };

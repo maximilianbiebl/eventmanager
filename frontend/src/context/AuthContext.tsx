@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../api/auth';
 import { getToken, getStoredUser, storeAuth, clearAuth } from '../utils/authStorage';
+import { pushAbgleichen, pushAustragen } from '../utils/pushAbgleich';
 
 interface AuthContextType {
   user: User | null;
@@ -40,7 +41,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     storeAuth(token, user, remember);
   };
 
+  // Bei jeder Anmeldung (und beim Start mit gespeicherter) die Push-
+  // Anmeldung dieses Geraets mit dem Server abgleichen - utils/pushAbgleich.
+  useEffect(() => {
+    if (token) void pushAbgleichen();
+  }, [token]);
+
   const logout = () => {
+    // Das Geraet beim Server austragen - mit dem Ausweis von eben, die
+    // Anmeldung selbst ist sofort weg.
+    void pushAustragen(token);
     setUser(null);
     setToken(null);
     clearAuth();

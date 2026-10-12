@@ -158,7 +158,12 @@ self.addEventListener('push', (event) => {
     body: data.body,
     icon: data.icon || '/icon-192.png',
     badge: '/icon-192.png',
-    tag: data.tag || 'default',
+    /*
+     * Ohne eigene Kennung bekamen alle Meldungen dieselbe ("default") und
+     * ersetzten sich gegenseitig still - nur die letzte blieb sichtbar.
+     */
+    tag: data.tag || `meldung-${Date.now()}`,
+    renotify: true,
     data: data.data || {},
     vibrate: [200, 100, 200],
     requireInteraction: true,
