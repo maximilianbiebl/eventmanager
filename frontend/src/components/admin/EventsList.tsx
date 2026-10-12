@@ -182,7 +182,7 @@ export const EventsList: React.FC = () => {
     const mitNotizen = await frageNachNotizen(anzahl, {
       titel: 'Als Vorlage vorschlagen?',
       text: 'Ein Admin entscheidet, ob daraus eine Vorlage wird.'
-        + (anzahl > 0 ? ' Deine Wahl zu den Notizen ist dabei voreingestellt und lässt sich noch ändern.' : ''),
+        + (anzahl > 0 ? ' Ohne Häkchen kommen deine Notizen nicht in die Vorlage. Mit Häkchen kann der Admin sie noch weglassen.' : ''),
       knopf: 'Vorschlagen',
     });
     if (mitNotizen === null) return;
@@ -200,11 +200,16 @@ export const EventsList: React.FC = () => {
   const handleApproveSuggestion = async (eventId: number) => {
     // Voreinstellung: was beim Vorschlagen gewaehlt wurde.
     const info = await eventsApi.notizen(eventId);
-    const mitNotizen = await frageNachNotizen(info.anzahl, {
+    /*
+     * Notizen nur, wenn die vorschlagende Leitung sie freigegeben hat - dann
+     * kann der Admin sie noch weglassen. Ohne Freigabe gibt es kein Haekchen.
+     */
+    const freigegeben = info.anzahl > 0 && info.vorschlagMitNotizen;
+    const mitNotizen = await frageNachNotizen(freigegeben ? info.anzahl : 0, {
       titel: 'Vorschlag annehmen?',
       text: 'Eine neue Vorlage wird erstellt – ohne Einteilungen und Datum.'
-        + (info.anzahl > 0 ? ` Beim Vorschlagen gewählt: ${info.vorschlagMitNotizen ? 'mit' : 'ohne'} Notizen.` : ''),
-      vorgabe: info.vorschlagMitNotizen,
+        + (info.anzahl > 0 && !info.vorschlagMitNotizen ? ' Die Notizen wurden beim Vorschlagen nicht freigegeben und kommen nicht mit.' : ''),
+      vorgabe: true,
       knopf: 'Annehmen',
     });
     if (mitNotizen === null) return;
@@ -261,8 +266,8 @@ export const EventsList: React.FC = () => {
 
     const mitNotizen = await frageMitHaken({
       titel: `${selectedIds.length} Vorschläge annehmen?`, text: 'Aus jedem wird eine neue Vorlage – ohne Einteilungen und Datum.',
-      haken: 'Notizen übernehmen, wo es beim Vorschlagen gewählt wurde',
-      hakenHinweis: 'Ohne Häkchen kommen keine Notizen mit. Einzeln annehmen, um je Vorschlag zu entscheiden.',
+      haken: 'Notizen übernehmen, wo sie beim Vorschlagen freigegeben wurden',
+      hakenHinweis: 'Ohne Häkchen kommen keine Notizen mit. Nicht freigegebene kommen nie mit.',
       vorgabe: true, knopf: 'Annehmen',
     });
     if (mitNotizen === null) return;

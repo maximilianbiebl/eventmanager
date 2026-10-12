@@ -270,11 +270,16 @@ export const EventDetail: React.FC<Props> = ({ eventId, onBack }) => {
   const handleApproveSuggestion = async () => {
     // Voreinstellung: was beim Vorschlagen gewaehlt wurde.
     const info = await eventsApi.notizen(eventId);
-    const mitNotizen = await frageNachNotizen(info.anzahl, {
+    /*
+     * Notizen nur, wenn die vorschlagende Leitung sie freigegeben hat - dann
+     * kann der Admin sie noch weglassen. Ohne Freigabe gibt es kein Haekchen.
+     */
+    const freigegeben = info.anzahl > 0 && info.vorschlagMitNotizen;
+    const mitNotizen = await frageNachNotizen(freigegeben ? info.anzahl : 0, {
       titel: 'Vorschlag annehmen?',
       text: 'Eine neue Vorlage wird erstellt – ohne Einteilungen und Datum.'
-        + (info.anzahl > 0 ? ` Beim Vorschlagen gewählt: ${info.vorschlagMitNotizen ? 'mit' : 'ohne'} Notizen.` : ''),
-      vorgabe: info.vorschlagMitNotizen,
+        + (info.anzahl > 0 && !info.vorschlagMitNotizen ? ' Die Notizen wurden beim Vorschlagen nicht freigegeben und kommen nicht mit.' : ''),
+      vorgabe: true,
       knopf: 'Annehmen',
     });
     if (mitNotizen === null) return;

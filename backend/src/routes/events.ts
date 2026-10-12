@@ -615,10 +615,14 @@ router.post('/:id/approve-suggestion', authMiddleware, adminMiddleware, async (r
      * Neuerung kam dadurch an einer Stelle an und fehlte an den
      * anderen (zuletzt die Farbe der Gruppen).
      */
-    // Ohne ausdrueckliche Wahl des Admins gilt, was beim Vorschlagen gewaehlt wurde.
-    const mitNotizen = typeof req.body?.mit_notizen === 'boolean'
-      ? req.body.mit_notizen
-      : originalEvent.rows[0].vorschlag_mit_notizen === true;
+    /*
+     * Notizen nur, wenn sie beim Vorschlagen freigegeben wurden. Der Admin
+     * kann sie dann noch weglassen (mit_notizen: false), aber nicht gegen
+     * die Wahl der vorschlagenden Leitung hinzunehmen - es sind deren
+     * interne Notizen.
+     */
+    const mitNotizen = originalEvent.rows[0].vorschlag_mit_notizen === true
+      && req.body?.mit_notizen !== false;
     await kopiereInhalte(id, template.id, { mitNotizen });
 
     // Prüfe ob Daten tatsächlich kopiert wurden
